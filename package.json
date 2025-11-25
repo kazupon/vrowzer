@@ -2,7 +2,7 @@
   "name": "browser-hmr-worker",
   "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "play": "pnpm --filter editor dev"
   },
   "license": "MIT",
   "packageManager": "pnpm@10.23.0"
