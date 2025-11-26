@@ -1,5 +1,5 @@
 {
-  "name": "browser-hmr-worker",
+  "name": "rolldown-hmr-browser-monorepo",
   "private": true,
   "scripts": {
     "play": "pnpm --filter editor dev"
