@@ -1,84 +1,82 @@
-import { rollup, type Plugin, type RollupBuild } from '@rollup/browser'
+import type { RolldownPlugin, rolldown as Rolldown } from '@rolldown/browser'
 
-// Virtual file system
-const files = new Map<string, string>()
-
-/**
- * Resolve relative paths
- */
-function resolvePath(id: string, importer?: string): string {
-  if (!importer || id.startsWith('/')) {
-    return id.startsWith('/') ? id : `/${id}`
+// Types for rolldown binding with __volume
+interface RolldownBinding {
+  readonly __volume: {
+    reset(): void
+    fromJSON(fileMap: { [path: string]: string }): void
   }
-
-  const importerDir = importer.substring(0, importer.lastIndexOf('/'))
-  const parts = `${importerDir}/${id}`.split('/')
-  const resolved: string[] = []
-
-  for (const part of parts) {
-    if (part === '..') {
-      resolved.pop()
-    } else if (part !== '.' && part !== '') {
-      resolved.push(part)
-    }
-  }
-
-  return '/' + resolved.join('/')
 }
 
 /**
- * Virtual file system plugin
+ * Dynamic import helper to avoid Vite's static analysis
  */
-function virtualFsPlugin(): Plugin {
-  return {
-    name: 'virtual-fs',
+function dynamicImport<T = unknown>(url: string): Promise<T> {
+  return new Function('url', 'return import(url)')(url)
+}
 
-    resolveId(id: string, importer?: string) {
-      console.log(`[Virtual FS] Resolving ${id} from ${importer}`)
+// Lazy-loaded modules
+let _rolldown: typeof Rolldown | null = null
+let _binding: RolldownBinding | null = null
 
-      // Resolve relative paths
-      let resolved = resolvePath(id, importer)
-
-      // Add .js extension if missing
-      if (!resolved.includes('.')) {
-        if (files.has(resolved + '.js')) {
-          resolved += '.js'
-        } else if (files.has(resolved + '/index.js')) {
-          resolved += '/index.js'
-        }
-      }
-
-      return resolved
-    },
-
-    load(id: string) {
-      console.log(`[Virtual FS] Loading ${id}`)
-      const content = files.get(id)
-      if (content !== undefined) {
-        return content
-      }
-      return null
-    },
+/**
+ * Load rolldown by loading from proxy
+ */
+async function loadRolldown(files: Map<string, string>): Promise<[typeof Rolldown, RolldownBinding]> {
+  if (_rolldown && _binding) {
+    console.log('[Bundler] Rolldown already initialized')
+    prepareFileMap(_binding, files)
+    return [_rolldown, _binding]
   }
+
+  console.log('[Bundler] Initializing rolldown...')
+
+  // Load rolldown and binding from proxy
+  // Using dynamicImport to avoid Vite's static analysis
+  const [rolldownModule, bindingModule] = await Promise.all([
+    dynamicImport<{ rolldown: typeof Rolldown }>('/api/rolldown/dist/index.browser.mjs'),
+    dynamicImport<RolldownBinding>('/api/rolldown/dist/rolldown-binding.wasi-browser.js'),
+  ])
+  _rolldown = rolldownModule.rolldown
+  _binding = bindingModule
+
+  prepareFileMap(_binding, files)
+
+  console.log('[Bundler] Rolldown initialized')
+
+  return [_rolldown, _binding]
+}
+
+function prepareFileMap(binding: RolldownBinding, files: Map<string, string>): void {
+  // Prepare file map for __volume
+  const fileMap: { [path: string]: string } = Object.create(null)
+  for (const [path, content] of files) {
+    // Remove leading slash for __volume
+    const volumePath = path.startsWith('/') ? path.slice(1) : path
+    fileMap[volumePath] = content
+  }
+  console.log('[Bundler] Files in volume:', fileMap)
+
+  // Reset and populate the virtual file system
+  binding.__volume.reset()
+  binding.__volume.fromJSON(fileMap)
 }
 
 /**
  * HMR injection plugin
- * Injects import.meta.hot implementation
+ * Injects `import.meta.hot` implementation
  */
-function hmrPlugin(): Plugin {
+function hmrPlugin(): RolldownPlugin {
   return {
     name: 'hmr',
-    transform(code, id) {
-      console.log(`[HMR] Transforming ${id}`)
-
+    transform(code: string, id: string) {
       // Inject HMR context for each module
       const hmrPreamble = `
 const __hmr_id__ = ${JSON.stringify(id)};
 const __hmr_hot__ = window.__HMR_RUNTIME__?.createHot(__hmr_id__) ?? { accept: () => {}, dispose: () => {}, data: {} };
 const import_meta_hot = __hmr_hot__;
 `
-      // Replace import.meta.hot with our implementation
+      // Replace `import.meta.hot` with our implementation
       const transformed = code.replace(/import\.meta\.hot/g, 'import_meta_hot')
 
       return {
@@ -89,38 +87,44 @@ const import_meta_hot = __hmr_hot__;
   }
 }
 
+// Virtual file system (in-memory)
+const _files = new Map<string, string>()
+
 /**
- * Bundle the code using rollup
+ * Bundle the code using rolldown
  */
 export async function bundle(entry: string): Promise<string> {
-  let build: RollupBuild | null = null
+  // Load rolldown
+  const [rolldown, binding] = await loadRolldown(_files)
+  if (!rolldown || !binding) {
+    throw new Error('Rolldown load failed')
+  }
+
+  // Bundle
+  const build = await rolldown({
+    input: entry.startsWith('/') ? entry.slice(1) : entry,
+    cwd: '/',
+    plugins: [hmrPlugin()],
+    onLog(level, log) {
+      if (level === 'warn') {
+        console.warn('[Rolldown]', log.message)
+      }
+    },
+  })
 
   try {
-    build = await rollup({
-      input: entry,
-      plugins: [
-        virtualFsPlugin(),
-        hmrPlugin(),
-      ],
-      onwarn(warning, warn) {
-        // Suppress certain warnings
-        if (warning.code === 'MISSING_EXPORT') {
-          return
-        }
-        warn(warning)
+    const result = await build.generate({ format: 'esm' })
+
+    // Find the main chunk
+    for (const chunk of result.output) {
+      if (chunk.type === 'chunk' && chunk.code) {
+        return chunk.code
       }
-    })
-
-    const { output } = await build.generate({
-      format: 'es',
-      sourcemap: false,
-    })
-
-    return output[0].code
-  } finally {
-    if (build) {
-      await build.close()
     }
+
+    throw new Error('No output chunk generated')
+  } finally {
+    await build.close()
   }
 }
 
@@ -128,19 +132,19 @@ export async function bundle(entry: string): Promise<string> {
  * Update a file in the virtual file system
  */
 export function updateFile(path: string, content: string): void {
-  files.set(path, content)
+  _files.set(path, content)
 }
 
 /**
  * Get all files in the virtual file system
  */
 export function getFiles(): Map<string, string> {
-  return files
+  return _files
 }
 
 /**
  * Clear all files
  */
 export function clearFiles(): void {
-  files.clear()
+  _files.clear()
 }

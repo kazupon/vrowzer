@@ -131,6 +131,7 @@ async function handleMessage(event: MessageEvent): Promise<void> {
 
       // Re-bundle
       const bundledCode = await bundle('/main.js')
+      console.log('[Bundler] Re-bundling completed', bundledCode)
 
       // Perform HMR or execute
       await hmrUpdate(path, bundledCode)

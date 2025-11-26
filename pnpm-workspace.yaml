@@ -4,4 +4,5 @@ packages:
 minimumReleaseAge: 1440
 
 onlyBuiltDependencies:
+  - '@rolldown/browser'
   - esbuild
