@@ -100,6 +100,8 @@ export async function bundle(entry: string): Promise<string> {
     throw new Error('Rolldown load failed')
   }
 
+  const bundlStart = performance.now()
+
   // Bundle
   const build = await rolldown({
     input: entry.startsWith('/') ? entry.slice(1) : entry,
@@ -112,8 +114,16 @@ export async function bundle(entry: string): Promise<string> {
     },
   })
 
+  const bundlEnd = performance.now()
+  console.log(`[Bundler] Bundling completed in ${(bundlEnd - bundlStart).toFixed(2)} ms`)
+
   try {
+    const generateStart = performance.now()
+
     const result = await build.generate({ format: 'esm' })
+
+    const generateEnd = performance.now()
+    console.log(`[Bundler] Code generation completed in ${(generateEnd - generateStart).toFixed(2)} ms`)
 
     // Find the main chunk
     for (const chunk of result.output) {
