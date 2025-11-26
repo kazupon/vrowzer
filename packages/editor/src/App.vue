@@ -13,8 +13,8 @@ function handleCodeUpdate(code: string) {
 <template>
   <div class="app">
     <header class="app-header">
-      <h1>Browser HMR PoC</h1>
-      <span class="subtitle">@rollup/browser + HMR Runtime</span>
+      <h1>HMR with Window message base</h1>
+      <span class="subtitle">@rolldown/browser + HMR Runtime</span>
     </header>
     <main class="app-main">
       <EditorPanel @update="handleCodeUpdate" />
