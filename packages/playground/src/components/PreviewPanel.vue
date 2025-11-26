@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, useTemplateRef } from 'vue'
 
 const props = defineProps<{
   code: string
 }>()
 
-const iframeRef = ref<HTMLIFrameElement | null>(null)
+
+const iframeRef = useTemplateRef('iframeRef')
 const isReady = ref(false)
 const error = ref<string | null>(null)
 
