@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  packages/editor:
+  packages/playground:
     dependencies:
       vue:
         specifier: ^3.5.24
