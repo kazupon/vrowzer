@@ -4,9 +4,11 @@
   "scripts": {
     "prepare": "git config --local core.hooksPath .githooks",
     "fix": "pnpm run --color \"/^fix:/\"",
-    "fix:oxfmt": "oxfmt",
-    "fix:prettier": "prettier . --write --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
+    "fix:knip": "knip --fix --no-exit-code",
+    "fix:oxfmt": "oxfmt --config ./node_modules/@kazupon/prettier-config/index.json",
+    "fix:prettier": "prettier --write --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "lint": "pnpm run --color \"/^lint:/\"",
+    "lint:knip": "knip",
     "lint:oxfmt": "oxfmt . --check --config ./node_modules/@kazupon/prettier-config/index.json",
     "lint:prettier": "prettier --check --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "play": "pnpm --filter playground dev"
@@ -15,16 +17,17 @@
   "packageManager": "pnpm@10.23.0",
   "devDependencies": {
     "@kazupon/prettier-config": "^0.2.0",
+    "knip": "^5.70.2",
     "lint-staged": "^16.2.3",
     "oxfmt": "^0.15.0",
     "prettier": "^3.6.2"
   },
   "lint-staged": {
     "*.ts?(x)": [
-      "oxfmt"
+      "oxfmt --config ./node_modules/@kazupon/prettier-config/index.json"
     ],
     "*.{js,mjs,cjs}": [
-      "oxfmt"
+      "oxfmt --config ./node_modules/@kazupon/prettier-config/index.json"
     ],
     "*.{json,jsonc,json5,md,yml,yaml}": [
       "prettier --write"
