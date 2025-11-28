@@ -2,8 +2,32 @@
   "name": "rolldown-hmr-browser-monorepo",
   "private": true,
   "scripts": {
+    "prepare": "git config --local core.hooksPath .githooks",
+    "fix": "pnpm run --color \"/^fix:/\"",
+    "fix:oxfmt": "oxfmt",
+    "fix:prettier": "prettier . --write --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
+    "lint": "pnpm run --color \"/^lint:/\"",
+    "lint:oxfmt": "oxfmt . --check --config ./node_modules/@kazupon/prettier-config/index.json",
+    "lint:prettier": "prettier --check --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "play": "pnpm --filter playground dev"
   },
   "license": "MIT",
-  "packageManager": "pnpm@10.23.0"
+  "packageManager": "pnpm@10.23.0",
+  "devDependencies": {
+    "@kazupon/prettier-config": "^0.2.0",
+    "lint-staged": "^16.2.3",
+    "oxfmt": "^0.15.0",
+    "prettier": "^3.6.2"
+  },
+  "lint-staged": {
+    "*.ts?(x)": [
+      "oxfmt"
+    ],
+    "*.{js,mjs,cjs}": [
+      "oxfmt"
+    ],
+    "*.{json,jsonc,json5,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
 }

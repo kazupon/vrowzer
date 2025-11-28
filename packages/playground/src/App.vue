@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import EditorPanel from './components/EditorPanel.vue'
-import PreviewPanel from './components/PreviewPanel.vue'
+import { ref } from "vue";
+import EditorPanel from "./components/EditorPanel.vue";
+import PreviewPanel from "./components/PreviewPanel.vue";
 
-const currentCode = ref('')
+const currentCode = ref("");
 
 function handleCodeUpdate(code: string) {
-  currentCode.value = code
+  currentCode.value = code;
 }
 </script>
 

@@ -2,7 +2,9 @@ packages:
   - packages/*
 
 minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@kazupon/prettier-config"
 
 onlyBuiltDependencies:
-  - '@rolldown/browser'
+  - "@rolldown/browser"
   - esbuild

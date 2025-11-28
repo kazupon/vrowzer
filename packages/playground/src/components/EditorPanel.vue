@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch } from "vue";
 
 const emit = defineEmits<{
-  (e: 'update', code: string): void
-}>()
+  (e: "update", code: string): void;
+}>();
 
 const defaultCode = `// Counter example with HMR
 let count = 0
@@ -36,13 +36,17 @@ if (import.meta.hot) {
     console.log('[HMR] Module updated!')
   })
 }
-`
+`;
 
-const code = ref(defaultCode)
+const code = ref(defaultCode);
 
-watch(code, (newCode) => {
-  emit('update', newCode)
-}, { immediate: true })
+watch(
+  code,
+  (newCode) => {
+    emit("update", newCode);
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -83,7 +87,7 @@ watch(code, (newCode) => {
   border: none;
   outline: none;
   resize: none;
-  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-family: "Fira Code", "Consolas", "Monaco", monospace;
   font-size: 14px;
   line-height: 1.5;
   tab-size: 2;

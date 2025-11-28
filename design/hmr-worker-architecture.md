@@ -23,12 +23,12 @@ flowchart TB
 
 ### Current Message Protocol
 
-| Direction | Type | Payload |
-|-----------|------|---------|
-| Main → iframe | `update` | `{ path: string, code: string }` |
-| iframe → Main | `ready` | `{}` |
-| iframe → Main | `success` | `{}` |
-| iframe → Main | `error` | `{ message: string }` |
+| Direction     | Type      | Payload                          |
+| ------------- | --------- | -------------------------------- |
+| Main → iframe | `update`  | `{ path: string, code: string }` |
+| iframe → Main | `ready`   | `{}`                             |
+| iframe → Main | `success` | `{}`                             |
+| iframe → Main | `error`   | `{ message: string }`            |
 
 ### Sequence Diagram (Current)
 
@@ -85,22 +85,22 @@ flowchart TB
 
 **Main ↔ Worker:**
 
-| Direction | Type | Payload |
-|-----------|------|---------|
-| Main → Worker | `init` | `{}` |
-| Worker → Main | `ready` | `{}` |
-| Main → Worker | `update` | `{ path: string, code: string }` |
-| Worker → Main | `bundle-success` | `{ code: string }` |
-| Worker → Main | `bundle-error` | `{ message: string }` |
+| Direction     | Type             | Payload                          |
+| ------------- | ---------------- | -------------------------------- |
+| Main → Worker | `init`           | `{}`                             |
+| Worker → Main | `ready`          | `{}`                             |
+| Main → Worker | `update`         | `{ path: string, code: string }` |
+| Worker → Main | `bundle-success` | `{ code: string }`               |
+| Worker → Main | `bundle-error`   | `{ message: string }`            |
 
 **Main ↔ iframe:**
 
-| Direction | Type | Payload |
-|-----------|------|---------|
+| Direction     | Type      | Payload                          |
+| ------------- | --------- | -------------------------------- |
 | Main → iframe | `execute` | `{ code: string, path: string }` |
-| iframe → Main | `ready` | `{}` |
-| iframe → Main | `success` | `{}` |
-| iframe → Main | `error` | `{ message: string }` |
+| iframe → Main | `ready`   | `{}`                             |
+| iframe → Main | `success` | `{}`                             |
+| iframe → Main | `error`   | `{ message: string }`            |
 
 ### Sequence Diagram (Option A)
 
@@ -182,27 +182,27 @@ flowchart TB
 
 **Main → Worker / iframe:** (initialization only)
 
-| Direction | Type | Payload |
-|-----------|------|---------|
-| Main → Worker | `init` | `{ port: MessagePort }` (transferred) |
-| Main → iframe | `init` | `{ port: MessagePort }` (transferred) |
-| Worker → Main | `ready` | `{}` |
-| iframe → Main | `ready` | `{}` |
+| Direction     | Type    | Payload                               |
+| ------------- | ------- | ------------------------------------- |
+| Main → Worker | `init`  | `{ port: MessagePort }` (transferred) |
+| Main → iframe | `init`  | `{ port: MessagePort }` (transferred) |
+| Worker → Main | `ready` | `{}`                                  |
+| iframe → Main | `ready` | `{}`                                  |
 
 **Worker ↔ iframe:** (via MessagePort, direct)
 
-| Direction | Type | Payload |
-|-----------|------|---------|
-| iframe → Worker | `bundle` | `{ entry: string, files: Record<string, string> }` |
-| Worker → iframe | `bundle-success` | `{ code: string }` |
-| Worker → iframe | `bundle-error` | `{ message: string }` |
+| Direction       | Type             | Payload                                            |
+| --------------- | ---------------- | -------------------------------------------------- |
+| iframe → Worker | `bundle`         | `{ entry: string, files: Record<string, string> }` |
+| Worker → iframe | `bundle-success` | `{ code: string }`                                 |
+| Worker → iframe | `bundle-error`   | `{ message: string }`                              |
 
 **iframe → Main:** (status reporting)
 
-| Direction | Type | Payload |
-|-----------|------|---------|
-| iframe → Main | `success` | `{}` |
-| iframe → Main | `error` | `{ message: string }` |
+| Direction     | Type      | Payload               |
+| ------------- | --------- | --------------------- |
+| iframe → Main | `success` | `{}`                  |
+| iframe → Main | `error`   | `{ message: string }` |
 
 ### Sequence Diagram (Option A')
 
@@ -245,37 +245,35 @@ sequenceDiagram
 
 ```typescript
 // Create MessageChannel
-const channel = new MessageChannel()
+const channel = new MessageChannel();
 
 // Transfer port1 to Worker
-worker.postMessage({ type: 'init', port: channel.port1 }, [channel.port1])
+worker.postMessage({ type: "init", port: channel.port1 }, [channel.port1]);
 
 // Transfer port2 to iframe
-iframe.contentWindow.postMessage(
-  { type: 'init', port: channel.port2 },
-  '*',
-  [channel.port2]
-)
+iframe.contentWindow.postMessage({ type: "init", port: channel.port2 }, "*", [
+  channel.port2,
+]);
 ```
 
 **Worker (bundler.worker.ts):**
 
 ```typescript
-let port: MessagePort | null = null
+let port: MessagePort | null = null;
 
 self.onmessage = (e) => {
-  if (e.data.type === 'init' && e.data.port) {
-    port = e.data.port
-    port.onmessage = handleBundleRequest
-    self.postMessage({ type: 'ready' })
+  if (e.data.type === "init" && e.data.port) {
+    port = e.data.port;
+    port.onmessage = handleBundleRequest;
+    self.postMessage({ type: "ready" });
   }
-}
+};
 
 function handleBundleRequest(e: MessageEvent) {
-  if (e.data.type === 'bundle') {
+  if (e.data.type === "bundle") {
     // Bundle and send result directly to iframe
-    const result = await bundle(e.data.entry, e.data.files)
-    port.postMessage({ type: 'bundle-success', code: result })
+    const result = await bundle(e.data.entry, e.data.files);
+    port.postMessage({ type: "bundle-success", code: result });
   }
 }
 ```
@@ -283,29 +281,29 @@ function handleBundleRequest(e: MessageEvent) {
 **iframe (runtime.ts):**
 
 ```typescript
-let workerPort: MessagePort | null = null
+let workerPort: MessagePort | null = null;
 
 window.onmessage = (e) => {
-  if (e.data.type === 'init' && e.data.port) {
-    workerPort = e.data.port
-    workerPort.onmessage = handleBundleResult
-    window.parent.postMessage({ type: 'ready' }, '*')
-  } else if (e.data.type === 'update') {
+  if (e.data.type === "init" && e.data.port) {
+    workerPort = e.data.port;
+    workerPort.onmessage = handleBundleResult;
+    window.parent.postMessage({ type: "ready" }, "*");
+  } else if (e.data.type === "update") {
     // Send bundle request directly to Worker
     workerPort.postMessage({
-      type: 'bundle',
+      type: "bundle",
       entry: e.data.path,
-      files: { [e.data.path]: e.data.code }
-    })
+      files: { [e.data.path]: e.data.code },
+    });
   }
-}
+};
 
 function handleBundleResult(e: MessageEvent) {
-  if (e.data.type === 'bundle-success') {
-    executeCode(e.data.code)
-    window.parent.postMessage({ type: 'success' }, '*')
-  } else if (e.data.type === 'bundle-error') {
-    window.parent.postMessage({ type: 'error', message: e.data.message }, '*')
+  if (e.data.type === "bundle-success") {
+    executeCode(e.data.code);
+    window.parent.postMessage({ type: "success" }, "*");
+  } else if (e.data.type === "bundle-error") {
+    window.parent.postMessage({ type: "error", message: e.data.message }, "*");
   }
 }
 ```
@@ -354,22 +352,22 @@ flowchart TB
 
 **Main ↔ iframe:** (unchanged)
 
-| Direction | Type | Payload |
-|-----------|------|---------|
-| Main → iframe | `update` | `{ path: string, code: string }` |
-| iframe → Main | `ready` | `{}` |
-| iframe → Main | `success` | `{}` |
-| iframe → Main | `error` | `{ message: string }` |
+| Direction     | Type      | Payload                          |
+| ------------- | --------- | -------------------------------- |
+| Main → iframe | `update`  | `{ path: string, code: string }` |
+| iframe → Main | `ready`   | `{}`                             |
+| iframe → Main | `success` | `{}`                             |
+| iframe → Main | `error`   | `{ message: string }`            |
 
 **iframe ↔ Worker:** (new)
 
-| Direction | Type | Payload |
-|-----------|------|---------|
-| iframe → Worker | `init` | `{}` |
-| Worker → iframe | `ready` | `{}` |
-| iframe → Worker | `bundle` | `{ entry: string, files: Record<string, string> }` |
-| Worker → iframe | `bundle-success` | `{ code: string }` |
-| Worker → iframe | `bundle-error` | `{ message: string }` |
+| Direction       | Type             | Payload                                            |
+| --------------- | ---------------- | -------------------------------------------------- |
+| iframe → Worker | `init`           | `{}`                                               |
+| Worker → iframe | `ready`          | `{}`                                               |
+| iframe → Worker | `bundle`         | `{ entry: string, files: Record<string, string> }` |
+| Worker → iframe | `bundle-success` | `{ code: string }`                                 |
+| Worker → iframe | `bundle-error`   | `{ message: string }`                              |
 
 ### Sequence Diagram (Option B)
 
@@ -433,13 +431,13 @@ sequenceDiagram
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/worker/bundler.worker.ts` | New file - Worker implementation |
+| File                              | Changes                                     |
+| --------------------------------- | ------------------------------------------- |
+| `src/worker/bundler.worker.ts`    | New file - Worker implementation            |
 | `src/components/PreviewPanel.vue` | Add Worker creation and communication logic |
-| `src/preview/runtime.ts` | Remove bundle calls, keep only executeCode |
-| `src/preview/bundler.ts` | Rewrite for Worker or delete |
-| `vite.config.ts` | Add Worker configuration (if needed) |
+| `src/preview/runtime.ts`          | Remove bundle calls, keep only executeCode  |
+| `src/preview/bundler.ts`          | Rewrite for Worker or delete                |
+| `vite.config.ts`                  | Add Worker configuration (if needed)        |
 
 ---
 

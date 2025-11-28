@@ -1,44 +1,49 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, useTemplateRef } from 'vue'
+import { ref, onMounted, watch, useTemplateRef } from "vue";
 
 const props = defineProps<{
-  code: string
-}>()
+  code: string;
+}>();
 
-
-const iframeRef = useTemplateRef('iframeRef')
-const isReady = ref(false)
-const error = ref<string | null>(null)
+const iframeRef = useTemplateRef("iframeRef");
+const isReady = ref(false);
+const error = ref<string | null>(null);
 
 onMounted(() => {
-  window.addEventListener('message', handleMessage)
-})
+  window.addEventListener("message", handleMessage);
+});
 
 function handleMessage(event: MessageEvent) {
-  if (event.data?.type === 'ready') {
-    isReady.value = true
+  if (event.data?.type === "ready") {
+    isReady.value = true;
     // Send initial code
-    sendCode(props.code)
-  } else if (event.data?.type === 'error') {
-    error.value = event.data.message
-  } else if (event.data?.type === 'success') {
-    error.value = null
+    sendCode(props.code);
+  } else if (event.data?.type === "error") {
+    error.value = event.data.message;
+  } else if (event.data?.type === "success") {
+    error.value = null;
   }
 }
 
 function sendCode(code: string) {
   if (iframeRef.value?.contentWindow && isReady.value) {
-    iframeRef.value.contentWindow.postMessage({
-      type: 'update',
-      path: '/main.js',
-      code,
-    }, '*')
+    iframeRef.value.contentWindow.postMessage(
+      {
+        type: "update",
+        path: "/main.js",
+        code,
+      },
+      "*",
+    );
   }
 }
 
-watch(() => props.code, (newCode) => {
-  sendCode(newCode)
-})
+watch(
+  () => props.code,
+  (newCode) => {
+    sendCode(newCode);
+  },
+);
 </script>
 
 <template>
