@@ -16,8 +16,8 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       ignores: [
         './**/test/**',
         './**/src/**/*.test.ts',
-        './**/src/**/*.test-d.ts'
-        // './packages/**/*.ts' // NOTE: Temporary ignore for monorepo packages
+        './**/src/**/*.test-d.ts',
+        './packages/playground/**/*.ts' // NOTE: Temporary ignore for monorepo packages
       ]
     }
   }),

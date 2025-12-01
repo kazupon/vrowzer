@@ -98,9 +98,11 @@ async function hmrUpdate(changedPath: string, bundledCode: string): Promise<void
 /**
  * Initial bundle and execute
  */
-async function initialRun(): Promise<void> {
+async function _initialRun(): Promise<void> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- NOTE: demo
     const code = await bundle('/main.js')
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- NOTE: demo
     await executeCode(code)
     notify({ type: 'success' })
   } catch (err) {
@@ -119,7 +121,9 @@ function notify(message: { type: string; message?: string }): void {
 /**
  * Handle messages from parent
  */
-async function handleMessage(event: MessageEvent): Promise<void> {
+async function handleMessage(
+  event: MessageEvent<{ type: string; path?: string; code?: string }>
+): Promise<void> {
   const { type, path, code } = event.data || {}
 
   if (type === 'update' && path && code) {
@@ -127,13 +131,16 @@ async function handleMessage(event: MessageEvent): Promise<void> {
 
     try {
       // Update the file in virtual FS
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- NOTE: demo
       updateFile(path, code)
 
       // Re-bundle
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- NOTE: demo
       const bundledCode = await bundle('/main.js')
       console.log('[Bundler] Re-bundling completed', bundledCode)
 
       // Perform HMR or execute
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- NOTE: demo
       await hmrUpdate(path, bundledCode)
 
       notify({ type: 'success' })
@@ -148,7 +155,7 @@ async function handleMessage(event: MessageEvent): Promise<void> {
 console.log('[HMR Runtime] Initializing...')
 
 // Listen for messages from parent
-window.addEventListener('message', handleMessage)
+window.addEventListener('message', handleMessage) // eslint-disable-line @typescript-eslint/no-misused-promises -- NOTE: allow async handler
 
 // Notify parent that we're ready
 notify({ type: 'ready' })

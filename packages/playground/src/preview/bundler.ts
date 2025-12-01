@@ -1,4 +1,4 @@
-import type { RolldownPlugin, rolldown as Rolldown } from '@rolldown/browser'
+import type { rolldown as Rolldown, RolldownPlugin } from '@rolldown/browser'
 
 // Types for rolldown binding with __volume
 interface RolldownBinding {
@@ -12,6 +12,7 @@ interface RolldownBinding {
  * Dynamic import helper to avoid Vite's static analysis
  */
 function dynamicImport<T = unknown>(url: string): Promise<T> {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call -- NOTE: Dynamic import
   return new Function('url', 'return import(url)')(url)
 }
 
@@ -51,7 +52,7 @@ async function loadRolldown(
 
 function prepareFileMap(binding: RolldownBinding, files: Map<string, string>): void {
   // Prepare file map for __volume
-  const fileMap: { [path: string]: string } = Object.create(null)
+  const fileMap: { [path: string]: string } = Object.create(null) as { [path: string]: string }
   for (const [path, content] of files) {
     // Remove leading slash for __volume
     const volumePath = path.startsWith('/') ? path.slice(1) : path

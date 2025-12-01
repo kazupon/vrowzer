@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -21,6 +21,7 @@ export default defineConfig({
     {
       name: 'rolldown-proxy',
       configureServer(server) {
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- NOTE(kazupon): middleware can be async
         server.middlewares.use(async (req, res, next) => {
           if (!req.url?.startsWith('/api/rolldown/')) {
             console.log('[rolldown-proxy] Passing through:', req.url)
@@ -81,7 +82,7 @@ export default defineConfig({
           } catch (err) {
             console.error('[rolldown-proxy] Error:', err)
             res.statusCode = 500
-            res.end(`Proxy error: ${err}`)
+            res.end(`Proxy error: ${(err as Error).message}`)
           }
         })
       }
