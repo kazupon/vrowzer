@@ -1,6 +1,6 @@
-# Howm
+# Howmcl
 
-> HMR over window messages
+> HMR over window message channels
 
 ## 🐱 Motivation
 
@@ -12,7 +12,7 @@
 
 TODO: Write later
 
-## Howm HMR Compatibility with Vite HMR
+## Compatibility with Vite HMR
 
 TODO: Write later based on the compatibility table
 
