@@ -16,7 +16,7 @@ interface HotContext {
 
 ## Vite HMR API Specification
 
-Reference: https://vite.dev/guide/api-hmr.html
+Reference: <https://vite.dev/guide/api-hmr.html>
 
 ### Full API
 

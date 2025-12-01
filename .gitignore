@@ -23,4 +23,5 @@ node_modules
 *.sln
 *.sw?
 
+.eslintcache
 .todo.md
