@@ -1,13 +1,13 @@
 import {
   comments,
   defineConfig,
+  jsonc,
+  markdown,
   oxlint,
   prettier,
-  yaml,
-  markdown,
-  jsonc,
   // jsdoc,
-  typescript
+  typescript,
+  yaml
 } from '@kazupon/eslint-config'
 
 const config: ReturnType<typeof defineConfig> = defineConfig(
