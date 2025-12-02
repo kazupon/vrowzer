@@ -44,7 +44,6 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
     preferences: true
   }),
   oxlint({
-    enableGlobalIgnore: true,
     presets: ['typescript'],
     configFile: './.oxlintrc.json'
   }),

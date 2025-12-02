@@ -137,7 +137,6 @@ async function handleMessage(
       // Re-bundle
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- NOTE: demo
       const bundledCode = await bundle('/main.js')
-      console.log('[Bundler] Re-bundling completed', bundledCode)
 
       // Perform HMR or execute
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- NOTE: demo

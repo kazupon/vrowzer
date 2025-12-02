@@ -13,7 +13,7 @@ importers:
         version: 7.5.1
       '@kazupon/eslint-config':
         specifier: ^0.41.0
-        version: 0.41.0(@eslint/markdown@7.5.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.30.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
+        version: 0.41.0(@eslint/markdown@7.5.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.31.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
       '@kazupon/prettier-config':
         specifier: ^0.2.0
         version: 0.2.0
@@ -36,11 +36,8 @@ importers:
         specifier: ^0.37.0
         version: 0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-oxlint:
-        specifier: ^1.30.0
-        version: 1.30.0
-      eslint-plugin-promise:
-        specifier: ^7.2.1
-        version: 7.2.1(eslint@9.39.1(jiti@2.6.1))
+        specifier: ^1.31.0
+        version: 1.31.0
       eslint-plugin-yml:
         specifier: ^1.19.0
         version: 1.19.0(eslint@9.39.1(jiti@2.6.1))
@@ -1377,8 +1374,8 @@ packages:
       '@eslint/markdown': ^7.4.0
       eslint: '>=9.0.0'
 
-  eslint-plugin-oxlint@1.30.0:
-    resolution: {integrity: sha512-agkV2OauZuFWLFNuG5/EunH4IwUcd/eyUbBE/Y9SAKvvvdMmY066IX09Uz2/3a/qdQ00LaL+lEAbP12eA19qJQ==}
+  eslint-plugin-oxlint@1.31.0:
+    resolution: {integrity: sha512-yIUkBg9qZCL9DZVSvH3FklF5urG7LRboZD0/YLf/CvihPpcfBeMyH1onaG3+iKMCIRa/uwXgdRjB5MSOplFTVw==}
 
   eslint-plugin-promise@7.2.1:
     resolution: {integrity: sha512-SWKjd+EuvWkYaS+uN2csvj0KoP43YTu7+phKQ5v+xw6+A0gutVX2yqCeCkC3uLCJFiPfR2dD8Es5L7yUsmvEaA==}
@@ -2488,7 +2485,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kazupon/eslint-config@0.41.0(@eslint/markdown@7.5.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.30.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))':
+  '@kazupon/eslint-config@0.41.0(@eslint/markdown@7.5.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.31.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))':
     dependencies:
       '@eslint-community/eslint-plugin-eslint-comments': 4.5.0(eslint@9.39.1(jiti@2.6.1))
       '@eslint/js': 9.39.1
@@ -2505,7 +2502,7 @@ snapshots:
       eslint-plugin-jsdoc: 61.4.1(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-jsonc: 2.21.0(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-markdown-preferences: 0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1))
-      eslint-plugin-oxlint: 1.30.0
+      eslint-plugin-oxlint: 1.31.0
       eslint-plugin-promise: 7.2.1(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-yml: 1.19.0(eslint@9.39.1(jiti@2.6.1))
       typescript-eslint: 8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)
@@ -3297,7 +3294,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-oxlint@1.30.0:
+  eslint-plugin-oxlint@1.31.0:
     dependencies:
       jsonc-parser: 3.3.1
 
@@ -3305,6 +3302,7 @@ snapshots:
     dependencies:
       '@eslint-community/eslint-utils': 4.9.0(eslint@9.39.1(jiti@2.6.1))
       eslint: 9.39.1(jiti@2.6.1)
+    optional: true
 
   eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
