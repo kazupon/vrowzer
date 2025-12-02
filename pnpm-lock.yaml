@@ -13,13 +13,16 @@ importers:
         version: 7.5.1
       '@kazupon/eslint-config':
         specifier: ^0.41.0
-        version: 0.41.0(@eslint/markdown@7.5.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.31.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
+        version: 0.41.0(@eslint/markdown@7.5.1)(@typescript/native-preview@7.0.0-dev.20251027.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.31.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
       '@kazupon/prettier-config':
         specifier: ^0.2.0
         version: 0.2.0
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
+      '@typescript/native-preview':
+        specifier: 7.0.0-dev.20251027.1
+        version: 7.0.0-dev.20251027.1
       eslint:
         specifier: ^9.39.1
         version: 9.39.1(jiti@2.6.1)
@@ -1056,6 +1059,45 @@ packages:
   '@typescript-eslint/visitor-keys@8.48.0':
     resolution: {integrity: sha512-T0XJMaRPOH3+LBbAfzR2jalckP1MSG/L9eUtY0DEzUyVaXJ/t6zN0nR7co5kz0Jko/nkSYCBRkz1djvjajVTTg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-4Nysrmep6Z4C722nQF07XkEk22qyI2/vCfvfPSlhOxpJJcIFAroxSkSH7Qy8EDZWhNer9D4CMTYX9q5I8B75lQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-WvHLb6Mry214ZTuhfvv6fP1FLgYZ4oTw55+B2hTAo/O6qq9KX3OW90dvFYSMJKPhgvWR5B9tIEcMkIXGjxfv1w==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-CNbTvppx8wsoRS3g4RcpDapRp4tNYp1eu+94HmtKT7ch3RJOliKIhAa/8odXIrkqnT+kc0wrQCzFiICMW4YieQ==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-epAynE0qbU9nuPwaOgr9N6WANoYAdwhyteNB+PG2qRWYoFDYPXSgParjO1FAkY0uMt88QaS6vQ6ZglInHsxvXQ==}
+    cpu: [arm]
+    os: [linux]
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-lzSUTdWYfKvsQJPQF/BtYil1Xmzn0f3jpgk8/4uVg4NQeDtzW0J3ceWl2lw1TuGnhISq2dwyupjKJfLQhe4AVQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-K9K8t3HW/35ejgVJALPW9Fqo0PHOxh1/ir01C8r5qbhIdPQqwGlBHAGwLzrfH0ZF1R2nR2X4T+z+gB8tLULsow==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-n7hb7ZjAEgoNBWYSt87+eMtSK2h6Xl9NWUd2ocw3Znz/tw8lwpUaG35FVd/Aj72kT1/5kiCBlM+7MxA214KGiw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@typescript/native-preview@7.0.0-dev.20251027.1':
+    resolution: {integrity: sha512-djbOSIm8Or967wMuO209ydMp2nq34hEulah1EhjUsLSqLplsbOk8RSOyVJJphU+CMP33rULDcnDAzvylU8Tq9Q==}
+    hasBin: true
 
   '@vitejs/plugin-vue@6.0.2':
     resolution: {integrity: sha512-iHmwV3QcVGGvSC1BG5bZ4z6iwa1SOpAPWmnjOErd4Ske+lZua5K9TtAVdx0gMBClJ28DViCbSmZitjWZsWO3LA==}
@@ -2485,12 +2527,12 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@kazupon/eslint-config@0.41.0(@eslint/markdown@7.5.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.31.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))':
+  '@kazupon/eslint-config@0.41.0(@eslint/markdown@7.5.1)(@typescript/native-preview@7.0.0-dev.20251027.1)(@vue/reactivity@3.5.25)(eslint-config-prettier@10.1.8(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsdoc@61.4.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-jsonc@2.21.0(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-markdown-preferences@0.37.0(@eslint/markdown@7.5.1)(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-oxlint@1.31.0)(eslint-plugin-promise@7.2.1(eslint@9.39.1(jiti@2.6.1)))(eslint-plugin-yml@1.19.0(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))(oxc-resolver@11.14.0)(typescript-eslint@8.48.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))':
     dependencies:
       '@eslint-community/eslint-plugin-eslint-comments': 4.5.0(eslint@9.39.1(jiti@2.6.1))
       '@eslint/js': 9.39.1
       '@kazupon/eslint-plugin': 0.6.2(eslint@9.39.1(jiti@2.6.1))
-      '@kazupon/jts-utils': 0.7.1(@vue/reactivity@3.5.25)(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
+      '@kazupon/jts-utils': 0.7.1(@typescript/native-preview@7.0.0-dev.20251027.1)(@vue/reactivity@3.5.25)(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
       '@stylistic/eslint-plugin': 4.4.1(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)
       eslint: 9.39.1(jiti@2.6.1)
       eslint-flat-config-utils: 2.1.4
@@ -2526,9 +2568,9 @@ snapshots:
       '@eslint/core': 0.15.2
       eslint: 9.39.1(jiti@2.6.1)
 
-  '@kazupon/jts-utils@0.7.1(@vue/reactivity@3.5.25)(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))':
+  '@kazupon/jts-utils@0.7.1(@typescript/native-preview@7.0.0-dev.20251027.1)(@vue/reactivity@3.5.25)(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))':
     dependencies:
-      tsdown: 0.15.12(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
+      tsdown: 0.15.12(@typescript/native-preview@7.0.0-dev.20251027.1)(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
     optionalDependencies:
       '@vue/reactivity': 3.5.25
     transitivePeerDependencies:
@@ -2950,6 +2992,37 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.48.0
       eslint-visitor-keys: 4.2.1
+
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20251027.1':
+    optional: true
+
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20251027.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20251027.1':
+    optional: true
+
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20251027.1':
+    optional: true
+
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20251027.1':
+    optional: true
+
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20251027.1':
+    optional: true
+
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20251027.1':
+    optional: true
+
+  '@typescript/native-preview@7.0.0-dev.20251027.1':
+    optionalDependencies:
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20251027.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20251027.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20251027.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20251027.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20251027.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20251027.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20251027.1
 
   '@vitejs/plugin-vue@6.0.2(vite@7.2.4(@types/node@24.10.1)(jiti@2.6.1)(yaml@2.8.1))(vue@3.5.25(typescript@5.9.3))':
     dependencies:
@@ -4104,7 +4177,7 @@ snapshots:
 
   rfdc@1.4.1: {}
 
-  rolldown-plugin-dts@0.17.8(oxc-resolver@11.14.0)(rolldown@1.0.0-beta.45)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3)):
+  rolldown-plugin-dts@0.17.8(@typescript/native-preview@7.0.0-dev.20251027.1)(oxc-resolver@11.14.0)(rolldown@1.0.0-beta.45)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3)):
     dependencies:
       '@babel/generator': 7.28.5
       '@babel/parser': 7.28.5
@@ -4117,6 +4190,7 @@ snapshots:
       obug: 2.1.1
       rolldown: 1.0.0-beta.45
     optionalDependencies:
+      '@typescript/native-preview': 7.0.0-dev.20251027.1
       typescript: 5.9.3
       vue-tsc: 3.1.5(typescript@5.9.3)
     transitivePeerDependencies:
@@ -4253,7 +4327,7 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  tsdown@0.15.12(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3)):
+  tsdown@0.15.12(@typescript/native-preview@7.0.0-dev.20251027.1)(oxc-resolver@11.14.0)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3)):
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14
@@ -4263,7 +4337,7 @@ snapshots:
       empathic: 2.0.0
       hookable: 5.5.3
       rolldown: 1.0.0-beta.45
-      rolldown-plugin-dts: 0.17.8(oxc-resolver@11.14.0)(rolldown@1.0.0-beta.45)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
+      rolldown-plugin-dts: 0.17.8(@typescript/native-preview@7.0.0-dev.20251027.1)(oxc-resolver@11.14.0)(rolldown@1.0.0-beta.45)(typescript@5.9.3)(vue-tsc@3.1.5(typescript@5.9.3))
       semver: 7.7.3
       tinyexec: 1.0.2
       tinyglobby: 0.2.15

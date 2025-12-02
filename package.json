@@ -19,13 +19,15 @@
     "lint:oxlint": "oxlint --type-aware",
     "lint:prettier": "prettier --check --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "play": "pnpm --filter playground dev",
-    "prepare": "git config --local core.hooksPath .githooks"
+    "prepare": "git config --local core.hooksPath .githooks",
+    "typecheck": "tsgo --noEmit --diagnostics"
   },
   "devDependencies": {
     "@eslint/markdown": "^7.5.1",
     "@kazupon/eslint-config": "^0.41.0",
     "@kazupon/prettier-config": "^0.2.0",
     "@types/node": "^24.10.1",
+    "@typescript/native-preview": "7.0.0-dev.20251027.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^61.4.1",
