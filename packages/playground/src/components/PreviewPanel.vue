@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, useTemplateRef } from "vue";
+import { ref, reactive, onMounted, onUnmounted, watch, useTemplateRef } from "vue";
 
 const props = defineProps<{
   code: string;
@@ -7,42 +7,147 @@ const props = defineProps<{
 
 const iframeRef = useTemplateRef("iframeRef");
 const isReady = ref(false);
+const isWorkerReady = ref(false);
+const isIframeReady = ref(false);
 const error = ref<string | null>(null);
 
+// File state management
+const files = reactive<Record<string, string>>({});
+
+// Worker and MessageChannel
+let worker: Worker | null = null;
+let channel: MessageChannel | null = null;
+
 onMounted(() => {
-  window.addEventListener("message", handleMessage);
+  // Create Worker
+  worker = new Worker(
+    new URL("../worker/bundler.worker.ts", import.meta.url),
+    { type: "module" }
+  );
+
+  // Create MessageChannel for Worker ↔ iframe communication
+  channel = new MessageChannel();
+
+  // Handle Worker messages
+  worker.onmessage = handleWorkerMessage;
+
+  // Listen for iframe messages
+  window.addEventListener("message", handleIframeMessage);
 });
 
-function handleMessage(event: MessageEvent) {
-  if (event.data?.type === "ready") {
-    isReady.value = true;
-    // Send initial code
-    sendCode(props.code);
-  } else if (event.data?.type === "error") {
-    error.value = event.data.message;
-  } else if (event.data?.type === "success") {
+onUnmounted(() => {
+  window.removeEventListener("message", handleIframeMessage);
+  worker?.terminate();
+  channel?.port1.close();
+  channel?.port2.close();
+});
+
+/**
+ * Handle messages from Worker
+ */
+function handleWorkerMessage(event: MessageEvent) {
+  const { type, message } = event.data || {};
+
+  if (type === "ready") {
+    console.log("[PreviewPanel] Worker is ready");
+    isWorkerReady.value = true;
+    checkReady();
+  } else if (type === "bundle-error") {
+    console.error("[PreviewPanel] Bundle error:", message);
+    error.value = message;
+  }
+}
+
+/**
+ * Handle messages from iframe
+ */
+function handleIframeMessage(event: MessageEvent) {
+  const { type, message } = event.data || {};
+
+  if (type === "ready") {
+    console.log("[PreviewPanel] iframe is ready");
+    isIframeReady.value = true;
+    checkReady();
+  } else if (type === "error") {
+    error.value = message;
+  } else if (type === "success") {
     error.value = null;
   }
 }
 
-function sendCode(code: string) {
-  if (iframeRef.value?.contentWindow && isReady.value) {
-    iframeRef.value.contentWindow.postMessage(
-      {
-        type: "update",
-        path: "/main.js",
-        code,
-      },
-      "*",
-    );
+/**
+ * Check if both Worker and iframe are ready
+ */
+function checkReady() {
+  if (isWorkerReady.value && isIframeReady.value && !isReady.value) {
+    isReady.value = true;
+    // Send initial code
+    if (props.code) {
+      sendCode(props.code);
+    }
   }
+}
+
+/**
+ * Initialize Worker and iframe with MessageChannel ports
+ */
+function initializePorts() {
+  if (!worker || !channel || !iframeRef.value?.contentWindow) {
+    return;
+  }
+
+  console.log("[PreviewPanel] Initializing ports...");
+
+  // Transfer port1 to Worker (for sending bundled code to iframe)
+  worker.postMessage(
+    { type: "init", port: channel.port1 },
+    [channel.port1]
+  );
+
+  // Transfer port2 to iframe (for receiving bundled code from Worker)
+  iframeRef.value.contentWindow.postMessage(
+    { type: "init", port: channel.port2 },
+    "*",
+    [channel.port2]
+  );
+}
+
+/**
+ * Handle iframe load event
+ */
+function onIframeLoad() {
+  console.log("[PreviewPanel] iframe loaded");
+  initializePorts();
+}
+
+/**
+ * Send code update to Worker for bundling
+ */
+function sendCode(code: string) {
+  if (!worker || !isReady.value) {
+    return;
+  }
+
+  // Update files
+  files["/main.js"] = code;
+
+  console.log("[PreviewPanel] Sending bundle request to Worker");
+
+  // Send bundle request to Worker
+  worker.postMessage({
+    type: "bundle",
+    entry: "/main.js",
+    files: { ...files },
+  });
 }
 
 watch(
   () => props.code,
   (newCode) => {
-    sendCode(newCode);
-  },
+    if (isReady.value) {
+      sendCode(newCode);
+    }
+  }
 );
 </script>
 
@@ -63,6 +168,7 @@ watch(
         src="/src/preview/index.html"
         class="preview-iframe"
         sandbox="allow-scripts allow-same-origin"
+        @load="onIframeLoad"
       ></iframe>
     </div>
   </div>

@@ -1,4 +1,16 @@
-import { bundle, updateFile } from './bundler'
+/**
+ * HMR Runtime (iframe)
+ *
+ * This module runs in the preview iframe and handles code execution.
+ * It receives bundled code from the Worker via MessagePort and executes it.
+ *
+ * Message Flow:
+ * - Main → iframe: { type: 'init', port: MessagePort }
+ * - Worker → iframe: { type: 'execute', code, path } (via MessagePort)
+ * - iframe → Main: { type: 'ready' }
+ * - iframe → Main: { type: 'success' }
+ * - iframe → Main: { type: 'error', message }
+ */
 
 /**
  * HMR Hot Context
@@ -96,57 +108,48 @@ async function hmrUpdate(changedPath: string, bundledCode: string): Promise<void
 }
 
 /**
- * Initial bundle and execute
- */
-async function _initialRun(): Promise<void> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- NOTE: demo
-    const code = await bundle('/main.js')
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- NOTE: demo
-    await executeCode(code)
-    notify({ type: 'success' })
-  } catch (err) {
-    console.error('[Bundler] Initial run error:', err)
-    notify({ type: 'error', message: String(err) })
-  }
-}
-
-/**
  * Notify parent window
  */
 function notify(message: { type: string; message?: string }): void {
   window.parent.postMessage(message, '*')
 }
 
-/**
- * Handle messages from parent
- */
-async function handleMessage(
-  event: MessageEvent<{ type: string; path?: string; code?: string }>
-): Promise<void> {
-  const { type, path, code } = event.data || {}
+// MessagePort for receiving bundled code from Worker
+let workerPort: MessagePort | null = null
 
-  if (type === 'update' && path && code) {
-    console.log(`[Bundler] Received update for ${path}`)
+/**
+ * Handle execute messages from Worker (via MessagePort)
+ */
+async function handleExecuteMessage(
+  event: MessageEvent<{ type: string; code?: string; path?: string }>
+): Promise<void> {
+  const { type, code, path } = event.data || {}
+
+  if (type === 'execute' && code && path) {
+    console.log(`[Runtime] Received execute for ${path}`)
 
     try {
-      // Update the file in virtual FS
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- NOTE: demo
-      updateFile(path, code)
-
-      // Re-bundle
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call -- NOTE: demo
-      const bundledCode = await bundle('/main.js')
-
       // Perform HMR or execute
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- NOTE: demo
-      await hmrUpdate(path, bundledCode)
-
+      await hmrUpdate(path, code)
       notify({ type: 'success' })
     } catch (err) {
-      console.error('[Bundler] Update error:', err)
+      console.error('[Runtime] Execution error:', err)
       notify({ type: 'error', message: String(err) })
     }
+  }
+}
+
+/**
+ * Handle messages from parent (Main window)
+ */
+function handleMessage(event: MessageEvent<{ type: string; port?: MessagePort }>): void {
+  const { type, port } = event.data || {}
+
+  if (type === 'init' && port) {
+    console.log('[Runtime] Received init with MessagePort')
+    workerPort = port
+    workerPort.onmessage = handleExecuteMessage
+    notify({ type: 'ready' })
   }
 }
 
@@ -154,9 +157,6 @@ async function handleMessage(
 console.log('[HMR Runtime] Initializing...')
 
 // Listen for messages from parent
-window.addEventListener('message', handleMessage) // eslint-disable-line @typescript-eslint/no-misused-promises -- NOTE: allow async handler
+window.addEventListener('message', handleMessage)
 
-// Notify parent that we're ready
-notify({ type: 'ready' })
-
-console.log('[HMR Runtime] Ready, waiting for code...')
+console.log('[HMR Runtime] Ready, waiting for init...')
