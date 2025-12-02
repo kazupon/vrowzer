@@ -108,8 +108,8 @@ flowchart TB
 sequenceDiagram
     participant Editor as EditorPanel
     participant Preview as PreviewPanel
-    participant Worker as Worker
-    participant Runtime as runtime.ts
+    participant Worker as Worker (bundler.ts)
+    participant Runtime as Preview (runtime.ts)
 
     Note over Worker,Runtime: Initialization
     Preview->>Worker: postMessage {type: 'init'}
@@ -149,9 +149,9 @@ sequenceDiagram
 
 ---
 
-## Option A': Option A with MessageChannel (Direct Worker ↔ iframe)
+## Option A': Option A with MessageChannel (Main → Worker → iframe Direct)
 
-Using the MessageChannel API, Worker and iframe can communicate directly after initial setup, eliminating the Main window relay for HMR updates.
+Using the MessageChannel API, Worker can send bundled code directly to iframe after receiving bundle requests from Main window. This eliminates the inefficiency of routing code through iframe for bundling.
 
 ### MessageChannel Overview
 
@@ -173,36 +173,41 @@ flowchart TB
         runtime_A2["runtime.ts<br/>executeCode"]
     end
 
-    PreviewPanel_A2 -.->|"transfer port1"| bundlerWorker_A2
-    PreviewPanel_A2 -.->|"transfer port2"| runtime_A2
-    bundlerWorker_A2 <-->|"MessagePort<br/>direct communication"| runtime_A2
+    PreviewPanel_A2 -->|"postMessage<br/>{type: 'bundle'}"| bundlerWorker_A2
+    PreviewPanel_A2 -.->|"transfer port"| bundlerWorker_A2
+    bundlerWorker_A2 -->|"port.postMessage<br/>{type: 'execute'}"| runtime_A2
+    runtime_A2 -->|"postMessage<br/>{type: 'success/error'}"| PreviewPanel_A2
 ```
 
 ### Message Protocol (Option A')
 
-**Main → Worker / iframe:** (initialization only)
+**Main → Worker:**
 
-| Direction     | Type    | Payload                               |
-| ------------- | ------- | ------------------------------------- |
-| Main → Worker | `init`  | `{ port: MessagePort }` (transferred) |
-| Main → iframe | `init`  | `{ port: MessagePort }` (transferred) |
-| Worker → Main | `ready` | `{}`                                  |
-| iframe → Main | `ready` | `{}`                                  |
+| Direction     | Type     | Payload                                            |
+| ------------- | -------- | -------------------------------------------------- |
+| Main → Worker | `init`   | `{ port: MessagePort }` (transferred)              |
+| Worker → Main | `ready`  | `{}`                                               |
+| Main → Worker | `bundle` | `{ entry: string, files: Record<string, string> }` |
 
-**Worker ↔ iframe:** (via MessagePort, direct)
+**Worker → iframe:** (via MessagePort, direct)
 
-| Direction       | Type             | Payload                                            |
-| --------------- | ---------------- | -------------------------------------------------- |
-| iframe → Worker | `bundle`         | `{ entry: string, files: Record<string, string> }` |
-| Worker → iframe | `bundle-success` | `{ code: string }`                                 |
-| Worker → iframe | `bundle-error`   | `{ message: string }`                              |
+| Direction       | Type      | Payload                          |
+| --------------- | --------- | -------------------------------- |
+| Worker → iframe | `execute` | `{ code: string, path: string }` |
 
 **iframe → Main:** (status reporting)
 
 | Direction     | Type      | Payload               |
 | ------------- | --------- | --------------------- |
+| iframe → Main | `ready`   | `{}`                  |
 | iframe → Main | `success` | `{}`                  |
 | iframe → Main | `error`   | `{ message: string }` |
+
+**Worker → Main:** (error reporting)
+
+| Direction     | Type           | Payload               |
+| ------------- | -------------- | --------------------- |
+| Worker → Main | `bundle-error` | `{ message: string }` |
 
 ### Sequence Diagram (Option A')
 
@@ -210,8 +215,8 @@ flowchart TB
 sequenceDiagram
     participant Editor as EditorPanel
     participant Preview as PreviewPanel
-    participant Worker as Worker
-    participant Runtime as runtime.ts
+    participant Worker as Worker (bundler.ts)
+    participant Runtime as Preview (runtime.ts)
 
     Note over Preview,Runtime: Initialization with MessageChannel
     Preview->>Preview: channel = new MessageChannel()
@@ -220,13 +225,13 @@ sequenceDiagram
     Worker-->>Preview: postMessage {type: 'ready'}
     Runtime-->>Preview: postMessage {type: 'ready'}
 
-    Note over Editor,Runtime: Code update flow (direct communication)
-    Editor->>Preview: emit('update', code)
-    Preview->>Runtime: postMessage {type: 'update', path, code}
-    Runtime->>Worker: port.postMessage {type: 'bundle', entry, files}
+    Note over Editor,Runtime: Code update flow (Main → Worker → iframe)
+    Editor->>Preview: emit('update', path, code)
+    Preview->>Preview: updateFiles(path, code)
+    Preview->>Worker: postMessage {type: 'bundle', entry, files}
     Worker->>Worker: bundle with @rolldown/browser
     alt bundle success
-        Worker-->>Runtime: port.postMessage {type: 'bundle-success', code}
+        Worker-->>Runtime: port.postMessage {type: 'execute', code, path}
         Runtime->>Runtime: executeCode()
         alt execution success
             Runtime->>Preview: postMessage {type: 'success'}
@@ -234,8 +239,7 @@ sequenceDiagram
             Runtime->>Preview: postMessage {type: 'error', message}
         end
     else bundle error
-        Worker-->>Runtime: port.postMessage {type: 'bundle-error', message}
-        Runtime->>Preview: postMessage {type: 'error', message}
+        Worker-->>Preview: postMessage {type: 'bundle-error', message}
     end
 ```
 
@@ -244,38 +248,65 @@ sequenceDiagram
 **Main Window (PreviewPanel.vue):**
 
 ```typescript
+// File state management
+const files: Record<string, string> = {
+  "/main.js": 'console.log("Hello")',
+};
+
 // Create MessageChannel
 const channel = new MessageChannel();
 
-// Transfer port1 to Worker
+// Transfer port1 to Worker (for sending bundled code to iframe)
 worker.postMessage({ type: "init", port: channel.port1 }, [channel.port1]);
 
-// Transfer port2 to iframe
+// Transfer port2 to iframe (for receiving bundled code from Worker)
 iframe.contentWindow.postMessage({ type: "init", port: channel.port2 }, "*", [
   channel.port2,
 ]);
+
+// Handle code updates from editor
+function onCodeUpdate(path: string, code: string) {
+  files[path] = code;
+  // Send bundle request directly to Worker
+  worker.postMessage({
+    type: "bundle",
+    entry: "/main.js",
+    files: { ...files },
+  });
+}
+
+// Handle Worker errors
+worker.onmessage = (e) => {
+  if (e.data.type === "bundle-error") {
+    console.error("Bundle error:", e.data.message);
+  }
+};
 ```
 
 **Worker (bundler.worker.ts):**
 
 ```typescript
-let port: MessagePort | null = null;
+let iframePort: MessagePort | null = null;
 
-self.onmessage = (e) => {
+self.onmessage = async (e) => {
   if (e.data.type === "init" && e.data.port) {
-    port = e.data.port;
-    port.onmessage = handleBundleRequest;
+    iframePort = e.data.port;
     self.postMessage({ type: "ready" });
+  } else if (e.data.type === "bundle") {
+    try {
+      const code = await bundle(e.data.entry, e.data.files);
+      // Send bundled code directly to iframe
+      iframePort?.postMessage({
+        type: "execute",
+        code,
+        path: e.data.entry,
+      });
+    } catch (err) {
+      // Report error to Main
+      self.postMessage({ type: "bundle-error", message: String(err) });
+    }
   }
 };
-
-function handleBundleRequest(e: MessageEvent) {
-  if (e.data.type === "bundle") {
-    // Bundle and send result directly to iframe
-    const result = await bundle(e.data.entry, e.data.files);
-    port.postMessage({ type: "bundle-success", code: result });
-  }
-}
 ```
 
 **iframe (runtime.ts):**
@@ -286,40 +317,36 @@ let workerPort: MessagePort | null = null;
 window.onmessage = (e) => {
   if (e.data.type === "init" && e.data.port) {
     workerPort = e.data.port;
-    workerPort.onmessage = handleBundleResult;
+    workerPort.onmessage = handleExecute;
     window.parent.postMessage({ type: "ready" }, "*");
-  } else if (e.data.type === "update") {
-    // Send bundle request directly to Worker
-    workerPort.postMessage({
-      type: "bundle",
-      entry: e.data.path,
-      files: { [e.data.path]: e.data.code },
-    });
   }
 };
 
-function handleBundleResult(e: MessageEvent) {
-  if (e.data.type === "bundle-success") {
-    executeCode(e.data.code);
-    window.parent.postMessage({ type: "success" }, "*");
-  } else if (e.data.type === "bundle-error") {
-    window.parent.postMessage({ type: "error", message: e.data.message }, "*");
+function handleExecute(e: MessageEvent) {
+  if (e.data.type === "execute") {
+    try {
+      executeCode(e.data.code, e.data.path);
+      window.parent.postMessage({ type: "success" }, "*");
+    } catch (err) {
+      window.parent.postMessage({ type: "error", message: String(err) }, "*");
+    }
   }
 }
 ```
 
 ### Pros
 
-- **Direct communication**: No Main window relay after initialization
-- **Fewer message hops**: iframe → Worker → iframe (vs iframe → Main → Worker → Main → iframe)
-- **Better performance**: Reduced latency for frequent HMR updates
-- **Separation of concerns**: Same as Option A
-- **Worker reusability**: Same as Option A
+- **Efficient data flow**: Code goes directly from Main → Worker → iframe without unnecessary hops
+- **Main thread manages file state**: All file state is managed in PreviewPanel, not distributed
+- **Direct Worker → iframe communication**: Bundled code is sent directly to iframe via MessagePort
+- **Separation of concerns**: Worker handles bundling, iframe handles execution only
+- **Worker reusability**: Worker can be shared across multiple preview iframes
 
 ### Cons
 
 - **Slightly more complex setup**: MessageChannel initialization required
 - **Port management**: Need to handle port lifecycle
+- **Bundle errors route through Main**: Error reporting still goes through Main window
 
 ---
 
