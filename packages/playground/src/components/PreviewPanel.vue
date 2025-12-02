@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, watch, useTemplateRef } from "vue";
+import {
+  onMounted,
+  onUnmounted,
+  reactive,
+  ref,
+  useTemplateRef,
+  watch,
+} from "vue";
 
 const props = defineProps<{
   code: string;
@@ -18,12 +25,12 @@ const files = reactive<Record<string, string>>({});
 let worker: Worker | null = null;
 let channel: MessageChannel | null = null;
 
+console.log("[Main] import.meta", import.meta);
 onMounted(() => {
   // Create Worker
-  worker = new Worker(
-    new URL("../worker/bundler.worker.ts", import.meta.url),
-    { type: "module" }
-  );
+  worker = new Worker(new URL("../worker/bundler.worker.ts", import.meta.url), {
+    type: "module",
+  });
 
   // Create MessageChannel for Worker ↔ iframe communication
   channel = new MessageChannel();
@@ -49,11 +56,11 @@ function handleWorkerMessage(event: MessageEvent) {
   const { type, message } = event.data || {};
 
   if (type === "ready") {
-    console.log("[PreviewPanel] Worker is ready");
+    console.log("[Main] Worker is ready");
     isWorkerReady.value = true;
     checkReady();
   } else if (type === "bundle-error") {
-    console.error("[PreviewPanel] Bundle error:", message);
+    console.error("[Main] Bundle error:", message);
     error.value = message;
   }
 }
@@ -65,7 +72,7 @@ function handleIframeMessage(event: MessageEvent) {
   const { type, message } = event.data || {};
 
   if (type === "ready") {
-    console.log("[PreviewPanel] iframe is ready");
+    console.log("[Main] iframe is ready");
     isIframeReady.value = true;
     checkReady();
   } else if (type === "error") {
@@ -96,19 +103,16 @@ function initializePorts() {
     return;
   }
 
-  console.log("[PreviewPanel] Initializing ports...");
+  console.log("[Main] Initializing ports...");
 
   // Transfer port1 to Worker (for sending bundled code to iframe)
-  worker.postMessage(
-    { type: "init", port: channel.port1 },
-    [channel.port1]
-  );
+  worker.postMessage({ type: "init", port: channel.port1 }, [channel.port1]);
 
   // Transfer port2 to iframe (for receiving bundled code from Worker)
   iframeRef.value.contentWindow.postMessage(
     { type: "init", port: channel.port2 },
     "*",
-    [channel.port2]
+    [channel.port2],
   );
 }
 
@@ -116,7 +120,7 @@ function initializePorts() {
  * Handle iframe load event
  */
 function onIframeLoad() {
-  console.log("[PreviewPanel] iframe loaded");
+  console.log("[Main] iframe loaded");
   initializePorts();
 }
 
@@ -131,7 +135,7 @@ function sendCode(code: string) {
   // Update files
   files["/main.js"] = code;
 
-  console.log("[PreviewPanel] Sending bundle request to Worker");
+  console.log("[Main] Sending bundle request to Worker");
 
   // Send bundle request to Worker
   worker.postMessage({
@@ -147,7 +151,7 @@ watch(
     if (isReady.value) {
       sendCode(newCode);
     }
-  }
+  },
 );
 </script>
 

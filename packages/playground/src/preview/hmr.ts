@@ -133,7 +133,7 @@ async function handleExecuteMessage(
       await hmrUpdate(path, code)
       notify({ type: 'success' })
     } catch (err) {
-      console.error('[Runtime] Execution error:', err)
+      console.error('[HMR] Execution error:', err)
       notify({ type: 'error', message: String(err) })
     }
   }
@@ -146,7 +146,7 @@ function handleMessage(event: MessageEvent<{ type: string; port?: MessagePort }>
   const { type, port } = event.data || {}
 
   if (type === 'init' && port) {
-    console.log('[Runtime] Received init with MessagePort')
+    console.log('[HMR] Received init with MessagePort')
     workerPort = port
     workerPort.onmessage = handleExecuteMessage
     notify({ type: 'ready' })
@@ -154,9 +154,11 @@ function handleMessage(event: MessageEvent<{ type: string; port?: MessagePort }>
 }
 
 // Initialize
-console.log('[HMR Runtime] Initializing...')
+console.log('[HMR] Initializing...')
 
 // Listen for messages from parent
 window.addEventListener('message', handleMessage)
 
-console.log('[HMR Runtime] Ready, waiting for init...')
+console.log('[HMR] Ready, waiting for init...')
+
+console.log('[HMR] import.meta', import.meta)
