@@ -1,13 +1,13 @@
 /**
- * Bundler Worker
+ * Worker for bundling
  *
  * This worker handles code bundling using `@rolldown/browser`.
  * It runs in a separate thread to avoid blocking the main UI.
  *
  * Message Flow:
- * - Main → Worker: { type: 'init', port: MessagePort }
+ * - Main → Worker: { type: 'connect', port: MessagePort }
  * - Main → Worker: { type: 'bundle', entry, files }
- * - Worker → iframe: { type: 'execute', code, path } (via MessagePort)
+ * - Worker → iframe: { type: 'eval', code, path } (via MessagePort)
  * - Worker → Main: { type: 'ready' }
  * - Worker → Main: { type: 'bundle-error', message }
  */
@@ -16,7 +16,7 @@ import { bundle, loadRolldown } from '../bundler.ts'
 
 // Message types from Main
 interface InitMessage {
-  type: 'init'
+  type: 'connect'
   port: MessagePort
 }
 
@@ -40,9 +40,9 @@ interface BundleErrorResponse {
 
 type WorkerResponse = ReadyResponse | BundleErrorResponse
 
-// Execute message to iframe (via MessagePort)
-interface ExecuteMessage {
-  type: 'execute'
+// Eval message to iframe (via MessagePort)
+interface EvalMessage {
+  type: 'eval'
   code: string
   path: string
 }
@@ -58,9 +58,9 @@ function respond(response: WorkerResponse): void {
 }
 
 /**
- * Send execute message to iframe via MessagePort
+ * Send eval message to iframe via MessagePort
  */
-function sendToIframe(message: ExecuteMessage): void {
+function sendToIframe(message: EvalMessage): void {
   if (!iframePort) {
     console.error('[Worker] No iframe port available')
     respond({ type: 'bundle-error', message: 'No iframe port available' })
@@ -76,8 +76,8 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
   const message = event.data
 
   switch (message.type) {
-    case 'init':
-      console.log('[Worker] Received init with MessagePort')
+    case 'connect':
+      console.log('[Worker] Received connect with MessagePort')
       if (message.port) {
         iframePort = message.port
         // Pre-load rolldown
@@ -85,10 +85,10 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
           await loadRolldown()
           respond({ type: 'ready' })
         } catch (err) {
-          respond({ type: 'bundle-error', message: `Init failed: ${err}` })
+          respond({ type: 'bundle-error', message: `Connect failed: ${err}` })
         }
       } else {
-        respond({ type: 'bundle-error', message: 'No port provided in init message' })
+        respond({ type: 'bundle-error', message: 'No port provided in connect message' })
       }
       break
 
@@ -98,7 +98,7 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
         const code = await bundle(message.entry, message.files)
         // Send bundled code directly to iframe via MessagePort
         sendToIframe({
-          type: 'execute',
+          type: 'eval',
           code,
           path: message.entry
         })

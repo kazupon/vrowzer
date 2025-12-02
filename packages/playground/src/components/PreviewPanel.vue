@@ -106,11 +106,11 @@ function initializePorts() {
   console.log("[Main] Initializing ports...");
 
   // Transfer port1 to Worker (for sending bundled code to iframe)
-  worker.postMessage({ type: "init", port: channel.port1 }, [channel.port1]);
+  worker.postMessage({ type: "connect", port: channel.port1 }, [channel.port1]);
 
   // Transfer port2 to iframe (for receiving bundled code from Worker)
   iframeRef.value.contentWindow.postMessage(
-    { type: "init", port: channel.port2 },
+    { type: "connect", port: channel.port2 },
     "*",
     [channel.port2],
   );

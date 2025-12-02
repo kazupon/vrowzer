@@ -1,12 +1,12 @@
 /**
  * HMR Runtime (iframe)
  *
- * This module runs in the preview iframe and handles code execution.
- * It receives bundled code from the Worker via MessagePort and executes it.
+ * This module runs in the preview iframe and handles code evaluation.
+ * It receives bundled code from the Worker via MessagePort and evaluates it.
  *
  * Message Flow:
- * - Main → iframe: { type: 'init', port: MessagePort }
- * - Worker → iframe: { type: 'execute', code, path } (via MessagePort)
+ * - Main → iframe: { type: 'connect', port: MessagePort }
+ * - Worker → iframe: { type: 'eval', code, path } (via MessagePort)
  * - iframe → Main: { type: 'ready' }
  * - iframe → Main: { type: 'success' }
  * - iframe → Main: { type: 'error', message }
@@ -62,9 +62,9 @@ window.__HMR_RUNTIME__ = {
 }
 
 /**
- * Execute bundled code
+ * Evaluate bundled code
  */
-async function executeCode(code: string): Promise<void> {
+async function evalCode(code: string): Promise<void> {
   // Create a blob URL for the bundled code
   const blob = new Blob([code], { type: 'application/javascript' })
   const url = URL.createObjectURL(blob)
@@ -93,8 +93,8 @@ async function hmrUpdate(changedPath: string, bundledCode: string): Promise<void
       hotData.set(changedPath, data)
     }
 
-    // Execute the new code
-    await executeCode(bundledCode)
+    // Evaluate the new code
+    await evalCode(bundledCode)
 
     // Call accept callback
     acceptCb()
@@ -102,8 +102,8 @@ async function hmrUpdate(changedPath: string, bundledCode: string): Promise<void
     console.log(`[HMR] Module ${changedPath} updated`)
   } else {
     // No HMR boundary found - full reload
-    console.log('[HMR] No accept handler found, executing code...')
-    await executeCode(bundledCode)
+    console.log('[HMR] No accept handler found, eval code...')
+    await evalCode(bundledCode)
   }
 }
 
@@ -120,7 +120,7 @@ let workerPort: MessagePort | null = null
 /**
  * Handle execute messages from Worker (via MessagePort)
  */
-async function handleExecuteMessage(
+async function handleEvalMessage(
   event: MessageEvent<{ type: string; code?: string; path?: string }>
 ): Promise<void> {
   const { type, code, path } = event.data || {}
@@ -145,16 +145,16 @@ async function handleExecuteMessage(
 function handleMessage(event: MessageEvent<{ type: string; port?: MessagePort }>): void {
   const { type, port } = event.data || {}
 
-  if (type === 'init' && port) {
-    console.log('[HMR] Received init with MessagePort')
+  if (type === 'connect' && port) {
+    console.log('[HMR] Received connect with MessagePort')
     workerPort = port
-    workerPort.onmessage = handleExecuteMessage
+    workerPort.onmessage = handleEvalMessage
     notify({ type: 'ready' })
   }
 }
 
 // Initialize
-console.log('[HMR] Initializing...')
+console.log('[HMR] connecting...')
 
 // Listen for messages from parent
 window.addEventListener('message', handleMessage)
