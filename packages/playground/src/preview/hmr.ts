@@ -125,7 +125,7 @@ async function handleEvalMessage(
 ): Promise<void> {
   const { type, code, path } = event.data || {}
 
-  if (type === 'execute' && code && path) {
+  if (type === 'eval' && code && path) {
     console.log(`[Runtime] Received execute for ${path}`)
 
     try {

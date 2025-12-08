@@ -33,14 +33,16 @@ export async function loadRolldown(): Promise<[typeof Rolldown, RolldownBinding]
 
   // Load rolldown and binding from proxy
   const [rolldownModule, bindingModule] = await Promise.all([
-    dynamicImport<{ rolldown: typeof Rolldown }>('/api/rolldown/dist/index.browser.mjs'),
+    dynamicImport<{ rolldown: typeof Rolldown; VERSION: string }>(
+      '/api/rolldown/dist/index.browser.mjs'
+    ),
     dynamicImport<RolldownBinding>('/api/rolldown/dist/rolldown-binding.wasi-browser.js')
   ])
 
   _rolldown = rolldownModule.rolldown
   _binding = bindingModule
 
-  console.log('[Bundler] Rolldown initialized')
+  console.log('[Bundler] Rolldown initialized: ', rolldownModule.VERSION)
 
   return [_rolldown, _binding]
 }
@@ -84,6 +86,15 @@ const import_meta_hot = __hmr_hot__;
         code: hmrPreamble + transformed,
         map: null
       }
+    }
+  }
+}
+
+function debugPlugin(): RolldownPlugin {
+  return {
+    name: 'debug',
+    resolveId(id: string, importer: string | undefined) {
+      console.log('[Bundler] DEBUG plugin:', id, importer)
     }
   }
 }

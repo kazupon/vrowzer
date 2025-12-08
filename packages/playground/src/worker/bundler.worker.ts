@@ -76,7 +76,7 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
   const message = event.data
 
   switch (message.type) {
-    case 'connect':
+    case 'connect': {
       console.log('[Worker] Received connect with MessagePort')
       if (message.port) {
         iframePort = message.port
@@ -91,8 +91,8 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
         respond({ type: 'bundle-error', message: 'No port provided in connect message' })
       }
       break
-
-    case 'bundle':
+    }
+    case 'bundle': {
       console.log(`[Worker] Bundling ${message.entry}...`)
       try {
         const code = await bundle(message.entry, message.files)
@@ -107,9 +107,10 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
         respond({ type: 'bundle-error', message: String(err) })
       }
       break
-
-    default:
+    }
+    default: {
       console.warn('[Worker] Unknown message type:', (message as { type: string }).type)
+    }
   }
 }
 
