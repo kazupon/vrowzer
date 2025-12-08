@@ -13,7 +13,7 @@
  */
 
 import { bundle, loadRolldown } from '../bundler.ts'
-import { createServer } from '../server.ts'
+import { createServer } from '../severEntry.ts'
 
 // Message types from Main
 interface InitMessage {
@@ -48,7 +48,7 @@ interface EvalMessage {
   path: string
 }
 
-const server = createServer()
+const server = await createServer()
 console.log('[Worker] Vite server created:', server)
 
 // MessagePort for direct communication with iframe
