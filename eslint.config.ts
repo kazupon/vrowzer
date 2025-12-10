@@ -24,7 +24,7 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
   typescript({
     parserOptions: {
       tsconfigRootDir: import.meta.dirname,
-      project: './tsconfig.json'
+      project: ['./tsconfig.json', './packages/*/tsconfig.json']
     }
   }),
   // NOTE: Temporarily disable jsdoc plugin

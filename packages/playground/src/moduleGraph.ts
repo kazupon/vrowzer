@@ -1,8 +1,8 @@
-import { extname } from 'node:path'
+import { extname } from 'pathe'
 import { FS_PREFIX } from './constants.ts'
 import { isDirectCSSRequest } from './plugins/css.ts'
+import { cleanUrl } from './shared/utils.ts'
 import {
-  cleanUrl,
   monotonicDateNow,
   normalizePath,
   removeImportQuery,

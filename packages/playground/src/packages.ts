@@ -21,3 +21,39 @@ interface PackageData {
     dependencies: Record<string, string>
   }
 }
+
+// ---
+
+export function findNearestPackageData(
+  basedir: string,
+  packageCache?: PackageCache
+): PackageData | null {
+  const originalBasedir = basedir
+  // while (basedir) {
+  //   if (packageCache) {
+  //     const cached = getFnpdCache(packageCache, basedir, originalBasedir)
+  //     if (cached) return cached
+  //   }
+
+  //   const pkgPath = path.join(basedir, 'package.json')
+  //   if (tryStatSync(pkgPath)?.isFile()) {
+  //     try {
+  //       const pkgData = loadPackageData(pkgPath)
+
+  //       if (packageCache) {
+  //         setFnpdCache(packageCache, pkgData, basedir, originalBasedir)
+  //       }
+
+  //       return pkgData
+  //     } catch { }
+  //   }
+
+  //   const nextBasedir = path.dirname(basedir)
+  //   if (nextBasedir === basedir) break
+  //   basedir = nextBasedir
+  // }
+
+  return null
+}
+
+// ---

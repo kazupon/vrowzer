@@ -3,6 +3,13 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      // TODO(kazupon): some modules to be added
+      // - pathe
+      piccolors: './node_modules/piccolors/picocolors.browser.js'
+    }
+  },
   plugins: [
     vue(),
     // Plugin to add CORS headers for SharedArrayBuffer support

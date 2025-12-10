@@ -25,6 +25,7 @@ export async function createServer(
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
+  console.log('[Server] Resolved config:', config)
 
   options.listen = options.listen ?? true
 

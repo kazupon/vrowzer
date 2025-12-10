@@ -5,7 +5,7 @@ import type {
   ResolvedConfig
 } from 'vite'
 
-const isWindowMessageServer: unique symbol = Symbol('isWindowMessageServer')
+export const isWindowMessageServer: unique symbol = Symbol('isWindowMessageServer')
 
 interface WindowMessageClient extends NormalizedHotChannelClient {
   // TODO(kazupon): define proper type
