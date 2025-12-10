@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
+    "memfs": "^4.51.1",
     "memfs-browser": "3.5.10302"
   },
   "devDependencies": {
