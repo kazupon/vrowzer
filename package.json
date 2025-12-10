@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.24.0",
   "type": "module",
   "scripts": {
+    "build:memfs": "pnpm --filter memfs-test build",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",
     "fix": "pnpm run --color \"/^fix:/\"",
     "fix:eslint": "eslint . --fix",
@@ -19,6 +20,7 @@
     "lint:oxlint": "oxlint --type-aware",
     "lint:prettier": "prettier --check --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "play": "pnpm --filter playground dev",
+    "play:memfs": "pnpm --filter memfs-test dev",
     "prepare": "git config --local core.hooksPath .githooks",
     "typecheck": "tsgo --noEmit --diagnostics"
   },
