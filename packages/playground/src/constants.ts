@@ -53,9 +53,9 @@ export const DEFAULT_SERVER_MAIN_FIELDS: readonly string[] = Object.freeze(
  * A special condition that would be replaced with production or development
  * depending on NODE_ENV env variable
  */
-export const DEV_PROD_CONDITION = `development|production` as const
+const DEV_PROD_CONDITION = `development|production` as const
 
-export const DEFAULT_CONDITIONS = ['module', 'browser', 'node', DEV_PROD_CONDITION]
+const DEFAULT_CONDITIONS = ['module', 'browser', 'node', DEV_PROD_CONDITION]
 export const DEFAULT_CLIENT_CONDITIONS: readonly string[] = Object.freeze(
   DEFAULT_CONDITIONS.filter(c => c !== 'node')
 )
@@ -81,7 +81,7 @@ export const ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET: string[] = [
   'safari16.4'
 ]
 
-export const DEFAULT_CONFIG_FILES: string[] = [
+const DEFAULT_CONFIG_FILES: string[] = [
   'vite.config.js',
   'vite.config.mjs',
   'vite.config.ts',
@@ -90,13 +90,13 @@ export const DEFAULT_CONFIG_FILES: string[] = [
   'vite.config.cts'
 ]
 
-export const JS_TYPES_RE: RegExp = /\.(?:j|t)sx?$|\.mjs$/
+const JS_TYPES_RE: RegExp = /\.(?:j|t)sx?$|\.mjs$/
 
 export const CSS_LANGS_RE: RegExp = /\.(css|less|sass|scss|styl|stylus|pcss|postcss|sss)(?:$|\?)/
 
-export const OPTIMIZABLE_ENTRY_RE: RegExp = /\.[cm]?[jt]s$/
+const OPTIMIZABLE_ENTRY_RE: RegExp = /\.[cm]?[jt]s$/
 
-export const SPECIAL_QUERY_RE: RegExp = /[?&](?:worker|sharedworker|raw|url)\b/
+const SPECIAL_QUERY_RE: RegExp = /[?&](?:worker|sharedworker|raw|url)\b/
 
 /**
  * Prefix for resolved fs paths, since windows paths may not be valid as URLs.

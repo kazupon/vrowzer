@@ -8,7 +8,7 @@ import type { ModuleTypeFilter } from '@rolldown/browser'
 export type PluginFilter = (input: string) => boolean
 export type TransformHookFilter = (id: string, code: string, moduleType: string) => boolean
 
-export type StringFilter<Value = string | RegExp> =
+type StringFilter<Value = string | RegExp> =
   | Value
   | Array<Value>
   | {
@@ -98,7 +98,9 @@ function createFilter(
 
 export function createIdFilter(
   filter: StringFilter | undefined,
-  cwd: string = process.cwd()
+  // FIXME(kazuya): should we allow passing cwd?
+  // cwd: string = process.cwd()
+  cwd: string = '/'
 ): PluginFilter | undefined {
   if (!filter) return
   const { exclude, include } = normalizeFilter(filter)
@@ -107,7 +109,7 @@ export function createIdFilter(
   return createFilter(excludeFilter, includeFilter)
 }
 
-export function createCodeFilter(filter: StringFilter | undefined): PluginFilter | undefined {
+function createCodeFilter(filter: StringFilter | undefined): PluginFilter | undefined {
   if (!filter) return
   const { exclude, include } = normalizeFilter(filter)
   const excludeFilter = exclude?.map(patternToCodeFilter)

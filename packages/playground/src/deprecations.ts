@@ -87,7 +87,7 @@ export function warnFutureDeprecation(
   config.logger.warnOnce(msg)
 }
 
-export function ignoreDeprecationWarnings<T>(fn: () => T): T {
+function ignoreDeprecationWarnings<T>(fn: () => T): T {
   const before = _ignoreDeprecationWarnings
   _ignoreDeprecationWarnings = true
   const ret = fn()

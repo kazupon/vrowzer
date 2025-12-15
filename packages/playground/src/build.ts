@@ -13,6 +13,7 @@ import type {
   ResolvedConfig
 } from 'vite'
 import type { ResolvedEnvironmentOptions } from './config.ts'
+import type { Logger } from './logger.ts'
 
 const _buildEnvironmentOptionsDefaults = Object.freeze({
   target: 'baseline-widely-available',
@@ -55,17 +56,9 @@ const _buildEnvironmentOptionsDefaults = Object.freeze({
 export const buildEnvironmentOptionsDefaults: Readonly<Partial<BuildEnvironmentOptions>> =
   _buildEnvironmentOptionsDefaults
 
-const _builderOptionsDefaults = Object.freeze({
-  sharedConfigBuild: false,
-  sharedPlugins: false
-  // buildApp
-} satisfies BuilderOptions)
-export const builderOptionsDefaults: Readonly<Partial<BuilderOptions>> = _builderOptionsDefaults
-
 export function resolveBuildEnvironmentOptions(
   raw: BuildEnvironmentOptions,
-  // FIXME(kazupon): logger: Logger,
-  logger: Console,
+  logger: Logger,
   consumer: 'client' | 'server' | undefined
 ): ResolvedBuildEnvironmentOptions {
   const deprecatedPolyfillModulePreload = raw.polyfillModulePreload
@@ -137,6 +130,43 @@ export function resolveBuildEnvironmentOptions(
   return resolved
 }
 
+export async function resolveBuildPlugins(config: ResolvedConfig): Promise<{
+  pre: Plugin[]
+  post: Plugin[]
+}> {
+  return {
+    pre: [
+      // ...(!config.isWorker ? [prepareOutDirPlugin()] : []),
+      // perEnvironmentPlugin(
+      //   'vite:rollup-options-plugins',
+      //   async (environment) =>
+      //     (
+      //       await asyncFlatten(
+      //         arraify(environment.config.build.rollupOptions.plugins),
+      //       )
+      //     ).filter(Boolean) as Plugin[],
+      // ),
+      // ...(config.isWorker ? [webWorkerPostPlugin(config)] : []),
+    ],
+    post: [
+      // ...buildImportAnalysisPlugin(config),
+      // ...(config.nativePluginEnabledLevel >= 1 ? [] : [buildOxcPlugin()]),
+      // ...(config.build.minify === 'esbuild' ? [buildEsbuildPlugin()] : []),
+      // terserPlugin(config),
+      // ...(!config.isWorker
+      //   ? [
+      //     licensePlugin(),
+      //     manifestPlugin(config),
+      //     ssrManifestPlugin(),
+      //     buildReporterPlugin(config),
+      //   ]
+      //   : []),
+      // nativeLoadFallbackPlugin(),
+    ]
+  }
+}
+
+// ---
 export class BuildEnvironment extends BaseEnvironment {
   mode = 'build' as const
 
@@ -167,3 +197,23 @@ export class BuildEnvironment extends BaseEnvironment {
     this._initiated = true
   }
 }
+
+// ---
+
+const _builderOptionsDefaults = Object.freeze({
+  sharedConfigBuild: false,
+  sharedPlugins: false
+  // buildApp
+} satisfies BuilderOptions)
+export const builderOptionsDefaults: Readonly<Partial<BuilderOptions>> = _builderOptionsDefaults
+
+export function resolveBuilderOptions(
+  options: BuilderOptions | undefined
+): ResolvedBuilderOptions | undefined {
+  if (!options) return
+  return mergeWithDefaults({ ..._builderOptionsDefaults, buildApp: async () => {} }, options)
+}
+
+type ResolvedBuilderOptions = Required<BuilderOptions>
+
+// ---

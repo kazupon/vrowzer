@@ -1,11 +1,11 @@
-export interface FetchFunctionOptions {
+interface FetchFunctionOptions {
   cached?: boolean
   startOffset?: number
 }
 
-export type FetchResult = CachedFetchResult | ExternalFetchResult | ViteFetchResult
+type FetchResult = CachedFetchResult | ExternalFetchResult | ViteFetchResult
 
-export interface CachedFetchResult {
+interface CachedFetchResult {
   /**
    * If module cached in the runner, we can just confirm
    * it wasn't invalidated on the server side.
@@ -13,7 +13,7 @@ export interface CachedFetchResult {
   cache: true
 }
 
-export interface ExternalFetchResult {
+interface ExternalFetchResult {
   /**
    * The path to the externalized module starting with file://,
    * by default this will be imported via a dynamic "import"
@@ -27,7 +27,7 @@ export interface ExternalFetchResult {
   type: 'module' | 'commonjs' | 'builtin' | 'network'
 }
 
-export interface ViteFetchResult {
+interface ViteFetchResult {
   /**
    * Code that will be evaluated by vite runner
    * by default this will be wrapped in an async function

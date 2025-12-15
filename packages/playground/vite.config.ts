@@ -1,4 +1,6 @@
 import vue from '@vitejs/plugin-vue'
+import path from 'node:path'
+import { URL } from 'node:url'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
@@ -7,7 +9,19 @@ export default defineConfig({
     alias: {
       // TODO(kazupon): some modules to be added
       // - pathe
-      piccolors: './node_modules/piccolors/picocolors.browser.js'
+      piccolors: './node_modules/piccolors/picocolors.browser.js',
+      'memfs-browser': path.resolve(
+        import.meta.dirname,
+        './node_modules/memfs-browser/dist/memfs.esm.js'
+      ),
+      buffer: path.resolve(import.meta.dirname, './node_modules/buffer/index.js'),
+      'node:fs/promises': path.resolve(import.meta.dirname, './src/polyfills/fs.ts')
+    }
+  },
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless' // require-corp → credentialless
     }
   },
   plugins: [
@@ -30,6 +44,30 @@ export default defineConfig({
       configureServer(server) {
         // eslint-disable-next-line @typescript-eslint/no-misused-promises -- NOTE(kazupon): middleware can be async
         server.middlewares.use(async (req, res, next) => {
+          const url = new URL(req.url ?? '', 'http://localhost')
+          const embedderPolicy = 'credentialless' // or 'require-corp'
+
+          // same-origin以外のリソースはproxyする
+          if (url.pathname === '/proxy') {
+            const target = url.searchParams.get('q')
+            if (target) {
+              const response = await fetch(target)
+              const buffer = await response.arrayBuffer()
+              res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+              res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp')
+              res.setHeader('Access-Control-Allow-Origin', '*')
+              res.setHeader('Content-Length', Buffer.byteLength(Buffer.from(buffer)).toString())
+              res.setHeader(
+                'Content-Type',
+                response.headers.get('content-type') || 'application/octet-stream'
+              )
+              res.write(Buffer.from(buffer))
+              res.end()
+              return
+            }
+          }
+
+          // /api/rolldown/* 以外へのアクセスはそのまま通す
           if (!req.url?.startsWith('/api/rolldown/')) {
             console.log('[rolldown-proxy] Passing through:', req.url)
             return next()

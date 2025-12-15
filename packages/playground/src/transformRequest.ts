@@ -30,9 +30,9 @@ import type { ModuleType, PartialResolvedId, SourceDescription, SourceMap } from
 import type { EnvironmentModuleNode, TransformResult } from 'vite'
 import type { DevEnvironment } from './environment.ts'
 
-export const ERR_LOAD_URL = 'ERR_LOAD_URL'
-export const ERR_LOAD_PUBLIC_URL = 'ERR_LOAD_PUBLIC_URL'
-export const ERR_DENIED_ID = 'ERR_DENIED_ID'
+const ERR_LOAD_URL = 'ERR_LOAD_URL'
+const ERR_LOAD_PUBLIC_URL = 'ERR_LOAD_PUBLIC_URL'
+const ERR_DENIED_ID = 'ERR_DENIED_ID'
 
 const debugLoad = createDebugger('vite:load')
 const debugTransform = createDebugger('vite:transform')
@@ -499,7 +499,7 @@ const defaultModuleTypes: Record<string, ModuleType | undefined> = {
 }
 
 // https://github.com/rolldown/rolldown/blob/bf53a100edf1780d5a5aa41f0bc0459c5696543e/crates/rolldown/src/utils/load_source.rs#L53-L89
-export function getModuleTypeFromId(id: string): ModuleType | undefined {
+function getModuleTypeFromId(id: string): ModuleType | undefined {
   let pos = -1
   while ((pos = id.indexOf('.', pos + 1)) >= 0) {
     const ext = id.slice(pos + 1)

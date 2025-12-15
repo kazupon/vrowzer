@@ -1,5 +1,7 @@
 import path from 'pathe'
 import colors from 'picocolors'
+// TODO(kazupon): pollyfill EventEmitter
+import { EventEmitter } from './emitter.ts'
 import { isExplicitImportRequired } from './plugins/importAnalysis.ts'
 import { withTrailingSlash, wrapId } from './shared/utils.ts'
 import { createDebugger } from './utils.ts'
@@ -19,7 +21,7 @@ import type { InvokeMethods, InvokeResponseData, InvokeSendData } from './shared
 
 // ---
 
-export const debugHmr: ((...args: any[]) => any) | undefined = createDebugger('vite:hmr')
+const debugHmr: ((...args: any[]) => any) | undefined = createDebugger('vite:hmr')
 
 interface PropagationBoundary {
   boundary: EnvironmentModuleNode & { type: 'js' | 'css' }
@@ -463,9 +465,47 @@ function isNodeWithinCircularImports(
 
 // ---
 
-export function normalizeHmrUrl(url: string): string {
+function normalizeHmrUrl(url: string): string {
   if (url[0] !== '.' && url[0] !== '/') {
     url = wrapId(url)
   }
   return url
+}
+
+// ---
+
+type ServerHotChannelApi = {
+  innerEmitter: EventEmitter
+  outsideEmitter: EventEmitter
+}
+
+type ServerHotChannel = HotChannel<ServerHotChannelApi>
+type NormalizedServerHotChannel = NormalizedHotChannel<ServerHotChannelApi>
+
+export function createServerHotChannel(): ServerHotChannel {
+  const innerEmitter = new EventEmitter()
+  const outsideEmitter = new EventEmitter()
+
+  return {
+    send(payload: HotPayload) {
+      outsideEmitter.emit('send', payload)
+    },
+    off(event, listener: () => void) {
+      innerEmitter.off(event, listener)
+    },
+    on: ((event: string, listener: () => unknown) => {
+      innerEmitter.on(event, listener)
+    }) as ServerHotChannel['on'],
+    close() {
+      innerEmitter.removeAllListeners()
+      outsideEmitter.removeAllListeners()
+    },
+    listen() {
+      innerEmitter.emit('connection')
+    },
+    api: {
+      innerEmitter,
+      outsideEmitter
+    }
+  }
 }

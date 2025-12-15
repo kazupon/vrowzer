@@ -53,7 +53,7 @@ export function withTrailingSlash(path: string): string {
 
 // ---
 
-export interface PromiseWithResolvers<T> {
+interface PromiseWithResolvers<T> {
   promise: Promise<T>
   resolve: (value: T | PromiseLike<T>) => void
   reject: (reason?: any) => void

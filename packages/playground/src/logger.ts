@@ -4,8 +4,8 @@ import colors from 'picocolors'
 import type { RollupError } from '@rolldown/browser'
 import type { ResolvedServerUrls } from './utils.ts'
 
-export type LogType = 'error' | 'warn' | 'info'
-export type LogLevel = LogType | 'silent'
+type LogType = 'error' | 'warn' | 'info'
+type LogLevel = LogType | 'silent'
 export interface Logger {
   info(msg: string, options?: LogOptions): void
   warn(msg: string, options?: LogOptions): void
@@ -16,17 +16,17 @@ export interface Logger {
   hasWarned: boolean
 }
 
-export interface LogOptions {
+interface LogOptions {
   clear?: boolean
   timestamp?: boolean
   environment?: string
 }
 
-export interface LogErrorOptions extends LogOptions {
+interface LogErrorOptions extends LogOptions {
   error?: Error | RollupError | null
 }
 
-export const LogLevels: Record<LogLevel, number> = {
+const LogLevels: Record<LogLevel, number> = {
   silent: 0,
   error: 1,
   warn: 2,
@@ -38,7 +38,8 @@ let lastMsg: string | undefined
 let sameCount = 0
 
 function clearScreen() {
-  const repeatCount = process.stdout.rows - 2
+  // TODO(kazupon): const repeatCount = process.stdout.rows - 2
+  const repeatCount = 1
   const blank = repeatCount > 0 ? '\n'.repeat(repeatCount) : ''
   console.log(blank)
   // NOTE(kazupon): disable clear screen for now because it causes some issues in some terminals
@@ -46,7 +47,7 @@ function clearScreen() {
   // readline.clearScreenDown(process.stdout)
 }
 
-export interface LoggerOptions {
+interface LoggerOptions {
   prefix?: string
   allowClearScreen?: boolean
   customLogger?: Logger
@@ -73,7 +74,8 @@ export function createLogger(level: LogLevel = 'info', options: LoggerOptions = 
   const loggedErrors = new WeakSet<Error | RollupError>()
   const { prefix = '[vite]', allowClearScreen = true, console = globalThis.console } = options
   const thresh = LogLevels[level]
-  const canClearScreen = allowClearScreen && process.stdout.isTTY && !process.env.CI
+  // TODO(kazupon): const canClearScreen = allowClearScreen && process.stdout.isTTY && !process.env.CI
+  const canClearScreen = false
   const clear = canClearScreen ? clearScreen : () => {}
 
   function format(type: LogType, msg: string, options: LogErrorOptions = {}) {
@@ -154,7 +156,7 @@ export function createLogger(level: LogLevel = 'info', options: LoggerOptions = 
   return logger
 }
 
-export function printServerUrls(
+function printServerUrls(
   urls: ResolvedServerUrls,
   optionsHost: string | boolean | undefined,
   info: Logger['info']

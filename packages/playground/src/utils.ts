@@ -80,7 +80,7 @@ const FLATTEN_ID_MAX_FILE_LENGTH = 170
 //   return id.slice(0, limit - (FLATTEN_ID_HASH_LENGTH + 1)) + '_' + getHash(id)
 // }
 
-export const normalizeId = (id: string): string => id.replace(replaceNestedIdRE, ' > ')
+const normalizeId = (id: string): string => id.replace(replaceNestedIdRE, ' > ')
 
 // Supported by Node, Deno, Bun
 const NODE_BUILTIN_NAMESPACE = 'node:'
@@ -124,10 +124,7 @@ export function isInNodeModules(id: string): boolean {
   return id.includes('node_modules')
 }
 
-export function moduleListContains(
-  moduleList: string[] | undefined,
-  id: string
-): boolean | undefined {
+function moduleListContains(moduleList: string[] | undefined, id: string): boolean | undefined {
   return moduleList?.some(m => m === id || id.startsWith(withTrailingSlash(m)))
 }
 
@@ -142,15 +139,15 @@ export function moduleListContains(
 //   )
 // }
 
-export const bareImportRE: RegExp = /^(?![a-zA-Z]:)[\w@](?!.*:\/\/)/
-export const deepImportRE: RegExp = /^([^@][^/]*)\/|^(@[^/]+\/[^/]+)\//
+const bareImportRE: RegExp = /^(?![a-zA-Z]:)[\w@](?!.*:\/\/)/
+const deepImportRE: RegExp = /^([^@][^/]*)\/|^(@[^/]+\/[^/]+)\//
 
 // export const _dirname: string = path.dirname(
 //   fileURLToPath(/** #__KEEP__ */ import.meta.url),
 // )
 
 // https://github.com/rolldown/rolldown/blob/62fba31428af244f871f0e119ed43936ee5d01fd/packages/rolldown/src/log/logger.ts#L64
-export const rollupVersion = '4.23.0'
+const rollupVersion = '4.23.0'
 // export { VERSION as rolldownVersion } from 'rolldown'
 
 // set in bin/vite.js
@@ -164,7 +161,7 @@ interface DebuggerOptions {
   depth?: number
 }
 
-export type ViteDebugScope = `vite:${string}`
+type ViteDebugScope = `vite:${string}`
 
 export function createDebugger(
   namespace: ViteDebugScope,
@@ -213,7 +210,7 @@ export function createDebugger(
 // }
 //
 // export const isCaseInsensitiveFS: boolean = testCaseInsensitiveFS()
-export const isCaseInsensitiveFS: boolean = false
+const isCaseInsensitiveFS: boolean = false
 
 const VOLUME_RE = /^[A-Z]:/i
 
@@ -221,12 +218,12 @@ export function normalizePath(id: string): string {
   return path.posix.normalize(isWindows ? slash(id) : id)
 }
 
-export function fsPathFromId(id: string): string {
+function fsPathFromId(id: string): string {
   const fsPath = normalizePath(id.startsWith(FS_PREFIX) ? id.slice(FS_PREFIX.length) : id)
   return fsPath[0] === '/' || VOLUME_RE.test(fsPath) ? fsPath : `/${fsPath}`
 }
 
-export function fsPathFromUrl(url: string): string {
+function fsPathFromUrl(url: string): string {
   return fsPathFromId(cleanUrl(url))
 }
 
@@ -260,14 +257,14 @@ export function isSameFilePath(file1: string, file2: string): boolean {
   return file1 === file2 || (isCaseInsensitiveFS && file1.toLowerCase() === file2.toLowerCase())
 }
 
-export const externalRE: RegExp = /^([a-z]+:)?\/\//
+const externalRE: RegExp = /^([a-z]+:)?\/\//
 export const isExternalUrl = (url: string): boolean => externalRE.test(url)
 
-export const dataUrlRE: RegExp = /^\s*data:/i
-export const isDataUrl = (url: string): boolean => dataUrlRE.test(url)
+const dataUrlRE: RegExp = /^\s*data:/i
+const isDataUrl = (url: string): boolean => dataUrlRE.test(url)
 
-export const virtualModuleRE: RegExp = /^virtual-module:.*/
-export const virtualModulePrefix = 'virtual-module:'
+const virtualModuleRE: RegExp = /^virtual-module:.*/
+const virtualModulePrefix = 'virtual-module:'
 
 // NOTE: We should start relying on the "Sec-Fetch-Dest" header instead of this
 // hardcoded list. We can eventually remove this function when the minimum version
@@ -291,22 +288,22 @@ const directRequestRE = /(\?|&)direct=?(?:&|$)/
 const internalPrefixes = [FS_PREFIX, VALID_ID_PREFIX, CLIENT_PUBLIC_PATH, ENV_PUBLIC_PATH]
 const InternalPrefixRE = new RegExp(`^(?:${internalPrefixes.join('|')})`)
 const trailingSeparatorRE = /[?&]$/
-export const isImportRequest = (url: string): boolean => importQueryRE.test(url)
-export const isInternalRequest = (url: string): boolean => InternalPrefixRE.test(url)
+const isImportRequest = (url: string): boolean => importQueryRE.test(url)
+const isInternalRequest = (url: string): boolean => InternalPrefixRE.test(url)
 
 export function removeImportQuery(url: string): string {
   return url.replace(importQueryRE, '$1').replace(trailingSeparatorRE, '')
 }
-export function removeDirectQuery(url: string): string {
+function removeDirectQuery(url: string): string {
   return url.replace(directRequestRE, '$1').replace(trailingSeparatorRE, '')
 }
 
-export const urlRE: RegExp = /(\?|&)url(?:&|$)/
-export const rawRE: RegExp = /(\?|&)raw(?:&|$)/
-export function removeUrlQuery(url: string): string {
+const urlRE: RegExp = /(\?|&)url(?:&|$)/
+const rawRE: RegExp = /(\?|&)raw(?:&|$)/
+function removeUrlQuery(url: string): string {
   return url.replace(urlRE, '$1').replace(trailingSeparatorRE, '')
 }
-export function removeRawQuery(url: string): string {
+function removeRawQuery(url: string): string {
   return url.replace(rawRE, '$1').replace(trailingSeparatorRE, '')
 }
 
@@ -321,7 +318,7 @@ export function removeTimestampQuery(url: string): string {
   return url.replace(timestampRE, '').replace(trailingSeparatorRE, '')
 }
 
-export async function asyncReplace(
+async function asyncReplace(
   input: string,
   re: RegExp,
   replacer: (match: RegExpExecArray) => string | Promise<string>
@@ -368,7 +365,7 @@ export function isObject(value: unknown): value is Record<string, any> {
   return Object.prototype.toString.call(value) === '[object Object]'
 }
 
-export function isDefined<T>(value: T | undefined | null): value is T {
+function isDefined<T>(value: T | undefined | null): value is T {
   return value != null
 }
 
@@ -424,7 +421,7 @@ export function isFilePathESM(filePath: string, packageCache?: PackageCache): bo
   }
 }
 
-export const splitRE: RegExp = /\r?\n/g
+const splitRE: RegExp = /\r?\n/g
 
 const range: number = 2
 
@@ -440,7 +437,7 @@ type Pos = {
   column: number
 }
 
-export function posToNumber(source: string, pos: number | Pos): number {
+function posToNumber(source: string, pos: number | Pos): number {
   if (typeof pos === 'number') return pos
   const lines = source.split(splitRE)
   const { line, column } = pos
@@ -652,10 +649,10 @@ export function arraify<T>(target: T | T[]): T[] {
 }
 
 // Taken from https://stackoverflow.com/a/36328890
-export const multilineCommentsRE: RegExp = /\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g
-export const singlelineCommentsRE: RegExp = /\/\/.*/g
-export const requestQuerySplitRE: RegExp = /\?(?!.*[/|}])/
-export const requestQueryMaybeEscapedSplitRE: RegExp = /\\?\?(?!.*[/|}])/
+const multilineCommentsRE: RegExp = /\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g
+const singlelineCommentsRE: RegExp = /\/\/.*/g
+const requestQuerySplitRE: RegExp = /\?(?!.*[/|}])/
+const requestQueryMaybeEscapedSplitRE: RegExp = /\\?\?(?!.*[/|}])/
 
 export const blankReplacer = (match: string): string => ' '.repeat(match.length)
 
@@ -665,7 +662,7 @@ export const blankReplacer = (match: string): string => ' '.repeat(match.length)
 //   return h.padEnd(length, '_')
 // }
 
-export function emptyCssComments(raw: string): string {
+function emptyCssComments(raw: string): string {
   return raw.replace(multilineCommentsRE, blankReplacer)
 }
 
@@ -690,7 +687,7 @@ type DeepWritable<T> =
         ? T
         : { -readonly [P in keyof T]: DeepWritable<T[P]> }
 
-export function deepClone<T>(value: T): DeepWritable<T> {
+function deepClone<T>(value: T): DeepWritable<T> {
   if (Array.isArray(value)) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- FIXME(kazupon): types
     return value.map(v => deepClone(v)) as DeepWritable<T>
@@ -780,7 +777,8 @@ export function mergeWithDefaults<D extends Record<string, any>, V extends Recor
 const runtimeDeprecatedPath = new Set(['optimizeDeps', 'ssr.optimizeDeps'])
 const rollupOptionsDeprecationCall = (() => {
   return () => {
-    const method = process.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
+    // const method = process.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
+    const method = import.meta.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
 
     console[method](
       '`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. ' +

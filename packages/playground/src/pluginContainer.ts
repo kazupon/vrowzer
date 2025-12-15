@@ -30,9 +30,7 @@ SOFTWARE.
 */
 
 import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
-import { parseAst as rolldownParseAst } from '@rolldown/browser/parseAst'
 import MagicString from 'magic-string'
-// TODO(kazupon): use virtual fs module
 import fsp from 'node:fs/promises'
 import { join } from 'pathe'
 import colors from 'picocolors'
@@ -93,7 +91,9 @@ import type { Environment } from './ssr/environment.ts'
 // same default value of "moduleInfo.meta" as in Rollup
 const EMPTY_OBJECT = Object.freeze({})
 
-const debugSourcemapCombineFilter = process.env.DEBUG_VITE_SOURCEMAP_COMBINE_FILTER
+// NOTE(kazupon): for vite
+// const debugSourcemapCombineFilter = process.env.DEBUG_VITE_SOURCEMAP_COMBINE_FILTER
+const debugSourcemapCombineFilter = import.meta.env.DEBUG_VITE_SOURCEMAP_COMBINE_FILTER
 const debugSourcemapCombine = createDebugger('vite:sourcemap-combine', {
   onlyWhenFocused: true
 })
@@ -176,7 +176,8 @@ export class EnvironmentPluginContainer<Env extends Environment = Environment> {
       { ...basePluginContextMeta, watchMode: true },
       environment
     )
-    const utils = createPluginHookUtils(plugins)
+    // TODO(kazupon): const utils = createPluginHookUtils(plugins)
+    const utils = createPluginHookUtils(plugins || [])
     this.getSortedPlugins = utils.getSortedPlugins
     this.getSortedPluginHooks = utils.getSortedPluginHooks
     this.moduleGraph = environment.mode === 'dev' ? environment.moduleGraph : undefined
@@ -621,7 +622,7 @@ export class BasicMinimalPluginContext<Meta = PluginContextMeta> {
   ) {}
 
   // FIXME: properly support this later
-  // eslint-disable-next-line @typescript-eslint/class-literal-property-style
+
   get pluginName(): string {
     return ''
   }
@@ -706,7 +707,9 @@ class PluginContext extends MinimalPluginContext implements Omit<RollupPluginCon
   fs: RollupFsModule = fsModule
 
   parse(code: string, opts: any): Program {
-    return rolldownParseAst(code, opts)
+    // FIXME(kazupon): use oxc parse
+    // return rolldownParseAst(code, opts)
+    return {} as Program
   }
 
   async resolve(
@@ -851,7 +854,7 @@ class PluginContext extends MinimalPluginContext implements Omit<RollupPluginCon
 
   private _formatLog<E extends RollupLog>(
     e: string | E,
-    position?: number | { column: number; line: number } | undefined
+    position?: number | { column: number; line: number }
   ): E {
     const err = (typeof e === 'string' ? new Error(e) : e) as E
     if (err.pluginCode) {

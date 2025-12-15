@@ -87,7 +87,7 @@ interface ResolvePluginOptions {
   legacyInconsistentCjsInterop?: boolean
 }
 
-export interface InternalResolveOptions extends Required<ResolveOptions>, ResolvePluginOptions {}
+interface InternalResolveOptions extends Required<ResolveOptions>, ResolvePluginOptions {}
 
 // ---
 

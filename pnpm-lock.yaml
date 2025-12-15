@@ -99,6 +99,9 @@ importers:
       '@jridgewell/trace-mapping':
         specifier: ^0.3.31
         version: 0.3.31
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
       convert-source-map:
         specifier: ^2.0.0
         version: 2.0.0
@@ -111,6 +114,9 @@ importers:
       magic-string:
         specifier: ^0.30.21
         version: 0.30.21
+      memfs-browser:
+        specifier: 3.5.10302
+        version: 3.5.10302
       mlly:
         specifier: ^1.8.0
         version: 1.8.0

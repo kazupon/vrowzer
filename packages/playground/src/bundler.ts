@@ -2,6 +2,7 @@ import type { rolldown as Rolldown, RolldownPlugin } from '@rolldown/browser'
 
 // Types for rolldown binding with __volume
 interface RolldownBinding {
+  readonly __fs: typeof import('node:fs')
   readonly __volume: {
     reset(): void
     fromJSON(fileMap: { [path: string]: string }): void
@@ -43,6 +44,7 @@ export async function loadRolldown(): Promise<[typeof Rolldown, RolldownBinding]
   _binding = bindingModule
 
   console.log('[Bundler] Rolldown initialized: ', rolldownModule.VERSION)
+  console.log('[Bundler] Binding initialized:', _binding)
 
   return [_rolldown, _binding]
 }
@@ -58,11 +60,13 @@ function prepareFileMap(binding: RolldownBinding, files: Record<string, string>)
     fileMap[volumePath] = content
   }
 
-  console.log('[Bundler] Files in volume:', Object.keys(fileMap))
-
   // Reset and populate the virtual file system
   binding.__volume.reset()
+  console.log('[Bundler] Volume set', fileMap)
   binding.__volume.fromJSON(fileMap)
+
+  // read test with node fs API
+  console.log(binding.__fs.readFileSync('main.js', 'utf8'))
 }
 
 /**

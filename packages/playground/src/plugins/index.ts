@@ -1,12 +1,114 @@
 import { createFilterForTransform, createIdFilter } from './pluginFilter.ts'
 
 import type { ObjectHook } from '@rolldown/browser'
-import type { Plugin } from 'vite'
+import type { Plugin, ResolvedConfig } from 'vite'
 import type { PluginHookUtils } from '../config.ts'
 import type { HookHandler, PluginWithRequiredHook } from '../plugin.ts'
 import type { PluginFilter, TransformHookFilter } from './pluginFilter.ts'
 
-// ---
+export async function resolvePlugins(
+  config: ResolvedConfig,
+  prePlugins: Plugin[],
+  normalPlugins: Plugin[],
+  postPlugins: Plugin[]
+): Promise<Plugin[]> {
+  const isBuild = config.command === 'build'
+  const isWorker = config.isWorker
+  const buildPlugins = isBuild
+    ? await (await import('../build')).resolveBuildPlugins(config)
+    : { pre: [], post: [] }
+  const { modulePreload } = config.build
+  // const enableNativePlugin = config.nativePluginEnabledLevel >= 0
+  // const enableNativePluginV1 = config.nativePluginEnabledLevel >= 1
+
+  return [
+    // !isBuild ? optimizedDepsPlugin() : null,
+    // !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
+    // !isBuild ? preAliasPlugin(config) : null,
+    // isBuild &&
+    //   enableNativePluginV1 &&
+    //   !config.resolve.alias.some((v) => v.customResolver)
+    //   ? nativeAliasPlugin({
+    //     entries: config.resolve.alias.map((item) => {
+    //       return {
+    //         find: item.find,
+    //         replacement: item.replacement,
+    //       }
+    //     }),
+    //   })
+    //   : aliasPlugin({
+    //     // @ts-expect-error aliasPlugin receives rollup types
+    //     entries: config.resolve.alias,
+    //     customResolver: viteAliasCustomResolver,
+    //   }),
+
+    ...prePlugins,
+
+    // modulePreload !== false && modulePreload.polyfill
+    //   ? modulePreloadPolyfillPlugin(config)
+    //   : null,
+    // ...(enableNativePlugin
+    //   ? oxcResolvePlugin(
+    //     {
+    //       root: config.root,
+    //       isProduction: config.isProduction,
+    //       isBuild,
+    //       packageCache: config.packageCache,
+    //       asSrc: true,
+    //       optimizeDeps: true,
+    //       externalize: true,
+    //       legacyInconsistentCjsInterop: config.legacy?.inconsistentCjsInterop,
+    //     },
+    //     isWorker
+    //       ? { ...config, consumer: 'client', optimizeDepsPluginNames: [] }
+    //       : undefined,
+    //   )
+    //   : [
+    //     resolvePlugin({
+    //       root: config.root,
+    //       isProduction: config.isProduction,
+    //       isBuild,
+    //       packageCache: config.packageCache,
+    //       asSrc: true,
+    //       optimizeDeps: true,
+    //       externalize: true,
+    //     }),
+    //   ]),
+    // htmlInlineProxyPlugin(config),
+    // cssPlugin(config),
+    // esbuildBannerFooterCompatPlugin(config),
+    // config.oxc !== false ? oxcPlugin(config) : null,
+    // jsonPlugin(config.json, isBuild, enableNativePluginV1),
+    // wasmHelperPlugin(config),
+    // webWorkerPlugin(config),
+    // assetPlugin(config),
+
+    ...normalPlugins,
+
+    // wasmFallbackPlugin(config),
+    // definePlugin(config),
+    // cssPostPlugin(config),
+    // isBuild && buildHtmlPlugin(config),
+    // workerImportMetaUrlPlugin(config),
+    // assetImportMetaUrlPlugin(config),
+    // ...buildPlugins.pre,
+    // dynamicImportVarsPlugin(config),
+    // importGlobPlugin(config),
+
+    ...postPlugins,
+
+    ...buildPlugins.post,
+
+    // internal server-only plugins are always applied after everything else
+    ...(isBuild
+      ? []
+      : [
+          // clientInjectionsPlugin(config),
+          // cssAnalysisPlugin(config),
+          // importAnalysisPlugin(config),
+        ])
+  ].filter(Boolean) as Plugin[]
+}
 
 export function createPluginHookUtils(plugins: readonly Plugin[]): PluginHookUtils {
   // sort plugins per hook

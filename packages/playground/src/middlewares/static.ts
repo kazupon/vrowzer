@@ -8,7 +8,7 @@ import type { ResolvedConfig } from 'vite'
  * @param targetPath - normalized absolute path
  * @param filePath - normalized absolute path
  */
-export function isFileInTargetPath(targetPath: string, filePath: string): boolean {
+function isFileInTargetPath(targetPath: string, filePath: string): boolean {
   return isSameFilePath(targetPath, filePath) || isParentDirectory(targetPath, filePath)
 }
 
