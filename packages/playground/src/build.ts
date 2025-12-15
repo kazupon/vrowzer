@@ -3,12 +3,19 @@ import {
   DEFAULT_ASSETS_INLINE_LIMIT,
   ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET
 } from './constants.ts'
-import { mergeConfig, mergeWithDefaults, setupRollupOptionCompat, unique } from './utils.ts'
+import {
+  joinUrlSegments,
+  mergeConfig,
+  mergeWithDefaults,
+  setupRollupOptionCompat,
+  unique
+} from './utils.ts'
 
 import type {
   BuildEnvironmentOptions,
   BuilderOptions,
   EnvironmentOptions,
+  Plugin,
   ResolvedBuildEnvironmentOptions,
   ResolvedConfig
 } from 'vite'
@@ -215,5 +222,49 @@ export function resolveBuilderOptions(
 }
 
 type ResolvedBuilderOptions = Required<BuilderOptions>
+
+// ---
+
+export function toOutputFilePathWithoutRuntime(
+  filename: string,
+  type: 'asset' | 'public',
+  hostId: string,
+  hostType: 'js' | 'css' | 'html',
+  config: ResolvedConfig,
+  toRelative: (filename: string, hostId: string) => string
+): string {
+  const { renderBuiltUrl } = config.experimental
+  let relative = config.base === '' || config.base === './'
+  if (renderBuiltUrl) {
+    const result = renderBuiltUrl(filename, {
+      hostId,
+      hostType,
+      type,
+      ssr: !!config.build.ssr
+    })
+    if (typeof result === 'object') {
+      if (result.runtime) {
+        throw new Error(
+          `{ runtime: "${result.runtime}" } is not supported for assets in ${hostType} files: ${filename}`
+        )
+      }
+      if (typeof result.relative === 'boolean') {
+        relative = result.relative
+      }
+    } else if (result) {
+      return result
+    }
+  }
+  if (relative && !config.build.ssr) {
+    return toRelative(filename, hostId)
+  } else {
+    // @ts-expect-error -- FIXME(kazupon): types
+    return joinUrlSegments(config.decodedBase, filename)
+  }
+}
+export const toOutputFilePathInCss: typeof toOutputFilePathWithoutRuntime =
+  toOutputFilePathWithoutRuntime
+export const toOutputFilePathInHtml: typeof toOutputFilePathWithoutRuntime =
+  toOutputFilePathWithoutRuntime
 
 // ---

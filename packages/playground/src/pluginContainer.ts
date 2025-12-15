@@ -31,6 +31,7 @@ SOFTWARE.
 
 import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
 import MagicString from 'magic-string'
+// TODO(kazupon): switch to `@rolldown/browser` memfs
 import fsp from 'node:fs/promises'
 import { join } from 'pathe'
 import colors from 'picocolors'

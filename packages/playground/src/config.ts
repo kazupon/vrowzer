@@ -29,16 +29,18 @@ import {
   getSortedPluginsByHook,
   resolvePlugins
 } from './plugins/index.ts'
-import { serverConfigDefaults } from './server.ts'
+import { resolveServerOptions, serverConfigDefaults } from './server.ts'
 import { withTrailingSlash } from './shared/utils.ts'
 import { resolveSSROptions, ssrConfigDefaults } from './ssr/index.ts'
 import {} from './ssr/runtime/serverModuleRunner.ts'
 import {
+  arraify,
   asyncFlatten,
   createDebugger,
   hasBothRollupOptionsAndRolldownOptions,
   isExternalUrl,
   isInNodeModules,
+  isParentDirectory,
   mergeAlias,
   mergeConfig,
   mergeWithDefaults,
@@ -61,6 +63,7 @@ import type {
   ResolvedBuildEnvironmentOptions,
   ResolvedConfig,
   ResolvedDevEnvironmentOptions,
+  ResolvedWorkerOptions,
   ResolveOptions,
   UserConfig
 } from 'vite'
@@ -1021,7 +1024,7 @@ export async function resolveConfig(
         )
       : ''
 
-  // const server = resolveServerOptions(resolvedRoot, config.server, logger)
+  const server = resolveServerOptions(resolvedRoot, config.server, logger)
 
   const builder = resolveBuilderOptions(config.builder)
 
@@ -1051,87 +1054,73 @@ export async function resolveConfig(
     )
   }
 
-  // const createWorkerPlugins = async function (bundleChain: string[]) {
-  //   // Some plugins that aren't intended to work in the bundling of workers (doing post-processing at build time for example).
-  //   // And Plugins may also have cached that could be corrupted by being used in these extra rollup calls.
-  //   // So we need to separate the worker plugin from the plugin that vite needs to run.
-  //   const rawWorkerUserPlugins = (
-  //     await asyncFlatten(createUserWorkerPlugins?.() || [])
-  //   ).filter(filterPlugin)
+  const createWorkerPlugins = async function (bundleChain: string[]) {
+    // Some plugins that aren't intended to work in the bundling of workers (doing post-processing at build time for example).
+    // And Plugins may also have cached that could be corrupted by being used in these extra rollup calls.
+    // So we need to separate the worker plugin from the plugin that vite needs to run.
+    const rawWorkerUserPlugins = (await asyncFlatten(createUserWorkerPlugins?.() || [])).filter(
+      filterPlugin
+    )
 
-  //   // resolve worker
-  //   let workerConfig = mergeConfig({}, config)
-  //   const [workerPrePlugins, workerNormalPlugins, workerPostPlugins] =
-  //     sortUserPlugins(rawWorkerUserPlugins)
+    // resolve worker
+    let workerConfig = mergeConfig({}, config)
+    const [workerPrePlugins, workerNormalPlugins, workerPostPlugins] =
+      sortUserPlugins(rawWorkerUserPlugins)
 
-  //   // run config hooks
-  //   const workerUserPlugins = [
-  //     ...workerPrePlugins,
-  //     ...workerNormalPlugins,
-  //     ...workerPostPlugins,
-  //   ]
-  //   workerConfig = await runConfigHook(
-  //     workerConfig,
-  //     workerUserPlugins,
-  //     configEnv,
-  //   )
+    // run config hooks
+    const workerUserPlugins = [...workerPrePlugins, ...workerNormalPlugins, ...workerPostPlugins]
+    workerConfig = await runConfigHook(workerConfig, workerUserPlugins, configEnv)
 
-  //   const workerResolved: ResolvedConfig = {
-  //     ...workerConfig,
-  //     ...resolved,
-  //     isWorker: true,
-  //     mainConfig: resolved,
-  //     bundleChain,
-  //   }
+    const workerResolved: ResolvedConfig = {
+      ...workerConfig,
+      ...resolved,
+      isWorker: true,
+      // @ts-expect-error -- FIXME(kazupon): types
+      mainConfig: resolved,
+      bundleChain
+    }
 
-  //     // Plugins resolution needs the resolved config (minus plugins) so we need to mutate here
-  //     ; (workerResolved.plugins as Plugin[]) = await resolvePlugins(
-  //       workerResolved,
-  //       workerPrePlugins,
-  //       workerNormalPlugins,
-  //       workerPostPlugins,
-  //     )
+    // Plugins resolution needs the resolved config (minus plugins) so we need to mutate here
+    ;(workerResolved.plugins as Plugin[]) = await resolvePlugins(
+      workerResolved,
+      workerPrePlugins,
+      workerNormalPlugins,
+      workerPostPlugins
+    )
 
-  //   // run configResolved hooks
-  //   await Promise.all(
-  //     createPluginHookUtils(workerResolved.plugins)
-  //       .getSortedPluginHooks('configResolved')
-  //       .map((hook) => hook.call(resolvedConfigContext, workerResolved)),
-  //   )
+    // run configResolved hooks
+    await Promise.all(
+      createPluginHookUtils(workerResolved.plugins)
+        .getSortedPluginHooks('configResolved')
+        .map(hook => hook.call(resolvedConfigContext, workerResolved))
+    )
 
-  //     // Resolve environment plugins after configResolved because there are
-  //     // downstream projects modifying the plugins in it. This may change
-  //     // once the ecosystem is ready.
-  //     // During Build the client environment is used to bundle the worker
-  //     // Avoid overriding the mainConfig (resolved.environments.client)
-  //     ; (workerResolved.environments as Record<
-  //       string,
-  //       ResolvedEnvironmentOptions
-  //     >) = {
-  //       ...workerResolved.environments,
-  //       client: {
-  //         ...workerResolved.environments.client,
-  //         plugins: await resolveEnvironmentPlugins(
-  //           new PartialEnvironment('client', workerResolved),
-  //         ),
-  //       },
-  //     }
+    // Resolve environment plugins after configResolved because there are
+    // downstream projects modifying the plugins in it. This may change
+    // once the ecosystem is ready.
+    // During Build the client environment is used to bundle the worker
+    // Avoid overriding the mainConfig (resolved.environments.client)
+    ;(workerResolved.environments as Record<string, ResolvedEnvironmentOptions>) = {
+      ...workerResolved.environments,
+      client: {
+        ...workerResolved.environments.client,
+        // @ts-expect-error -- FIXME(kazupon): types
+        plugins: await resolveEnvironmentPlugins(new PartialEnvironment('client', workerResolved))
+      }
+    }
 
-  //   return workerResolved
-  // }
+    return workerResolved
+  }
 
-  // const resolvedWorkerOptions: Omit<
-  //   ResolvedWorkerOptions,
-  //   'rolldownOptions'
-  // > & {
-  //   rolldownOptions: ResolvedWorkerOptions['rolldownOptions'] | undefined
-  // } = {
-  //   format: config.worker?.format || 'iife',
-  //   plugins: createWorkerPlugins,
-  //   rollupOptions: config.worker?.rollupOptions || {},
-  //   rolldownOptions: config.worker?.rolldownOptions, // will be set by setupRollupOptionCompat if undefined
-  // }
-  // setupRollupOptionCompat(resolvedWorkerOptions, 'worker')
+  const resolvedWorkerOptions: Omit<ResolvedWorkerOptions, 'rolldownOptions'> & {
+    rolldownOptions: ResolvedWorkerOptions['rolldownOptions'] | undefined
+  } = {
+    format: config.worker?.format || 'iife',
+    plugins: createWorkerPlugins,
+    rollupOptions: config.worker?.rollupOptions || {},
+    rolldownOptions: config.worker?.rolldownOptions // will be set by setupRollupOptionCompat if undefined
+  }
+  setupRollupOptionCompat(resolvedWorkerOptions, 'worker')
 
   const base = withTrailingSlash(resolvedBase)
 
@@ -1146,31 +1135,35 @@ export async function resolveConfig(
   // }
 
   const oxc: OxcOptions | false | undefined = config.oxc
-  // if (config.esbuild) {
-  //   if (config.oxc) {
-  //     logger.warn(
-  //       colors.yellow(
-  //         `Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored.`,
-  //       ) +
-  //       ` The following esbuild options were set: \`${inspect(config.esbuild)}\``,
-  //     )
-  //   } else {
-  //     oxc = convertEsbuildConfigToOxcConfig(config.esbuild, logger)
-  //   }
-  // } else if (config.esbuild === false && config.oxc !== false) {
-  //   logger.warn(
-  //     colors.yellow(
-  //       `\`esbuild\` option is set to false, but \`oxc\` option was not set to false. ` +
-  //       `\`esbuild: false\` does not have effect any more. ` +
-  //       `If you want to disable the default transformation, which is now handled by Oxc, please set \`oxc: false\` instead.`,
-  //     ),
-  //   )
-  // }
+  if (config.esbuild) {
+    if (config.oxc) {
+      logger.warn(
+        colors.yellow(
+          `Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored.`
+        ) //  +
+        // NOTE(kazupon): ignore node inspect for the browser bundle
+        // ` The following esbuild options were set: \`${inspect(config.esbuild)}\``,
+      )
+    } else {
+      // NOTE(kazupon): disable esbuild option and use oxc instead
+      // oxc = convertEsbuildConfigToOxcConfig(config.esbuild, logger)
+    }
+  } else if (config.esbuild === false && config.oxc !== false) {
+    logger.warn(
+      colors.yellow(
+        `\`esbuild\` option is set to false, but \`oxc\` option was not set to false. ` +
+          `\`esbuild: false\` does not have effect any more. ` +
+          `If you want to disable the default transformation, which is now handled by Oxc, please set \`oxc: false\` instead.`
+      )
+    )
+  }
 
   const experimental = mergeWithDefaults(configDefaults.experimental, config.experimental ?? {})
 
   resolved = {
+    // NOTE(kazupon): disable configFile for the browser
     // configFile: configFile ? normalizePath(configFile) : undefined,
+    configFile: undefined,
     configFileDependencies: configFileDependencies.map(name => normalizePath(path.resolve(name))),
     inlineConfig,
     root: resolvedRoot,
@@ -1213,7 +1206,7 @@ export async function resolveConfig(
                     ...oxc?.jsx
                   }
           },
-    // server,
+    server,
     builder,
     // preview,
     envDir,
@@ -1227,26 +1220,26 @@ export async function resolveConfig(
     // assetsInclude(file: string) {
     //   return DEFAULT_ASSETS_RE.test(file) || assetsFilter(file)
     // },
-    // rawAssetsInclude: config.assetsInclude ? arraify(config.assetsInclude) : [],
+    rawAssetsInclude: config.assetsInclude ? arraify(config.assetsInclude) : [],
     logger,
     packageCache,
-    // worker: resolvedWorkerOptions,
+    worker: resolvedWorkerOptions,
     appType: config.appType ?? 'spa',
     experimental,
-    // future:
-    //   config.future === 'warn'
-    //     ? ({
-    //       removePluginHookHandleHotUpdate: 'warn',
-    //       removePluginHookSsrArgument: 'warn',
-    //       removeServerModuleGraph: 'warn',
-    //       removeServerReloadModule: 'warn',
-    //       removeServerPluginContainer: 'warn',
-    //       removeServerHot: 'warn',
-    //       removeServerTransformRequest: 'warn',
-    //       removeServerWarmupRequest: 'warn',
-    //       removeSsrLoadModule: 'warn',
-    //     } satisfies Required<FutureOptions>)
-    //     : config.future,
+    future:
+      config.future === 'warn'
+        ? ({
+            removePluginHookHandleHotUpdate: 'warn',
+            removePluginHookSsrArgument: 'warn',
+            removeServerModuleGraph: 'warn',
+            removeServerReloadModule: 'warn',
+            removeServerPluginContainer: 'warn',
+            removeServerHot: 'warn',
+            removeServerTransformRequest: 'warn',
+            removeServerWarmupRequest: 'warn',
+            removeSsrLoadModule: 'warn'
+          } satisfies Required<FutureOptions>)
+        : config.future,
 
     ssr,
 
@@ -1291,7 +1284,6 @@ export async function resolveConfig(
     //     dot: true,
     //   },
     // ),
-    // @ts-expect-error -- FIXME(kazupon): safeModulePaths implementation
     safeModulePaths: new Set<string>(),
     // nativePluginEnabledLevel: resolveNativePluginEnabledLevel(
     //   experimental.enableNativePlugin,
@@ -1386,45 +1378,40 @@ export async function resolveConfig(
     }
   }
 
-  //   // Warn about removal of experimental features
-  //   if (
-  //     // @ts-expect-error Option removed
-  //     config.legacy?.buildSsrCjsExternalHeuristics ||
-  //     // @ts-expect-error Option removed
-  //     config.ssr?.format === 'cjs'
-  //   ) {
-  //     resolved.logger.warn(
-  //       colors.yellow(`
-  // (!) Experimental legacy.buildSsrCjsExternalHeuristics and ssr.format were be removed in Vite 5.
-  //     The only SSR Output format is ESM. Find more information at https://github.com/vitejs/vite/discussions/13816.
-  // `),
-  //     )
-  //   }
+  // Warn about removal of experimental features
+  if (
+    // @ts-expect-error Option removed
+    config.legacy?.buildSsrCjsExternalHeuristics ||
+    // @ts-expect-error Option removed
+    config.ssr?.format === 'cjs'
+  ) {
+    resolved.logger.warn(
+      colors.yellow(`
+  (!) Experimental legacy.buildSsrCjsExternalHeuristics and ssr.format were be removed in Vite 5.
+      The only SSR Output format is ESM. Find more information at https://github.com/vitejs/vite/discussions/13816.
+  `)
+    )
+  }
 
-  //   const resolvedBuildOutDir = normalizePath(
-  //     path.resolve(resolved.root, resolved.build.outDir),
-  //   )
-  //   if (
-  //     isParentDirectory(resolvedBuildOutDir, resolved.root) ||
-  //     resolvedBuildOutDir === resolved.root
-  //   ) {
-  //     resolved.logger.warn(
-  //       colors.yellow(`
-  // (!) build.outDir must not be the same directory of root or a parent directory of root as this could cause Vite to overwriting source files with build outputs.
-  // `),
-  //     )
-  //   }
+  const resolvedBuildOutDir = normalizePath(path.resolve(resolved.root, resolved.build.outDir))
+  if (
+    isParentDirectory(resolvedBuildOutDir, resolved.root) ||
+    resolvedBuildOutDir === resolved.root
+  ) {
+    resolved.logger.warn(
+      colors.yellow(`
+  (!) build.outDir must not be the same directory of root or a parent directory of root as this could cause Vite to overwriting source files with build outputs.
+  `)
+    )
+  }
 
-  //   if (
-  //     resolved.resolve.tsconfigPaths &&
-  //     resolved.experimental.enableNativePlugin === false
-  //   ) {
-  //     resolved.logger.warn(
-  //       colors.yellow(`
-  // (!) resolve.tsconfigPaths is set to true, but native plugins are disabled. To use resolve.tsconfigPaths, please enable native plugins via experimental.enableNativePlugin.
-  // `),
-  //     )
-  //   }
+  if (resolved.resolve.tsconfigPaths && resolved.experimental.enableNativePlugin === false) {
+    resolved.logger.warn(
+      colors.yellow(`
+  (!) resolve.tsconfigPaths is set to true, but native plugins are disabled. To use resolve.tsconfigPaths, please enable native plugins via experimental.enableNativePlugin.
+  `)
+    )
+  }
 
   return Promise.resolve(resolved)
 }

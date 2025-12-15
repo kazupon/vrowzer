@@ -1,4 +1,4 @@
-import type { InternalResolveOptions } from 'vite'
+import type { InternalResolveOptions, Plugin } from 'vite'
 
 /** Cache for package.json resolution and package.json contents */
 export type PackageCache = Map<string, PackageData>
@@ -54,6 +54,18 @@ export function findNearestPackageData(
   // }
 
   return null
+}
+
+// ---
+
+export function watchPackageDataPlugin(packageCache: PackageCache): Plugin {
+  // ---
+
+  return {
+    name: 'vite:watch-package-data'
+
+    // ---
+  }
 }
 
 // ---

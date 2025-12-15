@@ -1,6 +1,7 @@
 import type { PartialResolvedId } from '@rolldown/browser'
-import type { ResolveOptions } from 'vite'
+import type { Plugin, ResolveOptions } from 'vite'
 import type { DepsOptimizer } from '../optimizer/index.ts'
+import type { PackageCache } from '../packages.ts'
 
 export interface EnvironmentResolveOptions {
   /**
@@ -87,7 +88,11 @@ interface ResolvePluginOptions {
   legacyInconsistentCjsInterop?: boolean
 }
 
-interface InternalResolveOptions extends Required<ResolveOptions>, ResolvePluginOptions {}
+export interface InternalResolveOptions extends Required<ResolveOptions>, ResolvePluginOptions {}
+
+// Defined ResolveOptions are used to overwrite the values for all environments
+// It is used when creating custom resolvers (for CSS, scanning, etc)
+export interface ResolvePluginOptionsWithOverrides extends ResolveOptions, ResolvePluginOptions {}
 
 // ---
 
@@ -255,3 +260,14 @@ export function tryNodeResolve(
 }
 
 // ---
+
+// ---
+
+export function resolvePlugin(resolveOptions: ResolvePluginOptionsWithOverrides): Plugin {
+  // ---
+
+  return {
+    name: 'vite:resolve'
+    // ---
+  }
+}

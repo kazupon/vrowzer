@@ -44,7 +44,8 @@ export async function loadRolldown(): Promise<[typeof Rolldown, RolldownBinding]
   _binding = bindingModule
 
   console.log('[Bundler] Rolldown initialized: ', rolldownModule.VERSION)
-  console.log('[Bundler] Binding initialized:', _binding)
+  console.log('[Bundler] Rolldown module:', rolldownModule)
+  console.log('[Bundler] Binding module:', bindingModule)
 
   return [_rolldown, _binding]
 }
@@ -66,7 +67,7 @@ function prepareFileMap(binding: RolldownBinding, files: Record<string, string>)
   binding.__volume.fromJSON(fileMap)
 
   // read test with node fs API
-  console.log(binding.__fs.readFileSync('main.js', 'utf8'))
+  // console.log(binding.__fs.readFileSync('main.js', 'utf8'))
 }
 
 /**

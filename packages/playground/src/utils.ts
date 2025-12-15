@@ -1,4 +1,5 @@
 import remapping from '@jridgewell/remapping'
+import fs from 'node:fs'
 import { createDebug } from 'obug'
 import path from 'pathe'
 import colors from 'picocolors'
@@ -22,7 +23,7 @@ import {
 import type { DecodedSourceMap, RawSourceMap } from '@jridgewell/remapping'
 import type { Stats } from 'fs'
 import type { Debugger } from 'obug'
-import type { BuildEnvironmentOptions, FSWatcher } from 'vite'
+import type { BuildEnvironmentOptions, FSWatcher, PreviewServer, ViteDevServer } from 'vite'
 import type { PackageCache } from './packages.ts'
 import type { Alias, AliasOptions, Equal } from './types.ts'
 
@@ -257,19 +258,19 @@ export function isSameFilePath(file1: string, file2: string): boolean {
   return file1 === file2 || (isCaseInsensitiveFS && file1.toLowerCase() === file2.toLowerCase())
 }
 
-const externalRE: RegExp = /^([a-z]+:)?\/\//
+export const externalRE: RegExp = /^([a-z]+:)?\/\//
 export const isExternalUrl = (url: string): boolean => externalRE.test(url)
 
-const dataUrlRE: RegExp = /^\s*data:/i
-const isDataUrl = (url: string): boolean => dataUrlRE.test(url)
+export const dataUrlRE: RegExp = /^\s*data:/i
+export const isDataUrl = (url: string): boolean => dataUrlRE.test(url)
 
-const virtualModuleRE: RegExp = /^virtual-module:.*/
-const virtualModulePrefix = 'virtual-module:'
+export const virtualModuleRE: RegExp = /^virtual-module:.*/
+export const virtualModulePrefix = 'virtual-module:'
 
 // NOTE: We should start relying on the "Sec-Fetch-Dest" header instead of this
 // hardcoded list. We can eventually remove this function when the minimum version
 // of browsers we support in dev all support this header.
-const knownJsSrcRE = /\.(?:[jt]sx?|m[jt]s|vue|marko|svelte|astro|imba|mdx)(?:$|\?)/
+export const knownJsSrcRE = /\.(?:[jt]sx?|m[jt]s|vue|marko|svelte|astro|imba|mdx)(?:$|\?)/
 export const isJSRequest = (url: string): boolean => {
   url = cleanUrl(url)
   if (knownJsSrcRE.test(url)) {
@@ -283,13 +284,13 @@ export const isJSRequest = (url: string): boolean => {
 
 export const isCSSRequest = (request: string): boolean => CSS_LANGS_RE.test(request)
 
-const importQueryRE = /(\?|&)import=?(?:&|$)/
-const directRequestRE = /(\?|&)direct=?(?:&|$)/
-const internalPrefixes = [FS_PREFIX, VALID_ID_PREFIX, CLIENT_PUBLIC_PATH, ENV_PUBLIC_PATH]
-const InternalPrefixRE = new RegExp(`^(?:${internalPrefixes.join('|')})`)
-const trailingSeparatorRE = /[?&]$/
-const isImportRequest = (url: string): boolean => importQueryRE.test(url)
-const isInternalRequest = (url: string): boolean => InternalPrefixRE.test(url)
+export const importQueryRE = /(\?|&)import=?(?:&|$)/
+export const directRequestRE = /(\?|&)direct=?(?:&|$)/
+export const internalPrefixes = [FS_PREFIX, VALID_ID_PREFIX, CLIENT_PUBLIC_PATH, ENV_PUBLIC_PATH]
+export const InternalPrefixRE = new RegExp(`^(?:${internalPrefixes.join('|')})`)
+export const trailingSeparatorRE = /[?&]$/
+export const isImportRequest = (url: string): boolean => importQueryRE.test(url)
+export const isInternalRequest = (url: string): boolean => InternalPrefixRE.test(url)
 
 export function removeImportQuery(url: string): string {
   return url.replace(importQueryRE, '$1').replace(trailingSeparatorRE, '')
@@ -300,10 +301,10 @@ function removeDirectQuery(url: string): string {
 
 const urlRE: RegExp = /(\?|&)url(?:&|$)/
 const rawRE: RegExp = /(\?|&)raw(?:&|$)/
-function removeUrlQuery(url: string): string {
+export function removeUrlQuery(url: string): string {
   return url.replace(urlRE, '$1').replace(trailingSeparatorRE, '')
 }
-function removeRawQuery(url: string): string {
+export function removeRawQuery(url: string): string {
   return url.replace(rawRE, '$1').replace(trailingSeparatorRE, '')
 }
 
@@ -318,7 +319,7 @@ export function removeTimestampQuery(url: string): string {
   return url.replace(timestampRE, '').replace(trailingSeparatorRE, '')
 }
 
-async function asyncReplace(
+export async function asyncReplace(
   input: string,
   re: RegExp,
   replacer: (match: RegExpExecArray) => string | Promise<string>
@@ -365,7 +366,7 @@ export function isObject(value: unknown): value is Record<string, any> {
   return Object.prototype.toString.call(value) === '[object Object]'
 }
 
-function isDefined<T>(value: T | undefined | null): value is T {
+export function isDefined<T>(value: T | undefined | null): value is T {
   return value != null
 }
 
@@ -551,7 +552,67 @@ export function ensureWatchedFile(watcher: FSWatcher, file: string | null, root:
   }
 }
 
-// ---
+interface ImageCandidate {
+  url: string
+  descriptor: string
+}
+
+function joinSrcset(ret: ImageCandidate[]) {
+  return ret.map(({ url, descriptor }) => url + (descriptor ? ` ${descriptor}` : '')).join(', ')
+}
+
+/**
+ This regex represents a loose rule of an “image candidate string” and "image set options".
+
+ @see https://html.spec.whatwg.org/multipage/images.html#srcset-attribute
+ @see https://drafts.csswg.org/css-images-4/#image-set-notation
+
+  The Regex has named capturing groups `url` and `descriptor`.
+  The `url` group can be:
+  * any CSS function
+  * CSS string (single or double-quoted)
+  * URL string (unquoted)
+  The `descriptor` is anything after the space and before the comma.
+ */
+const imageCandidateRegex =
+  /(?:^|\s|(?<=,))(?<url>[\w-]+\([^)]*\)|"[^"]*"|'[^']*'|[^,]\S*[^,])\s*(?:\s(?<descriptor>\w[^,]+))?(?:,|$)/g
+const escapedSpaceCharacters = /(?: |\\t|\\n|\\f|\\r)+/g
+
+export function parseSrcset(string: string): ImageCandidate[] {
+  const matches = string
+    .trim()
+    .replace(escapedSpaceCharacters, ' ')
+    .replace(/\r?\n/, '')
+    .replace(/,\s+/, ', ')
+    // @ts-expect-error -- FIXME(kazupon):
+    .replaceAll(/\s+/g, ' ')
+    .matchAll(imageCandidateRegex)
+  return Array.from(matches, ({ groups }) => ({
+    url: groups?.url?.trim() ?? '',
+    descriptor: groups?.descriptor?.trim() ?? ''
+  })).filter(({ url }) => !!url)
+}
+
+export function processSrcSet(
+  srcs: string,
+  replacer: (arg: ImageCandidate) => Promise<string>
+): Promise<string> {
+  return Promise.all(
+    parseSrcset(srcs).map(async ({ url, descriptor }) => ({
+      url: await replacer({ url, descriptor }),
+      descriptor
+    }))
+  ).then(joinSrcset)
+}
+
+export function processSrcSetSync(srcs: string, replacer: (arg: ImageCandidate) => string): string {
+  return joinSrcset(
+    parseSrcset(srcs).map(({ url, descriptor }) => ({
+      url: replacer({ url, descriptor }),
+      descriptor
+    }))
+  )
+}
 
 const windowsDriveRE = /^[A-Z]:/
 const replaceWindowsDriveRE = /^([A-Z]):\//
@@ -1017,7 +1078,70 @@ export async function asyncFlatten<T extends unknown[]>(arr: T): Promise<AsyncFl
   return arr as unknown[] as AsyncFlatten<T>
 }
 
-// ---
+// strip UTF-8 BOM
+export function stripBomTag(content: string): string {
+  if (content.charCodeAt(0) === 0xfeff) {
+    return content.slice(1)
+  }
+
+  return content
+}
+
+const windowsDrivePathPrefixRE = /^[A-Za-z]:[/\\]/
+
+/**
+ * path.isAbsolute also returns true for drive relative paths on windows (e.g. /something)
+ * this function returns false for them but true for absolute paths (e.g. C:/something)
+ */
+export const isNonDriveRelativeAbsolutePath = (p: string): boolean => {
+  if (!isWindows) return p[0] === '/'
+  return windowsDrivePathPrefixRE.test(p)
+}
+
+/**
+ * Determine if a file is being requested with the correct case, to ensure
+ * consistent behavior between dev and prod and across operating systems.
+ */
+export function shouldServeFile(filePath: string, root: string): boolean {
+  // can skip case check on Linux
+  if (!isCaseInsensitiveFS) return true
+
+  return hasCorrectCase(filePath, root)
+}
+
+/**
+ * Note that we can't use realpath here, because we don't want to follow
+ * symlinks.
+ */
+function hasCorrectCase(file: string, assets: string): boolean {
+  if (file === assets) return true
+
+  const parent = path.dirname(file)
+
+  // TODO(kazupon): use virtual fs
+  if (fs.readdirSync(parent).includes(path.basename(file))) {
+    return hasCorrectCase(parent, assets)
+  }
+
+  return false
+}
+
+export function joinUrlSegments(a: string, b: string): string {
+  if (!a || !b) {
+    return a || b || ''
+  }
+  if (a.endsWith('/')) {
+    a = a.substring(0, a.length - 1)
+  }
+  if (b[0] !== '/') {
+    b = '/' + b
+  }
+  return a + b
+}
+
+export function removeLeadingSlash(str: string): string {
+  return str[0] === '/' ? str.slice(1) : str
+}
 
 export function stripBase(path: string, base: string): string {
   if (path === base) {
@@ -1025,6 +1149,147 @@ export function stripBase(path: string, base: string): string {
   }
   const devBase = withTrailingSlash(base)
   return path.startsWith(devBase) ? path.slice(devBase.length - 1) : path
+}
+
+export function evalValue<T = any>(rawValue: string): T {
+  const fn = new Function(`
+    var console, exports, global, module, process, require
+    return (\n${rawValue}\n)
+  `)
+  return fn()
+}
+
+export function getNpmPackageName(importPath: string): string | null {
+  const parts = importPath.split('/')
+  // @ts-expect-error -- FIXME(kazupon):
+  if (parts[0][0] === '@') {
+    if (!parts[1]) return null
+    return `${parts[0]}/${parts[1]}`
+  } else {
+    // @ts-expect-error -- FIXME(kazupon):
+    return parts[0]
+  }
+}
+
+export function getPkgName(name: string): string | undefined {
+  return name[0] === '@' ? name.split('/')[1] : name
+}
+
+const escapeRegexRE = /[-/\\^$*+?.()|[\]{}]/g
+export function escapeRegex(str: string): string {
+  return str.replace(escapeRegexRE, '\\$&')
+}
+
+type CommandType = 'install' | 'uninstall' | 'update'
+export function getPackageManagerCommand(type: CommandType = 'install'): string {
+  const packageManager =
+    // process.env.npm_config_user_agent?.split(' ')[0].split('/')[0] || 'npm'
+    // NOTE(kazupon): use import.meta.env
+    import.meta.env.npm_config_user_agent?.split(' ')[0].split('/')[0] || 'npm'
+  switch (type) {
+    case 'install':
+      return packageManager === 'npm' ? 'npm install' : `${packageManager} add`
+    case 'uninstall':
+      return packageManager === 'npm' ? 'npm uninstall' : `${packageManager} remove`
+    case 'update':
+      return packageManager === 'yarn' ? 'yarn upgrade' : `${packageManager} update`
+    default:
+      throw new TypeError(`Unknown command type: ${type}`)
+  }
+}
+
+export function isDevServer(server: ViteDevServer | PreviewServer): server is ViteDevServer {
+  return 'pluginContainer' in server
+}
+
+export function createSerialPromiseQueue<T>(): {
+  run(f: () => Promise<T>): Promise<T>
+} {
+  let previousTask: Promise<[unknown, Awaited<T>]> | undefined
+
+  return {
+    async run(f) {
+      const thisTask = f()
+      // wait for both the previous task and this task
+      // so that this function resolves in the order this function is called
+      const depTasks = Promise.all([previousTask, thisTask])
+      previousTask = depTasks
+
+      const [, result] = await depTasks
+
+      // this task was the last one, clear `previousTask` to free up memory
+      if (previousTask === depTasks) {
+        previousTask = undefined
+      }
+
+      return result
+    }
+  }
+}
+
+export function sortObjectKeys<T extends Record<string, any>>(obj: T): T {
+  const sorted: Record<string, any> = {}
+  for (const key of Object.keys(obj).sort()) {
+    sorted[key] = obj[key]
+  }
+  return sorted as T
+}
+
+export function displayTime(time: number): string {
+  // display: {X}ms
+  if (time < 1000) {
+    return `${time}ms`
+  }
+
+  time = time / 1000
+
+  // display: {X}s
+  if (time < 60) {
+    return `${time.toFixed(2)}s`
+  }
+
+  // Calculate total minutes and remaining seconds
+  const mins = Math.floor(time / 60)
+  const seconds = Math.round(time % 60)
+
+  // Handle case where seconds rounds to 60
+  if (seconds === 60) {
+    return `${mins + 1}m`
+  }
+
+  // display: {X}m {Y}s
+  return `${mins}m${seconds < 1 ? '' : ` ${seconds}s`}`
+}
+
+/**
+ * Encodes the URI path portion (ignores part after ? or #)
+ */
+export function encodeURIPath(uri: string): string {
+  if (uri.startsWith('data:')) return uri
+  const filePath = cleanUrl(uri)
+  const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
+  return encodeURI(filePath) + postfix
+}
+
+/**
+ * Like `encodeURIPath`, but only replacing `%` as `%25`. This is useful for environments
+ * that can handle un-encoded URIs, where `%` is the only ambiguous character.
+ */
+export function partialEncodeURIPath(uri: string): string {
+  if (uri.startsWith('data:')) return uri
+  const filePath = cleanUrl(uri)
+  const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
+  // @ts-expect-error -- FIXME(kazupon): types
+  return filePath.replaceAll('%', '%25') + postfix
+}
+
+export function decodeURIIfPossible(input: string): string | undefined {
+  try {
+    return decodeURI(input)
+  } catch {
+    // url is malformed, probably a interpolate syntax of template engines
+    return
+  }
 }
 
 // ---

@@ -1,7 +1,14 @@
 import { CSS_LANGS_RE, ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET } from '../constants.ts'
 import { arraify, mergeWithDefaults } from '../utils.ts'
 
-import type { CSSOptions, LightningCSSOptions, ResolvedCSSOptions } from 'vite'
+import type * as PostCSS from 'postcss'
+import type {
+  CSSOptions,
+  LightningCSSOptions,
+  Plugin,
+  ResolvedConfig,
+  ResolvedCSSOptions
+} from 'vite'
 
 const _cssConfigDefaults = Object.freeze({
   /** @experimental */
@@ -33,6 +40,45 @@ const directRequestRE = /[?&]direct\b/
 
 export const isDirectCSSRequest = (request: string): boolean =>
   CSS_LANGS_RE.test(request) && directRequestRE.test(request)
+
+// ---
+
+// Used only if the config doesn't code-split CSS (builds a single CSS file)
+export const cssBundleNameCache: WeakMap<ResolvedConfig, string> = new WeakMap()
+
+const postcssConfigCache = new WeakMap<
+  ResolvedConfig,
+  PostCSSConfigResult | null | Promise<PostCSSConfigResult | null>
+>()
+
+function encodePublicUrlsInCSS(config: ResolvedConfig) {
+  return config.command === 'build'
+}
+
+const cssUrlAssetRE = /__VITE_CSS_URL__([\da-f]+)__/g
+
+/**
+ * Plugin applied before user plugins
+ */
+export function cssPlugin(config: ResolvedConfig): Plugin {
+  // ---
+
+  return {
+    name: 'vite:css'
+    // ---
+  }
+}
+
+/**
+ * Plugin applied after user plugins
+ */
+export function cssPostPlugin(config: ResolvedConfig): Plugin {
+  // ---
+  return {
+    name: 'vite:css-post'
+    // ---
+  }
+}
 
 // ---
 
@@ -143,3 +189,20 @@ const convertTargets = (
 //
 //   return `${name}.css`
 // }
+
+// ---
+
+interface PostCSSConfigResult {
+  options: PostCSS.ProcessOptions
+  plugins: PostCSS.AcceptedPlugin[]
+}
+
+// ---
+
+export function cssAnalysisPlugin(config: ResolvedConfig): Plugin {
+  return {
+    name: 'vite:css-analysis'
+
+    // ---
+  }
+}

@@ -81,7 +81,7 @@ export const ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET: string[] = [
   'safari16.4'
 ]
 
-const DEFAULT_CONFIG_FILES: string[] = [
+export const DEFAULT_CONFIG_FILES: string[] = [
   'vite.config.js',
   'vite.config.mjs',
   'vite.config.ts',
@@ -90,13 +90,13 @@ const DEFAULT_CONFIG_FILES: string[] = [
   'vite.config.cts'
 ]
 
-const JS_TYPES_RE: RegExp = /\.(?:j|t)sx?$|\.mjs$/
+export const JS_TYPES_RE: RegExp = /\.(?:j|t)sx?$|\.mjs$/
 
 export const CSS_LANGS_RE: RegExp = /\.(css|less|sass|scss|styl|stylus|pcss|postcss|sss)(?:$|\?)/
 
-const OPTIMIZABLE_ENTRY_RE: RegExp = /\.[cm]?[jt]s$/
+export const OPTIMIZABLE_ENTRY_RE: RegExp = /\.[cm]?[jt]s$/
 
-const SPECIAL_QUERY_RE: RegExp = /[?&](?:worker|sharedworker|raw|url)\b/
+export const SPECIAL_QUERY_RE: RegExp = /[?&](?:worker|sharedworker|raw|url)\b/
 
 /**
  * Prefix for resolved fs paths, since windows paths may not be valid as URLs.
@@ -128,7 +128,7 @@ export const ENV_PUBLIC_PATH = `/@vite/env`
 //   looked up by mrmime.
 //   You can check if the mime type can be looked up by mrmime by running
 //   `node --print "require('mrmime').lookup('foo.png')"`
-const KNOWN_ASSET_TYPES: string[] = [
+export const KNOWN_ASSET_TYPES: string[] = [
   // images
   'apng',
   'bmp',
@@ -170,20 +170,20 @@ const KNOWN_ASSET_TYPES: string[] = [
   'txt'
 ]
 
-const DEFAULT_ASSETS_RE: RegExp = new RegExp(
+export const DEFAULT_ASSETS_RE: RegExp = new RegExp(
   `\\.(` + KNOWN_ASSET_TYPES.join('|') + `)(\\?.*)?$`,
   'i'
 )
 
-const DEP_VERSION_RE: RegExp = /[?&](v=[\w.-]+)\b/
+export const DEP_VERSION_RE: RegExp = /[?&](v=[\w.-]+)\b/
 
-const loopbackHosts: Set<string> = new Set([
+export const loopbackHosts: Set<string> = new Set([
   'localhost',
   '127.0.0.1',
   '::1',
   '0000:0000:0000:0000:0000:0000:0000:0001'
 ])
-const wildcardHosts: Set<string> = new Set([
+export const wildcardHosts: Set<string> = new Set([
   '0.0.0.0',
   '::',
   '0000:0000:0000:0000:0000:0000:0000:0000'
@@ -202,10 +202,10 @@ export const DEFAULT_ASSETS_INLINE_LIMIT = 4096
 export const defaultAllowedOrigins: RegExp =
   /^https?:\/\/(?:(?:[^:]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/
 
-const METADATA_FILENAME = '_metadata.json'
+export const METADATA_FILENAME = '_metadata.json'
 
-const ERR_OPTIMIZE_DEPS_PROCESSING_ERROR = 'ERR_OPTIMIZE_DEPS_PROCESSING_ERROR'
-const ERR_FILE_NOT_FOUND_IN_OPTIMIZED_DEP_DIR = 'ERR_FILE_NOT_FOUND_IN_OPTIMIZED_DEP_DIR'
+export const ERR_OPTIMIZE_DEPS_PROCESSING_ERROR = 'ERR_OPTIMIZE_DEPS_PROCESSING_ERROR'
+export const ERR_FILE_NOT_FOUND_IN_OPTIMIZED_DEP_DIR = 'ERR_FILE_NOT_FOUND_IN_OPTIMIZED_DEP_DIR'
 
 // --- shared constants.ts ---
 
