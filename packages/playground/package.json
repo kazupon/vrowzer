@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@oxc-project/types": "0.101.0",
-    "@rolldown/browser": "^1.0.0-beta.53",
+    "@rolldown/browser": "^1.0.0-beta.54",
     "@types/convert-source-map": "^2.0.3",
     "@types/escape-html": "^1.0.4",
     "@types/etag": "^1.8.4",
@@ -41,7 +41,7 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
     "typescript": "~5.9.3",
-    "vite": "8.0.0-beta.0",
+    "vite": "8.0.0-beta.2",
     "vue-tsc": "^3.1.4"
   }
 }

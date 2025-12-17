@@ -1,13 +1,15 @@
-import type { rolldown as Rolldown, RolldownPlugin } from '@rolldown/browser'
+import type { rolldown as _Rolldown, RolldownPlugin } from '@rolldown/browser'
 
 // Types for rolldown binding with __volume
-interface RolldownBinding {
+export interface RolldownBinding {
   readonly __fs: typeof import('node:fs')
   readonly __volume: {
     reset(): void
     fromJSON(fileMap: { [path: string]: string }): void
   }
 }
+
+export type Rolldown = typeof _Rolldown
 
 /**
  * Dynamic import helper to avoid Vite's static analysis
@@ -18,25 +20,18 @@ function dynamicImport<T = unknown>(url: string): Promise<T> {
 }
 
 // Lazy-loaded modules
-let _rolldown: typeof Rolldown | null = null
+let _rolldown: Rolldown | null = null
 let _binding: RolldownBinding | null = null
 
 /**
  * Load rolldown from proxy
  */
-export async function loadRolldown(): Promise<[typeof Rolldown, RolldownBinding]> {
-  if (_rolldown && _binding) {
-    console.log('[Bundler] Rolldown already initialized')
-    return [_rolldown, _binding]
-  }
-
+export async function loadRolldown(): Promise<[Rolldown, RolldownBinding]> {
   console.log('[Bundler] Initializing rolldown...')
 
   // Load rolldown and binding from proxy
   const [rolldownModule, bindingModule] = await Promise.all([
-    dynamicImport<{ rolldown: typeof Rolldown; VERSION: string }>(
-      '/api/rolldown/dist/index.browser.mjs'
-    ),
+    dynamicImport<{ rolldown: Rolldown; VERSION: string }>('/api/rolldown/dist/index.browser.mjs'),
     dynamicImport<RolldownBinding>('/api/rolldown/dist/rolldown-binding.wasi-browser.js')
   ])
 
@@ -107,9 +102,12 @@ function debugPlugin(): RolldownPlugin {
 /**
  * Bundle the code using rolldown
  */
-export async function bundle(entry: string, files: Record<string, string>): Promise<string> {
-  const [rolldown, binding] = await loadRolldown()
-
+export async function bundle(
+  rolldown: Rolldown,
+  binding: RolldownBinding,
+  entry: string,
+  files: Record<string, string>
+): Promise<string> {
   // Prepare file system
   prepareFileMap(binding, files)
 

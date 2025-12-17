@@ -1,8 +1,8 @@
 import { isResolvedConfig, resolveConfig } from './config.ts'
+import { warnFutureDeprecation } from './deprecations.ts'
 import { createWindowMessageServer } from './message.ts'
 import { ModuleGraph } from './mixedModuleGraph.ts'
 import { createPluginContainer } from './pluginContainer.ts'
-import { createBrowserdar } from './watcher.ts'
 
 import type { SourceMap } from '@rolldown/browser'
 import type {
@@ -13,9 +13,12 @@ import type {
   ViteDevServer,
   WebSocketServer
 } from 'vite'
+import type { Rolldown, RolldownBinding } from './bundler.ts'
 
 export async function createServer(
   inlineConfig: InlineConfig | ResolvedConfig = {},
+  rolldown: Rolldown,
+  binding: RolldownBinding,
   options: {
     listen?: boolean
     previousEnvironments?: Record<string, DevEnvironment>
@@ -26,11 +29,23 @@ export async function createServer(
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
   console.log('[Server] Resolved config:', config)
+  console.log(`[Server] Using rolldown version: `, rolldown, binding)
 
   options.listen = options.listen ?? true
 
-  // TODO(kazupon): fix type
-  const watcher = createBrowserdar({}) as unknown as FSWatcher
+  // @ts-expect-error -- FIXME: types
+  const watcher: FSWatcher = new binding.__fs.FSWatcher()
+  watcher.on('change', path => {
+    console.log(`[FSWatcher] File changed: ${path}`)
+  })
+  // setInterval(() => {
+  //   console.log('[Server] Writing test file to virtual FS')
+  //   const ret = binding.__fs.writeFileSync('/main.ts', 'test')
+  //   console.log('[Server] Write result:', ret)
+  //   console.log('[Server] Current FS files:', binding.__fs.readFileSync('/main.ts'))
+  // }, 1000)
+  console.log('[Server] Created FSWatcher:', watcher)
+  // const watcher = createBrowserdar({}) as unknown as FSWatcher
   // NOTE(kazupon): unfortunately, vite types will force `WebSocketServer` type at `CreateDevEnvironmentContext.ws`
   const ws = createWindowMessageServer(config) as unknown as WebSocketServer
 
@@ -53,6 +68,7 @@ export async function createServer(
     ssr: () => environments.ssr.moduleGraph
   })
 
+  // @ts-expect-error -- FIXME: types
   let pluginContainer = createPluginContainer(environments)
 
   let hot = ws
@@ -62,7 +78,7 @@ export async function createServer(
     ws,
 
     get hot() {
-      // warnFutureDeprecation(config, 'removeServerHot')
+      warnFutureDeprecation(config, 'removeServerHot')
       return hot
     },
     set hot(h) {
@@ -73,7 +89,7 @@ export async function createServer(
 
     // @ts-expect-error -- FIXME: types
     get pluginContainer() {
-      // warnFutureDeprecation(config, 'removeServerPluginContainer')
+      warnFutureDeprecation(config, 'removeServerPluginContainer')
       return pluginContainer
     },
     // @ts-expect-error -- FIXME: types
@@ -83,7 +99,7 @@ export async function createServer(
 
     // @ts-expect-error -- FIXME: types
     get moduleGraph() {
-      // warnFutureDeprecation(config, 'removeServerModuleGraph')
+      warnFutureDeprecation(config, 'removeServerModuleGraph')
       return moduleGraph
     },
     // @ts-expect-error -- FIXME: types
@@ -112,12 +128,12 @@ export async function createServer(
       // })
     },
     transformRequest(url, options) {
-      // warnFutureDeprecation(config, 'removeServerTransformRequest')
+      warnFutureDeprecation(config, 'removeServerTransformRequest')
       const environment = server.environments[options?.ssr ? 'ssr' : 'client']
       return environment.transformRequest(url)
     },
     warmupRequest(url, options) {
-      // warnFutureDeprecation(config, 'removeServerWarmupRequest')
+      warnFutureDeprecation(config, 'removeServerWarmupRequest')
       const environment = server.environments[options?.ssr ? 'ssr' : 'client']
       return environment.warmupRequest(url)
     },
@@ -127,33 +143,32 @@ export async function createServer(
       return Promise.resolve(html)
     },
     async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
-      // warnFutureDeprecation(config, 'removeSsrLoadModule')
+      warnFutureDeprecation(config, 'removeSsrLoadModule')
       // return ssrLoadModule(url, server, opts?.fixStacktrace)
       // TODO:
       return Promise.resolve({} as Record<string, any>)
     },
     ssrFixStacktrace(e) {
-      // warnFutureDeprecation(
-      //   config,
-      //   'removeSsrLoadModule',
-      //   "ssrFixStacktrace doesn't need to be used for Environment Module Runners.",
-      // )
+      warnFutureDeprecation(
+        config,
+        'removeSsrLoadModule',
+        "ssrFixStacktrace doesn't need to be used for Environment Module Runners."
+      )
       // ssrFixStacktrace(e, server.environments.ssr.moduleGraph)
       // TODO:
     },
     ssrRewriteStacktrace(stack: string) {
-      // warnFutureDeprecation(
-      //   config,
-      //   'removeSsrLoadModule',
-      //   "ssrRewriteStacktrace doesn't need to be used for Environment Module Runners.",
-      // )
+      warnFutureDeprecation(
+        config,
+        'removeSsrLoadModule',
+        "ssrRewriteStacktrace doesn't need to be used for Environment Module Runners."
+      )
       // return ssrRewriteStacktrace(stack, server.environments.ssr.moduleGraph)
       // TODO:
       return stack
     },
     async reloadModule(module) {
-      // TODO:
-      // warnFutureDeprecation(config, 'removeServerReloadModule')
+      warnFutureDeprecation(config, 'removeServerReloadModule')
       // if (serverConfig.hmr !== false && module.file) {
       //   // TODO: Should we also update the node moduleGraph for backward compatibility?
       //   const environmentModule = (module._clientModule ?? module._ssrModule)!
@@ -187,7 +202,8 @@ export async function createServer(
       // return server
     },
     openBrowser() {
-      // TODO:
+      // NOTE(kazupon): not supported for the browser environment, because this server will be already run in the browser.
+      throw new Error('server.openBrowser() is not supported in the browser environment.')
       // const options = server.config.server
       // const url = getServerUrlByHost(server.resolvedUrls, options.host)
       // if (url) {
@@ -236,7 +252,8 @@ export async function createServer(
       // return closeServerPromise
     },
     printUrls() {
-      // TODO:
+      // NOTE(kazupon): not supported for the browser environment
+      throw new Error('server.printUrls() is not supported in the browser environment.')
       // if (server.resolvedUrls) {
       //   printServerUrls(
       //     server.resolvedUrls,
@@ -252,6 +269,8 @@ export async function createServer(
       // }
     },
     bindCLIShortcuts(options) {
+      // NOTE(kazupon): not supported for the browser environment
+      throw new Error('server.bindCLIShortcuts() is not supported in the browser environment.')
       // bindCLIShortcuts(server, options)
     },
     restart(forceOptimize?: boolean) {
