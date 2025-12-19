@@ -14,6 +14,7 @@
     "**/*.html",
     "**/tsconfig*.json",
     "tsconfig.json",
+    "vite/**",
     "packages/playground/src/**"
   ]
 }
