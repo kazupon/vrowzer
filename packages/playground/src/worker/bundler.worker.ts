@@ -12,48 +12,14 @@
  * - Worker → Main: { type: 'bundle-error', message }
  */
 
-import { bundle, loadRolldown } from '../bundler.ts'
+import { bundle, loadRolldown, prepareFileMap } from '../bundler.ts'
+import { _register as _registerFS, _unregister as _unregisterFS } from '../polyfills/fs.ts'
+import { _register as _registerFSP, _unregister as _unregisterFSP } from '../polyfills/fsp.ts'
 import { createServer } from '../severEntry.ts'
 
 import type { ViteDevServer } from 'vite'
 import type { Rolldown, RolldownBinding } from '../bundler.ts'
-
-// Message types from Main
-interface ConnectMessage {
-  type: 'connect'
-  port: MessagePort
-}
-
-interface BundleMessage {
-  type: 'bundle'
-  entry: string
-  files: Record<string, string>
-}
-
-interface DisconnectMessage {
-  type: 'disconnect'
-}
-
-type WorkerMessage = ConnectMessage | BundleMessage | DisconnectMessage
-
-// Response types to Main
-interface ReadyResponse {
-  type: 'ready'
-}
-
-interface BundleErrorResponse {
-  type: 'bundle-error'
-  message: string
-}
-
-type WorkerResponse = ReadyResponse | BundleErrorResponse
-
-// Eval message to iframe (via MessagePort)
-interface EvalMessage {
-  type: 'eval'
-  code: string
-  path: string
-}
+import type { EvalMessage, WorkerMessage, WorkerResponse } from '../messages/types.ts'
 
 /**
  * Send response to main thread
@@ -83,6 +49,20 @@ let server: ViteDevServer | null = null
 
 async function connect(rolldown: Rolldown, binding: RolldownBinding): Promise<void> {
   server = await createServer({}, rolldown, binding)
+  // const watcher: FSWatcher = new binding.__fs.FSWatcher()
+  // console.log('[Worker] Starting FSWatcher...', watcher)
+  // watcher.start('/')
+  // watcher.on('change', (path: string) => {
+  //   console.log(`[FSWatcher] File changed --->: ${path}`)
+  // })
+  // // watcher.on('change', path => {
+  // //   console.log(`[FSWatcher] File changed: ${path}`)
+  // // })
+  // setInterval(() => {
+  //   // console.log('[worker] Writing test file to virtual FS')
+  //   binding.__fs.appendFileSync('/main.ts', 'test')
+  //   console.log('[worker] File written.', binding.__volume.toJSON())
+  // }, 1000)
 }
 
 async function disconnect(): Promise<void> {
@@ -106,6 +86,8 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
         // Pre-load rolldown
         try {
           ;[rolldown, binding] = await loadRolldown()
+          _registerFS(binding)
+          _registerFSP(binding)
           await connect(rolldown, binding)
           respond({ type: 'ready' })
         } catch (err) {
@@ -120,6 +102,8 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
       console.log('[Worker] Received disconnect')
       try {
         await disconnect()
+        _unregisterFS()
+        _unregisterFSP()
       } catch (err) {
         respond({ type: 'bundle-error', message: `Disconnect failed: ${err}` })
       } finally {
@@ -129,13 +113,14 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
       break
     }
     case 'bundle': {
-      console.log(`[Worker] Bundling ${message.entry}...`)
+      console.log(`[Worker] Bundling ${message.entry}...`, message.files)
       if (!rolldown || !binding) {
         respond({ type: 'bundle-error', message: 'Bundler not initialized' })
         break
       }
       try {
-        const code = await bundle(rolldown!, binding!, message.entry, message.files)
+        prepareFileMap(binding, message.files)
+        const code = await bundle(rolldown!, message.entry)
         // Send bundled code directly to iframe via MessagePort
         sendToIframe({
           type: 'eval',

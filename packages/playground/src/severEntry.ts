@@ -1,8 +1,16 @@
 import { isResolvedConfig, resolveConfig } from './config.ts'
 import { warnFutureDeprecation } from './deprecations.ts'
 import { createWindowMessageServer } from './message.ts'
+import { createWindowMessageDevServer } from './messages/dev.ts'
 import { ModuleGraph } from './mixedModuleGraph.ts'
-import { createPluginContainer } from './pluginContainer.ts'
+import {
+  basePluginContextMeta,
+  BasicMinimalPluginContext,
+  createPluginContainer
+} from './pluginContainer.ts'
+import { initPublicFiles } from './publicDir.ts'
+import { mergeConfig, normalizePath } from './utils.ts'
+import { createNoopWatcher } from './watch.ts'
 
 import type { SourceMap } from '@rolldown/browser'
 import type {
@@ -14,6 +22,7 @@ import type {
   WebSocketServer
 } from 'vite'
 import type { Rolldown, RolldownBinding } from './bundler.ts'
+import type { WindowMessageDevServer } from './messages/dev.ts'
 
 export async function createServer(
   inlineConfig: InlineConfig | ResolvedConfig = {},
@@ -33,21 +42,38 @@ export async function createServer(
 
   options.listen = options.listen ?? true
 
-  // @ts-expect-error -- FIXME: types
-  const watcher: FSWatcher = new binding.__fs.FSWatcher()
-  watcher.on('change', path => {
-    console.log(`[FSWatcher] File changed: ${path}`)
-  })
+  const initPublicFilesPromise = initPublicFiles(config)
+
+  const { root, server: serverConfig } = config
+
+  const watchEnabled = serverConfig.watch !== null
+  const watcher = watchEnabled
+    ? // @ts-expect-error -- FIXME: types
+      (new binding.__fs.FSWatcher() as FSWatcher)
+    : createNoopWatcher({})
+  console.log('[Server] Starting FSWatcher...', watcher)
+  // watcher.start('.')
+  // watcher.on('change', (path: string) => {
+  //   console.log(`[FSWatcher] File changed --->: ${path}`)
+  // })
   // setInterval(() => {
   //   console.log('[Server] Writing test file to virtual FS')
-  //   const ret = binding.__fs.writeFileSync('/main.ts', 'test')
-  //   console.log('[Server] Write result:', ret)
-  //   console.log('[Server] Current FS files:', binding.__fs.readFileSync('/main.ts'))
+  //   binding.__fs.appendFileSync('/main.ts', 'test')
+  //   console.log('[Server] File written.', binding.__volume.toJSON())
   // }, 1000)
-  console.log('[Server] Created FSWatcher:', watcher)
   // const watcher = createBrowserdar({}) as unknown as FSWatcher
+
+  const devMessageServer = createWindowMessageDevServer(self)
+  devMessageServer.listen()
+  devMessageServer.on('bundle', async message => {
+    console.log('[DevMessageServer] Bundle message received:', message)
+  })
+
   // NOTE(kazupon): unfortunately, vite types will force `WebSocketServer` type at `CreateDevEnvironmentContext.ws`
   const ws = createWindowMessageServer(config) as unknown as WebSocketServer
+
+  const publicFiles = await initPublicFilesPromise
+  const { publicDir } = config
 
   const environments: Record<string, DevEnvironment> = {}
 
@@ -71,9 +97,28 @@ export async function createServer(
   // @ts-expect-error -- FIXME: types
   let pluginContainer = createPluginContainer(environments)
 
+  const closeHttpServer = createServerCloseFn(devMessageServer)
+
+  // Promise used by `server.close()` to ensure `closeServer()` is only called once
+  let closeServerPromise: Promise<void> | undefined
+  const closeServer = async () => {
+    await Promise.allSettled([
+      watcher.close(),
+      ws.close(),
+      Promise.allSettled(
+        Object.values(server.environments).map(environment => environment.close())
+      ),
+      closeHttpServer(),
+      server._ssrCompatModuleRunner?.close()
+    ])
+    server.resolvedUrls = null
+    server._ssrCompatModuleRunner = undefined
+  }
+
   let hot = ws
   let server: ViteDevServer = {
     config,
+    devWindowMessageServer: devMessageServer,
     watcher,
     ws,
 
@@ -127,27 +172,32 @@ export async function createServer(
       //   },
       // })
     },
+
     transformRequest(url, options) {
       warnFutureDeprecation(config, 'removeServerTransformRequest')
       const environment = server.environments[options?.ssr ? 'ssr' : 'client']
       return environment.transformRequest(url)
     },
+
     warmupRequest(url, options) {
       warnFutureDeprecation(config, 'removeServerWarmupRequest')
       const environment = server.environments[options?.ssr ? 'ssr' : 'client']
       return environment.warmupRequest(url)
     },
+
     transformIndexHtml(url, html, originalUrl) {
       // TODO:
       // return devHtmlTransformFn(server, url, html, originalUrl)
       return Promise.resolve(html)
     },
+
     async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
       warnFutureDeprecation(config, 'removeSsrLoadModule')
       // return ssrLoadModule(url, server, opts?.fixStacktrace)
       // TODO:
       return Promise.resolve({} as Record<string, any>)
     },
+
     ssrFixStacktrace(e) {
       warnFutureDeprecation(
         config,
@@ -157,6 +207,7 @@ export async function createServer(
       // ssrFixStacktrace(e, server.environments.ssr.moduleGraph)
       // TODO:
     },
+
     ssrRewriteStacktrace(stack: string) {
       warnFutureDeprecation(
         config,
@@ -167,6 +218,7 @@ export async function createServer(
       // TODO:
       return stack
     },
+
     async reloadModule(module) {
       warnFutureDeprecation(config, 'removeServerReloadModule')
       // if (serverConfig.hmr !== false && module.file) {
@@ -180,110 +232,39 @@ export async function createServer(
       //   )
       // }
     },
+
     async listen(port?: number, isRestart?: boolean) {
-      return Promise.resolve(server)
-      // TODO:
-      // const hostname = await resolveHostname(config.server.host)
-      // if (httpServer) {
-      //   httpServer.prependListener('listening', () => {
-      //     server.resolvedUrls = resolveServerUrls(
-      //       httpServer,
-      //       config.server,
-      //       hostname,
-      //       httpsOptions,
-      //       config,
-      //     )
-      //   })
-      // }
-      // await startServer(server, hostname, port)
-      // if (httpServer) {
-      //   if (!isRestart && config.server.open) server.openBrowser()
-      // }
-      // return server
+      await startServer(server)
+      return server
     },
+
     openBrowser() {
-      // NOTE(kazupon): not supported for the browser environment, because this server will be already run in the browser.
       throw new Error('server.openBrowser() is not supported in the browser environment.')
-      // const options = server.config.server
-      // const url = getServerUrlByHost(server.resolvedUrls, options.host)
-      // if (url) {
-      //   const path =
-      //     typeof options.open === 'string'
-      //       ? new URL(options.open, url).href
-      //       : url
-      //   // We know the url that the browser would be opened to, so we can
-      //   // start the request while we are awaiting the browser. This will
-      //   // start the crawling of static imports ~500ms before.
-      //   // preTransformRequests needs to be enabled for this optimization.
-      //   if (server.config.server.preTransformRequests) {
-      //     setTimeout(() => {
-      //       const getMethod = path.startsWith('https:') ? httpsGet : httpGet
-      //       getMethod(
-      //         path,
-      //         {
-      //           headers: {
-      //             // Allow the history middleware to redirect to /index.html
-      //             Accept: 'text/html',
-      //           },
-      //         },
-      //         (res) => {
-      //           res.on('end', () => {
-      //             // Ignore response, scripts discovered while processing the entry
-      //             // will be preprocessed (server.config.server.preTransformRequests)
-      //           })
-      //         },
-      //       )
-      //         .on('error', () => {
-      //           // Ignore errors
-      //         })
-      //         .end()
-      //     }, 0)
-      //   }
-      //   _openBrowser(path, true, server.config.logger)
-      // } else {
-      //   server.config.logger.warn('No URL available to open in browser')
-      // }
     },
+
     async close() {
-      // TODO:
-      // if (!closeServerPromise) {
-      //   closeServerPromise = closeServer()
-      // }
-      // return closeServerPromise
+      if (!closeServerPromise) {
+        closeServerPromise = closeServer()
+      }
+      return closeServerPromise
     },
+
     printUrls() {
-      // NOTE(kazupon): not supported for the browser environment
-      throw new Error('server.printUrls() is not supported in the browser environment.')
-      // if (server.resolvedUrls) {
-      //   printServerUrls(
-      //     server.resolvedUrls,
-      //     serverConfig.host,
-      //     config.logger.info,
-      //   )
-      // } else if (middlewareMode) {
-      //   throw new Error('cannot print server URLs in middleware mode.')
-      // } else {
-      //   throw new Error(
-      //     'cannot print server URLs before server.listen is called.',
-      //   )
-      // }
+      console.log('printUrls called')
     },
+
     bindCLIShortcuts(options) {
-      // NOTE(kazupon): not supported for the browser environment
       throw new Error('server.bindCLIShortcuts() is not supported in the browser environment.')
-      // bindCLIShortcuts(server, options)
     },
+
     restart(forceOptimize?: boolean) {
-      // TODO:
-      // if (!server._restartPromise) {
-      //   server._forceOptimizeOnRestart = !!forceOptimize
-      //   server._restartPromise = restartServer(server).finally(() => {
-      //     server._restartPromise = null
-      //     server._forceOptimizeOnRestart = false
-      //   })
-      // }
-      // @ts-ignore
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- NOTE:
+      if (!server._restartPromise) {
+        server._forceOptimizeOnRestart = !!forceOptimize
+        server._restartPromise = restartServer(server, rolldown, binding).finally(() => {
+          server._restartPromise = null
+          server._forceOptimizeOnRestart = false
+        })
+      }
       return server._restartPromise
     },
 
@@ -306,5 +287,290 @@ export async function createServer(
     // _shortcutsState: options.previousShortcutsState,
   }
 
+  // maintain consistency with the server instance after restarting.
+  const reflexServer = new Proxy(server, {
+    get: (_, property: keyof ViteDevServer) => {
+      return server[property]
+    },
+    set: (_, property: keyof ViteDevServer, value: never) => {
+      server[property] = value
+      return true
+    }
+  })
+
+  const onHMRUpdate = async (type: 'create' | 'delete' | 'update', file: string) => {
+    console.log(`[onHMRUpdate] File ${type}d: ${file}`)
+    if (serverConfig.hmr !== false) {
+      // TODO(kazupon):
+      // await handleHMRUpdate(type, file, server)
+    }
+  }
+
+  const onFileAddUnlink = async (file: string, isUnlink: boolean) => {
+    // TODO(kazupon):
+    console.log(`[onFileAddUnlink] File ${isUnlink ? 'removed' : 'added'}: ${file}`)
+
+    file = normalizePath(file)
+    // NOTE(kazupon): not need to handle tsconfig.json change for browser HMR
+    // reloadOnTsconfigChange(server, file)
+
+    await Promise.all(
+      Object.values(server.environments).map(environment =>
+        environment.pluginContainer.watchChange(file, {
+          event: isUnlink ? 'delete' : 'create'
+        })
+      )
+    )
+
+    if (publicDir && publicFiles) {
+      if (file.startsWith(publicDir)) {
+        const path = file.slice(publicDir.length)
+        publicFiles[isUnlink ? 'delete' : 'add'](path)
+        if (!isUnlink) {
+          const clientModuleGraph = server.environments.client.moduleGraph
+          const moduleWithSamePath = await clientModuleGraph.getModuleByUrl(path)
+          const etag = moduleWithSamePath?.transformResult?.etag
+          if (etag) {
+            // The public file should win on the next request over a module with the
+            // same path. Prevent the transform etag fast path from serving the module
+            clientModuleGraph.etagToModuleMap.delete(etag)
+          }
+        }
+      }
+    }
+
+    if (isUnlink) {
+      // invalidate module graph cache on file change
+      for (const environment of Object.values(server.environments)) {
+        environment.moduleGraph.onFileDelete(file)
+      }
+    }
+    await onHMRUpdate(isUnlink ? 'delete' : 'create', file)
+  }
+
+  watcher.on('change', async file => {
+    file = normalizePath(file)
+    // NOTE(kazupon): not need to handle tsconfig.json change for browser HMR
+    // reloadOnTsconfigChange(server, file)
+
+    await Promise.all(
+      Object.values(server.environments).map(environment =>
+        environment.pluginContainer.watchChange(file, { event: 'update' })
+      )
+    )
+    // invalidate module graph cache on file change
+    for (const environment of Object.values(server.environments)) {
+      environment.moduleGraph.onFileChange(file)
+    }
+    await onHMRUpdate('update', file)
+  })
+
+  watcher.on('add', file => {
+    onFileAddUnlink(file, false)
+  })
+  watcher.on('unlink', file => {
+    onFileAddUnlink(file, true)
+  })
+
+  // Pre applied internal middlewares ------------------------------------------
+
+  // ---
+
+  // apply configureServer hooks ------------------------------------------------
+
+  const configureServerContext = new BasicMinimalPluginContext(
+    { ...basePluginContextMeta, watchMode: true },
+    config.logger
+  )
+  const postHooks: ((() => void) | void)[] = []
+  for (const hook of config.getSortedPluginHooks('configureServer')) {
+    postHooks.push(await hook.call(configureServerContext, reflexServer))
+  }
+
+  // Internal middlewares ------------------------------------------------------
+
+  // ---
+
+  // apply configureServer post hooks ------------------------------------------
+
+  // This is applied before the html middleware so that user middleware can
+  // serve custom content instead of index.html.
+  postHooks.forEach(fn => fn && fn())
+
+  // NOTE(kazupon): we might not need to init the optimizer here ...
+  // httpServer.listen can be called multiple times
+  // when port when using next port number
+  // this code is to avoid calling buildStart multiple times
+  let initingServer: Promise<void> | undefined
+  let serverInited = false
+  const initServer = async (onListen: boolean) => {
+    if (serverInited) return
+    if (initingServer) return initingServer
+
+    initingServer = (async function () {
+      // For backward compatibility, we call buildStart for the client
+      // environment when initing the server. For other environments
+      // buildStart will be called when the first request is transformed
+      // @ts-expect-error -- FIXME(kazupon): types
+      await environments.client.pluginContainer.buildStart()
+
+      // ensure ws server started
+      if (onListen || options.listen) {
+        await Promise.all(Object.values(environments).map(e => e.listen(server)))
+      }
+
+      initingServer = undefined
+      serverInited = true
+    })()
+    return initingServer
+  }
+
+  if (devMessageServer) {
+    // overwrite listen to init optimizer before server start
+    const listen = devMessageServer.listen.bind(devMessageServer)
+    devMessageServer.listen = (async (port: number, ...args: any[]) => {
+      try {
+        await initServer(true)
+      } catch (e) {
+        devMessageServer.emit('error', e)
+        return
+      }
+      // @ts-expect-error -- FIXME(kazupon): types
+      return listen(port, ...args)
+    }) as any
+  } else {
+    await initServer(false)
+  }
+
   return server
+}
+
+// ---
+
+async function startServer(server: ViteDevServer): Promise<void> {
+  const devWindowMessageServer = server.devWindowMessageServer
+  if (!devWindowMessageServer) {
+    throw new Error('Cannot call server.listen.')
+  }
+
+  server.listen()
+}
+
+function createServerCloseFn(server: WindowMessageDevServer | null): () => Promise<void> {
+  if (!server) {
+    return () => Promise.resolve()
+  }
+
+  return () =>
+    new Promise<void>(resolve => {
+      server.close()
+      resolve()
+    })
+}
+
+// ---
+
+async function restartServer(server: ViteDevServer, rolldown: Rolldown, binding: RolldownBinding) {
+  global.__vite_start_time = performance.now()
+
+  let inlineConfig = server.config.inlineConfig
+  if (server._forceOptimizeOnRestart) {
+    inlineConfig = mergeConfig(inlineConfig, {
+      forceOptimizeDeps: true
+    })
+  }
+
+  // Reinit the server by creating a new instance using the same inlineConfig
+  // This will trigger a reload of the config file and re-create the plugins and
+  // middlewares. We then assign all properties of the new server to the existing
+  // server instance and set the user instance to be used in the new server.
+  // This allows us to keep the same server instance for the user.
+  {
+    let newServer: ViteDevServer | null = null
+    try {
+      // delay ws server listen
+      newServer = await createServer(inlineConfig, rolldown, binding, {
+        listen: false,
+        previousEnvironments: server.environments
+      })
+    } catch (err: any) {
+      server.config.logger.error(err.message, {
+        timestamp: true
+      })
+      server.config.logger.error('server restart failed', { timestamp: true })
+      return
+    }
+
+    // Detach readline so close handler skips it. Reused to avoid stdin issues
+    // server._shortcutsState = undefined
+
+    await server.close()
+
+    // // Assign new server props to existing server instance
+    // const middlewares = server.middlewares
+    // newServer._configServerPort = server._configServerPort
+    // newServer._currentServerPort = server._currentServerPort
+    // Object.assign(server, newServer)
+
+    // // Keep the same connect instance so app.use(vite.middlewares) works
+    // // after a restart in middlewareMode (.route is always '/')
+    // middlewares.stack = newServer.middlewares.stack
+    // server.middlewares = middlewares
+
+    // Rebind internal server variable so functions reference the user server
+    newServer._setInternalServer(server)
+  }
+
+  const {
+    logger,
+    server: { port, middlewareMode }
+  } = server.config
+  if (!middlewareMode) {
+    await server.listen(port, true)
+  } else {
+    await Promise.all(Object.values(server.environments).map(e => e.listen(server)))
+  }
+  logger.info('server restarted.', { timestamp: true })
+
+  // if (
+  //   (server._shortcutsState as ShortcutsState<ViteDevServer> | undefined)
+  //     ?.options
+  // ) {
+  //   bindCLIShortcuts(
+  //     server,
+  //     { print: false },
+  //     // Skip environment checks since shortcuts were bound before restart
+  //     true,
+  //   )
+  // }
+}
+
+/**
+ * Internal function to restart the Vite server and print URLs if changed
+ */
+export async function restartServerWithUrls(server: ViteDevServer): Promise<void> {
+  if (server.config.server.middlewareMode) {
+    await server.restart()
+    return
+  }
+
+  // const { port: prevPort, host: prevHost } = server.config.server
+  // const prevUrls = server.resolvedUrls
+
+  await server.restart()
+
+  const {
+    logger
+    // server: { port, host },
+  } = server.config
+  logger.info('')
+  server.printUrls()
+  // if (
+  //   (port ?? DEFAULT_DEV_PORT) !== (prevPort ?? DEFAULT_DEV_PORT) ||
+  //   host !== prevHost ||
+  //   diffDnsOrderChange(prevUrls, server.resolvedUrls)
+  // ) {
+  //   logger.info('')
+  //   server.printUrls()
+  // }
 }

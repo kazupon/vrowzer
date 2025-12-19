@@ -1,7 +1,6 @@
+import { EventEmitter } from 'node:events'
 import path from 'pathe'
 import colors from 'picocolors'
-// TODO(kazupon): pollyfill EventEmitter
-import { EventEmitter } from './emitter.ts'
 import { isExplicitImportRequired } from './plugins/importAnalysis.ts'
 import { withTrailingSlash, wrapId } from './shared/utils.ts'
 import { createDebugger } from './utils.ts'

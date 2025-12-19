@@ -48,7 +48,7 @@ export async function loadRolldown(): Promise<[Rolldown, RolldownBinding]> {
 /**
  * Prepare file map for __volume
  */
-function prepareFileMap(binding: RolldownBinding, files: Record<string, string>): void {
+export function prepareFileMap(binding: RolldownBinding, files: Record<string, string>): void {
   const fileMap: { [path: string]: string } = Object.create(null) as { [path: string]: string }
   for (const [path, content] of Object.entries(files)) {
     // Remove leading slash for __volume
@@ -57,6 +57,7 @@ function prepareFileMap(binding: RolldownBinding, files: Record<string, string>)
   }
 
   // Reset and populate the virtual file system
+  console.log('[Bundler] Resetting volume...', binding.__volume.reset)
   binding.__volume.reset()
   console.log('[Bundler] Volume set', fileMap)
   binding.__volume.fromJSON(fileMap)
@@ -102,15 +103,7 @@ function debugPlugin(): RolldownPlugin {
 /**
  * Bundle the code using rolldown
  */
-export async function bundle(
-  rolldown: Rolldown,
-  binding: RolldownBinding,
-  entry: string,
-  files: Record<string, string>
-): Promise<string> {
-  // Prepare file system
-  prepareFileMap(binding, files)
-
+export async function bundle(rolldown: Rolldown, entry: string): Promise<string> {
   const bundleStart = performance.now()
 
   // Bundle

@@ -910,8 +910,7 @@ export async function resolveConfig(
       resolvedDefaultResolve.alias,
       resolvedDefaultResolve.preserveSymlinks,
       inlineConfig.forceOptimizeDeps,
-      console,
-      // FIXME(kazupon): logger,
+      logger,
       environmentName,
       config.ssr?.target === 'webworker',
       config.server?.preTransformRequests
@@ -1102,9 +1101,9 @@ export async function resolveConfig(
     // Avoid overriding the mainConfig (resolved.environments.client)
     ;(workerResolved.environments as Record<string, ResolvedEnvironmentOptions>) = {
       ...workerResolved.environments,
+      // @ts-expect-error -- FIXME(kazupon): types
       client: {
         ...workerResolved.environments.client,
-        // @ts-expect-error -- FIXME(kazupon): types
         plugins: await resolveEnvironmentPlugins(new PartialEnvironment('client', workerResolved))
       }
     }
@@ -1168,7 +1167,6 @@ export async function resolveConfig(
     inlineConfig,
     root: resolvedRoot,
     base,
-    // @ts-expect-error -- FIXME(kazupon): types
     decodedBase: decodeBase(base),
     rawBase: resolvedBase,
     publicDir: resolvedPublicDir,
@@ -1225,6 +1223,7 @@ export async function resolveConfig(
     packageCache,
     worker: resolvedWorkerOptions,
     appType: config.appType ?? 'spa',
+    // @ts-expect-error -- FIXME(kazupon): types
     experimental,
     future:
       config.future === 'warn'
@@ -1244,6 +1243,7 @@ export async function resolveConfig(
     ssr,
 
     // optimizeDeps: backwardCompatibleOptimizeDeps,
+    // @ts-expect-error -- FIXME(kazupon): types
     resolve: resolvedDefaultResolve,
     dev: resolvedDevEnvironmentOptions,
     build: resolvedBuildOptions,

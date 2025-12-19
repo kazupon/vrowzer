@@ -9,6 +9,7 @@ export default defineConfig({
         import.meta.dirname,
         './node_modules/memfs-browser/dist/memfs.esm.js'
       ),
+      'node:buffer': path.resolve(import.meta.dirname, './node_modules/buffer/index.js'),
       buffer: path.resolve(import.meta.dirname, './node_modules/buffer/index.js')
     }
   }

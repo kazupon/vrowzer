@@ -133,14 +133,14 @@ function sendCode(code: string) {
   }
 
   // Update files
-  files["/main.js"] = code;
+  files["./main.js"] = code;
 
   console.log("[Main] Sending bundle request to Worker");
 
   // Send bundle request to Worker
   worker.postMessage({
     type: "bundle",
-    entry: "/main.js",
+    entry: "./main.js",
     files: { ...files },
   });
 }

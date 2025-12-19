@@ -124,7 +124,7 @@
         }
 
         const testFiles = {
-          "/main.js": `
+          "./main.js": `
 // Test entry file
 import { greet } from './utils.js'
 
@@ -150,7 +150,7 @@ export function greet(name) {
         log("Sending bundle request...");
         worker.postMessage({
           type: "bundle",
-          entry: "/main.js",
+          entry: "./main.js",
           files: testFiles,
         });
       });

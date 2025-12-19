@@ -1,4 +1,4 @@
-import { fs, vol } from 'memfs-browser'
+import { createFsFromVolume, vol } from 'memfs-browser'
 
 import { setupCounter } from './counter.ts'
 import { readFile } from './mod.ts'
@@ -26,13 +26,28 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 
 setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
 
-console.log(await readFile('./mod.ts'))
-
 const json = {
   './README.md': '1',
   './src/index.js': '2',
   './node_modules/debug/index.js': '3'
 }
-vol.fromJSON(json, '/')
+console.log('fromJSON', vol.fromJSON(json, '/'))
+
+const fs = createFsFromVolume(vol)
+console.log('memfs fs', fs)
+
+const watcher = new fs.FSWatcher()
+watcher.start('/')
+const w = watcher.on('change', (p, stats, s) => {
+  console.log('fs change -->', p, '---', stats, s)
+})
+console.log('memfs watcher', w)
+
+console.log(await readFile('./mod.ts'))
 
 console.log('memfs readfileSync', fs.readFileSync('/README.md', 'utf8'))
+
+setInterval(() => {
+  console.log('memfs update README.md')
+  fs.appendFileSync('/README.md', '\nupdate ' + new Date().toISOString())
+}, 500)

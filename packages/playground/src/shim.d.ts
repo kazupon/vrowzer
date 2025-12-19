@@ -1,4 +1,5 @@
-import type { WindowMessageServer } from './message.ts'
+import type { ModuleRunner } from 'vite/module-runner'
+import type { WindowMessageDevServer } from './messages/dev.ts'
 
 declare module '*.vue' {
   import { defineComponent } from 'vue'
@@ -21,4 +22,32 @@ declare module 'vite' {
   export interface CreateDevEnvironmentContext {
     ws: WindowMessageServer
   }
+
+  export interface ViteDevServer {
+    devWindowMessageServer: WindowMessageDevServer | null
+    /**
+     * @internal
+     */
+    _setInternalServer(server: ViteDevServer): void
+    /**
+     * @internal
+     */
+    _restartPromise: Promise<void> | null
+    /**
+     * @internal
+     */
+    _forceOptimizeOnRestart: boolean
+    /**
+     * @internal
+     */
+    // _shortcutsState?: ShortcutsState<ViteDevServer>
+    /**
+     * @internal
+     */
+    _ssrCompatModuleRunner?: ModuleRunner
+  }
+}
+
+declare global {
+  var __vite_start_time: number | undefined
 }

@@ -17,6 +17,7 @@
     "es-module-lexer": "^2.0.0",
     "escape-html": "^1.0.3",
     "etag": "^1.8.1",
+    "events": "^3.3.0",
     "magic-string": "^0.30.21",
     "memfs-browser": "3.5.10302",
     "mlly": "^1.8.0",

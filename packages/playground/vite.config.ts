@@ -14,6 +14,7 @@ export default defineConfig({
         import.meta.dirname,
         './node_modules/memfs-browser/dist/memfs.esm.js'
       ),
+      'node:events': path.resolve(import.meta.dirname, './node_modules/events/events.js'),
       'node:path': path.resolve(import.meta.dirname, './node_modules/pathe/dist/index.mjs'),
       path: path.resolve(import.meta.dirname, './node_modules/pathe/dist/index.mjs'),
       'node:buffer': path.resolve(import.meta.dirname, './node_modules/buffer/index.js'),

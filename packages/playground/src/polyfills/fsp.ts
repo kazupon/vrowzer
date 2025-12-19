@@ -1,5 +1,23 @@
-import { fs } from 'memfs-browser'
+import type { RolldownBinding } from '../bundler.ts'
 
-// TODO(kazupon): switch to `@rolldown/browser` memfs
+let _fs: typeof import('node:fs').promises | undefined
 
-export default fs.promises
+export function _register(binding: RolldownBinding) {
+  _fs = binding.__fs.promises
+}
+
+export function _unregister() {
+  _fs = undefined
+}
+
+const proxy = new Proxy(Object.create(null), {
+  get(_, prop: keyof typeof import('node:fs').promises) {
+    console.log('[fs polyfill] accessing fs property:', _, prop)
+    if (_fs && prop in _fs) {
+      return (_fs as any)[prop]
+    }
+    return (_ as any)[prop]
+  }
+}) as typeof import('node:fs').promises
+
+export default proxy
