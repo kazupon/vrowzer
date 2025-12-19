@@ -1,6 +1,5 @@
 import { isResolvedConfig, resolveConfig } from './config.ts'
 import { warnFutureDeprecation } from './deprecations.ts'
-import { createWindowMessageServer } from './message.ts'
 import { createWindowMessageDevServer } from './messages/dev.ts'
 import { ModuleGraph } from './mixedModuleGraph.ts'
 import {
@@ -11,16 +10,10 @@ import {
 import { initPublicFiles } from './publicDir.ts'
 import { mergeConfig, normalizePath } from './utils.ts'
 import { createNoopWatcher } from './watch.ts'
+import { createWindowMessageHmrServer } from './wm.ts'
 
 import type { SourceMap } from '@rolldown/browser'
-import type {
-  DevEnvironment,
-  FSWatcher,
-  InlineConfig,
-  ResolvedConfig,
-  ViteDevServer,
-  WebSocketServer
-} from 'vite'
+import type { DevEnvironment, FSWatcher, InlineConfig, ResolvedConfig, ViteDevServer } from 'vite'
 import type { Rolldown, RolldownBinding } from './bundler.ts'
 import type { WindowMessageDevServer } from './messages/dev.ts'
 
@@ -28,6 +21,7 @@ export async function createServer(
   inlineConfig: InlineConfig | ResolvedConfig = {},
   rolldown: Rolldown,
   binding: RolldownBinding,
+  hmrPort: MessagePort,
   options: {
     listen?: boolean
     previousEnvironments?: Record<string, DevEnvironment>
@@ -70,7 +64,11 @@ export async function createServer(
   })
 
   // NOTE(kazupon): unfortunately, vite types will force `WebSocketServer` type at `CreateDevEnvironmentContext.ws`
-  const ws = createWindowMessageServer(config) as unknown as WebSocketServer
+  const ws = createWindowMessageHmrServer(
+    devMessageServer,
+    hmrPort,
+    config
+  ) as unknown as ViteDevServer['ws']
 
   const publicFiles = await initPublicFilesPromise
   const { publicDir } = config
@@ -260,7 +258,7 @@ export async function createServer(
     restart(forceOptimize?: boolean) {
       if (!server._restartPromise) {
         server._forceOptimizeOnRestart = !!forceOptimize
-        server._restartPromise = restartServer(server, rolldown, binding).finally(() => {
+        server._restartPromise = restartServer(server, rolldown, binding, hmrPort).finally(() => {
           server._restartPromise = null
           server._forceOptimizeOnRestart = false
         })
@@ -470,7 +468,12 @@ function createServerCloseFn(server: WindowMessageDevServer | null): () => Promi
 
 // ---
 
-async function restartServer(server: ViteDevServer, rolldown: Rolldown, binding: RolldownBinding) {
+async function restartServer(
+  server: ViteDevServer,
+  rolldown: Rolldown,
+  binding: RolldownBinding,
+  hmrPort: MessagePort
+): Promise<void> {
   global.__vite_start_time = performance.now()
 
   let inlineConfig = server.config.inlineConfig
@@ -489,7 +492,7 @@ async function restartServer(server: ViteDevServer, rolldown: Rolldown, binding:
     let newServer: ViteDevServer | null = null
     try {
       // delay ws server listen
-      newServer = await createServer(inlineConfig, rolldown, binding, {
+      newServer = await createServer(inlineConfig, rolldown, binding, hmrPort, {
         listen: false,
         previousEnvironments: server.environments
       })

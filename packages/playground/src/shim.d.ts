@@ -1,5 +1,6 @@
 import type { ModuleRunner } from 'vite/module-runner'
 import type { WindowMessageDevServer } from './messages/dev.ts'
+import type { WindowMessageHmrServer } from './wm.ts'
 
 declare module '*.vue' {
   import { defineComponent } from 'vue'
@@ -20,10 +21,17 @@ declare module '*.css' {
  */
 declare module 'vite' {
   export interface CreateDevEnvironmentContext {
-    ws: WindowMessageServer
+    ws: WindowMessageHmrServer
   }
 
   export interface ViteDevServer {
+    /**
+     * override ws with WindowMessageHmrServer
+     */
+    ws: WindowMessageHmrServer
+    /**
+     * for browser HMR
+     */
     devWindowMessageServer: WindowMessageDevServer | null
     /**
      * @internal

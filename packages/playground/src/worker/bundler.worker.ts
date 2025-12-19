@@ -47,8 +47,12 @@ let rolldown: Rolldown | null = null
 let binding: RolldownBinding | null = null
 let server: ViteDevServer | null = null
 
-async function connect(rolldown: Rolldown, binding: RolldownBinding): Promise<void> {
-  server = await createServer({}, rolldown, binding)
+async function connect(
+  rolldown: Rolldown,
+  binding: RolldownBinding,
+  hmrPort: MessagePort
+): Promise<void> {
+  server = await createServer({}, rolldown, binding, hmrPort)
   // const watcher: FSWatcher = new binding.__fs.FSWatcher()
   // console.log('[Worker] Starting FSWatcher...', watcher)
   // watcher.start('/')
@@ -88,7 +92,7 @@ async function handleMessage(event: MessageEvent<WorkerMessage>): Promise<void> 
           ;[rolldown, binding] = await loadRolldown()
           _registerFS(binding)
           _registerFSP(binding)
-          await connect(rolldown, binding)
+          await connect(rolldown, binding, iframePort)
           respond({ type: 'ready' })
         } catch (err) {
           respond({ type: 'bundle-error', message: `Connect failed: ${err}` })

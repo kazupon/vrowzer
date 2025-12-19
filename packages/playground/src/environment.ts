@@ -2,7 +2,6 @@ import colors from 'picocolors'
 import { BaseEnvironment } from './baseEnvironment.ts'
 import { ERR_OUTDATED_OPTIMIZED_DEP } from './constants.ts'
 import { getShortName, normalizeHotChannel, updateModules } from './hrm.ts'
-import { isWindowMessageServer } from './message.ts'
 import { buildErrorMessage } from './middlewares/error.ts'
 import { EnvironmentModuleGraph } from './moduleGraph.ts'
 import { isDepOptimizationDisabled } from './optimizer/index.ts'
@@ -12,6 +11,7 @@ import { fetchModule } from './ssr/fetchModule.ts'
 import { transformRequest } from './transformRequest.ts'
 import { mergeConfig, monotonicDateNow } from './utils.ts'
 import { warmupFiles } from './warmup.ts'
+import { isWindowMessageHmrServer } from './wm.ts'
 
 import type {
   EnvironmentModuleNode,
@@ -25,17 +25,17 @@ import type {
 } from 'vite'
 import type { FetchFunctionOptions, FetchResult } from 'vite/module-runner'
 import type { ResolvedEnvironmentOptions } from './config.ts'
-import type { WindowMessageServer } from './message.ts'
 import type { DepsOptimizer } from './optimizer/index.ts'
 import type { EnvironmentPluginContainer } from './pluginContainer.ts'
 import type { TransformOptionsInternal } from './transformRequest.ts'
+import type { WindowMessageHmrServer } from './wm.ts'
 
 // ---
 
 export interface DevEnvironmentContext {
   hot: boolean
   // NOTE(kazupon): transport?: HotChannel | WebSocketServer
-  transport?: HotChannel | WindowMessageServer
+  transport?: HotChannel | WindowMessageHmrServer
   options?: EnvironmentOptions
   remoteRunner?: {
     inlineSourceMap?: boolean
@@ -115,7 +115,7 @@ export class DevEnvironment extends BaseEnvironment {
     this.hot = context.transport
       ? // NOTE(kazupon):
         // ? isWebSocketServer in context.transport
-        isWindowMessageServer in context.transport
+        isWindowMessageHmrServer in context.transport
         ? context.transport
         : normalizeHotChannel(context.transport, context.hot)
       : normalizeHotChannel({}, context.hot)
@@ -247,7 +247,7 @@ export class DevEnvironment extends BaseEnvironment {
       this.depsOptimizer?.close(),
       // WebSocketServer is independent of HotChannel and should not be closed on environment close
       // isWebSocketServer in this.hot ? Promise.resolve() : this.hot.close(),
-      isWindowMessageServer in this.hot ? Promise.resolve() : this.hot.close(),
+      isWindowMessageHmrServer in this.hot ? Promise.resolve() : this.hot.close(),
       (async () => {
         while (this._pendingRequests.size > 0) {
           await Promise.allSettled(
