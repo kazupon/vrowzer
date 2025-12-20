@@ -4,3 +4,6 @@
 [submodule "rolldown"]
 	path = rolldown
 	url = git@github.com:rolldown/rolldown.git
+[submodule "oxc"]
+	path = oxc
+	url = git@github.com:oxc-project/oxc.git
