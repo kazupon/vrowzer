@@ -7,3 +7,6 @@
 [submodule "oxc"]
 	path = oxc
 	url = git@github.com:oxc-project/oxc.git
+[submodule "rs-napi"]
+	path = rs-napi
+	url = git@github.com:napi-rs/napi-rs.git

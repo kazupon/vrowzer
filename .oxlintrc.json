@@ -16,6 +16,8 @@
     "tsconfig.json",
     "vite/**",
     "rolldown/**",
+    "oxc/**",
+    "rs-napi/**",
     "packages/playground/src/**"
   ]
 }

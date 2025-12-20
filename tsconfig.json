@@ -41,5 +41,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "exclude": ["vite/**", "rolldown/**"]
+  "exclude": ["vite/**", "rolldown/**", "oxc/**", "rs-napi/**"]
 }
