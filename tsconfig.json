@@ -41,5 +41,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "exclude": ["vite/**"]
+  "exclude": ["vite/**", "rolldown/**"]
 }
