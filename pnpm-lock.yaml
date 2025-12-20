@@ -97,6 +97,9 @@ importers:
         specifier: latest
         version: 0.104.0
     devDependencies:
+      '@oxc-project/types':
+        specifier: ^0.104.0
+        version: 0.104.0
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
