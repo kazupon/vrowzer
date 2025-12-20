@@ -1,3 +1,6 @@
 [submodule "vite"]
 	path = vite
 	url = git@github.com:vitejs/vite.git
+[submodule "rolldown"]
+	path = rolldown
+	url = git@github.com:rolldown/rolldown.git
