@@ -18,6 +18,7 @@
     "rolldown/**",
     "oxc/**",
     "rs-napi/**",
-    "packages/playground/src/**"
+    "packages/playground/src/**",
+    "packages/proto2/src/**"
   ]
 }
