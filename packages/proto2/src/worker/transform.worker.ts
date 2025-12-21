@@ -19,9 +19,6 @@ let serviceWorkerPort: MessagePort | null = null
 // File contents cache (path -> content)
 const fileCache = new Map<string, string>()
 
-// Notify main thread that worker is ready immediately
-self.postMessage({ type: 'worker-ready' })
-
 /**
  * Message Handling from Main Thread
  */
@@ -63,6 +60,9 @@ function handleConnectServiceWorker(port: MessagePort) {
   // Listen for messages from Service Worker
   serviceWorkerPort.onmessage = handleServiceWorkerMessage
   serviceWorkerPort.start()
+
+  // Notify main thread that worker is ready
+  self.postMessage({ type: 'worker-ready' })
 }
 
 /**

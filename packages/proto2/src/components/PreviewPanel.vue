@@ -130,6 +130,17 @@ function handleServiceWorkerMessage(
  * Handle messages from iframe
  */
 function handleIframeMessage(event: MessageEvent) {
+  // Check origin (same origin for our iframe)
+  if (event.origin !== window.location.origin) {
+    return;
+  }
+
+  // Check source is our iframe (if iframeRef is available)
+  const iframeWindow = iframeRef.value?.contentWindow;
+  if (iframeWindow && event.source !== iframeWindow) {
+    return;
+  }
+
   const { type, message } = event.data || {};
   debug("iframe message:", type, event.data);
 

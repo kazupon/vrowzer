@@ -3,13 +3,17 @@
  * Communicates with Service Worker for hot module replacement
  */
 
+import { createDebug } from 'obug'
+
 import type {
   HMRFullReloadMessage,
   HMRUpdateMessage,
   ServiceWorkerToIframeMessage
 } from '../messages/types'
 
-console.log('[HMR Client] Initializing...')
+const debug = createDebug('hmr-client')
+
+debug('Initializing...')
 
 // Loaded modules cache
 const loadedModules = new Map<string, unknown>()
@@ -41,7 +45,7 @@ declare global {
 window.addEventListener('message', event => {
   const message = event.data as { type: string; port?: MessagePort }
 
-  console.log('[HMR Client] Window message:', message.type)
+  debug('Window message:', message.type)
 
   switch (message.type) {
     case 'connect-service-worker': {
@@ -59,7 +63,7 @@ window.addEventListener('message', event => {
  * Handle connect-service-worker message (MessagePort from main thread)
  */
 function handleConnectServiceWorker(port: MessagePort) {
-  console.log('[HMR Client] Connected to Service Worker via MessagePort')
+  debug('Connected to Service Worker via MessagePort')
   serviceWorkerPort = port
 
   // Listen for messages from Service Worker
@@ -76,7 +80,7 @@ function handleConnectServiceWorker(port: MessagePort) {
 function handleSwMessage(event: MessageEvent<ServiceWorkerToIframeMessage>) {
   const message = event.data
 
-  console.log('[HMR Client] SW message:', message.type)
+  debug('SW message:', message.type)
 
   switch (message.type) {
     case 'hmr-update': {
@@ -89,7 +93,7 @@ function handleSwMessage(event: MessageEvent<ServiceWorkerToIframeMessage>) {
     }
     default: {
       // @ts-expect-error -- FIXME: type
-      console.warn('[HMR Client] Unknown message type:', message.type)
+      debug('Unknown message type:', message.type)
       break
     }
   }
@@ -99,7 +103,7 @@ function handleSwMessage(event: MessageEvent<ServiceWorkerToIframeMessage>) {
  * Handle HMR update message
  */
 function handleHmrUpdate(message: HMRUpdateMessage) {
-  console.log('[HMR Client] HMR update received:', message.updates)
+  debug('HMR update received:', message.updates)
 
   for (const update of message.updates) {
     if (update.type === 'js-update') {
@@ -114,7 +118,7 @@ function handleHmrUpdate(message: HMRUpdateMessage) {
  * Handle full reload message
  */
 function handleFullReload(message: HMRFullReloadMessage) {
-  console.log('[HMR Client] Full reload requested:', message.path)
+  debug('Full reload requested:', message.path)
   window.location.reload()
 }
 
@@ -122,7 +126,7 @@ function handleFullReload(message: HMRFullReloadMessage) {
  * Reload a JavaScript module
  */
 async function reloadModule(path: string, timestamp: number) {
-  console.log('[HMR Client] Reloading module:', path)
+  debug('Reloading module:', path)
 
   try {
     // Import the updated module with cache-busting timestamp
@@ -135,11 +139,11 @@ async function reloadModule(path: string, timestamp: number) {
     // Call accept callback if registered
     const callback = acceptCallbacks.get(path)
     if (callback) {
-      console.log('[HMR Client] Calling accept callback for:', path)
+      debug('Calling accept callback for:', path)
       callback()
     }
 
-    console.log('[HMR Client] Module reloaded:', path)
+    debug('Module reloaded:', path)
     notifySuccess()
   } catch (error) {
     console.error('[HMR Client] Failed to reload module:', path, error)
@@ -151,7 +155,7 @@ async function reloadModule(path: string, timestamp: number) {
  * Reload CSS
  */
 function reloadCss(path: string, timestamp: number) {
-  console.log('[HMR Client] Reloading CSS:', path)
+  debug('Reloading CSS:', path)
 
   // Find existing link element
   const existingLink = document.querySelector(`link[href*="${path}"]`) as HTMLLinkElement | null
@@ -167,7 +171,7 @@ function reloadCss(path: string, timestamp: number) {
     document.head.appendChild(link)
   }
 
-  console.log('[HMR Client] CSS reloaded:', path)
+  debug('CSS reloaded:', path)
 }
 
 function notifySuccess() {
@@ -179,7 +183,7 @@ function notifyError(message: string) {
 }
 
 function init() {
-  console.log('[HMR Client] Ready')
+  debug('Ready')
 
   // Notify parent that HMR client is ready
   window.parent.postMessage({ type: 'hmr-client-ready' }, '*')
