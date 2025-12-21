@@ -1,8 +1,6 @@
 // import { parseSync } from 'oxc-parser'
 import { loadParser } from './parser'
 
-import type { Program } from '@oxc-project/types'
-
 const { parseSync } = await loadParser()
 const code = `
 function hello() {
@@ -10,10 +8,8 @@ function hello() {
 }
 `
 const result = parseSync('test.js', code)
-console.log('parseSync result:', result)
-const program = JSON.parse(result.program) as { node: Program }
-console.log('AST Object:', program.node)
+console.log('parseSync result:', result.program, result.module)
 
 if (globalThis.window) {
-  document.querySelector('#code').innerHTML = JSON.stringify(program, null, 2)
+  document.querySelector('#code').innerHTML = JSON.stringify(result.program, null, 2)
 }

@@ -13,7 +13,6 @@
     "oxc-parser": "latest"
   },
   "devDependencies": {
-    "@oxc-project/types": "^0.104.0",
     "typescript": "~5.9.3",
     "vite": "^7.3.0"
   }

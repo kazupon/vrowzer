@@ -9,12 +9,15 @@ function dynamicImport<T = unknown>(url: string): Promise<T> {
 export async function loadParser(): Promise<typeof import('oxc-parser')> {
   console.log('[Parser] Loading oxc-parser...')
 
-  const [parser] = await Promise.all([
-    dynamicImport<typeof import('oxc-parser')>(
-      '/api/oxc-parser/binding-wasm32-wasi/parser.wasi-browser.js'
-      // '/api/oxc-parser/binding-wasm32-wasi/browser-bundle.js'
-    )
-  ])
+  // https://cdn.jsdelivr.net/npm/@oxc-parser/binding-wasm32-wasi/browser-bundle.js
+  const url = 'https://cdn.jsdelivr.net/npm/@oxc-parser/binding-wasm32-wasi/browser-bundle.js'
+  const parser = (await import(/* @vite-ignore */ url)) as typeof import('oxc-parser')
+  // const [parser] = await Promise.all([
+  //   dynamicImport<typeof import('oxc-parser')>(
+  //     '/api/oxc-parser/binding-wasm32-wasi/parser.wasi-browser.js'
+  //     // '/api/oxc-parser/binding-wasm32-wasi/browser-bundle.js'
+  //   )
+  // ])
 
   console.log('[Parser] oxc-parser loaded:', parser)
   return parser
