@@ -17,7 +17,7 @@ async function registerServiceWorker(): Promise<ServiceWorker | null> {
   try {
     const registration = await navigator.serviceWorker.register('/src/sw/sw.ts', {
       type: 'module',
-      scope: '/src/sw/'
+      scope: '/'
     })
     debug('Service Worker registered:', registration.scope)
 

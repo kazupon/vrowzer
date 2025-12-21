@@ -69,6 +69,15 @@ onMounted(() => {
     "message",
     handleServiceWorkerMessage,
   );
+
+  // Request Service Worker ready status
+  const controller = navigator.serviceWorker?.controller;
+  if (controller) {
+    debug("Sending init to Service Worker");
+    controller.postMessage({ type: "init" });
+  } else {
+    debug("No Service Worker controller available");
+  }
 });
 
 onUnmounted(() => {
