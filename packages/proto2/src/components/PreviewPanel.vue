@@ -8,6 +8,7 @@ import {
   watch,
 } from "vue";
 import { createLogger } from "../logger.ts";
+import { getServiceWorker } from "../sw/controller.ts";
 
 import type {
   FileChangeMessage,
@@ -35,6 +36,9 @@ let serviceWorkerAndWorkerChannel: MessageChannel | null = null;
 // MessageChannel for Service Worker <-> iframe communication
 let serviceWorkerAndIframeChannel: MessageChannel | null = null;
 
+// Active Service Worker reference
+let activeServiceWorker: ServiceWorker | null = null;
+
 /**
  * Computed: All systems ready
  */
@@ -43,7 +47,7 @@ const isReady = computed(
     isServiceWorkerReady.value && isWorkerReady.value && isIframeReady.value,
 );
 
-onMounted(async () => {
+onMounted(() => {
   logger.debug("Mounting...");
 
   // Create Web Worker
@@ -70,54 +74,16 @@ onMounted(async () => {
     handleServiceWorkerMessage,
   );
 
-  // Wait for Service Worker to be ready and request init
-  await initServiceWorker();
-});
-
-/**
- * Initialize Service Worker communication
- */
-async function initServiceWorker() {
-  if (!navigator.serviceWorker) {
-    logger.debug("Service Worker not supported");
-    return;
-  }
-
-  // Wait for Service Worker to be ready
-  const registration = await navigator.serviceWorker.ready;
-  logger.debug("Service Worker registration ready:", registration.scope);
-
-  // Check if controller is available
-  let controller = navigator.serviceWorker.controller;
-
-  if (!controller) {
-    logger.debug("No controller yet, waiting for controllerchange...");
-    // Wait for controller to become available
-    await new Promise<void>((resolve) => {
-      const onControllerChange = () => {
-        navigator.serviceWorker.removeEventListener(
-          "controllerchange",
-          onControllerChange,
-        );
-        resolve();
-      };
-      navigator.serviceWorker.addEventListener(
-        "controllerchange",
-        onControllerChange,
-      );
-    });
-    controller = navigator.serviceWorker.controller;
-  }
-
-  if (controller) {
+  // Initialize Service Worker communication
+  const serviceWorker = getServiceWorker();
+  if (serviceWorker) {
+    // Send init to get service-worker-ready response
     logger.debug("Sending init to Service Worker");
-    controller.postMessage({ type: "init" });
+    serviceWorker.postMessage({ type: "init" });
   } else {
-    logger.debug("Still no Service Worker controller available");
-    logger.debug("Retry");
-    await initServiceWorker();
+    throw new Error("Cannot use Service Worker");
   }
-}
+});
 
 onUnmounted(() => {
   window.removeEventListener("message", handleIframeMessage);
@@ -207,14 +173,14 @@ function setupServiceWorkerIframeBridge() {
     return;
   }
 
-  const serviceWorker = navigator.serviceWorker?.controller;
+  const serviceWorker = getServiceWorker();
   const iframe = iframeRef.value;
   if (!serviceWorker || !iframe?.contentWindow) {
     logger.debug("Cannot setup Service Worker <-> iframe bridge");
     return;
   }
 
-  logger.debug("Setting up Servie Worker <-> iframe bridge...");
+  logger.debug("Setting up Service Worker <-> iframe bridge...");
 
   // Send port1 to Service Worker
   serviceWorker.postMessage(
@@ -245,9 +211,9 @@ function setupServiceWorkerAndWorkerBridge() {
     return;
   }
 
-  const serviceWorker = navigator.serviceWorker?.controller;
+  const serviceWorker = getServiceWorker();
   if (!serviceWorker) {
-    logger.debug("No active Service Worker controller");
+    logger.debug("No active Service Worker");
     return;
   }
 
@@ -307,9 +273,9 @@ function sendCodeChange(code: string) {
   }
 
   // Send to Service Worker (for HMR trigger)
-  const serviceWorker = navigator.serviceWorker?.controller;
+  const serviceWorker = getServiceWorker();
   if (!serviceWorker) {
-    logger.debug("No active Service Worker controller");
+    logger.debug("No active Service Worker");
     return;
   }
 
