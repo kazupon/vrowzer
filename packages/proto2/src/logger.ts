@@ -1,3 +1,11 @@
-import { createDebug } from 'obug'
+import { createConsola } from 'consola/browser'
 
-export const debug = createDebug('main')
+export function createLogger(namespace: string) {
+  const logger = createConsola({
+    level: 4,
+    defaults: {
+      tag: namespace
+    }
+  })
+  return logger
+}

@@ -2,6 +2,8 @@
 
 declare const self: ServiceWorkerGlobalScope
 
+import { createLogger } from '../logger.ts'
+
 import type {
   FileChangeMessage,
   HMRUpdateMessage,
@@ -13,7 +15,8 @@ import type {
   WorkerToServiceWorkerMessage
 } from '../messages/types.ts'
 
-console.log('[SW] Service Worker loaded')
+const logger = createLogger('service-worker')
+logger.debug('Service Worker loaded')
 
 // Virtual file system
 const files = new Map<string, string>()
@@ -28,7 +31,7 @@ let iframePort: MessagePort | null = null
  * Service Worker Install Event
  */
 self.addEventListener('install', event => {
-  console.log('[SW] Installing...')
+  logger.debug('Installing...')
   event.waitUntil(self.skipWaiting())
 })
 
@@ -36,7 +39,7 @@ self.addEventListener('install', event => {
  * Service Worker Activate Event
  */
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating...')
+  logger.debug('Activating...')
   event.waitUntil(self.clients.claim())
 })
 
@@ -45,7 +48,7 @@ self.addEventListener('activate', event => {
  */
 self.addEventListener('message', event => {
   const message = event.data as MainToServiceWorkerMessage
-  console.log('[SW] Received message:', message.type)
+  logger.debug('Received message:', message.type)
 
   switch (message.type) {
     case 'init': {
@@ -75,7 +78,7 @@ self.addEventListener('message', event => {
  * Handle init message from main thread
  */
 function handleInit(client: Client) {
-  console.log('[SW] Init from client:', client.id)
+  logger.debug('Init from client:', client.id)
   // hmrClients.add(client)
 
   // Send ready notification
@@ -98,7 +101,7 @@ function handleConnectWorker(port: MessagePort) {
  * Handle connect-iframe message (MessagePort from main thread)
  */
 function handleConnectIframe(port: MessagePort) {
-  console.log('[SW] Connected to iframe via MessagePort')
+  logger.debug('Connected to iframe via MessagePort')
   iframePort = port
 
   // Listen for messages from iframe
@@ -111,11 +114,11 @@ function handleConnectIframe(port: MessagePort) {
  */
 function handleIframeMessage(event: MessageEvent<IframeToServiceWorkerMessage>) {
   const message = event.data as { type: string }
-  console.log('[SW] Message from iframe:', message.type)
+  logger.debug('Message from iframe:', message.type)
 
   switch (message.type) {
     case 'hmr-client-ready': {
-      console.log('[SW] HMR client is ready')
+      logger.debug('HMR client is ready')
       break
     }
     default: {
@@ -129,7 +132,7 @@ function handleIframeMessage(event: MessageEvent<IframeToServiceWorkerMessage>) 
  */
 function handleWorkerMessage(event: MessageEvent<WorkerToServiceWorkerMessage>) {
   const message = event.data
-  console.log('[SW] Message from Worker:', message.type)
+  logger.debug('Message from Worker:', message.type)
 
   switch (message.type) {
     case 'transform-result': {
@@ -151,7 +154,7 @@ function handleWorkerMessage(event: MessageEvent<WorkerToServiceWorkerMessage>) 
  */
 function handleFileChange(message: FileChangeMessage) {
   const { file, content } = message
-  console.log('[SW] File changed:', file)
+  logger.debug('File changed:', file)
 
   // Update virtual file system
   files.set(file, content)
@@ -175,7 +178,7 @@ function handleFileChange(message: FileChangeMessage) {
  * Handle transform result from Web Worker
  */
 function handleTransformResult(message: TransformResponse) {
-  console.log('[SW] Transform result for:', message.id)
+  logger.debug('Transform result for:', message.id)
 
   if (message.error) {
     console.error('[SW] Transform error:', message.error)
@@ -184,14 +187,14 @@ function handleTransformResult(message: TransformResponse) {
 
   // Store transformed code
   // In a real implementation, we would cache this
-  console.log('[SW] Transformed code length:', message.code?.length)
+  logger.debug('Transformed code length:', message.code?.length)
 }
 
 /**
  * Handle resolve result from Web Worker
  */
 function handleResolveResult(message: ResolveResponse) {
-  console.log('[SW] Resolve result:', message.id, message.resolved)
+  logger.debug('Resolve result:', message.id, message.resolved)
 }
 
 /**
@@ -216,7 +219,7 @@ function notifyHmrUpdate(path: string) {
   }
 
   iframePort.postMessage(message)
-  console.log('[SW] Sent HMR update via MessagePort')
+  logger.debug('Sent HMR update via MessagePort')
 }
 
 /**
@@ -227,7 +230,7 @@ self.addEventListener('fetch', event => {
 
   // Only intercept requests for our virtual files
   if (url.pathname.startsWith('/src/preview/') || files.has(url.pathname)) {
-    console.log('[SW] Intercepting:', url.pathname)
+    logger.debug('Intercepting:', url.pathname)
     event.respondWith(handleFetch(event.request, url))
   }
 })

@@ -2,6 +2,8 @@
 
 declare const self: DedicatedWorkerGlobalScope
 
+import { createLogger } from '../logger.ts'
+
 import type {
   MainToWorkerMessage,
   ResolveRequest,
@@ -9,9 +11,11 @@ import type {
   ServiceWorkerToWorkerMessage,
   TransformRequest,
   TransformResponse
-} from '../messages/types'
+} from '../messages/types.ts'
 
-console.log('[Worker] Transform Worker loaded')
+const logger = createLogger('worker')
+
+logger.debug('Transform Worker loaded')
 
 // MessagePort for communication with Service Worker
 let serviceWorkerPort: MessagePort | null = null
@@ -24,7 +28,7 @@ const fileCache = new Map<string, string>()
  */
 self.onmessage = (event: MessageEvent<MainToWorkerMessage>) => {
   const message = event.data
-  console.log('[Worker] Message from main:', message.type)
+  logger.debug('Message from main:', message.type)
 
   switch (message.type) {
     case 'connect-service-worker': {
@@ -46,7 +50,7 @@ self.onmessage = (event: MessageEvent<MainToWorkerMessage>) => {
  * Handle file change message from main thread
  */
 function handleFileChange(file: string, content: string) {
-  console.log('[Worker] File change:', file)
+  logger.debug('File change:', file)
   fileCache.set(file, content)
 }
 
@@ -54,15 +58,12 @@ function handleFileChange(file: string, content: string) {
  * Handle connect to service worker message (MessagePort from main thread)
  */
 function handleConnectServiceWorker(port: MessagePort) {
-  console.log('[Worker] Connected to Service Worker via MessagePort')
+  logger.debug('Connected to Service Worker via MessagePort')
   serviceWorkerPort = port
 
   // Listen for messages from Service Worker
   serviceWorkerPort.onmessage = handleServiceWorkerMessage
   serviceWorkerPort.start()
-
-  // Notify main thread that worker is ready
-  self.postMessage({ type: 'worker-ready' })
 }
 
 /**
@@ -70,7 +71,7 @@ function handleConnectServiceWorker(port: MessagePort) {
  */
 function handleServiceWorkerMessage(event: MessageEvent<ServiceWorkerToWorkerMessage>) {
   const message = event.data
-  console.log('[Worker] Message from SW:', message.type)
+  logger.debug('Message from SW:', message.type)
 
   switch (message.type) {
     case 'transform': {
@@ -91,7 +92,7 @@ function handleServiceWorkerMessage(event: MessageEvent<ServiceWorkerToWorkerMes
  * Handle transform request from Service Worker
  */
 function handleTransform(request: TransformRequest) {
-  console.log('[Worker] Transform request:', request.url)
+  logger.debug('Transform request:', request.url)
 
   try {
     // Get code from cache if not provided, or use provided code
@@ -128,7 +129,7 @@ function handleTransform(request: TransformRequest) {
  * Handle resolve request from Service Worker
  */
 function handleResolve(request: ResolveRequest) {
-  console.log('[Worker] Resolve request:', request.specifier)
+  logger.debug('Resolve request:', request.specifier)
 
   try {
     // Simple resolution logic
@@ -157,7 +158,7 @@ function handleResolve(request: ResolveRequest) {
  * In a real implementation, this would use @rolldown/browser
  */
 function transformCode(code: string, url: string): string {
-  console.log('[Worker] Transforming:', url)
+  logger.debug('Transforming:', url)
 
   // Add HMR runtime wrapper
   const hmrPreamble = `
@@ -211,5 +212,9 @@ function resolveModule(specifier: string, importer?: string): string {
   // Bare specifier (npm package)
   return `/node_modules/${specifier}`
 }
+
+// Notify main thread that worker is ready on startup
+logger.debug('Worker ready')
+self.postMessage({ type: 'worker-ready' })
 
 export {}

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { createDebug } from "obug";
 import {
   computed,
   onMounted,
@@ -8,6 +7,7 @@ import {
   useTemplateRef,
   watch,
 } from "vue";
+import { createLogger } from "../logger.ts";
 
 import type {
   FileChangeMessage,
@@ -15,7 +15,7 @@ import type {
   WorkerToMainMessage,
 } from "../messages/types.ts";
 
-const debug = createDebug("preview");
+const logger = createLogger("preview");
 const props = defineProps<{
   code: string;
 }>();
@@ -44,7 +44,7 @@ const isReady = computed(
 );
 
 onMounted(() => {
-  debug("Mounting...");
+  logger.debug("Mounting...");
 
   // Create Web Worker
   worker = new Worker(
@@ -73,10 +73,10 @@ onMounted(() => {
   // Request Service Worker ready status
   const controller = navigator.serviceWorker?.controller;
   if (controller) {
-    debug("Sending init to Service Worker");
+    logger.debug("Sending init to Service Worker");
     controller.postMessage({ type: "init" });
   } else {
-    debug("No Service Worker controller available");
+    logger.debug("No Service Worker controller available");
   }
 });
 
@@ -98,10 +98,10 @@ onUnmounted(() => {
  */
 function handleWorkerMessage(event: MessageEvent<WorkerToMainMessage>) {
   const { type } = event.data || {};
-  debug("Worker message:", type, event.data);
+  logger.debug("Worker message:", type, event.data);
 
   if (type === "worker-ready") {
-    debug("Worker is ready");
+    logger.debug("Worker is ready");
     isWorkerReady.value = true;
     setupServiceWorkerAndWorkerBridge();
     checkReady();
@@ -115,10 +115,10 @@ function handleServiceWorkerMessage(
   event: MessageEvent<ServiceWorkerToMainMessage>,
 ) {
   const { type } = event.data || {};
-  debug("SW message:", type, event.data);
+  logger.debug("SW message:", type, event.data);
 
   if (type === "service-worker-ready") {
-    debug("SW is ready");
+    logger.debug("SW is ready");
     isServiceWorkerReady.value = true;
     setupServiceWorkerAndWorkerBridge();
     setupServiceWorkerIframeBridge();
@@ -142,10 +142,10 @@ function handleIframeMessage(event: MessageEvent) {
   }
 
   const { type, message } = event.data || {};
-  debug("iframe message:", type, event.data);
+  logger.debug("iframe message:", type, event.data);
 
   if (type === "hmr-client-ready") {
-    debug("iframe HMR client is ready");
+    logger.debug("iframe HMR client is ready");
     isIframeReady.value = true;
     setupServiceWorkerIframeBridge();
     checkReady();
@@ -171,11 +171,11 @@ function setupServiceWorkerIframeBridge() {
   const serviceWorker = navigator.serviceWorker?.controller;
   const iframe = iframeRef.value;
   if (!serviceWorker || !iframe?.contentWindow) {
-    debug("Cannot setup SW <-> iframe bridge");
+    logger.debug("Cannot setup SW <-> iframe bridge");
     return;
   }
 
-  debug("Setting up SW <-> iframe bridge...");
+  logger.debug("Setting up SW <-> iframe bridge...");
 
   // Send port1 to Service Worker
   serviceWorker.postMessage(
@@ -208,11 +208,11 @@ function setupServiceWorkerAndWorkerBridge() {
 
   const serviceWorker = navigator.serviceWorker?.controller;
   if (!serviceWorker) {
-    debug("No active Service Worker controller");
+    logger.debug("No active Service Worker controller");
     return;
   }
 
-  debug("Setting up SW <-> Worker bridge...");
+  logger.debug("Setting up SW <-> Worker bridge...");
 
   // Send port1 to Service Worker
   serviceWorker.postMessage(
@@ -235,7 +235,7 @@ function setupServiceWorkerAndWorkerBridge() {
  */
 function checkReady() {
   if (isReady.value) {
-    debug("All systems ready!");
+    logger.debug("All systems ready!");
     if (props.code) {
       sendCodeChange(props.code);
     }
@@ -246,7 +246,7 @@ function checkReady() {
  * Handle iframe load event
  */
 function onIframeLoad() {
-  debug("iframe loaded");
+  logger.debug("iframe loaded");
 }
 
 /**
@@ -263,18 +263,18 @@ function sendCodeChange(code: string) {
 
   // Send to Web Worker (for file cache)
   if (worker) {
-    debug("Sending file change to Worker:", file);
+    logger.debug("Sending file change to Worker:", file);
     worker.postMessage(message);
   }
 
   // Send to Service Worker (for HMR trigger)
   const serviceWorker = navigator.serviceWorker?.controller;
   if (!serviceWorker) {
-    debug("No active Service Worker controller");
+    logger.debug("No active Service Worker controller");
     return;
   }
 
-  debug("Sending file change to SW:", file);
+  logger.debug("Sending file change to SW:", file);
   serviceWorker.postMessage(message);
 }
 
@@ -282,7 +282,7 @@ function sendCodeChange(code: string) {
 watch(
   () => props.code,
   (newCode) => {
-    if (isReady) {
+    if (isReady.value) {
       sendCodeChange(newCode);
     }
   },
