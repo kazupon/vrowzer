@@ -23,16 +23,26 @@ let serviceWorkerPort: MessagePort | null = null
 // File contents cache (path -> content)
 const fileCache = new Map<string, string>()
 
+let parser: typeof import('oxc-parser')
+
+async function loaddParser() {
+  // https://cdn.jsdelivr.net/npm/@oxc-parser/binding-wasm32-wasi/browser-bundle.js
+  const url = 'https://cdn.jsdelivr.net/npm/@oxc-parser/binding-wasm32-wasi/browser-bundle.js'
+  parser = (await import(/* @vite-ignore */ url)) as typeof import('oxc-parser')
+  return parser
+}
+
 /**
  * Message Handling from Main Thread
  */
-self.onmessage = (event: MessageEvent<MainToWorkerMessage>) => {
+self.onmessage = async (event: MessageEvent<MainToWorkerMessage>) => {
   const message = event.data
   logger.debug('Message from main:', message.type)
 
   switch (message.type) {
     case 'connect-service-worker': {
       handleConnectServiceWorker(message.port)
+      await loaddParser()
       break
     }
     case 'file-change': {
@@ -159,6 +169,13 @@ function handleResolve(request: ResolveRequest) {
  */
 function transformCode(code: string, url: string): string {
   logger.debug('Transforming:', url)
+
+  // TODO(kazupon): call plugin containers
+  let transformedCode = code
+  if (parser) {
+    const ast = parser.parseSync('xxx.js', code)
+    console.log('parsed', ast)
+  }
 
   // Add HMR runtime wrapper
   const hmrPreamble = `

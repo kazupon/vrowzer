@@ -91,6 +91,7 @@ function waitForServiceWorkerActivation(
   })
 }
 
+// NOTE(kazupon): do we need to keep the below function?
 /**
  * Setup message listener for Service Worker messages
  */

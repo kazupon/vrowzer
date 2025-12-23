@@ -36,9 +36,6 @@ let serviceWorkerAndWorkerChannel: MessageChannel | null = null;
 // MessageChannel for Service Worker <-> iframe communication
 let serviceWorkerAndIframeChannel: MessageChannel | null = null;
 
-// Active Service Worker reference
-let activeServiceWorker: ServiceWorker | null = null;
-
 /**
  * Computed: All systems ready
  */
@@ -108,7 +105,7 @@ function handleWorkerMessage(event: MessageEvent<WorkerToMainMessage>) {
   if (type === "worker-ready") {
     logger.debug("Worker is ready");
     isWorkerReady.value = true;
-    setupServiceWorkerAndWorkerBridge();
+    setupServiceWorkerWebWorkerBridge();
     checkReady();
   }
 }
@@ -125,7 +122,7 @@ function handleServiceWorkerMessage(
   if (type === "service-worker-ready") {
     logger.debug("Service Worker is ready");
     isServiceWorkerReady.value = true;
-    setupServiceWorkerAndWorkerBridge();
+    setupServiceWorkerWebWorkerBridge();
     setupServiceWorkerIframeBridge();
     checkReady();
   }
@@ -200,9 +197,9 @@ function setupServiceWorkerIframeBridge() {
 }
 
 /**
- * Setup MessageChannel bridge between Service Worker and Worker
+ * Setup MessageChannel bridge between Service Worker and Web Worker
  */
-function setupServiceWorkerAndWorkerBridge() {
+function setupServiceWorkerWebWorkerBridge() {
   if (
     !isServiceWorkerReady.value ||
     !isWorkerReady.value ||
@@ -279,7 +276,7 @@ function sendCodeChange(code: string) {
     return;
   }
 
-  logger.debug("Sending file change to SW:", file);
+  logger.debug("Sending file change to Service Worker:", file);
   serviceWorker.postMessage(message);
 }
 
