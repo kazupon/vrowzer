@@ -21,7 +21,6 @@
     "lint:prettier": "prettier --check --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "play": "pnpm --filter playground dev",
     "play:memfs": "pnpm --filter memfs-test dev",
-    "play:oxc": "pnpm --filter oxc-parser-test dev",
     "play:proto": "pnpm --filter proto2 dev",
     "play:sw": "pnpm --filter sw-test dev",
     "prepare": "git config --local core.hooksPath .githooks",
