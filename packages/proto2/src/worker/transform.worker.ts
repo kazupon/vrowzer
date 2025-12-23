@@ -41,7 +41,7 @@ self.onmessage = (event: MessageEvent<MainToWorkerMessage>) => {
     }
     default: {
       // @ts-expect-error -- FIXME: type
-      console.warn('[Worker] Unknown message type:', message.type)
+      logger.warn('Unknown message type:', message.type)
     }
   }
 }
@@ -71,7 +71,7 @@ function handleConnectServiceWorker(port: MessagePort) {
  */
 function handleServiceWorkerMessage(event: MessageEvent<ServiceWorkerToWorkerMessage>) {
   const message = event.data
-  logger.debug('Message from SW:', message.type)
+  logger.debug('Message from Service Worker:', message.type)
 
   switch (message.type) {
     case 'transform': {
@@ -83,7 +83,7 @@ function handleServiceWorkerMessage(event: MessageEvent<ServiceWorkerToWorkerMes
       break
     }
     default: {
-      console.warn('[Worker] Unknown SW message type:', (message as { type: string }).type)
+      logger.warn('Unknown Service Worker message type:', (message as { type: string }).type)
     }
   }
 }

@@ -43,7 +43,7 @@ const isReady = computed(
     isServiceWorkerReady.value && isWorkerReady.value && isIframeReady.value,
 );
 
-onMounted(() => {
+onMounted(async () => {
   logger.debug("Mounting...");
 
   // Create Web Worker
@@ -70,15 +70,54 @@ onMounted(() => {
     handleServiceWorkerMessage,
   );
 
-  // Request Service Worker ready status
-  const controller = navigator.serviceWorker?.controller;
+  // Wait for Service Worker to be ready and request init
+  await initServiceWorker();
+});
+
+/**
+ * Initialize Service Worker communication
+ */
+async function initServiceWorker() {
+  if (!navigator.serviceWorker) {
+    logger.debug("Service Worker not supported");
+    return;
+  }
+
+  // Wait for Service Worker to be ready
+  const registration = await navigator.serviceWorker.ready;
+  logger.debug("Service Worker registration ready:", registration.scope);
+
+  // Check if controller is available
+  let controller = navigator.serviceWorker.controller;
+
+  if (!controller) {
+    logger.debug("No controller yet, waiting for controllerchange...");
+    // Wait for controller to become available
+    await new Promise<void>((resolve) => {
+      const onControllerChange = () => {
+        navigator.serviceWorker.removeEventListener(
+          "controllerchange",
+          onControllerChange,
+        );
+        resolve();
+      };
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        onControllerChange,
+      );
+    });
+    controller = navigator.serviceWorker.controller;
+  }
+
   if (controller) {
     logger.debug("Sending init to Service Worker");
     controller.postMessage({ type: "init" });
   } else {
-    logger.debug("No Service Worker controller available");
+    logger.debug("Still no Service Worker controller available");
+    logger.debug("Retry");
+    await initServiceWorker();
   }
-});
+}
 
 onUnmounted(() => {
   window.removeEventListener("message", handleIframeMessage);
@@ -115,10 +154,10 @@ function handleServiceWorkerMessage(
   event: MessageEvent<ServiceWorkerToMainMessage>,
 ) {
   const { type } = event.data || {};
-  logger.debug("SW message:", type, event.data);
+  logger.debug("Service Worker message:", type, event.data);
 
   if (type === "service-worker-ready") {
-    logger.debug("SW is ready");
+    logger.debug("Service Worker is ready");
     isServiceWorkerReady.value = true;
     setupServiceWorkerAndWorkerBridge();
     setupServiceWorkerIframeBridge();
@@ -171,11 +210,11 @@ function setupServiceWorkerIframeBridge() {
   const serviceWorker = navigator.serviceWorker?.controller;
   const iframe = iframeRef.value;
   if (!serviceWorker || !iframe?.contentWindow) {
-    logger.debug("Cannot setup SW <-> iframe bridge");
+    logger.debug("Cannot setup Service Worker <-> iframe bridge");
     return;
   }
 
-  logger.debug("Setting up SW <-> iframe bridge...");
+  logger.debug("Setting up Servie Worker <-> iframe bridge...");
 
   // Send port1 to Service Worker
   serviceWorker.postMessage(
@@ -212,7 +251,7 @@ function setupServiceWorkerAndWorkerBridge() {
     return;
   }
 
-  logger.debug("Setting up SW <-> Worker bridge...");
+  logger.debug("Setting up Service Worker <-> Worker bridge...");
 
   // Send port1 to Service Worker
   serviceWorker.postMessage(

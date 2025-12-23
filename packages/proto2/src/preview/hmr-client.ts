@@ -80,7 +80,7 @@ function handleConnectServiceWorker(port: MessagePort) {
 function handleSwMessage(event: MessageEvent<ServiceWorkerToIframeMessage>) {
   const message = event.data
 
-  logger.debug('SW message:', message.type)
+  logger.debug('Service Worker message:', message.type)
 
   switch (message.type) {
     case 'hmr-update': {
@@ -146,7 +146,7 @@ async function reloadModule(path: string, timestamp: number) {
     logger.debug('Module reloaded:', path)
     notifySuccess()
   } catch (error) {
-    console.error('[HMR Client] Failed to reload module:', path, error)
+    logger.error('Failed to reload module:', path, error)
     notifyError(error instanceof Error ? error.message : String(error))
   }
 }

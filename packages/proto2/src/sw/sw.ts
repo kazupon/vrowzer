@@ -56,11 +56,11 @@ self.addEventListener('message', event => {
       break
     }
     case 'connect-worker': {
-      handleConnectWorker(message.port!)
+      handleConnectWorker(message.port)
       break
     }
     case 'connect-iframe': {
-      handleConnectIframe(message.port!)
+      handleConnectIframe(message.port)
       break
     }
     case 'file-change': {
@@ -69,7 +69,7 @@ self.addEventListener('message', event => {
     }
     default: {
       // @ts-expect-error -- FIXME: type
-      console.warn('[SW] Unknown message type:', message.type)
+      logger.warn('Unknown message type:', message.type)
     }
   }
 })
@@ -78,7 +78,7 @@ self.addEventListener('message', event => {
  * Handle init message from main thread
  */
 function handleInit(client: Client) {
-  logger.debug('Init from client:', client.id)
+  logger.debug('Init from client:', client.id, client)
   // hmrClients.add(client)
 
   // Send ready notification
@@ -89,7 +89,7 @@ function handleInit(client: Client) {
  * Handle connect-worker message (MessagePort from main thread)
  */
 function handleConnectWorker(port: MessagePort) {
-  console.log('[SW] Connected to Web Worker via MessagePort')
+  logger.debug('Connected to Web Worker via MessagePort')
   workerPort = port
 
   // Listen for messages from Web Worker
@@ -113,7 +113,7 @@ function handleConnectIframe(port: MessagePort) {
  * Handle messages from iframe
  */
 function handleIframeMessage(event: MessageEvent<IframeToServiceWorkerMessage>) {
-  const message = event.data as { type: string }
+  const message = event.data
   logger.debug('Message from iframe:', message.type)
 
   switch (message.type) {
@@ -122,7 +122,7 @@ function handleIframeMessage(event: MessageEvent<IframeToServiceWorkerMessage>) 
       break
     }
     default: {
-      console.warn('[SW] Unknown iframe message type:', message.type)
+      logger.warn('Unknown iframe message type:', message.type)
     }
   }
 }
@@ -144,7 +144,7 @@ function handleWorkerMessage(event: MessageEvent<WorkerToServiceWorkerMessage>) 
       break
     }
     default: {
-      console.warn('[SW] Unknown worker message type:', (message as { type: string }).type)
+      logger.warn('Unknown worker message type:', (message as { type: string }).type)
     }
   }
 }
@@ -181,7 +181,7 @@ function handleTransformResult(message: TransformResponse) {
   logger.debug('Transform result for:', message.id)
 
   if (message.error) {
-    console.error('[SW] Transform error:', message.error)
+    logger.error('Transform error:', message.error)
     return
   }
 
@@ -202,7 +202,7 @@ function handleResolveResult(message: ResolveResponse) {
  */
 function notifyHmrUpdate(path: string) {
   if (!iframePort) {
-    console.warn('[SW] No iframe port connected, cannot send HMR update')
+    logger.warn('[No iframe port connected, cannot send HMR update')
     return
   }
 
@@ -244,7 +244,7 @@ async function handleFetch(request: Request, url: URL): Promise<Response> {
   // Check if file exists in virtual FS
   const content = files.get(pathname)
   if (content) {
-    console.log('[SW] Serving from virtual FS:', pathname)
+    logger.debug('Serving from virtual FS:', pathname)
     return new Response(content, {
       headers: {
         'Content-Type': getContentType(pathname),
@@ -257,14 +257,10 @@ async function handleFetch(request: Request, url: URL): Promise<Response> {
   try {
     return await fetch(request)
   } catch (error) {
-    console.error('[SW] Fetch error:', error)
+    logger.error('Fetch error:', error)
     return new Response('Not Found', { status: 404 })
   }
 }
-
-// =============================================================================
-// Utilities
-// =============================================================================
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9)
