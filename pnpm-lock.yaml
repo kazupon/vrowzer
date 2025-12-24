@@ -191,7 +191,7 @@ importers:
         specifier: ^3.1.4
         version: 3.1.5(typescript@5.9.3)
 
-  packages/proto2:
+  packages/vrowser:
     dependencies:
       '@oxc-parser/binding-wasm32-wasi':
         specifier: latest

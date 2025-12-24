@@ -13,7 +13,7 @@ function handleCodeUpdate(code: string) {
 <template>
   <div class="app">
     <header class="app-header">
-      <h1>Proto2 - Service Worker HMR</h1>
+      <h1>Vrowser - Vite Dev Server on Browser</h1>
       <span class="subtitle">Service Worker + Web Worker + iframe</span>
     </header>
     <main class="app-main">

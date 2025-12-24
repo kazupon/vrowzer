@@ -1,6 +1,6 @@
-# Howmcl
+# Vrowser
 
-> HMR over window message channels
+Vite Dev Server on Browser
 
 ## 🐱 Motivation
 

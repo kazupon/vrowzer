@@ -1,16 +1,16 @@
 {
-  "name": "rolldown-hmr-browser-monorepo",
+  "name": "vrowser-monorepo",
   "private": true,
   "license": "MIT",
   "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
     "build:memfs": "pnpm --filter memfs-test build",
-    "build:proto": "pnpm --filter proto2 build",
+    "build:vrowser": "pnpm --filter vrowser build",
     "dev": "pnpm --filter playground dev",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",
     "dev:memfs": "pnpm --filter memfs-test dev",
-    "dev:proto": "pnpm --filter proto2 dev",
+    "dev:vrowser": "pnpm --filter vrowser dev",
     "fix": "pnpm run --color \"/^fix:/\"",
     "fix:eslint": "eslint . --fix",
     "fix:knip": "knip --fix --no-exit-code",
@@ -22,7 +22,7 @@
     "lint:oxfmt": "oxfmt . --check --config ./node_modules/@kazupon/prettier-config/index.json",
     "lint:oxlint": "oxlint --type-aware",
     "prepare": "git config --local core.hooksPath .githooks",
-    "preview:proto": "pnpm --filter proto2 preview",
+    "preview:vrowser": "pnpm --filter vrowser preview",
     "typecheck": "tsgo --noEmit --diagnostics"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "import", "promise", "unicorn", "node", "regex"],
+  "plugins": ["typescript", "import", "promise", "unicorn", "node"],
   "overrides": [
     {
       "files": ["**/*.{test,spec}.{ts,tsx}"],
@@ -19,6 +19,6 @@
     "oxc/**",
     "rs-napi/**",
     "packages/playground/src/**",
-    "packages/proto2/src/**"
+    "packages/vrowser/src/**"
   ]
 }
