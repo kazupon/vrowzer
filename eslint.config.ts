@@ -18,10 +18,7 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
         './**/src/**/*.test.ts',
         './**/src/**/*.test-d.ts',
         './packages/playground/**/*.ts', // NOTE: Temporary ignore for monorepo packages
-        './packages/memfs-test/**/*.ts',
-        './packages/sw-test/**/*.ts',
-        './packages/oxc-parser-test/**/*.ts',
-        './packages/proto2/**/*.ts'
+        './packages/memfs-test/**/*.ts'
       ]
     }
   }),
