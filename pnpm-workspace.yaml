@@ -6,6 +6,7 @@ minimumReleaseAgeExclude:
   - "@kazupon/prettier-config"
   - "@kazupon/eslint-config"
   - eslint-plugin-oxlint
+  - knip
 
 onlyBuiltDependencies:
   - "@rolldown/browser"
