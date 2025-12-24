@@ -2,6 +2,7 @@
   "name": "rolldown-hmr-browser-monorepo",
   "private": true,
   "license": "MIT",
+  "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
     "build:memfs": "pnpm --filter memfs-test build",
@@ -15,13 +16,11 @@
     "fix:knip": "knip --fix --no-exit-code",
     "fix:oxfmt": "oxfmt . --config ./node_modules/@kazupon/prettier-config/index.json",
     "fix:oxlint": "oxlint --type-aware --fix",
-    "fix:prettier": "prettier --write --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "lint": "pnpm run --color \"/^lint:/\"",
     "lint:eslint": "eslint . --cache",
     "lint:knip": "knip",
     "lint:oxfmt": "oxfmt . --check --config ./node_modules/@kazupon/prettier-config/index.json",
     "lint:oxlint": "oxlint --type-aware",
-    "lint:prettier": "prettier --check --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
     "prepare": "git config --local core.hooksPath .githooks",
     "preview:proto": "pnpm --filter proto2 preview",
     "typecheck": "tsgo --noEmit --diagnostics"
@@ -44,7 +43,6 @@
     "oxfmt": "^0.20.0",
     "oxlint": "^1.35.0",
     "oxlint-tsgolint": "^0.10.0",
-    "prettier": "^3.7.4",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.50.1"
   },
@@ -58,8 +56,7 @@
       "oxlint --config .oxlintrc.json --type-aware --fix"
     ],
     "*.{json,jsonc,json5,md,yml,yaml}": [
-      "prettier --write"
+      "oxfmt --config ./node_modules/@kazupon/prettier-config/index.json"
     ]
-  },
-  "packageManager": "pnpm@10.26.0"
+  }
 }
