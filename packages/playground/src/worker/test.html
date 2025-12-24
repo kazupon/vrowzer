@@ -62,99 +62,99 @@
     <pre id="bundledCode">Not yet bundled...</pre>
 
     <script type="module">
-      const output = document.getElementById("output");
-      const bundledCodePre = document.getElementById("bundledCode");
-      const initBtn = document.getElementById("initBtn");
-      const bundleBtn = document.getElementById("bundleBtn");
+            const output = document.getElementById("output");
+            const bundledCodePre = document.getElementById("bundledCode");
+            const initBtn = document.getElementById("initBtn");
+            const bundleBtn = document.getElementById("bundleBtn");
 
-      let worker = null;
+            let worker = null;
 
-      function log(message, type = "info") {
-        const div = document.createElement("div");
-        div.className = `log ${type}`;
-        div.textContent = `[${new Date().toISOString()}] ${message}`;
-        output.appendChild(div);
-        console.log(`[${type.toUpperCase()}]`, message);
-      }
-
-      // Create worker using Vite's worker import
-      initBtn.addEventListener("click", async () => {
-        log("Creating worker...");
-
-        try {
-          // Import worker using Vite's ?worker syntax
-          const WorkerModule = await import("./bundler.worker.ts?worker");
-          worker = new WorkerModule.default();
-
-          worker.onmessage = (event) => {
-            const data = event.data;
-            log(
-              `Received: ${JSON.stringify(data)}`,
-              data.type === "bundle-error" ? "error" : "success",
-            );
-
-            if (data.type === "ready") {
-              log("Worker is ready!", "success");
-              bundleBtn.disabled = false;
-            } else if (data.type === "bundle-success") {
-              log("Bundle successful!", "success");
-              console.log("Bundled code:", data.code);
-              bundledCodePre.textContent = data.code;
-            } else if (data.type === "bundle-error") {
-              log(`Bundle error: ${data.message}`, "error");
+            function log(message, type = "info") {
+              const div = document.createElement("div");
+              div.className = `log ${type}`;
+              div.textContent = `[${new Date().toISOString()}] ${message}`;
+              output.appendChild(div);
+              console.log(`[${type.toUpperCase()}]`, message);
             }
-          };
 
-          worker.onerror = (error) => {
-            log(`Worker error: ${error.message}`, "error");
-          };
+            // Create worker using Vite's worker import
+            initBtn.addEventListener("click", async () => {
+              log("Creating worker...");
 
-          // Send init message
-          log("Sending init message...");
-          worker.postMessage({ type: "init" });
-        } catch (err) {
-          log(`Failed to create worker: ${err}`, "error");
-        }
-      });
+              try {
+                // Import worker using Vite's ?worker syntax
+                const WorkerModule = await import("./bundler.worker.ts?worker");
+                worker = new WorkerModule.default();
 
-      bundleBtn.addEventListener("click", () => {
-        if (!worker) {
-          log("Worker not initialized", "error");
-          return;
-        }
+                worker.onmessage = (event) => {
+                  const data = event.data;
+                  log(
+                    `Received: ${JSON.stringify(data)}`,
+                    data.type === "bundle-error" ? "error" : "success",
+                  );
 
-        const testFiles = {
-          "./main.js": `
-// Test entry file
-import { greet } from './utils.js'
+                  if (data.type === "ready") {
+                    log("Worker is ready!", "success");
+                    bundleBtn.disabled = false;
+                  } else if (data.type === "bundle-success") {
+                    log("Bundle successful!", "success");
+                    console.log("Bundled code:", data.code);
+                    bundledCodePre.textContent = data.code;
+                  } else if (data.type === "bundle-error") {
+                    log(`Bundle error: ${data.message}`, "error");
+                  }
+                };
 
-const message = greet('World')
-console.log(message)
+                worker.onerror = (error) => {
+                  log(`Worker error: ${error.message}`, "error");
+                };
 
-document.body.innerHTML = '<h1>' + message + '</h1>'
+                // Send init message
+                log("Sending init message...");
+                worker.postMessage({ type: "init" });
+              } catch (err) {
+                log(`Failed to create worker: ${err}`, "error");
+              }
+            });
 
-if (import.meta.hot) {
-  import.meta.hot.accept(() => {
-    console.log('[HMR] Updated!')
-  })
-}
-`,
-          "/utils.js": `
-// Utility module
-export function greet(name) {
-  return 'Hello, ' + name + '!'
-}
-`,
-        };
+            bundleBtn.addEventListener("click", () => {
+              if (!worker) {
+                log("Worker not initialized", "error");
+                return;
+              }
 
-        log("Sending bundle request...");
-        worker.postMessage({
-          type: "bundle",
-          entry: "./main.js",
-          files: testFiles,
-        });
-      });
-      console.log("Test page loaded", globalThis);
+              const testFiles = {
+                "./main.js": `
+      // Test entry file
+      import { greet } from './utils.js'
+
+      const message = greet('World')
+      console.log(message)
+
+      document.body.innerHTML = '<h1>' + message + '</h1>'
+
+      if (import.meta.hot) {
+        import.meta.hot.accept(() => {
+          console.log('[HMR] Updated!')
+        })
+      }
+      `,
+                "/utils.js": `
+      // Utility module
+      export function greet(name) {
+        return 'Hello, ' + name + '!'
+      }
+      `,
+              };
+
+              log("Sending bundle request...");
+              worker.postMessage({
+                type: "bundle",
+                entry: "./main.js",
+                files: testFiles,
+              });
+            });
+            console.log("Test page loaded", globalThis);
     </script>
   </body>
 </html>

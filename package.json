@@ -2,12 +2,14 @@
   "name": "rolldown-hmr-browser-monorepo",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@10.26.0",
   "type": "module",
   "scripts": {
     "build:memfs": "pnpm --filter memfs-test build",
     "build:proto": "pnpm --filter proto2 build",
+    "dev": "pnpm --filter playground dev",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",
+    "dev:memfs": "pnpm --filter memfs-test dev",
+    "dev:proto": "pnpm --filter proto2 dev",
     "fix": "pnpm run --color \"/^fix:/\"",
     "fix:eslint": "eslint . --fix",
     "fix:knip": "knip --fix --no-exit-code",
@@ -20,10 +22,6 @@
     "lint:oxfmt": "oxfmt . --check --config ./node_modules/@kazupon/prettier-config/index.json",
     "lint:oxlint": "oxlint --type-aware",
     "lint:prettier": "prettier --check --experimental-cli \"**/*.{json,jsonc,json5,md,yml,yaml}\"",
-    "play": "pnpm --filter playground dev",
-    "play:memfs": "pnpm --filter memfs-test dev",
-    "play:proto": "pnpm --filter proto2 dev",
-    "play:sw": "pnpm --filter sw-test dev",
     "prepare": "git config --local core.hooksPath .githooks",
     "preview:proto": "pnpm --filter proto2 preview",
     "typecheck": "tsgo --noEmit --diagnostics"
@@ -62,5 +60,6 @@
     "*.{json,jsonc,json5,md,yml,yaml}": [
       "prettier --write"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.26.0"
 }

@@ -54,11 +54,7 @@ watch(
     <div class="editor-header">
       <span>main.js</span>
     </div>
-    <textarea
-      v-model="code"
-      class="editor-textarea"
-      spellcheck="false"
-    ></textarea>
+    <textarea v-model="code" class="editor-textarea" spellcheck="false"></textarea>
   </div>
 </template>
 

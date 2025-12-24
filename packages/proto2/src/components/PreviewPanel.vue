@@ -300,14 +300,8 @@ watch(
           :class="['status-dot', { ready: isServiceWorkerReady }]"
           title="Service Worker"
         ></span>
-        <span
-          :class="['status-dot', { ready: isWorkerReady }]"
-          title="Web Worker"
-        ></span>
-        <span
-          :class="['status-dot', { ready: isIframeReady }]"
-          title="iframe"
-        ></span>
+        <span :class="['status-dot', { ready: isWorkerReady }]" title="Web Worker"></span>
+        <span :class="['status-dot', { ready: isIframeReady }]" title="iframe"></span>
         <span v-if="error" class="status error">Error</span>
         <span v-else-if="isReady" class="status ready">Ready</span>
         <span v-else class="status loading">Loading...</span>
