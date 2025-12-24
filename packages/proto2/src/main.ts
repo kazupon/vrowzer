@@ -3,6 +3,7 @@ import App from './App.vue'
 import { createLogger } from './logger.ts'
 import './style.css'
 import { initServiceWorker } from './sw/controller.ts'
+import html from './template.html?raw'
 
 import type { Component } from 'vue'
 
@@ -21,5 +22,7 @@ async function init() {
   logger.debug('Mounting Vue app...')
   createApp(App as Component).mount('#app')
 }
+
+console.log('load html', html)
 
 await init()

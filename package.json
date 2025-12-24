@@ -25,6 +25,7 @@
     "play:proto": "pnpm --filter proto2 dev",
     "play:sw": "pnpm --filter sw-test dev",
     "prepare": "git config --local core.hooksPath .githooks",
+    "preview:proto": "pnpm --filter proto2 preview",
     "typecheck": "tsgo --noEmit --diagnostics"
   },
   "devDependencies": {

@@ -3,6 +3,19 @@ import { createLogger } from '../logger.ts'
 const logger = createLogger('service-worker-controller')
 
 /**
+ * Get Service Worker URL based on environment
+ * - Development: TypeScript source file served by Vite dev server
+ * - Production: Bundled JavaScript file in dist
+ */
+function getServiceWorkerUrl(): string {
+  // Use string concatenation to avoid Vite's static analysis
+  // which would otherwise process the .ts file as an asset
+  const base = '/src/sw/'
+  const devPath = base + 'sw.ts'
+  return import.meta.env.DEV ? devPath : import.meta.env.VITE_BROWSER_SW_PATH
+}
+
+/**
  * Register Service Worker and wait for it to be active
  */
 async function registerServiceWorker(): Promise<ServiceWorker | null> {
@@ -11,8 +24,10 @@ async function registerServiceWorker(): Promise<ServiceWorker | null> {
     return null
   }
 
+  const url = getServiceWorkerUrl()
+  logger.debug('Registering Service Worker from:', url)
   try {
-    const registration = await navigator.serviceWorker.register('/src/sw/sw.ts', {
+    const registration = await navigator.serviceWorker.register(url, {
       type: 'module',
       scope: '/'
     })

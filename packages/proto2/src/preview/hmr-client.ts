@@ -25,21 +25,6 @@ const acceptCallbacks = new Map<string, () => void>()
 let serviceWorkerPort: MessagePort | null = null
 
 /**
- * HMR API (injected into import.meta.hot)
- */
-interface HotModule {
-  accept(callback?: () => void): void
-  dispose(callback: () => void): void
-  data: Record<string, unknown>
-}
-
-declare global {
-  interface ImportMeta {
-    hot?: HotModule
-  }
-}
-
-/**
  * Listen for messages from parent window (for MessagePort handshake)
  */
 window.addEventListener('message', event => {
