@@ -24,12 +24,31 @@ let serviceWorkerPort: MessagePort | null = null
 const fileCache = new Map<string, string>()
 
 let parser: typeof import('oxc-parser')
+let transformer: typeof import('oxc-transform')
 
-async function loaddParser() {
+async function loadParser() {
   // https://cdn.jsdelivr.net/npm/@oxc-parser/binding-wasm32-wasi/browser-bundle.js
   const url = 'https://cdn.jsdelivr.net/npm/@oxc-parser/binding-wasm32-wasi/browser-bundle.js'
-  parser = (await import(/* @vite-ignore */ url)) as typeof import('oxc-parser')
+  const parser = (await import(/* @vite-ignore */ url)) as typeof import('oxc-parser')
   return parser
+}
+
+/**
+ * Dynamic import helper to avoid Vite's static analysis
+ */
+function dynamicImport<T = unknown>(url: string): Promise<T> {
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call -- NOTE: Dynamic import
+  return new Function('url', 'return import(url)')(url) as Promise<T>
+}
+
+async function loadTransformer() {
+  // Load rolldown and binding from proxy
+  // 'https://cdn.jsdelivr.net/npm/@oxc-transform/binding-wasm32-wasi/transform.wasi-browser.js'
+  const [_transformer] = await Promise.all([
+    dynamicImport<typeof import('oxc-transform')>('/api/oxc-transform/transform.wasi-browser.js')
+  ])
+  console.log('loaded transformer', transformer)
+  return transformer
 }
 
 /**
@@ -42,7 +61,8 @@ self.onmessage = async (event: MessageEvent<MainToWorkerMessage>) => {
   switch (message.type) {
     case 'connect-service-worker': {
       handleConnectServiceWorker(message.port)
-      await loaddParser()
+      parser = await loadParser()
+      transformer = await loadTransformer()
       break
     }
     case 'file-change': {
@@ -174,8 +194,14 @@ function transformCode(code: string, url: string): string {
   let transformedCode = code
   if (parser) {
     const ast = parser.parseSync('xxx.js', code)
-    console.log('parsed', ast)
+    console.log('parsed with oxc-parser', ast)
   }
+  if (transformer) {
+    const s = transformer.transformSync('xxx.js', code)
+    console.log('transformed with oxc-transform', s)
+    transformedCode = s.code
+  }
+  console.log('transformCode', transformedCode)
 
   // Add HMR runtime wrapper
   const hmrPreamble = `

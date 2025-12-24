@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build:memfs": "pnpm --filter memfs-test build",
+    "build:proto": "pnpm --filter proto2 build",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",
     "fix": "pnpm run --color \"/^fix:/\"",
     "fix:eslint": "eslint . --fix",

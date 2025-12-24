@@ -42,6 +42,9 @@ export async function loadRolldown(): Promise<[Rolldown, RolldownBinding]> {
   console.log('[Bundler] Rolldown module:', rolldownModule)
   console.log('[Bundler] Binding module:', bindingModule)
 
+  const s = bindingModule.transformSync('test.ts', 'const a: number = 1;')
+  console.log('[Bundler] Binding transformSync test:', s)
+
   return [_rolldown, _binding]
 }
 
