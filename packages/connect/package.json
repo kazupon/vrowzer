@@ -1,6 +1,6 @@
 {
-  "name": "@vrowser/service-worker",
-  "description": "service worker library",
+  "name": "@vrowser/connect",
+  "description": "connect for the browser",
   "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
@@ -14,12 +14,14 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kazupon/vrowser.git",
-    "directory": "packages/service-worker"
+    "directory": "packages/connect"
   },
   "keywords": [
-    "service-worker",
-    "utils",
-    "util"
+    "connect",
+    "incoming",
+    "outgoing",
+    "request",
+    "response"
   ],
   "publishConfig": {
     "access": "public"
@@ -36,6 +38,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./incoming": {
+      "types": "./dist/incoming.d.ts",
+      "import": "./dist/incoming.js"
+    },
+    "./outgoing": {
+      "types": "./dist/outgoing.d.ts",
+      "import": "./dist/outgoing.js"
+    },
+    "./connct": {
+      "types": "./dist/connect.d.ts",
+      "import": "./dist/connect.js"
     },
     "./package.json": "./package.json"
   },
@@ -54,7 +68,7 @@
     "prepack": "pnpm build"
   },
   "devDependencies": {
-    "@kazupon/jts-utils": "^0.8.0",
+    "@types/node": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typedoc": "catalog:",
