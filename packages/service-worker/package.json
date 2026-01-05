@@ -1,0 +1,58 @@
+{
+  "name": "@vrowser/service-worker",
+  "description": "service worker utils",
+  "version": "0.0.1",
+  "author": {
+    "name": "kazuya kawaguchi",
+    "email": "kawakazu80@gmail.com"
+  },
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/kazupon",
+  "bugs": {
+    "url": "https://github.com/kazupon/vrowser/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazupon/vrowser.git",
+    "directory": "packages/service-worker"
+  },
+  "keywords": [
+    "service-worker",
+    "utils",
+    "util"
+  ],
+  "engines": {
+    "node": ">= 20.19.0"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*",
+        "./*"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "publint": "^0.3.16",
+    "tsdown": "^0.18.4"
+  }
+}
