@@ -40,17 +40,21 @@ let serviceWorkerAndIframeChannel: MessageChannel | null = null;
  * Computed: All systems ready
  */
 const isReady = computed(
-  () =>
-    isServiceWorkerReady.value && isWorkerReady.value && isIframeReady.value,
+  () => isServiceWorkerReady.value && isWorkerReady.value && isIframeReady.value
 );
 
 onMounted(() => {
   logger.debug("Mounting...");
 
+  const serviceWorker = getServiceWorker();
+  if (!serviceWorker) {
+    throw new Error("Cannot use Service Worker");
+  }
+
   // Create Web Worker
   worker = new Worker(
     new URL("../worker/transform.worker.ts", import.meta.url),
-    { type: "module" },
+    { type: "module" }
   );
 
   // Handle Worker messages
@@ -66,27 +70,22 @@ onMounted(() => {
   window.addEventListener("message", handleIframeMessage);
 
   // Listen for Service Worker messages
-  navigator.serviceWorker?.addEventListener(
+  navigator.serviceWorker.addEventListener(
     "message",
-    handleServiceWorkerMessage,
+    handleServiceWorkerMessage
   );
 
   // Initialize Service Worker communication
-  const serviceWorker = getServiceWorker();
-  if (serviceWorker) {
-    // Send init to get service-worker-ready response
-    logger.debug("Sending init to Service Worker");
-    serviceWorker.postMessage({ type: "init" });
-  } else {
-    throw new Error("Cannot use Service Worker");
-  }
+  // Send init to get service-worker-ready response
+  logger.debug("Sending init to Service Worker");
+  serviceWorker.postMessage({ type: "init" });
 });
 
 onUnmounted(() => {
   window.removeEventListener("message", handleIframeMessage);
   navigator.serviceWorker?.removeEventListener(
     "message",
-    handleServiceWorkerMessage,
+    handleServiceWorkerMessage
   );
   worker?.terminate();
   serviceWorkerAndWorkerChannel?.port1.close();
@@ -114,7 +113,7 @@ function handleWorkerMessage(event: MessageEvent<WorkerToMainMessage>) {
  * Handle messages from Service Worker
  */
 function handleServiceWorkerMessage(
-  event: MessageEvent<ServiceWorkerToMainMessage>,
+  event: MessageEvent<ServiceWorkerToMainMessage>
 ) {
   const { type } = event.data || {};
   logger.debug("Service Worker message:", type, event.data);
@@ -182,7 +181,7 @@ function setupServiceWorkerIframeBridge() {
   // Send port1 to Service Worker
   serviceWorker.postMessage(
     { type: "connect-iframe", port: serviceWorkerAndIframeChannel.port1 },
-    [serviceWorkerAndIframeChannel.port1],
+    [serviceWorkerAndIframeChannel.port1]
   );
 
   // Send port2 to iframe
@@ -192,7 +191,7 @@ function setupServiceWorkerIframeBridge() {
       port: serviceWorkerAndIframeChannel.port2,
     },
     "*",
-    [serviceWorkerAndIframeChannel.port2],
+    [serviceWorkerAndIframeChannel.port2]
   );
 }
 
@@ -219,7 +218,7 @@ function setupServiceWorkerWebWorkerBridge() {
   // Send port1 to Service Worker
   serviceWorker.postMessage(
     { type: "connect-worker", port: serviceWorkerAndWorkerChannel.port1 },
-    [serviceWorkerAndWorkerChannel.port1],
+    [serviceWorkerAndWorkerChannel.port1]
   );
 
   // Send port2 to Web Worker
@@ -228,7 +227,7 @@ function setupServiceWorkerWebWorkerBridge() {
       type: "connect-service-worker",
       port: serviceWorkerAndWorkerChannel.port2,
     },
-    [serviceWorkerAndWorkerChannel.port2],
+    [serviceWorkerAndWorkerChannel.port2]
   );
 }
 
@@ -287,7 +286,7 @@ watch(
     if (isReady.value) {
       sendCodeChange(newCode);
     }
-  },
+  }
 );
 </script>
 

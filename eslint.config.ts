@@ -4,24 +4,13 @@ import {
   jsonc,
   markdown,
   oxlint,
-  prettier,
   // jsdoc,
   typescript,
   yaml
 } from '@kazupon/eslint-config'
 
 const config: ReturnType<typeof defineConfig> = defineConfig(
-  comments({
-    kazupon: {
-      ignores: [
-        './**/test/**',
-        './**/src/**/*.test.ts',
-        './**/src/**/*.test-d.ts',
-        './packages/playground/**/*.ts', // NOTE: Temporary ignore for monorepo packages
-        './packages/memfs-test/**/*.ts'
-      ]
-    }
-  }),
+  comments({ kazupon: false }),
   typescript({
     parserOptions: {
       tsconfigRootDir: import.meta.dirname,
@@ -47,8 +36,7 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
   oxlint({
     presets: ['typescript'],
     configFile: './.oxlintrc.json'
-  }),
-  prettier()
+  })
 )
 
 export default config

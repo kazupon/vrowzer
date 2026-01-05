@@ -1,24 +1,35 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "import", "promise", "unicorn", "node"],
+  "extends": ["./node_modules/@kazupon/eslint-plugin/oxlint/recommended.json"],
   "overrides": [
     {
       "files": ["**/*.{test,spec}.{ts,tsx}"],
       "plugins": ["vitest"]
+    },
+    {
+      "files": ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+      "rules": {
+        "@kazupon/no-tag-comments": [
+          "warn",
+          {
+            "tags": ["TODO", "FIXME", "BUG"]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": [
-    "**/node_modules",
     "**/dist",
     ".vscode/**/*.json",
     "**/*.html",
     "**/tsconfig*.json",
-    "tsconfig.json",
     "vite/**",
     "rolldown/**",
     "oxc/**",
     "rs-napi/**",
     "packages/playground/src/**",
+    "packages/memfs-test/src/**",
     "packages/vrowser/src/**"
   ]
 }

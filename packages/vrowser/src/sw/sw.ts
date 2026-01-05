@@ -227,6 +227,7 @@ function notifyHmrUpdate(path: string) {
  */
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url)
+  console.log('Service worker: fetch', event.request.url)
 
   // Only intercept requests for our virtual files
   if (url.pathname.startsWith('/src/preview/') || files.has(url.pathname)) {

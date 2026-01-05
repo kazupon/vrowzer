@@ -139,7 +139,7 @@ export async function initServiceWorker() {
   logger.debug('Initializing...')
 
   // Setup message listener before registering
-  setupServiceWorkerMessageListener()
+  // setupServiceWorkerMessageListener()
 
   // Register Service Worker and wait for it to be active
   const serviceWorker = await registerServiceWorker()
