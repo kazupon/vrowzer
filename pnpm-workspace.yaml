@@ -2,6 +2,7 @@ packages:
   - packages/*
 
 minimumReleaseAge: 1440
+
 minimumReleaseAgeExclude:
   - '@kazupon/prettier-config'
   - '@kazupon/eslint-config'
@@ -10,4 +11,5 @@ minimumReleaseAgeExclude:
 
 onlyBuiltDependencies:
   - '@rolldown/browser'
+  - deno
   - esbuild

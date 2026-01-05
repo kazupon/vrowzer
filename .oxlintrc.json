@@ -8,6 +8,21 @@
       "plugins": ["vitest"]
     },
     {
+      "files": [
+        "**/*.md",
+        "**/*.md/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "**/*.config.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "**/*.browser-{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "**/*.{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "**/*.browser-{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "scripts/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
+      ],
+      "rules": {
+        "@kazupon/enforce-header-comment": "off"
+      }
+    },
+    {
       "files": ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
       "rules": {
         "@kazupon/no-tag-comments": [

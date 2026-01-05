@@ -7,5 +7,5 @@ export default {
     }
   },
   ignore: ['vite/**', 'oxc/**', 'rolldown/**', 'rs-napi/**'],
-  ignoreDependencies: ['lint-staged', '@kazupon/prettier-config']
+  ignoreDependencies: ['lint-staged', '@kazupon/prettier-config', '@kazupon/eslint-plugin']
 } satisfies KnipConfig

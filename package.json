@@ -24,6 +24,8 @@
     "lint:oxlint": "oxlint --type-aware --config .oxlintrc.json",
     "prepare": "git config --local core.hooksPath .githooks",
     "preview:vrowser": "pnpm --filter vrowser preview",
+    "test": "pnpm run --color \"/^test:/\"",
+    "test:browser": "vitest --config vitest.browser.config.ts",
     "typecheck": "tsgo --noEmit --diagnostics"
   },
   "devDependencies": {
@@ -33,6 +35,7 @@
     "@kazupon/prettier-config": "^0.2.0",
     "@types/node": "^24.10.4",
     "@typescript/native-preview": "7.0.0-dev.20260103.1",
+    "@vitest/browser-playwright": "^4.0.16",
     "eslint": "^9.39.2",
     "eslint-plugin-jsdoc": "^61.5.0",
     "eslint-plugin-jsonc": "^2.21.0",
@@ -44,8 +47,10 @@
     "oxfmt": "^0.20.0",
     "oxlint": "^1.36.0",
     "oxlint-tsgolint": "^0.10.1",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.51.0"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.51.0",
+    "vitest": "^4.0.16"
   },
   "lint-staged": {
     "*.ts?(x)": [
