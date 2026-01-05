@@ -1,6 +1,6 @@
 # Vrowser
 
-Vite Dev Server on Browser
+Run Vite HMR flavor on the browser
 
 ## 🐱 Motivation
 
