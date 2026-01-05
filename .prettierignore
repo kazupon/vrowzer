@@ -1,5 +1,6 @@
 pnpm-lock.yaml
 package.json
+packages/**/docs/
 
 vite/
 rolldown/
