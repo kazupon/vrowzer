@@ -77,6 +77,21 @@ describe('SvcWorkerController#ready', () => {
       await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
     })
   })
+
+  describe('edge cases', () => {
+    test('ready called twice: should resolve immediately on second call', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/basic.js',
+        type: 'module',
+        scope: '/controller/'
+      })
+
+      await expect(controller.ready()).resolves.toBeUndefined()
+      await expect(controller.ready()).resolves.toBeUndefined()
+      const registration = await navigator.serviceWorker.getRegistration('/controller/')
+      expect(registration?.active?.state).toBe('activated')
+    })
+  })
 })
 
 describe('SvcWorkerController#shutdown', () => {
@@ -145,6 +160,34 @@ describe('SvcWorkerController#shutdown', () => {
       const promise = controller.shutdown(abortController.signal)
       abortController.abort()
       await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
+    })
+  })
+
+  describe('edge cases', () => {
+    test('no ready: should do nothing when shutdown is called before ready', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/basic.js',
+        type: 'module',
+        scope: '/controller/'
+      })
+
+      await expect(controller.shutdown()).resolves.toBeUndefined()
+      const registration = await navigator.serviceWorker.getRegistration('/controller/')
+      expect(registration).toBeUndefined()
+    })
+
+    test('double shutdown: should do nothing on second call', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/basic.js',
+        type: 'module',
+        scope: '/controller/'
+      })
+      await controller.ready()
+
+      await expect(controller.shutdown()).resolves.toBeUndefined()
+      await expect(controller.shutdown()).resolves.toBeUndefined()
+      const registration = await navigator.serviceWorker.getRegistration('/controller/')
+      expect(registration).toBeUndefined()
     })
   })
 })

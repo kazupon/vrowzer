@@ -89,9 +89,11 @@ export function createSvcWorkerController(
   options: SvcWorkerControllerOptions
 ): Readonly<SvcWorkerController> {
   const { scriptURL, debug: _debug, ...registrationOptions } = options
-  const _emitter = createEmitter()
-
   _debug?.('Creating Service Worker Controller with options:', options)
+
+  const _emitter = createEmitter()
+  let _registration: ServiceWorkerRegistration | null = null
+  let _sw: ServiceWorker | null = null
 
   /**
    * Wait for service worker state change
@@ -100,7 +102,7 @@ export function createSvcWorkerController(
     sw: ServiceWorker,
     targetState: ServiceWorkerState,
     signal?: AbortSignal
-  ): Promise<void> {
+  ): Promise<ServiceWorker> {
     return new Promise((resolve, reject) => {
       if (signal?.aborted) {
         reject(new DOMException('Aborted', 'AbortError'))
@@ -108,7 +110,7 @@ export function createSvcWorkerController(
       }
 
       if (sw.state === targetState) {
-        resolve()
+        resolve(sw)
         return
       }
 
@@ -116,7 +118,7 @@ export function createSvcWorkerController(
         _debug?.(`Service Worker state changed: ${sw.state}`)
         if (sw.state === targetState) {
           cleanup()
-          resolve()
+          resolve(sw)
         } else if (sw.state === 'redundant') {
           cleanup()
           reject(new SvcWorkerControllerError('Service Worker became redundant'))
@@ -141,7 +143,7 @@ export function createSvcWorkerController(
   /**
    * Wait for controller change (when clients.claim() is called)
    */
-  function waitForControllerChange(signal?: AbortSignal): Promise<void> {
+  function waitForControllerChange(signal?: AbortSignal): Promise<ServiceWorker> {
     return new Promise((resolve, reject) => {
       if (signal?.aborted) {
         reject(new DOMException('Aborted', 'AbortError'))
@@ -149,14 +151,14 @@ export function createSvcWorkerController(
       }
 
       if (navigator.serviceWorker.controller) {
-        resolve()
+        resolve(navigator.serviceWorker.controller)
         return
       }
 
       const onControllerChange = (): void => {
         _debug?.('Controller changed')
         cleanup()
-        resolve()
+        resolve(navigator.serviceWorker.controller!)
       }
 
       const onAbort = (): void => {
@@ -174,11 +176,20 @@ export function createSvcWorkerController(
     })
   }
 
+  function isReady(): boolean {
+    return !!_registration && !!_sw && _sw.state === 'activated'
+  }
+
   /**
    * Ready for the service worker
    */
   async function ready(readyOptions?: SvcWorkerControllerReadyOptions): Promise<void> {
     const { claim = false, signal } = readyOptions ?? {}
+
+    if (isReady()) {
+      _debug?.('Service Worker is already ready')
+      return
+    }
 
     if (signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError')
@@ -186,25 +197,26 @@ export function createSvcWorkerController(
     _debug?.('Registering Service Worker:', scriptURL)
 
     try {
-      const registration = await navigator.serviceWorker.register(scriptURL, registrationOptions)
-      _debug?.('Service Worker registered:', registration)
+      _registration = await navigator.serviceWorker.register(scriptURL, registrationOptions)
+      _debug?.('Service Worker registered:', _registration)
 
       // Get the installing, waiting, or active service worker
-      const sw = registration.installing ?? registration.waiting ?? registration.active
+      const sw = _registration.installing ?? _registration.waiting ?? _registration.active
       if (!sw) {
         throw new SvcWorkerControllerError('No Service Worker found after registration')
       }
+      _sw = sw
       _debug?.(`Service Worker state: ${sw.state}`)
 
       // Wait for activation
       if (sw.state !== 'activated') {
-        await waitForState(sw, 'activated', signal)
+        _sw = await waitForState(sw, 'activated', signal)
       }
       _debug?.('Service Worker activated')
 
       // If claim option is true, wait for controller change
       if (claim) {
-        await waitForControllerChange(signal)
+        _sw = await waitForControllerChange(signal)
         _debug?.('Service Worker claimed clients')
       }
     } catch (error) {
@@ -227,6 +239,11 @@ export function createSvcWorkerController(
    * Shutdown the service worker
    */
   async function shutdown(signal?: AbortSignal): Promise<void> {
+    if (!isReady()) {
+      _debug?.('Service Worker is not ready, nothing to shutdown')
+      return
+    }
+
     if (signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError')
     }
@@ -245,12 +262,19 @@ export function createSvcWorkerController(
         return
       }
 
+      if (_registration !== registration) {
+        throw new SvcWorkerControllerError('Unmatch service worker registration')
+      }
+
       const success = await registration.unregister()
       if (!success) {
         throw new SvcWorkerControllerError('Failed to unregister Service Worker')
       }
 
       _debug?.('Service Worker unregistered successfully')
+
+      _registration = null
+      _sw = null
     } catch (error) {
       // Re-throw DOMException for abort
       if (error instanceof DOMException && error.name === 'AbortError') {
