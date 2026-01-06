@@ -11,7 +11,7 @@
 
 import { createEmitter } from '@kazupon/jts-utils'
 
-import type { Emittable, Err } from '@kazupon/jts-utils'
+import type { Emittable } from '@kazupon/jts-utils'
 import type { AbortableOptions } from './types.ts'
 
 /**
@@ -93,13 +93,13 @@ export function createSvcWorkerController(
 
   const _emitter = createEmitter()
   let _registration: ServiceWorkerRegistration | null = null
-  let _sw: ServiceWorker | null = null
+  let _serviceWorker: ServiceWorker | null = null
 
   /**
    * Wait for service worker state change
    */
   function waitForState(
-    sw: ServiceWorker,
+    serviceWorker: ServiceWorker,
     targetState: ServiceWorkerState,
     signal?: AbortSignal
   ): Promise<ServiceWorker> {
@@ -109,17 +109,17 @@ export function createSvcWorkerController(
         return
       }
 
-      if (sw.state === targetState) {
-        resolve(sw)
+      if (serviceWorker.state === targetState) {
+        resolve(serviceWorker)
         return
       }
 
       const onStateChange = (): void => {
-        _debug?.(`Service Worker state changed: ${sw.state}`)
-        if (sw.state === targetState) {
+        _debug?.(`Service Worker state changed: ${serviceWorker.state}`)
+        if (serviceWorker.state === targetState) {
           cleanup()
-          resolve(sw)
-        } else if (sw.state === 'redundant') {
+          resolve(serviceWorker)
+        } else if (serviceWorker.state === 'redundant') {
           cleanup()
           reject(new SvcWorkerControllerError('Service Worker became redundant'))
         }
@@ -131,11 +131,11 @@ export function createSvcWorkerController(
       }
 
       const cleanup = (): void => {
-        sw.removeEventListener('statechange', onStateChange)
+        serviceWorker.removeEventListener('statechange', onStateChange)
         signal?.removeEventListener('abort', onAbort)
       }
 
-      sw.addEventListener('statechange', onStateChange)
+      serviceWorker.addEventListener('statechange', onStateChange)
       signal?.addEventListener('abort', onAbort)
     })
   }
@@ -177,7 +177,7 @@ export function createSvcWorkerController(
   }
 
   function isReady(): boolean {
-    return !!_registration && !!_sw && _sw.state === 'activated'
+    return !!_registration && !!_serviceWorker && _serviceWorker.state === 'activated'
   }
 
   /**
@@ -201,22 +201,23 @@ export function createSvcWorkerController(
       _debug?.('Service Worker registered:', _registration)
 
       // Get the installing, waiting, or active service worker
-      const sw = _registration.installing ?? _registration.waiting ?? _registration.active
-      if (!sw) {
+      const serviceWorker =
+        _registration.installing ?? _registration.waiting ?? _registration.active
+      if (!serviceWorker) {
         throw new SvcWorkerControllerError('No Service Worker found after registration')
       }
-      _sw = sw
-      _debug?.(`Service Worker state: ${sw.state}`)
+      _serviceWorker = serviceWorker
+      _debug?.(`Service Worker state: ${serviceWorker.state}`)
 
       // Wait for activation
-      if (sw.state !== 'activated') {
-        _sw = await waitForState(sw, 'activated', signal)
+      if (serviceWorker.state !== 'activated') {
+        _serviceWorker = await waitForState(serviceWorker, 'activated', signal)
       }
       _debug?.('Service Worker activated')
 
       // If claim option is true, wait for controller change
       if (claim) {
-        _sw = await waitForControllerChange(signal)
+        _serviceWorker = await waitForControllerChange(signal)
         _debug?.('Service Worker claimed clients')
       }
     } catch (error) {
@@ -274,7 +275,7 @@ export function createSvcWorkerController(
       _debug?.('Service Worker unregistered successfully')
 
       _registration = null
-      _sw = null
+      _serviceWorker = null
     } catch (error) {
       // Re-throw DOMException for abort
       if (error instanceof DOMException && error.name === 'AbortError') {
