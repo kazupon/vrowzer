@@ -13,6 +13,7 @@ minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@kazupon/prettier-config'
   - '@kazupon/eslint-config'
+  - '@kazupon/jts-utils'
   - eslint-plugin-oxlint
   - knip
 

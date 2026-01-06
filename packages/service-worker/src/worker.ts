@@ -16,9 +16,20 @@
 import { createEmitter } from '@kazupon/jts-utils'
 
 import type { Emittable } from '@kazupon/jts-utils'
+import type { AbortableOptions } from './types.ts'
 
 /**
- * Service Worker options interface for {@link createSvcWorker}
+ * Service Worker Error
+ */
+export class SvcWorkerError extends Error {
+  name = 'ServiceWorkerError'
+  constructor(message: string, cause?: Error) {
+    super(message, { cause })
+  }
+}
+
+/**
+ * Service Worker options for {@link createSvcWorker}
  */
 export interface SvcWorkerOptions {
   /**
@@ -28,20 +39,38 @@ export interface SvcWorkerOptions {
 }
 
 /**
- * Service worker interface, which can be wrapped around native Service worker global scope
+ * {@link SvcWorker.ready | Service Worker ready} options
  */
-export interface SvcWorker extends Emittable {
+export interface SvcWorkerReadyOptions extends AbortableOptions {
   /**
-   * Ready promise that activates when the service worker is prepared
+   * Whether to skip waiting for `self.skipWaiting()` to be called on the service worker side after installation
+   *
+   * @default true
    */
-  ready(): Promise<boolean>
+  skipWaiting?: boolean
 }
 
 /**
- * Create a Service Worker
+ * Service worker wrapped by [ServiceWorkerGlobalScope](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope)
+ */
+export interface SvcWorker extends Emittable<{
+  [K in keyof ServiceWorkerGlobalScopeEventMap]: ServiceWorkerGlobalScopeEventMap[K]
+}> {
+  /**
+   * Ready promise that activates when the service worker is prepared
+   *
+   * @param options - A {@link SvcWorkerReadyOptions | Service Worker ready options}
+   * @throws {SvcWorkerError} When the service worker will not be achieved to activated
+   * @throws {DOMException} When the operation is aborted
+   */
+  ready(options?: SvcWorkerReadyOptions): Promise<void>
+}
+
+/**
+ * Create a Service worker
  *
- * @param self - An {@link ServiceWorkerGlobalScope | Service worker global scope}
- * @param options - An {@link SvcWorkerOptions | Service worker options}
+ * @param self - A {@link ServiceWorkerGlobalScope | Service worker global scope}
+ * @param options - A {@link SvcWorkerOptions | Service worker options}
  * @returns - {@link SvcWorker | Service worker instance}
  */
 export function createSvcWorker(

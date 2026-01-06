@@ -23,14 +23,14 @@ export interface FileChangeMessage {
 /**
  * Main Thread -> Service Worker: Initialize connection
  */
-export interface InitMessage {
+interface InitMessage {
   type: 'init'
 }
 
 /**
  * Main Thread -> Service Worker: Connect with Web Worker
  */
-export interface ConnectWorkerToServiceWorkerMessage {
+interface ConnectWorkerToServiceWorkerMessage {
   type: 'connect-worker'
   port: MessagePort
 }
@@ -38,7 +38,7 @@ export interface ConnectWorkerToServiceWorkerMessage {
 /**
  * Main Thread -> Service Worker: Connect with iframe
  */
-export interface ConnectIframeToServiceWorkerMessage {
+interface ConnectIframeToServiceWorkerMessage {
   type: 'connect-iframe'
   port: MessagePort
 }
@@ -46,7 +46,7 @@ export interface ConnectIframeToServiceWorkerMessage {
 /**
  * Service Worker -> Main Thread: Ready notification
  */
-export interface ServiceWorkerReadyMessage {
+interface ServiceWorkerReadyMessage {
   type: 'service-worker-ready'
 }
 
@@ -57,7 +57,7 @@ export interface ServiceWorkerReadyMessage {
 /**
  * Main Thread -> Web Worker: Connect with port
  */
-export interface ConnectWorkerMessage {
+interface ConnectWorkerMessage {
   type: 'connect-service-worker'
   port: MessagePort
 }
@@ -65,7 +65,7 @@ export interface ConnectWorkerMessage {
 /**
  * Web Worker -> Main Thread: Ready notification
  */
-export interface WorkerReadyMessage {
+interface WorkerReadyMessage {
   type: 'worker-ready'
 }
 
@@ -122,7 +122,7 @@ export interface ResolveResponse {
 /**
  * Main Thread -> iframe: Connect with Service Worker
  */
-export interface ConnectServiceWorkerToIframeMessage {
+interface ConnectServiceWorkerToIframeMessage {
   type: 'connect-service-worker'
   port: MessagePort
 }
@@ -130,21 +130,21 @@ export interface ConnectServiceWorkerToIframeMessage {
 /**
  * iframe -> Main Thread: HMR client ready
  */
-export interface IframeReadyMessage {
+interface IframeReadyMessage {
   type: 'hmr-client-ready'
 }
 
 /**
  * iframe -> Main Thread: Success notification
  */
-export interface IframeSuccessMessage {
+interface IframeSuccessMessage {
   type: 'success'
 }
 
 /**
  * iframe -> Main Thread: Error notification
  */
-export interface IframeErrorMessage {
+interface IframeErrorMessage {
   type: 'error'
   message: string
 }
@@ -156,7 +156,7 @@ export interface IframeErrorMessage {
 /**
  * Service Worker -> iframe: HMR update notification
  */
-export interface HMRUpdateMessage {
+interface HMRUpdateMessage {
   type: 'hmr-update'
   updates: HMRUpdate[]
 }
@@ -164,7 +164,7 @@ export interface HMRUpdateMessage {
 /**
  * Service Worker -> iframe: HMR update details
  */
-export interface HMRUpdate {
+interface HMRUpdate {
   type: 'js-update' | 'css-update'
   path: string
   acceptedPath: string
@@ -174,19 +174,19 @@ export interface HMRUpdate {
 /**
  * iframe -> Service Worker: HMR client ready
  */
-export interface HMRClientReadyMessage {
+interface HMRClientReadyMessage {
   type: 'hmr-client-ready'
 }
 
 /**
  * Service Worker -> iframe: Full reload
  */
-export interface HMRFullReloadMessage {
+interface HMRFullReloadMessage {
   type: 'hmr-full-reload'
   path?: string
 }
 
-export type MainToServiceWorkerMessage =
+type MainToServiceWorkerMessage =
   | FileChangeMessage
   | InitMessage
   | ConnectWorkerToServiceWorkerMessage
@@ -194,9 +194,9 @@ export type MainToServiceWorkerMessage =
 export type ServiceWorkerToMainMessage = ServiceWorkerReadyMessage
 export type MainToWorkerMessage = ConnectWorkerMessage | FileChangeMessage
 export type WorkerToMainMessage = WorkerReadyMessage
-export type MainToIframeMessage = ConnectServiceWorkerToIframeMessage
-export type IframeToMainMessage = IframeReadyMessage | IframeSuccessMessage | IframeErrorMessage
+type MainToIframeMessage = ConnectServiceWorkerToIframeMessage
+type IframeToMainMessage = IframeReadyMessage | IframeSuccessMessage | IframeErrorMessage
 export type ServiceWorkerToWorkerMessage = TransformRequest | ResolveRequest
-export type WorkerToServiceWorkerMessage = TransformResponse | ResolveResponse
-export type ServiceWorkerToIframeMessage = HMRUpdateMessage | HMRFullReloadMessage
-export type IframeToServiceWorkerMessage = HMRClientReadyMessage
+type WorkerToServiceWorkerMessage = TransformResponse | ResolveResponse
+type ServiceWorkerToIframeMessage = HMRUpdateMessage | HMRFullReloadMessage
+type IframeToServiceWorkerMessage = HMRClientReadyMessage

@@ -54,7 +54,7 @@
     "prepack": "pnpm build"
   },
   "devDependencies": {
-    "@kazupon/jts-utils": "^0.8.0",
+    "@kazupon/jts-utils": "^0.9.0",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typedoc": "catalog:",

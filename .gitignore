@@ -23,6 +23,7 @@ dist
 
 .eslintcache
 tsconfig.tsbuildinfo
+__screenshots__
 
 .notes
 .todo.md

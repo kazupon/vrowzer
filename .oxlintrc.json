@@ -39,6 +39,7 @@
     ".vscode/**/*.json",
     "**/*.html",
     "**/tsconfig*.json",
+    "**/__screenshots__",
     "packages/**/docs/**",
     "vite/**",
     "rolldown/**",

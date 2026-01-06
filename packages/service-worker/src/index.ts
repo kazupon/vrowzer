@@ -1,7 +1,7 @@
 /**
  * Service Worker library
  *
- * @module service-worker
+ * @module default
  */
 
 /**
@@ -9,8 +9,5 @@
  * @license MIT
  */
 
-import { createEmitter } from '@kazupon/jts-utils'
-
-const emitter = createEmitter()
-
-console.log('Service Worker Loaded', emitter)
+export * from './controller.ts'
+export * from './worker.ts'

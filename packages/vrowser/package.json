@@ -8,8 +8,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@oxc-parser/binding-wasm32-wasi": "latest",
-    "@oxc-transform/binding-wasm32-wasi": "latest",
     "consola": "^3.2.4",
     "oxc-parser": "latest",
     "oxc-transform": "latest",
@@ -17,7 +15,6 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.3",
-    "@vue/tsconfig": "^0.8.1",
     "esbuild": "^0.27.2",
     "rolldown": "1.0.0-beta.56",
     "typescript": "~5.9.3",

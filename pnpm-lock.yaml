@@ -227,8 +227,8 @@ importers:
   packages/service-worker:
     devDependencies:
       '@kazupon/jts-utils':
-        specifier: ^0.8.0
-        version: 0.8.0(@vue/reactivity@3.5.26)
+        specifier: ^0.9.0
+        version: 0.9.0(@vue/reactivity@3.5.26)
       publint:
         specifier: 'catalog:'
         version: 0.3.16
@@ -674,8 +674,8 @@ packages:
       '@vue/reactivity':
         optional: true
 
-  '@kazupon/jts-utils@0.8.0':
-    resolution: {integrity: sha512-nm+4go9Q3s0WgyDiuCskw7biE0+kbPtXy+GNq5jxZne8cVrzkFeJGHh8xOntSqw7Lx6vkEAzxMtJJdmcK6Z0KA==}
+  '@kazupon/jts-utils@0.9.0':
+    resolution: {integrity: sha512-vTQUC5JUgB4VMMUqdnD4GBVLqFdMQCK6WPPxXbxvAo1A9Ml7JpEJ3LCD22uVlece2xlGIaSCci2Rq2uAH4s8zw==}
     engines: {node: '>= 20'}
     peerDependencies:
       '@vue/reactivity': ^3.4
@@ -3975,7 +3975,7 @@ snapshots:
       - unrun
       - vue-tsc
 
-  '@kazupon/jts-utils@0.8.0(@vue/reactivity@3.5.26)':
+  '@kazupon/jts-utils@0.9.0(@vue/reactivity@3.5.26)':
     optionalDependencies:
       '@vue/reactivity': 3.5.26
 

@@ -4,6 +4,7 @@
     "module": "esnext",
     "target": "esnext",
     "moduleResolution": "bundler",
+    "lib": ["ESNext", "WebWorker"],
 
     // Other Outputs
     "sourceMap": true,
