@@ -47,6 +47,7 @@
     "rs-napi/**",
     "packages/playground/src/**",
     "packages/memfs-test/src/**",
+    "packages/svc-sandbox/src/**",
     "packages/vrowser/src/**"
   ]
 }
