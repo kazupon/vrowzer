@@ -16,6 +16,7 @@
     "dev:memfs": "pnpm --filter memfs-test dev",
     "dev:svc": "pnpm --filter svc-sandbox dev",
     "dev:vrowser": "pnpm --filter vrowser dev",
+    "e2e": "pnpm -r e2e",
     "fix": "pnpm run --color \"/^fix:/\"",
     "fix:eslint": "eslint . --fix",
     "fix:knip": "knip --fix --no-exit-code",

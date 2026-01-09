@@ -1,5 +1,5 @@
-import { describe, test, expect } from 'vitest'
-import { createSvcWorker } from './worker.ts'
+import { describe, test } from 'vitest'
+// import { createSvcWorker } from './worker.ts'
 
 describe.todo('SvcWorker#ready', () => {
   describe('success', () => {

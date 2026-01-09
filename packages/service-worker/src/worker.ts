@@ -13,8 +13,6 @@
  * @license MIT
  */
 
-import { createEmitter } from '@kazupon/jts-utils'
-
 import type { Emittable } from '@kazupon/jts-utils'
 import type { AbortableOptions } from './types.ts'
 
@@ -74,12 +72,10 @@ export interface SvcWorker extends Emittable<{
  * @returns - {@link SvcWorker | Service worker instance}
  */
 export function createSvcWorker(
-  self: ServiceWorkerGlobalScope,
-  options?: SvcWorkerOptions
+  _self: ServiceWorkerGlobalScope,
+  _options?: SvcWorkerOptions
 ): Readonly<SvcWorker> {
-  const _emitter = createEmitter()
-
-  // TODO:
+  // TODO: Implement SvcWorker
 
   return Object.freeze({}) as SvcWorker
 }
