@@ -5,6 +5,8 @@ const sw = self
 
 const SW_VERSION = 'v1'
 
+const timeout = ms => new Promise(resolve => setTimeout(resolve, ms))
+
 sw.addEventListener('message', event => {
   const data = event.data
   if (!data || typeof data.type !== 'string') return
@@ -20,6 +22,10 @@ sw.addEventListener('message', event => {
       break
     }
   }
+})
+
+sw.addEventListener('install', event => {
+  event.waitUntil(timeout(2000))
 })
 
 // No clients.claim() - page needs reload to be controlled

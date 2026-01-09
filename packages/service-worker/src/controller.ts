@@ -3,7 +3,7 @@
  *
  * Features:
  * - Defines service worker version tag and verifies via service worker messaging.
- * - Handles the below combination service worker on registration:
+ * - Handles the below status combination service worker on registration:
  *   - `registration.installing`
  *   - `registration.waiting`
  *   - `registration.active`
@@ -33,32 +33,26 @@
  */
 
 import { abortError, throwIfAborted } from '@kazupon/jts-utils/abort'
-import { createEmitter } from '@kazupon/jts-utils/event'
+import { createEmitter, waitOnce } from '@kazupon/jts-utils/event'
+import { VROWSER_SW_GET_VERSION, VROWSER_SW_SKIP_WAITING } from './constants.ts'
 
 import type { Emittable } from '@kazupon/jts-utils'
-import type { AbortableOptions } from './types.ts'
 
 /**
- * {@link SvcWorkerController | Service Worker Controller} instance creation options.
+ * {@link SvcWorkerController | Service Worker Controller} instance creation options
  *
  * Use in {@link createSvcWorkerController} function.
  */
-export interface SvcWorkerControllerOptions extends RegistrationOptions, AbortableOptions {
+export interface SvcWorkerControllerOptions extends RegistrationOptions {
   /**
    * The URL of the service worker script to register
    * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register}
    */
   scriptURL: string | URL
   /**
-   * The version string to identify the service worker
+   * The version tag string to identify the service worker
    */
   version: string
-  /**
-   * Policy for `skipWaiting`
-   *
-   * @default 'expected-only'
-   */
-  skipWaitingPolicy?: SkipWaitingPolicy
   /**
    * debug logger function
    */
@@ -76,16 +70,11 @@ export class SvcWorkerControllerError extends Error {
 }
 
 /**
- * Skip waiting policy type
+ * Reload suggest reason
  *
- * Policies:
- * - 'expected-only': request `skipWaiting` only if `waiting` / `installing` matches expected service worker version
- * - 'always-when-waiting': if `registration.waiting` exists, ALWAYS request `skipWaiting` (even if version differs)
- */
-export type SkipWaitingPolicy = 'expected-only' | 'always-when-waiting'
-
-/**
- * Reload suggest reason type
+ * Reasons:
+ * - 'expected-active-but-not-controller': Expected service worker is active but not controlling the page
+ * - 'expected-waiting-promoted-but-not-controller': Expected service worker was in waiting, promoted to active, but not controlling the page
  */
 export type ReloadSuggestReason =
   | 'expected-active-but-not-controller'
@@ -102,7 +91,7 @@ export interface ReloadSuggestInfo {
    */
   reason: ReloadSuggestReason
   /**
-   * The version of the service worker suggesting reload
+   * The version of the service worker for suggesting reload
    */
   version: string
 }
@@ -110,8 +99,8 @@ export interface ReloadSuggestInfo {
 /**
  * {@link SvcWorkerController | Service Worker Controller} state type
  *
- * Note that while it is similar to the state provided by {@link ServiceWorkerState | service worker state}, it is not identical.
- * It has been adjusted to be easier for the Service worker controller to handle.
+ * Note that while it's similar to the state provided by {@link ServiceWorkerState | service worker state}, it's not identical.
+ * It has been adjusted to be easier for the Service worker controller to handle the expected service worker.
  *
  * State changes timings:
  * - `'installing'`: When expected service worker is detected in installing state
@@ -152,8 +141,8 @@ export interface StateChangeInfo {
 export type SvcWorkerControllerEventMap = {
   /**
    * Service worker controller progress hook
-   * This callback is useful to debug or UI/telemetry.
    *
+   * This callback is useful to debug or UI/telemetry.
    * Payload is the current phase description string.
    */
   progress: string
@@ -175,6 +164,33 @@ export type SvcWorkerControllerEventMap = {
 }
 
 /**
+ * Skip waiting policy type
+ *
+ * Policies:
+ * - 'expected-only': request `skipWaiting` only if `waiting` / `installing` matches expected service worker version
+ * - 'always-when-waiting': if `registration.waiting` exists, ALWAYS request `skipWaiting` (even if version differs)
+ */
+export type SkipWaitingPolicy = 'expected-only' | 'always-when-waiting'
+
+/**
+ * An options for {@link SvcWorkerController.re | Service Worker Controller}
+ */
+export interface SvcWorkerControllerReadyOptions {
+  /**
+   * Policy for `skipWaiting`
+   *
+   * @default 'expected-only'
+   */
+  skipWaitingPolicy?: SkipWaitingPolicy
+  /**
+   * Timeout in milliseconds to wait for expected service worker to become active
+   *
+   * @default 3000
+   */
+  timeout?: number
+}
+
+/**
  * Service worker controller
  */
 export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventMap> {
@@ -185,45 +201,45 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
   /**
    * The {@link ServiceWorker | service worker} instance that is managed by service worker controller
    */
-  readonly serviceWorker: ServiceWorker
+  readonly serviceWorker: ServiceWorker | null
+  /**
+   * Ready for the expected service worker to become active.
+   *
+   * Calling this method internally checks the service worker's state using the API provided by `navigator.serviceWorker`.
+   *
+   * Based on that state, it triggers events like `reloadSuggested` or `changeState` and internally initializes until the expected service worker version becomes active.
+   *
+   * After initialization completes, the application logic can be controlled via the {@link SvcWorkerController.state | state} and {@link createSvcWorkerController.serviceWorker | serviceWorker} properties.
+   *
+   * @returns
+   * - If the expected service worker will be already active, this promise resolves immediately as `true`.
+   * - If the expected service worker will not be achieved to activate, this promise resolves as `false`.
+   */
+  ready: (options?: SvcWorkerControllerReadyOptions) => Promise<boolean>
 }
 
 /**
  * Create a {@link SvcWorkerController | Service worker controller} instance.
  *
- * This function initializes the service worker controller with the specified options.
- * During initialization, it checks the service worker's state while respecting the specified options, emit events such as `reloadSuggested` and `changeState`.
- * After instance initialization, you can control your application's logic via the {@link SvcWorkerController.state | state} and {@link SvcWorkerController.serviceWorker | serviceWorker} properties.
- *
  * @param options {@link SvcWorkerControllerOptions | Service worker controller options}
- * @returns - {@link SvcWorkerController | Service worker controller instance}
+ * @returns {@link SvcWorkerController | Service worker controller instance}
  */
-export async function createSvcWorkerController(
+export function createSvcWorkerController(
   options: SvcWorkerControllerOptions
-): Promise<Readonly<SvcWorkerController>> {
-  const {
-    scriptURL,
-    version: expectedVersion,
-    signal,
-    skipWaitingPolicy = 'expected-only',
-    debug: _debug,
-    ...registrationOptions
-  } = options
+): Readonly<SvcWorkerController> {
+  const { scriptURL, version, debug: _debug, ...registrationOptions } = options
 
   _debug?.('createSvcWorkerController: options', options)
 
-  const _emitter =
-    createEmitter<{
-      [K in keyof SvcWorkerControllerEventMap]: SvcWorkerControllerEventMap[K]
-    }>()
+  const _emitter = createEmitter<SvcWorkerControllerEventMap>()
   let _serviceWorker: ServiceWorker | null = null
   let _state: SvcWorkerControllerState = 'installing'
 
   // Helper to emit events and update state
-  const emitStateChange = (state: SvcWorkerControllerState, sw: ServiceWorker) => {
+  const emitStateChange = (state: SvcWorkerControllerState, serviceWorker: ServiceWorker) => {
     _state = state
-    _serviceWorker = sw
-    _emitter.emit('changeState', { state, version: expectedVersion, serviceWorker: sw })
+    _serviceWorker = serviceWorker
+    _emitter.emit('changeState', { state, version, serviceWorker })
   }
 
   const emitProgress = (phase: string) => {
@@ -231,173 +247,157 @@ export async function createSvcWorkerController(
     _emitter.emit('progress', phase)
   }
 
-  // Abort check
-  throwIfAborted(signal)
-
-  // Register the service worker
-  emitProgress('registering')
-  const reg = await navigator.serviceWorker.register(scriptURL, registrationOptions)
-  emitProgress('registered')
-
-  // Fast-path: already controlled by expected
-  if (await isExpectedController(expectedVersion, signal)) {
-    const controller = navigator.serviceWorker.controller
-    if (controller) {
-      emitStateChange('activated', controller)
-    }
-    emitProgress('already-expected-controller')
-    return createController(
-      _emitter,
-      () => _state,
-      () => _serviceWorker!
-    )
+  const emitReloadSuggested = (info: ReloadSuggestInfo) => {
+    _debug?.('createSvcWorkerController: reloadSuggested', info)
+    _emitter.emit('reloadSuggested', info)
   }
 
-  let reloadSuggested = false
+  /**
+   * Ready for the expected service worker to become active.
+   */
+  async function ready(options?: SvcWorkerControllerReadyOptions): Promise<boolean> {
+    const timeout = options?.timeout ?? 3000
+    const skipWaitingPolicy = options?.skipWaitingPolicy ?? 'expected-only'
 
-  for (;;) {
-    throwIfAborted(signal)
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), timeout)
+    const signal = abortController.signal
 
-    // 1) Try to promote expected (and optionally any waiting) to become active ASAP.
-    const promotedKind = await promoteIfPossible({
-      reg,
-      expectedVersion,
-      signal,
-      skipWaitingPolicy,
-      onProgress: emitProgress,
-      onExpectedStateChange: info => emitStateChange(info.state, info.serviceWorker)
-    })
+    try {
+      throwIfAborted(signal)
 
-    // 2) If controller is now expected, done.
-    if (await isExpectedController(expectedVersion, signal)) {
-      const controller = navigator.serviceWorker.controller
-      if (controller) {
-        emitStateChange('activated', controller)
+      // Register the service worker
+      emitProgress('registering')
+      const registration = await navigator.serviceWorker.register(scriptURL, registrationOptions)
+      emitProgress('registered')
+
+      // Fast-path, already controlled by expected service worker
+      if (await isExpectedController(version, signal)) {
+        const controller = (_serviceWorker = navigator.serviceWorker.controller)
+        if (controller) {
+          emitStateChange('activated', controller)
+        }
+        emitProgress('already-expected-controller')
+        return true
       }
-      emitProgress('controller-is-expected')
-      return createController(
-        _emitter,
-        () => _state,
-        () => _serviceWorker!
-      )
-    }
 
-    // 3) Check where expected SW is now
-    const expectedState = await inferExpectedPresence(reg, expectedVersion, signal)
+      let reloadSuggested = false
 
-    // 4) If expected is active (even if not controller), we've done all we can.
-    //    For SWs that don't call clients.claim(), the page won't be controlled until reload.
-    //    Suggest reload and return - caller decides what to do.
-    if (expectedState === 'active') {
-      // Ensure state is updated to 'activated' since SW is active
-      const activeSW = reg.active
-      // Note: _state may have been updated by emitStateChange callback, so check current value
-      const currentState = _state as SvcWorkerControllerState
-      if (activeSW && currentState !== 'activated') {
-        emitStateChange('activated', activeSW)
-      }
-      if (!reloadSuggested) {
-        reloadSuggested = true
-        _emitter.emit('reloadSuggested', {
-          reason: 'expected-active-but-not-controller',
-          version: expectedVersion
+      for (;;) {
+        throwIfAborted(signal)
+
+        // Try to promote expected service worker (and optionally any waiting) to become active ASAP.
+        const promotedKind = await promoteIfPossible({
+          registration,
+          version,
+          signal,
+          skipWaitingPolicy,
+          onProgress: emitProgress,
+          onStateChange: info => emitStateChange(info.state, info.serviceWorker)
         })
+
+        // If controller is now expected service worker, done.
+        if (await isExpectedController(version, signal)) {
+          const controller = (_serviceWorker = navigator.serviceWorker.controller)
+          if (controller) {
+            emitStateChange('activated', controller)
+          }
+          emitProgress('controller-is-expected')
+          return true
+        }
+
+        // Check where expected service worker is now
+        const expectedState = await inferExpectedPresence(registration, version, signal)
+        _debug?.('inferExpectedPresence ->', expectedState)
+
+        // If expected is active (even if not controller), we've done all we can.
+        // For service workers that don't call `clients.claim()`, the page won't be controlled until reload.
+        // Suggest reload and return - caller decides what to do.
+        if (expectedState === 'active') {
+          // Ensure state is updated to 'activated' since service worker is active
+          const activeServiceWorker = registration.active
+          // NOTE: _state may have been updated by `emitStateChange` callback, so check current value
+          const currentState = _state
+          _debug?.('service worker contoller state ->', currentState)
+          if (activeServiceWorker && currentState !== 'activated') {
+            emitStateChange('activated', activeServiceWorker)
+          }
+          _debug?.('reload suggested ?', reloadSuggested)
+          if (!reloadSuggested) {
+            reloadSuggested = true
+            emitReloadSuggested({
+              reason: 'expected-active-but-not-controller',
+              version
+            })
+          }
+          emitProgress('expected-active-returning (reload suggested)')
+          return true
+        }
+
+        // Handle promoted cases - wait briefly for activation to complete before re-checking
+        if (
+          promotedKind === 'promoted-waiting' ||
+          promotedKind === 'promoted-any-waiting' ||
+          promotedKind === 'promoted-installing->waiting' ||
+          promotedKind === 'promoted-installing->active'
+        ) {
+          emitProgress('promoted, waiting for activation')
+          await new Promise(r => setTimeout(r, 100))
+          continue
+        }
+
+        // Expected is not yet active (installing, waiting, or none) - wait for events
+        emitProgress('registration.update()')
+        await registration.update().catch(() => {})
+
+        emitProgress('waiting-next-event')
+        await waitForNextMeaningfulEvent(registration, signal).catch(() => {})
       }
-      emitProgress('expected-active-returning (reload suggested)')
-      return createController(
-        _emitter,
-        () => _state,
-        () => _serviceWorker!
-      )
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        _debug?.('createSvcWorkerController: ready aborted')
+        _serviceWorker = null
+        _state = 'installing'
+        return false
+      } else {
+        throw new SvcWorkerControllerError('SvcWorkerController ready failed', err as Error)
+      }
+    } finally {
+      clearTimeout(timeoutId)
     }
-
-    // 5) Handle promoted cases - wait briefly for activation to complete before re-checking
-    if (
-      promotedKind === 'promoted-waiting' ||
-      promotedKind === 'promoted-any-waiting' ||
-      promotedKind === 'promoted-installing->waiting' ||
-      promotedKind === 'promoted-installing->active'
-    ) {
-      emitProgress('promoted, waiting for activation')
-      await new Promise(r => setTimeout(r, 100))
-      continue
-    }
-
-    // 6) Expected is not yet active (installing, waiting, or none) - wait for events
-    emitProgress('registration.update()')
-    await reg.update().catch(() => {})
-
-    emitProgress('waiting-next-event')
-    await waitForNextMeaningfulEvent(reg, signal).catch(() => {})
   }
-}
 
-function createController(
-  emitter: Readonly<Emittable<SvcWorkerControllerEventMap>>,
-  getState: () => SvcWorkerControllerState,
-  getServiceWorker: () => ServiceWorker
-): Readonly<SvcWorkerController> {
   return Object.freeze({
-    ...emitter,
+    ..._emitter,
     get state() {
-      return getState()
+      return _state
     },
     get serviceWorker() {
-      return getServiceWorker()
-    }
-  } as SvcWorkerController)
-}
-
-const SW_MESSAGE_TYPE = {
-  GET_VERSION: 'VROWSER_SW_GET_VERSION',
-  SKIP_WAITING: 'VROWSER_SW_SKIP_WAITING'
-} as const
-
-function once<T extends EventTarget>(target: T, type: string, signal?: AbortSignal): Promise<void> {
-  throwIfAborted(signal)
-
-  return new Promise((resolve, reject) => {
-    const onEvt = () => {
-      cleanup()
-      resolve()
-    }
-    const onAb = () => {
-      cleanup()
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- FIXME
-      reject(abortError(signal))
-    }
-    const cleanup = () => {
-      target.removeEventListener(type, onEvt as EventListener)
-      signal?.removeEventListener('abort', onAb)
-    }
-
-    // Add abort listener first, then check abort status to avoid race condition
-    if (signal) {
-      signal.addEventListener('abort', onAb, { once: true })
-      if (signal.aborted) {
-        onAb()
-        return
-      }
-    }
-
-    target.addEventListener(type, onEvt as EventListener, { once: true })
+      return _serviceWorker
+    },
+    ready
   })
 }
 
-function getSWVersion(sw: ServiceWorker | null, signal?: AbortSignal): Promise<string | null> {
+function getServiceWorkerVersion(
+  serviceWorker: ServiceWorker | null,
+  signal?: AbortSignal
+): Promise<string | null> {
   throwIfAborted(signal)
-  if (!sw) return Promise.resolve(null)
+
+  if (!serviceWorker) {
+    return Promise.resolve(null)
+  }
 
   return new Promise((resolve, reject) => {
     const ch = new MessageChannel()
 
-    const onAb = () => {
+    const onAbort = () => {
       cleanup()
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- FIXME
-      reject(abortError(signal))
+      reject(abortError(signal) as Error)
     }
     const cleanup = () => {
-      signal?.removeEventListener('abort', onAb)
+      signal?.removeEventListener('abort', onAbort)
       ch.port1.onmessage = null
       ch.port1.close()
       ch.port2.close()
@@ -405,9 +405,9 @@ function getSWVersion(sw: ServiceWorker | null, signal?: AbortSignal): Promise<s
 
     // Add abort listener first, then check abort status to avoid race condition
     if (signal) {
-      signal.addEventListener('abort', onAb, { once: true })
+      signal.addEventListener('abort', onAbort, { once: true })
       if (signal.aborted) {
-        onAb()
+        onAbort()
         return
       }
     }
@@ -418,39 +418,41 @@ function getSWVersion(sw: ServiceWorker | null, signal?: AbortSignal): Promise<s
       resolve(e.data?.version ?? null)
     }
 
-    sw.postMessage({ type: SW_MESSAGE_TYPE.GET_VERSION }, [ch.port2])
+    serviceWorker.postMessage({ type: VROWSER_SW_GET_VERSION }, [ch.port2])
   })
 }
 
 async function isExpectedController(version: string, signal?: AbortSignal): Promise<boolean> {
-  const v = await getSWVersion(navigator.serviceWorker.controller, signal).catch(() => null)
+  const v = await getServiceWorkerVersion(navigator.serviceWorker.controller, signal).catch(
+    () => null
+  )
   return v === version
 }
 
 type ExpectedPresence = 'none' | 'installing' | 'waiting' | 'active'
 
 async function inferExpectedPresence(
-  reg: ServiceWorkerRegistration,
+  registration: ServiceWorkerRegistration,
   expectedVersion: string,
   signal?: AbortSignal
 ): Promise<ExpectedPresence> {
   // Check waiting first (most actionable)
-  if (reg.waiting) {
-    const v = await getSWVersion(reg.waiting, signal).catch(() => null)
+  if (registration.waiting) {
+    const v = await getServiceWorkerVersion(registration.waiting, signal).catch(() => null)
     if (v === expectedVersion) {
       return 'waiting'
     }
   }
 
-  if (reg.installing) {
-    const v = await getSWVersion(reg.installing, signal).catch(() => null)
+  if (registration.installing) {
+    const v = await getServiceWorkerVersion(registration.installing, signal).catch(() => null)
     if (v === expectedVersion) {
       return 'installing'
     }
   }
 
-  if (reg.active) {
-    const v = await getSWVersion(reg.active, signal).catch(() => null)
+  if (registration.active) {
+    const v = await getServiceWorkerVersion(registration.active, signal).catch(() => null)
     if (v === expectedVersion) {
       return 'active'
     }
@@ -467,54 +469,53 @@ type PromotionResult =
   | 'promoted-any-waiting'
 
 async function promoteIfPossible(args: {
-  reg: ServiceWorkerRegistration
-  expectedVersion: string
+  registration: ServiceWorkerRegistration
+  version: string
   signal: AbortSignal | undefined
   skipWaitingPolicy: SkipWaitingPolicy
   onProgress?: (phase: string) => void
-  onExpectedStateChange?: (info: {
+  onStateChange?: (info: {
     state: SvcWorkerControllerState
-    expectedVersion: string
+    version: string
     serviceWorker: ServiceWorker
   }) => void
 }): Promise<PromotionResult> {
-  const { reg, expectedVersion, signal, skipWaitingPolicy, onProgress, onExpectedStateChange } =
-    args
+  const { registration, version, signal, skipWaitingPolicy, onProgress, onStateChange } = args
   throwIfAborted(signal)
 
   // Snapshot current slots (any combo may exist)
-  const waiting = reg.waiting
-  const installing = reg.installing
-  const active = reg.active
+  const waiting = registration.waiting
+  const installing = registration.installing
+  const active = registration.active
 
   // Policy: if any waiting exists, always request skipWaiting (aggressive).
   if (skipWaitingPolicy === 'always-when-waiting' && waiting) {
     onProgress?.('skipWaitingPolicy: always-when-waiting -> SKIP_WAITING')
-    waiting.postMessage({ type: SW_MESSAGE_TYPE.SKIP_WAITING })
+    waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING })
     return 'promoted-any-waiting'
   }
 
-  // 1) waiting: if expected, promote immediately
+  // Case waiting: if expected service worker, promote immediately
   if (waiting) {
-    const wv = await getSWVersion(waiting, signal).catch(() => null)
-    if (wv === expectedVersion) {
-      onExpectedStateChange?.({ state: 'waiting', expectedVersion, serviceWorker: waiting })
+    const waitingVersion = await getServiceWorkerVersion(waiting, signal).catch(() => null)
+    if (waitingVersion === version) {
+      onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
       onProgress?.('found-expected-waiting -> SKIP_WAITING')
-      waiting.postMessage({ type: SW_MESSAGE_TYPE.SKIP_WAITING })
+      waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING })
       return 'promoted-waiting'
     }
   }
 
-  // 2) installing: if expected, wait until no longer installing, then promote appropriately
+  // Case installing: if expected, wait until no longer installing, then promote appropriately
   if (installing) {
-    const iv = await getSWVersion(installing, signal).catch(() => null)
-    if (iv === expectedVersion) {
-      onExpectedStateChange?.({ state: 'installing', expectedVersion, serviceWorker: installing })
+    const installingVersion = await getServiceWorkerVersion(installing, signal).catch(() => null)
+    if (installingVersion === version) {
+      onStateChange?.({ state: 'installing', version, serviceWorker: installing })
       onProgress?.('found-expected-installing -> wait until not installing')
 
-      // Wait until the SW is no longer in 'installing' state
+      // Wait until the service worker is no longer in 'installing' state
       while (installing.state === 'installing') {
-        await once(installing, 'statechange', signal)
+        await waitOnce(installing, 'statechange', signal)
         throwIfAborted(signal)
       }
 
@@ -523,26 +524,26 @@ async function promoteIfPossible(args: {
         return 'none'
       }
 
-      // Case A: SW moved to waiting (installed state) - there was an existing active SW
-      const w = reg.waiting
-      if (w) {
-        const wv2 = await getSWVersion(w, signal).catch(() => null)
-        if (wv2 === expectedVersion) {
-          onExpectedStateChange?.({ state: 'waiting', expectedVersion, serviceWorker: w })
+      // Case A: service worker moved to waiting (installed state) - there was an existing active service worker
+      const waiting = registration.waiting
+      if (waiting) {
+        const waitingVersion = await getServiceWorkerVersion(waiting, signal).catch(() => null)
+        if (waitingVersion === version) {
+          onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
           onProgress?.('installing->installed; expected in waiting -> SKIP_WAITING')
-          w.postMessage({ type: SW_MESSAGE_TYPE.SKIP_WAITING })
+          waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING })
           return 'promoted-installing->waiting'
         }
       }
 
-      // Case B: SW skipped waiting and went directly to active
+      // Case B: service worker skipped waiting and went directly to active
       if (installing.state === 'activating' || installing.state === 'activated') {
-        const a = reg.active
-        if (a) {
-          const av = await getSWVersion(a, signal).catch(() => null)
-          if (av === expectedVersion) {
+        const active = registration.active
+        if (active) {
+          const activeVersion = await getServiceWorkerVersion(active, signal).catch(() => null)
+          if (activeVersion === version) {
             const state = installing.state === 'activating' ? 'activating' : 'activated'
-            onExpectedStateChange?.({ state, expectedVersion, serviceWorker: a })
+            onStateChange?.({ state, version, serviceWorker: active })
             onProgress?.('installing->active (skipped waiting)')
             return 'promoted-installing->active'
           }
@@ -553,11 +554,11 @@ async function promoteIfPossible(args: {
     }
   }
 
-  // 3) active: if expected, we can't promote further from page
+  // Case active: if expected service worker, we can't promote further from page
   if (active) {
-    const av = await getSWVersion(active, signal).catch(() => null)
-    if (av === expectedVersion) {
-      onExpectedStateChange?.({ state: 'activated', expectedVersion, serviceWorker: active })
+    const activeVersion = await getServiceWorkerVersion(active, signal).catch(() => null)
+    if (activeVersion === version) {
+      onStateChange?.({ state: 'activated', version, serviceWorker: active })
       onProgress?.('expected is active but not controller (yet)')
       return 'none'
     }
@@ -567,7 +568,7 @@ async function promoteIfPossible(args: {
 }
 
 function waitForNextMeaningfulEvent(
-  reg: ServiceWorkerRegistration,
+  registration: ServiceWorkerRegistration,
   signal?: AbortSignal
 ): Promise<void> {
   throwIfAborted(signal)
@@ -590,8 +591,7 @@ function waitForNextMeaningfulEvent(
 
     const onAbort = () => {
       cleanup()
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- FIXME
-      reject(abortError(signal))
+      reject(abortError(signal) as Error)
     }
 
     const addListener = (target: EventTarget, type: string) => {
@@ -610,19 +610,19 @@ function waitForNextMeaningfulEvent(
     }
 
     // Watch for update found
-    addListener(reg, 'updatefound')
+    addListener(registration, 'updatefound')
 
     // Watch for controller change
     addListener(navigator.serviceWorker, 'controllerchange')
 
-    // Watch installing SW state changes
-    if (reg.installing) {
-      addListener(reg.installing, 'statechange')
+    // Watch installing service worker state changes
+    if (registration.installing) {
+      addListener(registration.installing, 'statechange')
     }
 
-    // Also watch waiting SW state changes
-    if (reg.waiting) {
-      addListener(reg.waiting, 'statechange')
+    // Also watch waiting service worker state changes
+    if (registration.waiting) {
+      addListener(registration.waiting, 'statechange')
     }
   })
 }

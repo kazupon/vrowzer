@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, test } from 'vitest'
-import type { StateChangeInfo } from './controller.ts'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
+import type { ReloadSuggestInfo, StateChangeInfo } from './controller.ts'
 import { createSvcWorkerController } from './controller.ts'
 
 // Helper to clean up all service worker registrations
@@ -17,128 +17,145 @@ describe('createSvcWorkerController', () => {
     test('should register and activate a new service worker', async () => {
       const stateChanges: StateChangeInfo[] = []
 
-      const controller = await createSvcWorkerController({
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
         version: 'v1',
         scope: '/controller/'
       })
 
       controller.on('changeState', info => {
-        if (info && typeof info === 'object' && 'state' in info) {
-          stateChanges.push(info as StateChangeInfo)
-        }
+        stateChanges.push(info)
       })
 
+      const result = await controller.ready()
+
+      expect(result).toBe(true)
       expect(controller.state).toBe('activated')
       expect(controller.serviceWorker).toBeDefined()
-      expect(controller.serviceWorker.state).toBe('activated')
+      expect(controller.serviceWorker?.state).toBe('activated')
     })
 
-    test('should return immediately if expected SW is already controller', async () => {
-      // First, register and activate the SW
-      await createSvcWorkerController({
+    test('should return immediately if expected service worker is already controller', async () => {
+      // First, register and activate the service worker
+      const firstController = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
         version: 'v1',
         scope: '/controller/'
       })
+      await firstController.ready()
 
       // Second call should return immediately
       const progressPhases: string[] = []
-      const controller = await createSvcWorkerController({
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
         version: 'v1',
         scope: '/controller/'
       })
 
       controller.on('progress', phase => {
-        if (typeof phase === 'string') progressPhases.push(phase)
+        progressPhases.push(phase)
       })
 
+      const result = await controller.ready()
+
+      expect(result).toBe(true)
       expect(controller.state).toBe('activated')
     })
 
-    test('should handle SW with skipWaiting called during install', async () => {
-      const controller = await createSvcWorkerController({
+    test('should handle service worker with skipWaiting called during install', async () => {
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-skip-waiting.js',
         version: 'v1',
         scope: '/controller/'
       })
 
+      const result = await controller.ready()
+
+      expect(result).toBe(true)
       expect(controller.state).toBe('activated')
       expect(controller.serviceWorker).toBeDefined()
     })
   })
 
-  describe('clients.claim behavior', () => {
-    test('should activate SW with clients.claim()', async () => {
-      const controller = await createSvcWorkerController({
+  describe('`clients.claim` behavior', () => {
+    test('should activate service worker with `clients.claim()`', async () => {
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-with-claim.js',
         version: 'v1',
         scope: '/controller/'
       })
 
+      const result = await controller.ready()
+
+      expect(result).toBe(true)
       expect(controller.state).toBe('activated')
-      expect(controller.serviceWorker.state).toBe('activated')
+      expect(controller.serviceWorker?.state).toBe('activated')
     })
 
-    test('should emit reloadSuggested for SW without clients.claim()', async () => {
-      // For SWs without clients.claim(), the controller will still activate
+    test('should emit reloadSuggested for service worker without `clients.claim()`', async () => {
+      // For service workers without `clients.claim()`, the controller will still activate
       // but reloadSuggested event may be emitted
-      const controller = await createSvcWorkerController({
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-no-claim.js',
         version: 'v1',
         scope: '/controller/'
       })
 
+      using reloadSuggestedMock = vi.fn<(info: ReloadSuggestInfo) => void>()
+      controller.on('reloadSuggested', reloadSuggestedMock)
+
+      const result = await controller.ready()
+
       // The controller should still reach 'activated' state
+      expect(result).toBe(true)
       expect(controller.state).toBe('activated')
+      expect(reloadSuggestedMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: 'expected-active-but-not-controller',
+          version: 'v1'
+        })
+      )
     })
   })
 
-  describe('abort handling', () => {
-    test('should abort when signal is triggered during slow install', async () => {
-      const abortController = new AbortController()
-
-      const promise = createSvcWorkerController({
+  describe('timeout handling', () => {
+    test('should return false when timeout is reached during slow install', async () => {
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-slow-install.js',
         version: 'v1',
-        scope: '/controller/',
-        signal: abortController.signal
+        scope: '/controller/'
       })
 
-      // Abort after a short delay
-      setTimeout(() => abortController.abort(), 100)
+      // Use a very short timeout to trigger timeout
+      const result = await controller.ready({ timeout: 100 })
 
-      await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
-    })
-
-    test('should not start if signal is already aborted', async () => {
-      const abortController = new AbortController()
-      abortController.abort()
-
-      const promise = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
-        version: 'v1',
-        scope: '/controller/',
-        signal: abortController.signal
-      })
-
-      await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
+      expect(result).toBe(false)
+      expect(controller.serviceWorker).toBeNull()
     })
   })
 
   describe('state change events', () => {
-    test('should emit changeState events during SW lifecycle', async () => {
-      // Set up to capture state changes during creation
-      const controller = await createSvcWorkerController({
+    test('should emit changeState events during service worker lifecycle', async () => {
+      const stateChanges: StateChangeInfo[] = []
+
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
         version: 'v1',
         scope: '/controller/'
       })
 
-      // Note: Events may have already fired before we can attach listeners
-      // The state should be 'activated' after the promise resolves
+      controller.on('changeState', info => {
+        stateChanges.push(info)
+      })
+
+      await controller.ready()
+
+      // The state should be 'activated' after ready resolves
       expect(controller.state).toBe('activated')
+      // At least one state change should have occurred
+      expect(stateChanges.length).toBeGreaterThan(0)
+      // The last state change should be 'activated'
+      expect(stateChanges[stateChanges.length - 1]!.state).toBe('activated')
     })
   })
 
@@ -146,12 +163,18 @@ describe('createSvcWorkerController', () => {
     test('should emit progress events', async () => {
       const progressPhases: string[] = []
 
-      await createSvcWorkerController({
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
         version: 'v1',
         scope: '/controller/',
         debug: (...args: unknown[]) => progressPhases.push(String(args[1] || args[0]))
       })
+
+      controller.on('progress', phase => {
+        progressPhases.push(phase)
+      })
+
+      await controller.ready()
 
       // Progress should include 'registering' and 'registered' at minimum
       expect(progressPhases.some(p => p.includes('registering') || p.includes('progress'))).toBe(
@@ -163,40 +186,46 @@ describe('createSvcWorkerController', () => {
   describe('skipWaitingPolicy', () => {
     test('expected-only policy: should only skipWait expected version', async () => {
       // First register v1
-      await createSvcWorkerController({
+      const firstController = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
         version: 'v1',
         scope: '/controller/'
       })
+      await firstController.ready()
 
       // Now register v2 with expected-only policy
-      const controller = await createSvcWorkerController({
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v2-basic.js',
         version: 'v2',
-        scope: '/controller/',
-        skipWaitingPolicy: 'expected-only'
+        scope: '/controller/'
       })
 
+      await controller.ready({ skipWaitingPolicy: 'expected-only' })
+
       expect(controller.state).toBe('activated')
+      expect(controller.serviceWorker?.scriptURL).toContain('v2-basic.js')
     })
 
-    test('always-when-waiting policy: should skipWait any waiting SW', async () => {
+    test('always-when-waiting policy: should skipWait any waiting service worker', async () => {
       // First register v1
-      await createSvcWorkerController({
+      const firstController = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
         version: 'v1',
         scope: '/controller/'
       })
+      await firstController.ready()
 
       // Now register v2 with always-when-waiting policy
-      const controller = await createSvcWorkerController({
+      const controller = createSvcWorkerController({
         scriptURL: '/controller/v2-basic.js',
         version: 'v2',
-        scope: '/controller/',
-        skipWaitingPolicy: 'always-when-waiting'
+        scope: '/controller/'
       })
 
+      await controller.ready({ skipWaitingPolicy: 'always-when-waiting' })
+
       expect(controller.state).toBe('activated')
+      expect(controller.serviceWorker?.scriptURL).toContain('v2-basic.js')
     })
   })
 })
