@@ -10,11 +10,11 @@
  *
  * ## Features
  * - heatbeat: `VROWSER_SW_PING`
- * - Service Worker version management: `VROWSER_SW_GET_VERSION`
+ * - Service Worker version management: `VROWSER_SW_VERSION`
  * - Optional execution of skipWaiting: `VROWSER_SW_SKIP_WAITING`
  * - Kill switch: `VROWSER_SW_KILL_SWITCH`
  *
- * @module service-worker
+ * @module worker
  */
 
 /**

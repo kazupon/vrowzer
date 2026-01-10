@@ -19,13 +19,13 @@
  * - Calls {@link SvcWorkerControllerEventMap.reloadSuggested | reloadSuggested} when expected is active but not controller.
  *
  * ## Service worker requirements
- * - Responds to `{ type: 'VROWSER_SW_GET_VERSION' }` using `MessageChannel` port -> {version}
+ * - Responds to `{ type: 'VROWSER_SW_VERSION' }` using `MessageChannel` port -> {version}
  * - Accepts `{ type: "VROWSER_SW_SKIP_WAITING" }` -> `self.skipWaiting()`
  * - (Optional) in activate: `event.waitUntil(self.clients.claim())` - enables immediate control
  *
  * The above requirements can be met by using a separately provided module within your service worker.
  *
- * @module service-worker-controller
+ * @module controller
  */
 
 /**
@@ -35,7 +35,7 @@
 
 import { abortError, throwIfAborted } from '@kazupon/jts-utils/abort'
 import { createEmitter, waitOnce } from '@kazupon/jts-utils/event'
-import { VROWSER_SW_GET_VERSION, VROWSER_SW_SKIP_WAITING } from './constants.ts'
+import { VROWSER_SW_SKIP_WAITING, VROWSER_SW_VERSION } from './protocols.ts'
 
 import type { Emittable } from '@kazupon/jts-utils'
 
@@ -476,7 +476,7 @@ function getServiceWorkerVersion(
       resolve(e.data?.version ?? null)
     }
 
-    serviceWorker.postMessage({ type: VROWSER_SW_GET_VERSION }, [ch.port2])
+    serviceWorker.postMessage({ type: VROWSER_SW_VERSION }, [ch.port2])
   })
 }
 
