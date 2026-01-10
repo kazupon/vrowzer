@@ -68,7 +68,7 @@ export interface SvcWorkerOptions {
  * This interface provides transparent access to all native Service Worker APIs
  * while adding version management capabilities.
  */
-export interface SvcWorker extends ServiceWorkerGlobalScope {
+export interface SvcWorker extends ServiceWorkerGlobalScope, Disposable {
   /**
    * The version of this service worker
    */
@@ -104,41 +104,48 @@ export function createSvcWorker(
   debug?.('createSvcWorker: initializing with version', version)
 
   // Register message handler for protocols
-  function handleMessage(event: ExtendableMessageEvent) {
-    const data = event.data as SvcWorkerMessage
-    if (!data || typeof data.type !== 'string') {
-      return
-    }
-    debug?.('createSvcWorker: received message', data.type)
+  function registerMessageHandler() {
+    function handleMessage(event: ExtendableMessageEvent) {
+      const data = event.data as SvcWorkerMessage
+      if (!data || typeof data.type !== 'string') {
+        return
+      }
+      debug?.('createSvcWorker: received message', data.type)
 
-    switch (data.type) {
-      case VROWSER_SW_VERSION: {
-        const port = event.ports?.[0]
-        if (port) {
-          debug?.('createSvcWorker: responding with version', version)
-          port.postMessage({ version })
+      switch (data.type) {
+        case VROWSER_SW_VERSION: {
+          const port = event.ports?.[0]
+          if (port) {
+            debug?.('createSvcWorker: responding with version', version)
+            port.postMessage({ version })
+          }
+          break
         }
-        break
-      }
 
-      case VROWSER_SW_SKIP_WAITING: {
-        debug?.('createSvcWorker: executing skipWaiting')
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
-        self.skipWaiting()
-        break
-      }
+        case VROWSER_SW_SKIP_WAITING: {
+          debug?.('createSvcWorker: executing skipWaiting')
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+          self.skipWaiting()
+          break
+        }
 
-      default: {
-        // Unknown message type; ignore
-        console.warn('createSvcWorker: unknown message type received:', data)
-        break
+        default: {
+          // Unknown message type; ignore
+          console.warn('createSvcWorker: unknown message type received:', data)
+          break
+        }
       }
+    }
+    self.addEventListener('message', handleMessage)
+    return () => {
+      self.removeEventListener('message', handleMessage)
     }
   }
-  self.addEventListener('message', handleMessage)
+
+  const stopMessageHandler = registerMessageHandler()
 
   function cleanup() {
-    self.removeEventListener('message', handleMessage)
+    stopMessageHandler()
   }
 
   function dispose() {
@@ -149,7 +156,8 @@ export function createSvcWorker(
   // Extension properties and methods
   const extensions: Record<string | symbol, unknown> = {
     version,
-    dispose
+    dispose,
+    [Symbol.dispose]: dispose
   }
 
   // Create Proxy for transparent access to native APIs

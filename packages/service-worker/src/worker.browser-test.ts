@@ -201,6 +201,21 @@ describe('createSvcWorker', () => {
 
       expect(mockPort.postMessage).not.toHaveBeenCalled()
     })
+
+    test('should be dispose by `using`', () => {
+      // Before creating, no message listener
+      expect(mockSelf._getListeners('message').size).toBe(0)
+
+      // `using` block - dispose should be called at end of block
+      {
+        using _self = createSvcWorker(mockSelf, { version: 'v1' })
+        // Inside block, message listener should exist
+        expect(mockSelf._getListeners('message').size).toBe(1)
+      }
+
+      // After block ends, dispose should have been called, removing listener
+      expect(mockSelf._getListeners('message').size).toBe(0)
+    })
   })
 
   describe('debug option', () => {
