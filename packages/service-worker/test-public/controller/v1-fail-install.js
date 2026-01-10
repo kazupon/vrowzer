@@ -12,7 +12,7 @@ sw.addEventListener('message', event => {
   switch (data.type) {
     case 'VROWSER_SW_VERSION': {
       const port = event.ports && event.ports[0]
-      port?.postMessage({ version: SW_VERSION })
+      port?.postMessage({ type: 'VROWSER_SW_VERSION', version: SW_VERSION })
       break
     }
     case 'VROWSER_SW_SKIP_WAITING': {

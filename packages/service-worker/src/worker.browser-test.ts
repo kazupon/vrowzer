@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { VROWSER_SW_SKIP_WAITING, VROWSER_SW_VERSION } from './protocols.ts'
+import {
+  VROWSER_SW_SESSION_PONG,
+  VROWSER_SW_SESSION_CLOSE,
+  VROWSER_SW_SESSION_INIT,
+  VROWSER_SW_SKIP_WAITING,
+  VROWSER_SW_VERSION
+} from './protocols.ts'
 import { createSvcWorker } from './worker.ts'
 
 // Helper to create a mock ServiceWorkerGlobalScope
@@ -24,7 +30,10 @@ function createMockSelf() {
     _getListeners: (type: string) => listeners.get(type) ?? new Set(),
     // Native properties for Proxy transparency test
     registration: { scope: '/test/' },
-    clients: { claim: vi.fn() }
+    clients: {
+      claim: vi.fn(),
+      matchAll: vi.fn(() => Promise.resolve([]))
+    }
   } as unknown as ServiceWorkerGlobalScope & {
     _dispatchEvent: (type: string, event: unknown) => void
     _getListeners: (type: string) => Set<EventListener>
@@ -93,7 +102,10 @@ describe('createSvcWorker', () => {
 
       mockSelf._dispatchEvent('message', messageEvent)
 
-      expect(mockPort.postMessage).toHaveBeenCalledWith({ version: 'v1.2.3' })
+      expect(mockPort.postMessage).toHaveBeenCalledWith({
+        type: VROWSER_SW_VERSION,
+        version: 'v1.2.3'
+      })
     })
 
     test('should not respond if no port provided', () => {
@@ -242,6 +254,191 @@ describe('createSvcWorker', () => {
 
       expect(debug).toHaveBeenCalledWith('createSvcWorker: received message', VROWSER_SW_VERSION)
       expect(debug).toHaveBeenCalledWith('createSvcWorker: responding with version', 'v1')
+    })
+  })
+
+  describe('session management', () => {
+    // Helper to create a mock MessagePort
+    function createMockPort() {
+      const portListeners = new Map<string, Set<EventListener>>()
+      return {
+        postMessage: vi.fn(),
+        close: vi.fn(),
+        start: vi.fn(),
+        addEventListener: vi.fn((type: string, listener: EventListener) => {
+          if (!portListeners.has(type)) {
+            portListeners.set(type, new Set())
+          }
+          portListeners.get(type)!.add(listener)
+        }),
+        removeEventListener: vi.fn((type: string, listener: EventListener) => {
+          portListeners.get(type)?.delete(listener)
+        }),
+        _dispatchEvent: (type: string, event: unknown) => {
+          portListeners.get(type)?.forEach(listener => listener(event as Event))
+        }
+      }
+    }
+
+    test('should expose sessionCount property', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      expect(self.sessionCount).toBe(0)
+    })
+
+    test('should handle SESSION_INIT and establish session', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      void self
+
+      const mockPort = createMockPort()
+      const messageEvent = {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort],
+        source: { id: 'client-123' }
+      }
+
+      mockSelf._dispatchEvent('message', messageEvent)
+
+      expect(mockPort.start).toHaveBeenCalled()
+      expect(mockPort.postMessage).toHaveBeenCalledWith({
+        type: VROWSER_SW_SESSION_INIT,
+        success: true,
+        version: 'v1'
+      })
+      expect(self.sessionCount).toBe(1)
+    })
+
+    test('should ignore SESSION_INIT without port', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      void self
+
+      const messageEvent = {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [],
+        source: { id: 'client-123' }
+      }
+
+      mockSelf._dispatchEvent('message', messageEvent)
+
+      expect(self.sessionCount).toBe(0)
+    })
+
+    test('should ignore SESSION_INIT without clientId', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      void self
+
+      const mockPort = createMockPort()
+      const messageEvent = {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort],
+        source: null
+      }
+
+      mockSelf._dispatchEvent('message', messageEvent)
+
+      expect(self.sessionCount).toBe(0)
+    })
+
+    test('should handle SESSION_CLOSE and remove session', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      void self
+
+      const mockPort = createMockPort()
+      const messageEvent = {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort],
+        source: { id: 'client-123' }
+      }
+
+      mockSelf._dispatchEvent('message', messageEvent)
+      expect(self.sessionCount).toBe(1)
+
+      // Simulate SESSION_CLOSE from the session port
+      mockPort._dispatchEvent('message', {
+        data: { type: VROWSER_SW_SESSION_CLOSE }
+      })
+
+      expect(mockPort.close).toHaveBeenCalled()
+      expect(self.sessionCount).toBe(0)
+    })
+
+    test('should handle PONG and update lastPong', () => {
+      const debug = vi.fn()
+      const self = createSvcWorker(mockSelf, { version: 'v1', debug })
+      void self
+
+      const mockPort = createMockPort()
+      const messageEvent = {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort],
+        source: { id: 'client-123' }
+      }
+
+      mockSelf._dispatchEvent('message', messageEvent)
+
+      // Simulate PONG from the session port
+      mockPort._dispatchEvent('message', {
+        data: { type: VROWSER_SW_SESSION_PONG, id: 'ping-1' }
+      })
+
+      expect(debug).toHaveBeenCalledWith('createSvcWorker: PONG received from', 'client-123')
+    })
+
+    test('should replace existing session for same client', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      void self
+
+      const mockPort1 = createMockPort()
+      const mockPort2 = createMockPort()
+
+      // First session
+      mockSelf._dispatchEvent('message', {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort1],
+        source: { id: 'client-123' }
+      })
+      expect(self.sessionCount).toBe(1)
+
+      // Second session for same client
+      mockSelf._dispatchEvent('message', {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort2],
+        source: { id: 'client-123' }
+      })
+
+      expect(mockPort1.close).toHaveBeenCalled()
+      expect(self.sessionCount).toBe(1)
+    })
+
+    test('should close all sessions on dispose', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      void self
+
+      const mockPort1 = createMockPort()
+      const mockPort2 = createMockPort()
+
+      mockSelf._dispatchEvent('message', {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort1],
+        source: { id: 'client-1' }
+      })
+      mockSelf._dispatchEvent('message', {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort2],
+        source: { id: 'client-2' }
+      })
+
+      expect(self.sessionCount).toBe(2)
+
+      self.dispose()
+
+      expect(mockPort1.close).toHaveBeenCalled()
+      expect(mockPort2.close).toHaveBeenCalled()
+      expect(self.sessionCount).toBe(0)
+    })
+
+    test('should expose onSessionRequest handler', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      expect(typeof self.onSessionRequest).toBe('function')
     })
   })
 })

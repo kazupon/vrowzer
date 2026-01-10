@@ -184,7 +184,7 @@ describe('createSvcWorkerController', () => {
   })
 
   describe('skipWaitingPolicy', () => {
-    test('expected-only policy: should only skipWait expected version', async () => {
+    test('`strict` policy: should only skipWait expected version', async () => {
       // First register v1
       const firstController = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',
@@ -206,7 +206,7 @@ describe('createSvcWorkerController', () => {
       expect(controller.serviceWorker?.scriptURL).toContain('v2-basic.js')
     })
 
-    test('always-when-waiting policy: should skipWait any waiting service worker', async () => {
+    test('`force` policy: should skipWait any waiting service worker', async () => {
       // First register v1
       const firstController = createSvcWorkerController({
         scriptURL: '/controller/v1-basic.js',

@@ -36,14 +36,15 @@
 
 import { abortError, throwIfAborted } from '@kazupon/jts-utils/abort'
 import { createEmitter, waitOnce } from '@kazupon/jts-utils/event'
-import { VROWSER_SW_SKIP_WAITING, VROWSER_SW_VERSION } from './protocols.ts'
+import {
+  isSvcWrokerVersionMessageResponse,
+  createSvcWorkerVersionMessage,
+  createSvcWorkerSkipWaitingMessage
+} from './protocols.ts'
+import { createSession } from './session.ts'
 
 import type { Emittable } from '@kazupon/jts-utils'
-import type {
-  SvcWorkerSkipWaitingMessage,
-  SvcWorkerVersionMessage,
-  SvcWorkerVersionResponse
-} from './protocols.ts'
+import type { SvcWorkerSession } from './session.ts'
 
 /**
  * {@link SvcWorkerController | Service Worker Controller} instance creation options
@@ -208,6 +209,10 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
    */
   readonly serviceWorker: ServiceWorker | null
   /**
+   * The session to the active service worker (available after ready() completes)
+   */
+  readonly session: SvcWorkerSession | null
+  /**
    * Ready for the expected service worker to become active.
    *
    * Calling this method internally checks the service worker's state using the API provided by `navigator.serviceWorker`.
@@ -280,7 +285,9 @@ export function createSvcWorkerController(
 
   const _emitter = createEmitter<SvcWorkerControllerEventMap>()
   let _serviceWorker: ServiceWorker | null = null
+  let _session: SvcWorkerSession | null = null
   let _state: SvcWorkerControllerState = 'installing'
+  let _controllerChangeHandler: (() => void) | null = null
 
   function emitStateChange(state: SvcWorkerControllerState, serviceWorker: ServiceWorker) {
     _state = state
@@ -298,9 +305,68 @@ export function createSvcWorkerController(
     _emitter.emit('reloadSuggested', info)
   }
 
-  function reset() {
+  function setupControllerChangeHandler(timeout: number): void {
+    if (_controllerChangeHandler) {
+      return
+    }
+
+    _controllerChangeHandler = () => {
+      const controller = navigator.serviceWorker.controller
+      if (controller) {
+        _debug?.('createSvcWorkerController: controllerchange, re-establishing session')
+        // Create abort controller with timeout for session re-establishment
+        const abortController = new AbortController()
+        const timeoutId = setTimeout(() => abortController.abort(), timeout)
+        // Re-establish session with new controller
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+        establishSession(controller, abortController.signal).finally(() => clearTimeout(timeoutId))
+      }
+    }
+
+    navigator.serviceWorker.addEventListener('controllerchange', _controllerChangeHandler)
+  }
+
+  function resetSession() {
+    if (_session) {
+      _session.close()
+      _session = null
+    }
+  }
+
+  function resetController(state: SvcWorkerControllerState = 'installing') {
     _serviceWorker = null
-    _state = 'installing'
+    _state = state
+  }
+
+  function reset() {
+    // Close existing session
+    resetSession()
+    // Remove controller change handler
+    if (_controllerChangeHandler) {
+      navigator.serviceWorker.removeEventListener('controllerchange', _controllerChangeHandler)
+      _controllerChangeHandler = null
+    }
+    // Reset controller info
+    resetController()
+  }
+
+  async function establishSession(
+    serviceWorker: ServiceWorker,
+    signal?: AbortSignal
+  ): Promise<void> {
+    // Close existing session if any
+    resetSession()
+
+    try {
+      _session = await createSession(serviceWorker, {
+        ...(signal ? { signal } : {}),
+        ...(_debug ? { debug: _debug } : {})
+      })
+      _debug?.('createSvcWorkerController: session established, version:', _session.version)
+    } catch (error) {
+      _debug?.('createSvcWorkerController: failed to establish session', error)
+      // Session is optional - controller still works without it
+    }
   }
 
   /**
@@ -327,6 +393,9 @@ export function createSvcWorkerController(
         const controller = (_serviceWorker = navigator.serviceWorker.controller)
         if (controller) {
           emitStateChange('activated', controller)
+          // Establish session with the controller
+          await establishSession(controller, signal)
+          setupControllerChangeHandler(timeout)
         }
         emitProgress('already-expected-controller')
         return true
@@ -352,6 +421,9 @@ export function createSvcWorkerController(
           const controller = (_serviceWorker = navigator.serviceWorker.controller)
           if (controller) {
             emitStateChange('activated', controller)
+            // Establish session with the controller
+            await establishSession(controller, signal)
+            setupControllerChangeHandler(timeout)
           }
           emitProgress('controller-is-expected')
           return true
@@ -372,6 +444,11 @@ export function createSvcWorkerController(
           _debug?.('service worker contoller state ->', currentState)
           if (activeServiceWorker && currentState !== 'activated') {
             emitStateChange('activated', activeServiceWorker)
+          }
+          // Establish session with the active service worker (even if not controller)
+          if (activeServiceWorker) {
+            await establishSession(activeServiceWorker, signal)
+            setupControllerChangeHandler(timeout)
           }
           _debug?.('reload suggested ?', reloadSuggested)
           if (!reloadSuggested) {
@@ -431,6 +508,9 @@ export function createSvcWorkerController(
     get serviceWorker() {
       return _serviceWorker
     },
+    get session() {
+      return _session
+    },
     ready,
     dispose,
     [Symbol.dispose]: dispose
@@ -476,12 +556,20 @@ function getServiceWorkerVersion(
       }
     }
 
-    ch.port1.onmessage = (e: MessageEvent<SvcWorkerVersionResponse>) => {
-      cleanup()
-      resolve(e.data.version)
-    }
+    // @ts-expect-error -- FXIME: why? TS2769 error...
+    ch.port1.addEventListener(
+      'message',
+      (e: MessageEvent) => {
+        if (isSvcWrokerVersionMessageResponse(e.data)) {
+          cleanup()
+          resolve(e.data.version)
+        }
+      },
+      { signal }
+    )
+    ch.port1.start()
 
-    serviceWorker.postMessage({ type: VROWSER_SW_VERSION } as SvcWorkerVersionMessage, [ch.port2])
+    serviceWorker.postMessage(createSvcWorkerVersionMessage(), [ch.port2])
   })
 }
 
@@ -554,7 +642,7 @@ async function promoteIfPossible(args: {
   // Policy: if any waiting exists, always request skipWaiting (aggressive).
   if (skipWaitingPolicy === 'force' && waiting) {
     onProgress?.('skipWaitingPolicy: force -> SKIP_WAITING')
-    waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING } as SvcWorkerSkipWaitingMessage)
+    waiting.postMessage(createSvcWorkerSkipWaitingMessage())
     return 'promoted-any-waiting'
   }
 
@@ -564,7 +652,7 @@ async function promoteIfPossible(args: {
     if (waitingVersion === version) {
       onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
       onProgress?.('found-expected-waiting -> SKIP_WAITING')
-      waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING } as SvcWorkerSkipWaitingMessage)
+      waiting.postMessage(createSvcWorkerSkipWaitingMessage())
       return 'promoted-waiting'
     }
   }
@@ -594,7 +682,7 @@ async function promoteIfPossible(args: {
         if (waitingVersion === version) {
           onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
           onProgress?.('installing->installed; expected in waiting -> SKIP_WAITING')
-          waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING } as SvcWorkerSkipWaitingMessage)
+          waiting.postMessage(createSvcWorkerSkipWaitingMessage())
           return 'promoted-installing->waiting'
         }
       }
