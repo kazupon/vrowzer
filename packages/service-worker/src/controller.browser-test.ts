@@ -111,7 +111,7 @@ describe('createSvcWorkerController', () => {
       expect(controller.state).toBe('activated')
       expect(reloadSuggestedMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          reason: 'expected-active-but-not-controller',
+          reason: 'unclaimed',
           version: 'v1'
         })
       )
@@ -200,7 +200,7 @@ describe('createSvcWorkerController', () => {
         scope: '/controller/'
       })
 
-      await controller.ready({ skipWaitingPolicy: 'expected-only' })
+      await controller.ready({ skipWaitingPolicy: 'strict' })
 
       expect(controller.state).toBe('activated')
       expect(controller.serviceWorker?.scriptURL).toContain('v2-basic.js')
@@ -222,10 +222,155 @@ describe('createSvcWorkerController', () => {
         scope: '/controller/'
       })
 
-      await controller.ready({ skipWaitingPolicy: 'always-when-waiting' })
+      await controller.ready({ skipWaitingPolicy: 'force' })
 
       expect(controller.state).toBe('activated')
       expect(controller.serviceWorker?.scriptURL).toContain('v2-basic.js')
+    })
+  })
+
+  describe('singleton', () => {
+    test('should return the same instance for same scriptURL and version', () => {
+      const controller1 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      const controller2 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      expect(controller1).toBe(controller2)
+
+      controller1.dispose()
+    })
+
+    test('should return different instances for different versions', () => {
+      const controller1 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      const controller2 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v2',
+        scope: '/controller/'
+      })
+
+      expect(controller1).not.toBe(controller2)
+
+      controller1.dispose()
+      controller2.dispose()
+    })
+
+    test('should return different instances for different scriptURLs', () => {
+      const controller1 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-a.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      const controller2 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-b.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      expect(controller1).not.toBe(controller2)
+
+      controller1.dispose()
+      controller2.dispose()
+    })
+
+    test('should throw error when called with different options for same key', () => {
+      const controller1 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      expect(() => {
+        createSvcWorkerController({
+          scriptURL: '/controller/singleton-test.js',
+          version: 'v1',
+          scope: '/different-scope/'
+        })
+      }).toThrow(
+        'already exists with different options: scriptURL=/controller/singleton-test.js, version=v1, scope=/controller/'
+      )
+
+      controller1.dispose()
+    })
+
+    test('should create new instance after dispose', () => {
+      const controller1 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      controller1.dispose()
+
+      const controller2 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      expect(controller1).not.toBe(controller2)
+
+      controller2.dispose()
+    })
+
+    test('should support `using` syntax', () => {
+      // `using` testing
+      {
+        using controller = createSvcWorkerController({
+          scriptURL: '/controller/singleton-test.js',
+          version: 'v1',
+          scope: '/controller/'
+        })
+
+        expect(controller[Symbol.dispose]).toBeDefined()
+        expect(typeof controller[Symbol.dispose]).toBe('function')
+      }
+    })
+
+    test('should allow same options after dispose', () => {
+      const controller1 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      controller1.dispose()
+
+      // Should not throw - same options are allowed after dispose
+      const controller2 = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      expect(controller2).toBeDefined()
+
+      controller2.dispose()
+    })
+
+    test('should work multiple dispose calls gracefully', () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/singleton-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      controller.dispose()
+      // Second dispose should be no-op and not throw
+      controller.dispose()
     })
   })
 })

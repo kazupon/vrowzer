@@ -73,12 +73,10 @@ export class SvcWorkerControllerError extends Error {
  * Reload suggest reason
  *
  * Reasons:
- * - 'expected-active-but-not-controller': Expected service worker is active but not controlling the page
- * - 'expected-waiting-promoted-but-not-controller': Expected service worker was in waiting, promoted to active, but not controlling the page
+ * - 'unclaimed': Expected service worker is active but not controlling the page (no clients.claim())
+ * - 'promoted': Expected service worker was in waiting, promoted to active, but not controlling the page
  */
-export type ReloadSuggestReason =
-  | 'expected-active-but-not-controller'
-  | 'expected-waiting-promoted-but-not-controller'
+export type ReloadSuggestReason = 'unclaimed' | 'promoted'
 
 /**
  * Reload suggest information for service worker
@@ -167,10 +165,10 @@ export type SvcWorkerControllerEventMap = {
  * Skip waiting policy type
  *
  * Policies:
- * - 'expected-only': request `skipWaiting` only if `waiting` / `installing` matches expected service worker version
- * - 'always-when-waiting': if `registration.waiting` exists, ALWAYS request `skipWaiting` (even if version differs)
+ * - 'strict': request `skipWaiting` only if `waiting` / `installing` matches expected service worker version
+ * - 'force': if `registration.waiting` exists, ALWAYS request `skipWaiting` (even if version differs)
  */
-export type SkipWaitingPolicy = 'expected-only' | 'always-when-waiting'
+export type SkipWaitingPolicy = 'strict' | 'force'
 
 /**
  * An options for {@link SvcWorkerController.re | Service Worker Controller}
@@ -179,7 +177,7 @@ export interface SvcWorkerControllerReadyOptions {
   /**
    * Policy for `skipWaiting`
    *
-   * @default 'expected-only'
+   * @default 'strict'
    */
   skipWaitingPolicy?: SkipWaitingPolicy
   /**
@@ -193,7 +191,7 @@ export interface SvcWorkerControllerReadyOptions {
 /**
  * Service worker controller
  */
-export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventMap> {
+export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventMap>, Disposable {
   /**
    * The current state of the {@link SvcWorkerController}
    */
@@ -216,18 +214,60 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
    * - If the expected service worker will not be achieved to activate, this promise resolves as `false`.
    */
   ready: (options?: SvcWorkerControllerReadyOptions) => Promise<boolean>
+  /**
+   * Dispose the controller instance and remove from cache.
+   * After disposal, a new instance can be created with the same options.
+   */
+  dispose: () => void
+  /**
+   * Symbol.dispose for `using` syntax support (TypeScript 5.2+)
+   */
+  [Symbol.dispose]: () => void
+}
+
+// Singleton instance cache
+const instanceCache = new Map<string, SvcWorkerController>()
+const optionsCache = new Map<string, SvcWorkerControllerOptions>()
+
+function getInstanceKey(scriptURL: string | URL, version: string): string {
+  return `${scriptURL.toString()}::${version}`
+}
+
+function areOptionsEqual(a: SvcWorkerControllerOptions, b: SvcWorkerControllerOptions): boolean {
+  // Compare options excluding scriptURL, version, and debug (function can't be compared)
+  return a.scope === b.scope && a.type === b.type && a.updateViaCache === b.updateViaCache
 }
 
 /**
  * Create a {@link SvcWorkerController | Service worker controller} instance.
  *
+ * This function implements a singleton pattern based on `scriptURL` and `version`.
+ * If an instance already exists for the same scriptURL and version, it returns the existing instance.
+ * If the options differ (excluding debug), it throws an error.
+ *
  * @param options {@link SvcWorkerControllerOptions | Service worker controller options}
  * @returns {@link SvcWorkerController | Service worker controller instance}
+ * @throws {SvcWorkerControllerError} If an instance exists with different options
  */
 export function createSvcWorkerController(
   options: SvcWorkerControllerOptions
 ): Readonly<SvcWorkerController> {
-  const { scriptURL, version, debug: _debug, ...registrationOptions } = options
+  const { scriptURL, version } = options
+  const key = getInstanceKey(scriptURL, version)
+
+  // Check for existing instance
+  const existing = instanceCache.get(key)
+  if (existing) {
+    const cachedOptions = optionsCache.get(key)!
+    if (!areOptionsEqual(options, cachedOptions)) {
+      throw new SvcWorkerControllerError(
+        `already exists with different options: scriptURL=${cachedOptions.scriptURL}, version=${cachedOptions.version}, scope=${cachedOptions.scope}`
+      )
+    }
+    return existing
+  }
+
+  const { debug: _debug, ...registrationOptions } = options
 
   _debug?.('createSvcWorkerController: options', options)
 
@@ -235,21 +275,25 @@ export function createSvcWorkerController(
   let _serviceWorker: ServiceWorker | null = null
   let _state: SvcWorkerControllerState = 'installing'
 
-  // Helper to emit events and update state
-  const emitStateChange = (state: SvcWorkerControllerState, serviceWorker: ServiceWorker) => {
+  function emitStateChange(state: SvcWorkerControllerState, serviceWorker: ServiceWorker) {
     _state = state
     _serviceWorker = serviceWorker
     _emitter.emit('changeState', { state, version, serviceWorker })
   }
 
-  const emitProgress = (phase: string) => {
+  function emitProgress(phase: string) {
     _debug?.('createSvcWorkerController: progress', phase)
     _emitter.emit('progress', phase)
   }
 
-  const emitReloadSuggested = (info: ReloadSuggestInfo) => {
+  function emitReloadSuggested(info: ReloadSuggestInfo) {
     _debug?.('createSvcWorkerController: reloadSuggested', info)
     _emitter.emit('reloadSuggested', info)
+  }
+
+  function reset() {
+    _serviceWorker = null
+    _state = 'installing'
   }
 
   /**
@@ -257,7 +301,7 @@ export function createSvcWorkerController(
    */
   async function ready(options?: SvcWorkerControllerReadyOptions): Promise<boolean> {
     const timeout = options?.timeout ?? 3000
-    const skipWaitingPolicy = options?.skipWaitingPolicy ?? 'expected-only'
+    const skipWaitingPolicy = options?.skipWaitingPolicy ?? 'strict'
 
     const abortController = new AbortController()
     const timeoutId = setTimeout(() => abortController.abort(), timeout)
@@ -326,7 +370,7 @@ export function createSvcWorkerController(
           if (!reloadSuggested) {
             reloadSuggested = true
             emitReloadSuggested({
-              reason: 'expected-active-but-not-controller',
+              reason: 'unclaimed',
               version
             })
           }
@@ -354,10 +398,9 @@ export function createSvcWorkerController(
         await waitForNextMeaningfulEvent(registration, signal).catch(() => {})
       }
     } catch (err) {
+      reset()
       if (err instanceof Error && err.name === 'AbortError') {
         _debug?.('createSvcWorkerController: ready aborted')
-        _serviceWorker = null
-        _state = 'installing'
         return false
       } else {
         throw new SvcWorkerControllerError('SvcWorkerController ready failed', err as Error)
@@ -367,7 +410,13 @@ export function createSvcWorkerController(
     }
   }
 
-  return Object.freeze({
+  function dispose(): void {
+    instanceCache.delete(key)
+    optionsCache.delete(key)
+    reset()
+  }
+
+  const instance = Object.freeze({
     ..._emitter,
     get state() {
       return _state
@@ -375,8 +424,16 @@ export function createSvcWorkerController(
     get serviceWorker() {
       return _serviceWorker
     },
-    ready
+    ready,
+    dispose,
+    [Symbol.dispose]: dispose
   })
+
+  // Cache the instance
+  instanceCache.set(key, instance)
+  optionsCache.set(key, options)
+
+  return instance
 }
 
 function getServiceWorkerVersion(
@@ -489,8 +546,8 @@ async function promoteIfPossible(args: {
   const active = registration.active
 
   // Policy: if any waiting exists, always request skipWaiting (aggressive).
-  if (skipWaitingPolicy === 'always-when-waiting' && waiting) {
-    onProgress?.('skipWaitingPolicy: always-when-waiting -> SKIP_WAITING')
+  if (skipWaitingPolicy === 'force' && waiting) {
+    onProgress?.('skipWaitingPolicy: force -> SKIP_WAITING')
     waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING })
     return 'promoted-any-waiting'
   }
