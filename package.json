@@ -32,7 +32,7 @@
     "preview:vrowser": "pnpm --filter vrowser preview",
     "test": "pnpm run --color \"/^test:/\"",
     "test:unit": "vitest run",
-    "typecheck": "tsgo --noEmit --diagnostics"
+    "typecheck": "tsgo --noEmit --diagnostics --project ./tsconfig.typecheck.json"
   },
   "devDependencies": {
     "@eslint/markdown": "^7.5.1",

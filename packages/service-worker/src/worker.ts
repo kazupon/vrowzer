@@ -5,14 +5,24 @@
  * > This module is intended for use within service workers.
  * > It cannot be used in regular JavaScript applications.
  *
- * This module essentially acts as a wrapper for Service Workers,
- * but internally `@vrowser/service-worker` establishes a dedicated session using {@link SvcWorkerController} and `MessageChannel` to provide functionality.
+ * This module provides a Proxy-based wrapper for Service Workers that:
+ * - Transparently accesses all native {@link ServiceWorkerGlobalScope} APIs
+ * - Handles protocol messages defined in {@link module:protocols}
  *
  * ## Features
- * - heatbeat: `VROWSER_SW_PING`
- * - Service Worker version management: `VROWSER_SW_VERSION`
- * - Optional execution of skipWaiting: `VROWSER_SW_SKIP_WAITING`
- * - Kill switch: `VROWSER_SW_KILL_SWITCH`
+ * - Service Worker version management
+ * - Optional execution of `skipWaiting`
+ *
+ * ## Usage
+ * ```typescript
+ * const sw = createSvcWorker(self, { version: '1.0.0' })
+ *
+ * // Native APIs work transparently
+ * sw.addEventListener('fetch', (event) => { ... })
+ *
+ * // Extended properties
+ * console.log(sw.version)
+ * ```
  *
  * @module worker
  */
@@ -22,14 +32,15 @@
  * @license MIT
  */
 
-import type { Emittable } from '@kazupon/jts-utils'
-import type { AbortableOptions } from './types.ts'
+import { VROWSER_SW_SKIP_WAITING, VROWSER_SW_VERSION } from './protocols.ts'
+
+import type { SvcWorkerMessage } from './protocols.ts'
 
 /**
  * Service Worker Error
  */
 export class SvcWorkerError extends Error {
-  name = 'ServiceWorkerError'
+  name = 'SvcWorkerError'
   constructor(message: string, cause?: Error) {
     super(message, { cause })
   }
@@ -40,51 +51,140 @@ export class SvcWorkerError extends Error {
  */
 export interface SvcWorkerOptions {
   /**
-   * debug logger function
+   * The version of this service worker
+   * This is used to identify the service worker when communicating with {@link SvcWorkerController}
+   */
+  version: string
+
+  /**
+   * Debug logger function
    */
   debug?: Console['debug']
 }
 
 /**
- * {@link SvcWorker.ready | Service Worker ready} options
- */
-export interface SvcWorkerReadyOptions extends AbortableOptions {
-  /**
-   * Whether to skip waiting for `self.skipWaiting()` to be called on the service worker side after installation
-   *
-   * @default true
-   */
-  skipWaiting?: boolean
-}
-
-/**
- * Service worker wrapped by [ServiceWorkerGlobalScope](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope)
- */
-export interface SvcWorker extends Emittable<{
-  [K in keyof ServiceWorkerGlobalScopeEventMap]: ServiceWorkerGlobalScopeEventMap[K]
-}> {
-  /**
-   * Ready promise that activates when the service worker is prepared
-   *
-   * @param options - A {@link SvcWorkerReadyOptions | Service Worker ready options}
-   * @throws {SvcWorkerError} When the service worker will not be achieved to activated
-   * @throws {DOMException} When the operation is aborted
-   */
-  ready(options?: SvcWorkerReadyOptions): Promise<void>
-}
-
-/**
- * Create a Service worker
+ * Service Worker interface that extends {@link ServiceWorkerGlobalScope}
  *
- * @param self - A {@link ServiceWorkerGlobalScope | Service worker global scope}
- * @param options - A {@link SvcWorkerOptions | Service worker options}
- * @returns - {@link SvcWorker | Service worker instance}
+ * This interface provides transparent access to all native Service Worker APIs
+ * while adding version management capabilities.
+ */
+export interface SvcWorker extends ServiceWorkerGlobalScope {
+  /**
+   * The version of this service worker
+   */
+  readonly version: string
+  /**
+   * Dispose the service worker and clean up resources
+   */
+  dispose(): void
+}
+
+/**
+ * Create a Service Worker wrapper with Proxy-based transparent access
+ *
+ * @param self - The {@link ServiceWorkerGlobalScope} instance (typically `self` in a service worker)
+ * @param options - Configuration options including version
+ * @returns A {@link SvcWorker} instance that wraps the native service worker
+ *
+ * @example
+ * ```typescript
+ * const sw = createSvcWorker(self, { version: '1.0.0' })
+ *
+ * sw.addEventListener('fetch', (event) => {
+ *   event.respondWith(fetch(event.request))
+ * })
+ * ```
  */
 export function createSvcWorker(
-  _self: ServiceWorkerGlobalScope,
-  _options?: SvcWorkerOptions
-): Readonly<SvcWorker> {
-  // TODO: Implement SvcWorker
+  self: ServiceWorkerGlobalScope,
+  options: SvcWorkerOptions
+): SvcWorker {
+  const { version, debug } = options
 
-  return Object.freeze({}) as SvcWorker
+  debug?.('createSvcWorker: initializing with version', version)
+
+  // Register message handler for protocols
+  function handleMessage(event: ExtendableMessageEvent) {
+    const data = event.data as SvcWorkerMessage
+    if (!data || typeof data.type !== 'string') {
+      return
+    }
+    debug?.('createSvcWorker: received message', data.type)
+
+    switch (data.type) {
+      case VROWSER_SW_VERSION: {
+        const port = event.ports?.[0]
+        if (port) {
+          debug?.('createSvcWorker: responding with version', version)
+          port.postMessage({ version })
+        }
+        break
+      }
+
+      case VROWSER_SW_SKIP_WAITING: {
+        debug?.('createSvcWorker: executing skipWaiting')
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+        self.skipWaiting()
+        break
+      }
+
+      default: {
+        // Unknown message type; ignore
+        console.warn('createSvcWorker: unknown message type received:', data)
+        break
+      }
+    }
+  }
+  self.addEventListener('message', handleMessage)
+
+  function cleanup() {
+    self.removeEventListener('message', handleMessage)
+  }
+
+  function dispose() {
+    debug?.('createSvcWorker: disposing')
+    cleanup()
+  }
+
+  // Extension properties and methods
+  const extensions: Record<string | symbol, unknown> = {
+    version,
+    dispose
+  }
+
+  // Create Proxy for transparent access to native APIs
+  return new Proxy(self, {
+    get(target, prop, receiver) {
+      // Check extension properties first
+      if (prop in extensions) {
+        const value = extensions[prop]
+        if (typeof value === 'function') {
+          return (value as (...args: unknown[]) => unknown).bind(extensions)
+        }
+        return value
+      }
+
+      // Fallback to native property
+      const value = Reflect.get(target, prop, receiver) // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- for generic
+      if (typeof value === 'function') {
+        return (value as (...args: unknown[]) => unknown).bind(target)
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- for generic
+      return value
+    },
+
+    set(target, prop, value, receiver) {
+      // Readonly extension properties
+      if (prop === 'version') {
+        throw new TypeError(`Cannot assign to read only property '${String(prop)}'`)
+      }
+
+      // Fallback to native property
+      return Reflect.set(target, prop, value, receiver)
+    },
+
+    has(target, prop) {
+      return prop in extensions || Reflect.has(target, prop)
+    }
+  }) as SvcWorker
 }

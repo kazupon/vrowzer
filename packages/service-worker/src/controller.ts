@@ -19,8 +19,9 @@
  * - Calls {@link SvcWorkerControllerEventMap.reloadSuggested | reloadSuggested} when expected is active but not controller.
  *
  * ## Service worker requirements
+ * - Possible to handle the service worker message protocols.
  * - Responds to `{ type: 'VROWSER_SW_VERSION' }` using `MessageChannel` port -> {version}
- * - Accepts `{ type: "VROWSER_SW_SKIP_WAITING" }` -> `self.skipWaiting()`
+ * - Accepts `{ type: 'VROWSER_SW_SKIP_WAITING' }` -> `self.skipWaiting()`
  * - (Optional) in activate: `event.waitUntil(self.clients.claim())` - enables immediate control
  *
  * The above requirements can be met by using a separately provided module within your service worker.
@@ -38,6 +39,11 @@ import { createEmitter, waitOnce } from '@kazupon/jts-utils/event'
 import { VROWSER_SW_SKIP_WAITING, VROWSER_SW_VERSION } from './protocols.ts'
 
 import type { Emittable } from '@kazupon/jts-utils'
+import type {
+  SvcWorkerSkipWaitingMessage,
+  SvcWorkerVersionMessage,
+  SvcWorkerVersionResponse
+} from './protocols.ts'
 
 /**
  * {@link SvcWorkerController | Service Worker Controller} instance creation options
@@ -470,13 +476,12 @@ function getServiceWorkerVersion(
       }
     }
 
-    ch.port1.onmessage = e => {
+    ch.port1.onmessage = (e: MessageEvent<SvcWorkerVersionResponse>) => {
       cleanup()
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- FIXME
-      resolve(e.data?.version ?? null)
+      resolve(e.data.version)
     }
 
-    serviceWorker.postMessage({ type: VROWSER_SW_VERSION }, [ch.port2])
+    serviceWorker.postMessage({ type: VROWSER_SW_VERSION } as SvcWorkerVersionMessage, [ch.port2])
   })
 }
 
@@ -549,7 +554,7 @@ async function promoteIfPossible(args: {
   // Policy: if any waiting exists, always request skipWaiting (aggressive).
   if (skipWaitingPolicy === 'force' && waiting) {
     onProgress?.('skipWaitingPolicy: force -> SKIP_WAITING')
-    waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING })
+    waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING } as SvcWorkerSkipWaitingMessage)
     return 'promoted-any-waiting'
   }
 
@@ -559,7 +564,7 @@ async function promoteIfPossible(args: {
     if (waitingVersion === version) {
       onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
       onProgress?.('found-expected-waiting -> SKIP_WAITING')
-      waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING })
+      waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING } as SvcWorkerSkipWaitingMessage)
       return 'promoted-waiting'
     }
   }
@@ -589,7 +594,7 @@ async function promoteIfPossible(args: {
         if (waitingVersion === version) {
           onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
           onProgress?.('installing->installed; expected in waiting -> SKIP_WAITING')
-          waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING })
+          waiting.postMessage({ type: VROWSER_SW_SKIP_WAITING } as SvcWorkerSkipWaitingMessage)
           return 'promoted-installing->waiting'
         }
       }

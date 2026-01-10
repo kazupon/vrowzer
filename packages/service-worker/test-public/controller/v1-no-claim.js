@@ -12,7 +12,7 @@ sw.addEventListener('message', event => {
   if (!data || typeof data.type !== 'string') return
 
   switch (data.type) {
-    case 'VROWSER_SW_GET_VERSION': {
+    case 'VROWSER_SW_VERSION': {
       const port = event.ports && event.ports[0]
       port?.postMessage({ version: SW_VERSION })
       break

@@ -37,6 +37,18 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./controller": {
+      "types": "./dist/controller.d.ts",
+      "import": "./dist/controller.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    },
+    "./protocols": {
+      "types": "./dist/protocols.d.ts",
+      "import": "./dist/protocols.js"
+    },
     "./package.json": "./package.json"
   },
   "types": "dist/index.d.ts",
