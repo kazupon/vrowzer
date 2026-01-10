@@ -98,7 +98,7 @@ export interface SvcWorker extends ServiceWorkerGlobalScope, Disposable {
 export function createSvcWorker(
   self: ServiceWorkerGlobalScope,
   options: SvcWorkerOptions
-): SvcWorker {
+): Readonly<SvcWorker> {
   const { version, debug } = options
 
   debug?.('createSvcWorker: initializing with version', version)
@@ -154,11 +154,11 @@ export function createSvcWorker(
   }
 
   // Extension properties and methods
-  const extensions: Record<string | symbol, unknown> = {
+  const extensions: Record<string | symbol, unknown> = Object.freeze({
     version,
     dispose,
     [Symbol.dispose]: dispose
-  }
+  })
 
   // Create Proxy for transparent access to native APIs
   return new Proxy(self, {
