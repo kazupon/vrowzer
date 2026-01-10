@@ -1,26 +1,27 @@
 /**
  * Service Worker Controller
  *
- * Features:
+ * ## Features
  * - Defines service worker version tag and verifies via service worker messaging.
  * - Handles the below status combination service worker on registration:
  *   - `registration.installing`
  *   - `registration.waiting`
  *   - `registration.active`
- * - Optional policy:
- *   1. If any waiting exists, always request `skipWaiting` (aggressive).
- *   2. If controller does not switch (expected is active but not controller), suggest reload via callback.
  *
- * Behavior:
- *  - Returns immediately if expected service worker is already the controller.
- *  - Returns when expected service worker becomes active, even if not yet controlling the page.
- *    (For service workers that don't call `clients.claim()`, reload is needed to gain control)
- *  - Calls {@link SvcWorkerControllerEventMap.reloadSuggested | reloadSuggested} when expected is active but not controller.
+ * ### Optional policy:
+ * 1. If any waiting exists, always request `skipWaiting` (aggressive).
+ * 2. If controller does not switch (expected is active but not controller), suggest reload via callback.
  *
- * Service worker requirements:
- *  - Responds to `{ type: 'VROWSER_SW_GET_VERSION' }` using `MessageChannel` port -> {version}
- *  - Accepts `{ type: "VROWSER_SW_SKIP_WAITING" }` -> `self.skipWaiting()`
- *  - (Optional) in activate: `event.waitUntil(self.clients.claim())` - enables immediate control
+ * ## Behavior
+ * - Returns immediately if expected service worker is already the controller.
+ * - Returns when expected service worker becomes active, even if not yet controlling the page.
+ *   (For service workers that don't call `clients.claim()`, reload is needed to gain control)
+ * - Calls {@link SvcWorkerControllerEventMap.reloadSuggested | reloadSuggested} when expected is active but not controller.
+ *
+ * ## Service worker requirements
+ * - Responds to `{ type: 'VROWSER_SW_GET_VERSION' }` using `MessageChannel` port -> {version}
+ * - Accepts `{ type: "VROWSER_SW_SKIP_WAITING" }` -> `self.skipWaiting()`
+ * - (Optional) in activate: `event.waitUntil(self.clients.claim())` - enables immediate control
  *
  * The above requirements can be met by using a separately provided module within your service worker.
  *

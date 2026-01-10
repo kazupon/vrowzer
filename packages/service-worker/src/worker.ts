@@ -1,9 +1,18 @@
 /**
- * Service Worker module
+ * Service Worker Module
  *
  * > [!IMPORTANT]
  * > This module is intended for use within service workers.
  * > It cannot be used in regular JavaScript applications.
+ *
+ * This module essentially acts as a wrapper for Service Workers,
+ * but internally `@vrowser/service-worker` establishes a dedicated session using {@link SvcWorkerController} and `MessageChannel` to provide functionality.
+ *
+ * ## Features
+ * - heatbeat: `VROWSER_SW_PING`
+ * - Service Worker version management: `VROWSER_SW_GET_VERSION`
+ * - Optional execution of skipWaiting: `VROWSER_SW_SKIP_WAITING`
+ * - Kill switch: `VROWSER_SW_KILL_SWITCH`
  *
  * @module service-worker
  */
