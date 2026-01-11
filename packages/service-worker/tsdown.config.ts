@@ -5,6 +5,7 @@ export default defineConfig({
     './src/index.ts',
     './src/admin.ts',
     './src/controller.ts',
+    './src/protocols.ts',
     './src/worker.ts',
     './src/protocols.ts'
   ],
