@@ -256,10 +256,6 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
    */
   readonly serviceWorker: ServiceWorker | null
   /**
-   * The session to the active service worker (available after ready() completes)
-   */
-  readonly session: SvcWorkerSession | null
-  /**
    * Ready for the expected service worker to become active.
    *
    * Calling this method internally checks the service worker's state using the API provided by `navigator.serviceWorker`.
@@ -677,9 +673,6 @@ export function createSvcWorkerController(
     get serviceWorker() {
       return _serviceWorker
     },
-    get session() {
-      return _session
-    },
     get [SESSION_SYMBOL]() {
       return _session
     },
@@ -732,14 +725,13 @@ function getServiceWorkerVersion(
 
     ch.port1.addEventListener(
       'message',
-      // @ts-expect-error -- FXIME: why? TS2769 error...
       (e: MessageEvent) => {
         if (isSvcWrokerVersionMessageResponse(e.data)) {
           cleanup()
           resolve(e.data.version)
         }
       },
-      { signal }
+      signal ? { signal } : undefined
     )
     ch.port1.start()
 

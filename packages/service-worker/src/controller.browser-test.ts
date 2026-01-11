@@ -465,7 +465,6 @@ describe('createSvcWorkerController', () => {
 
       await controller.ready()
       expect(controller.state).toBe('activated')
-      expect(controller.session).not.toBeNull()
 
       const result = await controller.suspend()
 
