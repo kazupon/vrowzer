@@ -56,7 +56,7 @@ test.describe('Multi-tab Service Worker Control', () => {
       return new Promise<string | null>(resolve => {
         const ch = new MessageChannel()
         ch.port1.onmessage = e => resolve(e.data?.version ?? null)
-        reg.active!.postMessage({ type: 'VROWSER_SW_VERSION' }, [ch.port2])
+        reg.active!.postMessage({ type: 'V_SW_VERSION' }, [ch.port2])
       })
     })
     expect(initialVersion).toBe('v1')
@@ -75,7 +75,7 @@ test.describe('Multi-tab Service Worker Control', () => {
           return new Promise<boolean>(resolve => {
             const ch = new MessageChannel()
             ch.port1.onmessage = e => resolve(e.data?.version === 'v2')
-            sw.postMessage({ type: 'VROWSER_SW_VERSION' }, [ch.port2])
+            sw.postMessage({ type: 'V_SW_VERSION' }, [ch.port2])
           })
         }
         return (
@@ -138,7 +138,7 @@ test.describe('Multi-tab Service Worker Control', () => {
 
           // Send skipWaiting message
           if (sw) {
-            sw.postMessage({ type: 'VROWSER_SW_SKIP_WAITING' })
+            sw.postMessage({ type: 'V_SW_SKIP_WAITING' })
           }
         } catch (e) {
           reject(e)

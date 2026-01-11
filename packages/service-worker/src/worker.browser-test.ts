@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import {
-  VROWSER_SW_SESSION_PONG,
-  VROWSER_SW_SESSION_CLOSE,
-  VROWSER_SW_SESSION_INIT,
-  VROWSER_SW_SESSION_CIRCUIT_BREAKER,
-  VROWSER_SW_SESSION_RESUME,
-  VROWSER_SW_SKIP_WAITING,
-  VROWSER_SW_VERSION
+  V_SW_SESSION_PONG,
+  V_SW_SESSION_CLOSE,
+  V_SW_SESSION_INIT,
+  V_SW_SESSION_CIRCUIT_BREAKER,
+  V_SW_SESSION_RESUME,
+  V_SW_SKIP_WAITING,
+  V_SW_VERSION
 } from './protocols.ts'
 import { createSvcWorker } from './worker.ts'
 
@@ -91,21 +91,21 @@ describe('createSvcWorker', () => {
     })
   })
 
-  describe('VROWSER_SW_VERSION message', () => {
+  describe('V_SW_VERSION message', () => {
     test('should respond with version via MessagePort', () => {
       const self = createSvcWorker(mockSelf, { version: 'v1.2.3' })
       void self // ensure self is created
 
       const mockPort = { postMessage: vi.fn() }
       const messageEvent = {
-        data: { type: VROWSER_SW_VERSION },
+        data: { type: V_SW_VERSION },
         ports: [mockPort]
       }
 
       mockSelf._dispatchEvent('message', messageEvent)
 
       expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: VROWSER_SW_VERSION,
+        type: V_SW_VERSION,
         version: 'v1.2.3'
       })
     })
@@ -115,7 +115,7 @@ describe('createSvcWorker', () => {
       void self
 
       const messageEvent = {
-        data: { type: VROWSER_SW_VERSION },
+        data: { type: V_SW_VERSION },
         ports: []
       }
 
@@ -124,13 +124,13 @@ describe('createSvcWorker', () => {
     })
   })
 
-  describe('VROWSER_SW_SKIP_WAITING message', () => {
+  describe('V_SW_SKIP_WAITING message', () => {
     test('should call skipWaiting on message', () => {
       const self = createSvcWorker(mockSelf, { version: 'v1' })
       void self
 
       const messageEvent = {
-        data: { type: VROWSER_SW_SKIP_WAITING },
+        data: { type: V_SW_SKIP_WAITING },
         ports: []
       }
 
@@ -207,7 +207,7 @@ describe('createSvcWorker', () => {
 
       const mockPort = { postMessage: vi.fn() }
       const messageEvent = {
-        data: { type: VROWSER_SW_VERSION },
+        data: { type: V_SW_VERSION },
         ports: [mockPort]
       }
 
@@ -248,13 +248,13 @@ describe('createSvcWorker', () => {
 
       const mockPort = { postMessage: vi.fn() }
       const messageEvent = {
-        data: { type: VROWSER_SW_VERSION },
+        data: { type: V_SW_VERSION },
         ports: [mockPort]
       }
 
       mockSelf._dispatchEvent('message', messageEvent)
 
-      expect(debug).toHaveBeenCalledWith('createSvcWorker: received message', VROWSER_SW_VERSION)
+      expect(debug).toHaveBeenCalledWith('createSvcWorker: received message', V_SW_VERSION)
       expect(debug).toHaveBeenCalledWith('createSvcWorker: responding with version', 'v1')
     })
   })
@@ -293,7 +293,7 @@ describe('createSvcWorker', () => {
 
       const mockPort = createMockPort()
       const messageEvent = {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort],
         source: { id: 'client-123' }
       }
@@ -302,7 +302,7 @@ describe('createSvcWorker', () => {
 
       expect(mockPort.start).toHaveBeenCalled()
       expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: VROWSER_SW_SESSION_INIT,
+        type: V_SW_SESSION_INIT,
         success: true,
         version: 'v1'
       })
@@ -314,7 +314,7 @@ describe('createSvcWorker', () => {
       void self
 
       const messageEvent = {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [],
         source: { id: 'client-123' }
       }
@@ -330,7 +330,7 @@ describe('createSvcWorker', () => {
 
       const mockPort = createMockPort()
       const messageEvent = {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort],
         source: null
       }
@@ -346,7 +346,7 @@ describe('createSvcWorker', () => {
 
       const mockPort = createMockPort()
       const messageEvent = {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort],
         source: { id: 'client-123' }
       }
@@ -356,7 +356,7 @@ describe('createSvcWorker', () => {
 
       // Simulate SESSION_CLOSE from the session port
       mockPort._dispatchEvent('message', {
-        data: { type: VROWSER_SW_SESSION_CLOSE }
+        data: { type: V_SW_SESSION_CLOSE }
       })
 
       expect(mockPort.close).toHaveBeenCalled()
@@ -370,7 +370,7 @@ describe('createSvcWorker', () => {
 
       const mockPort = createMockPort()
       const messageEvent = {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort],
         source: { id: 'client-123' }
       }
@@ -379,7 +379,7 @@ describe('createSvcWorker', () => {
 
       // Simulate PONG from the session port
       mockPort._dispatchEvent('message', {
-        data: { type: VROWSER_SW_SESSION_PONG, id: 'ping-1' }
+        data: { type: V_SW_SESSION_PONG, id: 'ping-1' }
       })
 
       expect(debug).toHaveBeenCalledWith('createSvcWorker: PONG received from', 'client-123')
@@ -394,7 +394,7 @@ describe('createSvcWorker', () => {
 
       // First session
       mockSelf._dispatchEvent('message', {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort1],
         source: { id: 'client-123' }
       })
@@ -402,7 +402,7 @@ describe('createSvcWorker', () => {
 
       // Second session for same client
       mockSelf._dispatchEvent('message', {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort2],
         source: { id: 'client-123' }
       })
@@ -419,12 +419,12 @@ describe('createSvcWorker', () => {
       const mockPort2 = createMockPort()
 
       mockSelf._dispatchEvent('message', {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort1],
         source: { id: 'client-1' }
       })
       mockSelf._dispatchEvent('message', {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort2],
         source: { id: 'client-2' }
       })
@@ -485,7 +485,7 @@ describe('createSvcWorker', () => {
     function setupSession(_self: ReturnType<typeof createSvcWorker>) {
       const mockPort = createMockPort()
       mockSelf._dispatchEvent('message', {
-        data: { type: VROWSER_SW_SESSION_INIT },
+        data: { type: V_SW_SESSION_INIT },
         ports: [mockPort],
         source: { id: 'client-123' }
       })
@@ -501,7 +501,7 @@ describe('createSvcWorker', () => {
       // Send circuit breaker message
       mockPort._dispatchEvent('message', {
         data: {
-          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          type: V_SW_SESSION_CIRCUIT_BREAKER,
           id: 'cb-1',
           mode: 'suspend'
         }
@@ -512,7 +512,7 @@ describe('createSvcWorker', () => {
 
       expect(self.suspended).toBe(true)
       expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+        type: V_SW_SESSION_CIRCUIT_BREAKER,
         id: 'cb-1',
         success: true,
         data: {
@@ -530,7 +530,7 @@ describe('createSvcWorker', () => {
       // First suspend
       mockPort._dispatchEvent('message', {
         data: {
-          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          type: V_SW_SESSION_CIRCUIT_BREAKER,
           id: 'cb-1',
           mode: 'suspend'
         }
@@ -542,14 +542,14 @@ describe('createSvcWorker', () => {
       // Then resume
       mockPort._dispatchEvent('message', {
         data: {
-          type: VROWSER_SW_SESSION_RESUME,
+          type: V_SW_SESSION_RESUME,
           id: 'resume-1'
         }
       })
 
       expect(self.suspended).toBe(false)
       expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: VROWSER_SW_SESSION_RESUME,
+        type: V_SW_SESSION_RESUME,
         id: 'resume-1',
         success: true,
         data: {}
@@ -563,7 +563,7 @@ describe('createSvcWorker', () => {
 
       mockPort._dispatchEvent('message', {
         data: {
-          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          type: V_SW_SESSION_CIRCUIT_BREAKER,
           id: 'cb-1',
           mode: 'suspend'
         }
@@ -582,7 +582,7 @@ describe('createSvcWorker', () => {
       // Resume (even without prior suspend)
       mockPort._dispatchEvent('message', {
         data: {
-          type: VROWSER_SW_SESSION_RESUME,
+          type: V_SW_SESSION_RESUME,
           id: 'resume-1'
         }
       })

@@ -10,7 +10,7 @@
 function createSvcWorkerVersionResponse(version): SvcWorkerVersionResponse;
 ```
 
-Create a [service worker 'VROWSER_SW_VERSION' response](../interfaces/SvcWorkerVersionResponse.md)
+Create a [service worker 'V_SW_VERSION' response](../interfaces/SvcWorkerVersionResponse.md)
 
 ## Parameters
 

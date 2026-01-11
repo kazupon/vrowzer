@@ -84,7 +84,7 @@ export interface SvcWorkerSession extends Disposable {
    * @example
    * ```typescript
    * const result = await session.send<CircuitBreakerResult>({
-   *   type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+   *   type: V_SW_SESSION_CIRCUIT_BREAKER,
    *   mode: 'suspend'
    * })
    * ```
@@ -104,7 +104,7 @@ export interface SvcWorkerSession extends Disposable {
   /**
    * Register a callback to be called when the service worker is terminated.
    *
-   * This is triggered when the service worker sends a VROWSER_SW_SESSION_TERMINATED
+   * This is triggered when the service worker sends a V_SW_SESSION_TERMINATED
    * message, typically when it has unregistered itself via circuit breaker.
    *
    * @param callback - The callback to invoke when terminated, receives the reason

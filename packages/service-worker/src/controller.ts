@@ -20,8 +20,8 @@
  *
  * ## Service worker requirements
  * - Possible to handle the service worker message protocols.
- * - Responds to `{ type: 'VROWSER_SW_VERSION' }` using `MessageChannel` port -> {version}
- * - Accepts `{ type: 'VROWSER_SW_SKIP_WAITING' }` -> `self.skipWaiting()`
+ * - Responds to `{ type: 'V_SW_VERSION' }` using `MessageChannel` port -> {version}
+ * - Accepts `{ type: 'V_SW_SKIP_WAITING' }` -> `self.skipWaiting()`
  * - (Optional) in activate: `event.waitUntil(self.clients.claim())` - enables immediate control
  *
  * The above requirements can be met by using a separately provided module within your service worker.
@@ -40,8 +40,8 @@ import {
   isSvcWrokerVersionMessageResponse,
   createSvcWorkerVersionMessage,
   createSvcWorkerSkipWaitingMessage,
-  VROWSER_SW_SESSION_CIRCUIT_BREAKER,
-  VROWSER_SW_SESSION_RESUME
+  V_SW_SESSION_CIRCUIT_BREAKER,
+  V_SW_SESSION_RESUME
 } from './protocols.ts'
 import { createSession } from './session.ts'
 import { SESSION_SYMBOL } from './symbols.ts'
@@ -596,7 +596,7 @@ export function createSvcWorkerController(
     try {
       const result = await _session.send<SvcWorkerSessionCircuitBreakerResult>(
         {
-          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          type: V_SW_SESSION_CIRCUIT_BREAKER,
           mode: 'suspend',
           clearCaches: suspendOptions.clearCaches
         },
@@ -631,7 +631,7 @@ export function createSvcWorkerController(
     try {
       const result = await _session.send<SvcWorkerSessionResumeResult>(
         {
-          type: VROWSER_SW_SESSION_RESUME
+          type: V_SW_SESSION_RESUME
         },
         resumeOptions.signal ? { signal: resumeOptions.signal } : undefined
       )

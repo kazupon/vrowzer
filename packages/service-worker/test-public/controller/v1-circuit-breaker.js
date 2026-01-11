@@ -4,13 +4,13 @@
  * Test Service Worker with Circuit Breaker protocol support
  *
  * This service worker implements:
- * - VROWSER_SW_VERSION
- * - VROWSER_SW_SKIP_WAITING
- * - VROWSER_SW_SESSION_INIT
- * - VROWSER_SW_SESSION_CLOSE
- * - VROWSER_SW_SESSION_PONG
- * - VROWSER_SW_SESSION_CIRCUIT_BREAKER (suspend/terminate)
- * - VROWSER_SW_SESSION_RESUME
+ * - V_SW_VERSION
+ * - V_SW_SKIP_WAITING
+ * - V_SW_SESSION_INIT
+ * - V_SW_SESSION_CLOSE
+ * - V_SW_SESSION_PONG
+ * - V_SW_SESSION_CIRCUIT_BREAKER (suspend/terminate)
+ * - V_SW_SESSION_RESUME
  */
 
 /** @type {ServiceWorkerGlobalScope} */
@@ -30,12 +30,12 @@ function handleSessionMessage(clientId, port, data) {
   }
 
   switch (data.type) {
-    case 'VROWSER_SW_SESSION_CLOSE':
+    case 'V_SW_SESSION_CLOSE':
       port.close()
       sessions.delete(clientId)
       break
 
-    case 'VROWSER_SW_SESSION_PONG': {
+    case 'V_SW_SESSION_PONG': {
       const session = sessions.get(clientId)
       if (session) {
         session.lastPong = Date.now()
@@ -43,12 +43,12 @@ function handleSessionMessage(clientId, port, data) {
       break
     }
 
-    case 'VROWSER_SW_SESSION_CIRCUIT_BREAKER': {
+    case 'V_SW_SESSION_CIRCUIT_BREAKER': {
       handleCircuitBreaker(data, port)
       break
     }
 
-    case 'VROWSER_SW_SESSION_RESUME': {
+    case 'V_SW_SESSION_RESUME': {
       handleResume(data, port)
       break
     }
@@ -76,7 +76,7 @@ async function handleCircuitBreaker(message, port) {
       for (const [, session] of sessions) {
         try {
           session.port.postMessage({
-            type: 'VROWSER_SW_SESSION_TERMINATED',
+            type: 'V_SW_SESSION_TERMINATED',
             reason: 'unregister'
           })
         } catch {
@@ -87,7 +87,7 @@ async function handleCircuitBreaker(message, port) {
     }
 
     port.postMessage({
-      type: 'VROWSER_SW_SESSION_CIRCUIT_BREAKER',
+      type: 'V_SW_SESSION_CIRCUIT_BREAKER',
       id: message.id,
       success: true,
       data: {
@@ -98,7 +98,7 @@ async function handleCircuitBreaker(message, port) {
     })
   } catch (error) {
     port.postMessage({
-      type: 'VROWSER_SW_SESSION_CIRCUIT_BREAKER',
+      type: 'V_SW_SESSION_CIRCUIT_BREAKER',
       id: message.id,
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -111,14 +111,14 @@ function handleResume(message, port) {
     _suspended = false
 
     port.postMessage({
-      type: 'VROWSER_SW_SESSION_RESUME',
+      type: 'V_SW_SESSION_RESUME',
       id: message.id,
       success: true,
       data: {}
     })
   } catch (error) {
     port.postMessage({
-      type: 'VROWSER_SW_SESSION_RESUME',
+      type: 'V_SW_SESSION_RESUME',
       id: message.id,
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -131,16 +131,16 @@ sw.addEventListener('message', event => {
   if (!data || typeof data.type !== 'string') return
 
   switch (data.type) {
-    case 'VROWSER_SW_VERSION': {
+    case 'V_SW_VERSION': {
       const port = event.ports && event.ports[0]
-      port?.postMessage({ type: 'VROWSER_SW_VERSION', version: SW_VERSION })
+      port?.postMessage({ type: 'V_SW_VERSION', version: SW_VERSION })
       break
     }
-    case 'VROWSER_SW_SKIP_WAITING': {
+    case 'V_SW_SKIP_WAITING': {
       self.skipWaiting()
       break
     }
-    case 'VROWSER_SW_SESSION_INIT': {
+    case 'V_SW_SESSION_INIT': {
       const port = event.ports && event.ports[0]
       const clientId = event.source?.id
       if (port && clientId) {
@@ -155,7 +155,7 @@ sw.addEventListener('message', event => {
         sessions.set(clientId, { port, lastPong: Date.now() })
         // Must include type field for isSvcWorkerSessionInitResponse type guard
         port.postMessage({
-          type: 'VROWSER_SW_SESSION_INIT',
+          type: 'V_SW_SESSION_INIT',
           success: true,
           version: SW_VERSION
         })

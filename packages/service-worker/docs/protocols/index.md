@@ -12,41 +12,41 @@ Defines the message protocol between createSvcWorkerController \| the service wo
 
 ## Variables
 
-| Variable                                                                              | Description                                                                                                                       |
-| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| [VROWSER_SW_SESSION_CIRCUIT_BREAKER](variables/VROWSER_SW_SESSION_CIRCUIT_BREAKER.md) | Message type constant for circuit breaker operations.                                                                             |
-| [VROWSER_SW_SESSION_CLOSE](variables/VROWSER_SW_SESSION_CLOSE.md)                     | Session close message                                                                                                             |
-| [VROWSER_SW_SESSION_INIT](variables/VROWSER_SW_SESSION_INIT.md)                       | Session initialization message                                                                                                    |
-| [VROWSER_SW_SESSION_PING](variables/VROWSER_SW_SESSION_PING.md)                       | Session heartbeat ping message (Service Worker -> Page)                                                                           |
-| [VROWSER_SW_SESSION_PONG](variables/VROWSER_SW_SESSION_PONG.md)                       | Session heartbeat pong response (Page -> Service Worker)                                                                          |
-| [VROWSER_SW_SESSION_RESUME](variables/VROWSER_SW_SESSION_RESUME.md)                   | Message type constant for resume operations.                                                                                      |
-| [VROWSER_SW_SESSION_TERMINATED](variables/VROWSER_SW_SESSION_TERMINATED.md)           | Message type constant for terminated notification (Service Worker -> Page). Sent when the service worker has unregistered itself. |
-| [VROWSER_SW_SKIP_WAITING](variables/VROWSER_SW_SKIP_WAITING.md)                       | Whether to skip waiting for `self.skipWaiting()` to be called on the service worker side after installation                       |
-| [VROWSER_SW_VERSION](variables/VROWSER_SW_VERSION.md)                                 | Managed service worker version                                                                                                    |
+| Variable                                                                  | Description                                                                                                                       |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [V_SW_SESSION_CIRCUIT_BREAKER](variables/V_SW_SESSION_CIRCUIT_BREAKER.md) | Message type constant for circuit breaker operations.                                                                             |
+| [V_SW_SESSION_CLOSE](variables/V_SW_SESSION_CLOSE.md)                     | Session close message                                                                                                             |
+| [V_SW_SESSION_INIT](variables/V_SW_SESSION_INIT.md)                       | Session initialization message                                                                                                    |
+| [V_SW_SESSION_PING](variables/V_SW_SESSION_PING.md)                       | Session heartbeat ping message (Service Worker -> Page)                                                                           |
+| [V_SW_SESSION_PONG](variables/V_SW_SESSION_PONG.md)                       | Session heartbeat pong response (Page -> Service Worker)                                                                          |
+| [V_SW_SESSION_RESUME](variables/V_SW_SESSION_RESUME.md)                   | Message type constant for resume operations.                                                                                      |
+| [V_SW_SESSION_TERMINATED](variables/V_SW_SESSION_TERMINATED.md)           | Message type constant for terminated notification (Service Worker -> Page). Sent when the service worker has unregistered itself. |
+| [V_SW_SKIP_WAITING](variables/V_SW_SKIP_WAITING.md)                       | Whether to skip waiting for `self.skipWaiting()` to be called on the service worker side after installation                       |
+| [V_SW_VERSION](variables/V_SW_VERSION.md)                                 | Managed service worker version                                                                                                    |
 
 ## Functions
 
-| Function                                                                                                  | Description                                                                                              |
-| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [createSvcWorkerSessionCircuitBreakerResponse](functions/createSvcWorkerSessionCircuitBreakerResponse.md) | Create a circuit breaker response message                                                                |
-| [createSvcWorkerSessionCloseMessage](functions/createSvcWorkerSessionCloseMessage.md)                     | Create a [service worker 'VROWSER_SW_SESSION_CLOSE' message](interfaces/SvcWorkerSessionCloseMessage.md) |
-| [createSvcWorkerSessionInitMessage](functions/createSvcWorkerSessionInitMessage.md)                       | Create a [service worker 'VROWSER_SW_SESSION_INIT' message](interfaces/SvcWorkerSessionInitMessage.md)   |
-| [createSvcWorkerSessionInitResponse](functions/createSvcWorkerSessionInitResponse.md)                     | Create a [service worker 'VROWSER_SW_SESSION_INIT' response](interfaces/SvcWorkerSessionInitResponse.md) |
-| [createSvcWorkerSessionPingMessage](functions/createSvcWorkerSessionPingMessage.md)                       | Create a [service worker 'VROWSER_SW_SESSION_PING' message](interfaces/SvcWorkerSessionPingMessage.md)   |
-| [createSvcWorkerSessionPongMessage](functions/createSvcWorkerSessionPongMessage.md)                       | Create a [service worker 'VROWSER_SW_SESSION_PONG' message](interfaces/SvcWorkerSessionPongMessage.md)   |
-| [createSvcWorkerSessionResumeResponse](functions/createSvcWorkerSessionResumeResponse.md)                 | Create a resume response message                                                                         |
-| [createSvcWorkerSessionTerminatedMessage](functions/createSvcWorkerSessionTerminatedMessage.md)           | Create a [SvcWorkerSessionTerminatedMessage](interfaces/SvcWorkerSessionTerminatedMessage.md)            |
-| [createSvcWorkerSkipWaitingMessage](functions/createSvcWorkerSkipWaitingMessage.md)                       | Create a [service worker 'VROWSER_SW_SKIP_WAITING' message](interfaces/SvcWorkerSkipWaitingMessage.md)   |
-| [createSvcWorkerVersionMessage](functions/createSvcWorkerVersionMessage.md)                               | Create a [service worker 'VROWSER_SW_VERSION' message](interfaces/SvcWorkerVersionMessage.md)            |
-| [createSvcWorkerVersionResponse](functions/createSvcWorkerVersionResponse.md)                             | Create a [service worker 'VROWSER_SW_VERSION' response](interfaces/SvcWorkerVersionResponse.md)          |
-| [isSvcWorkerSessionCircuitBreakerMessage](functions/isSvcWorkerSessionCircuitBreakerMessage.md)           | Type guard for circuit breaker messages                                                                  |
-| [isSvcWorkerSessionGenericResponse](functions/isSvcWorkerSessionGenericResponse.md)                       | Type guard for generic session response                                                                  |
-| [isSvcWorkerSessionInitResponse](functions/isSvcWorkerSessionInitResponse.md)                             | Type guard for [SvcWorkerSessionInitResponse](interfaces/SvcWorkerSessionInitResponse.md)                |
-| [isSvcWorkerSessionPingMessage](functions/isSvcWorkerSessionPingMessage.md)                               | Type guard for [SvcWorkerSessionPingMessage](interfaces/SvcWorkerSessionPingMessage.md)                  |
-| [isSvcWorkerSessionResponse](functions/isSvcWorkerSessionResponse.md)                                     | Type guard for [SvcWorkerSessionResponse](interfaces/SvcWorkerSessionResponse.md)                        |
-| [isSvcWorkerSessionResumeMessage](functions/isSvcWorkerSessionResumeMessage.md)                           | Type guard for resume messages.                                                                          |
-| [isSvcWorkerSessionTerminatedMessage](functions/isSvcWorkerSessionTerminatedMessage.md)                   | Type guard for [SvcWorkerSessionTerminatedMessage](interfaces/SvcWorkerSessionTerminatedMessage.md)      |
-| [isSvcWrokerVersionMessageResponse](functions/isSvcWrokerVersionMessageResponse.md)                       | Type guard for [SvcWorkerVersionMessage](interfaces/SvcWorkerVersionMessage.md)                          |
+| Function                                                                                                  | Description                                                                                         |
+| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [createSvcWorkerSessionCircuitBreakerResponse](functions/createSvcWorkerSessionCircuitBreakerResponse.md) | Create a circuit breaker response message                                                           |
+| [createSvcWorkerSessionCloseMessage](functions/createSvcWorkerSessionCloseMessage.md)                     | Create a [service worker 'V_SW_SESSION_CLOSE' message](interfaces/SvcWorkerSessionCloseMessage.md)  |
+| [createSvcWorkerSessionInitMessage](functions/createSvcWorkerSessionInitMessage.md)                       | Create a [service worker 'V_SW_SESSION_INIT' message](interfaces/SvcWorkerSessionInitMessage.md)    |
+| [createSvcWorkerSessionInitResponse](functions/createSvcWorkerSessionInitResponse.md)                     | Create a [service worker 'V_SW_SESSION_INIT' response](interfaces/SvcWorkerSessionInitResponse.md)  |
+| [createSvcWorkerSessionPingMessage](functions/createSvcWorkerSessionPingMessage.md)                       | Create a [service worker 'V_SW_SESSION_PING' message](interfaces/SvcWorkerSessionPingMessage.md)    |
+| [createSvcWorkerSessionPongMessage](functions/createSvcWorkerSessionPongMessage.md)                       | Create a [service worker 'V_SW_SESSION_PONG' message](interfaces/SvcWorkerSessionPongMessage.md)    |
+| [createSvcWorkerSessionResumeResponse](functions/createSvcWorkerSessionResumeResponse.md)                 | Create a resume response message                                                                    |
+| [createSvcWorkerSessionTerminatedMessage](functions/createSvcWorkerSessionTerminatedMessage.md)           | Create a [SvcWorkerSessionTerminatedMessage](interfaces/SvcWorkerSessionTerminatedMessage.md)       |
+| [createSvcWorkerSkipWaitingMessage](functions/createSvcWorkerSkipWaitingMessage.md)                       | Create a [service worker 'V_SW_SKIP_WAITING' message](interfaces/SvcWorkerSkipWaitingMessage.md)    |
+| [createSvcWorkerVersionMessage](functions/createSvcWorkerVersionMessage.md)                               | Create a [service worker 'V_SW_VERSION' message](interfaces/SvcWorkerVersionMessage.md)             |
+| [createSvcWorkerVersionResponse](functions/createSvcWorkerVersionResponse.md)                             | Create a [service worker 'V_SW_VERSION' response](interfaces/SvcWorkerVersionResponse.md)           |
+| [isSvcWorkerSessionCircuitBreakerMessage](functions/isSvcWorkerSessionCircuitBreakerMessage.md)           | Type guard for circuit breaker messages                                                             |
+| [isSvcWorkerSessionGenericResponse](functions/isSvcWorkerSessionGenericResponse.md)                       | Type guard for generic session response                                                             |
+| [isSvcWorkerSessionInitResponse](functions/isSvcWorkerSessionInitResponse.md)                             | Type guard for [SvcWorkerSessionInitResponse](interfaces/SvcWorkerSessionInitResponse.md)           |
+| [isSvcWorkerSessionPingMessage](functions/isSvcWorkerSessionPingMessage.md)                               | Type guard for [SvcWorkerSessionPingMessage](interfaces/SvcWorkerSessionPingMessage.md)             |
+| [isSvcWorkerSessionResponse](functions/isSvcWorkerSessionResponse.md)                                     | Type guard for [SvcWorkerSessionResponse](interfaces/SvcWorkerSessionResponse.md)                   |
+| [isSvcWorkerSessionResumeMessage](functions/isSvcWorkerSessionResumeMessage.md)                           | Type guard for resume messages.                                                                     |
+| [isSvcWorkerSessionTerminatedMessage](functions/isSvcWorkerSessionTerminatedMessage.md)                   | Type guard for [SvcWorkerSessionTerminatedMessage](interfaces/SvcWorkerSessionTerminatedMessage.md) |
+| [isSvcWrokerVersionMessageResponse](functions/isSvcWrokerVersionMessageResponse.md)                       | Type guard for [SvcWorkerVersionMessage](interfaces/SvcWorkerVersionMessage.md)                     |
 
 ## Interfaces
 

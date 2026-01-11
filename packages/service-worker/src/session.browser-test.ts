@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import {
-  VROWSER_SW_SESSION_INIT,
+  V_SW_SESSION_INIT,
   createSvcWorkerSessionPingMessage,
   createSvcWorkerSessionInitResponse
 } from './protocols.ts'
@@ -32,7 +32,7 @@ function createMockServiceWorker(
 
   const mockServiceWorker = {
     postMessage: vi.fn((data: { type: string }, ports?: MessagePort[]) => {
-      if (data.type === VROWSER_SW_SESSION_INIT && ports?.[0]) {
+      if (data.type === V_SW_SESSION_INIT && ports?.[0]) {
         sessionPort = ports[0]
 
         if (respondToInit) {
@@ -441,7 +441,7 @@ describe('createSession', () => {
 
       // Send terminated message from "service worker"
       mockServiceWorker._sendToSession({
-        type: 'VROWSER_SW_SESSION_TERMINATED',
+        type: 'V_SW_SESSION_TERMINATED',
         reason: 'unregister'
       })
 
@@ -463,7 +463,7 @@ describe('createSession', () => {
       })
 
       mockServiceWorker._sendToSession({
-        type: 'VROWSER_SW_SESSION_TERMINATED',
+        type: 'V_SW_SESSION_TERMINATED',
         reason: 'unregister'
       })
 
@@ -481,7 +481,7 @@ describe('createSession', () => {
       session.onTerminated(() => {})
 
       mockServiceWorker._sendToSession({
-        type: 'VROWSER_SW_SESSION_TERMINATED',
+        type: 'V_SW_SESSION_TERMINATED',
         reason: 'unregister'
       })
 
@@ -500,7 +500,7 @@ describe('createSession', () => {
 
       // No callback registered, but sending terminated message should not throw
       mockServiceWorker._sendToSession({
-        type: 'VROWSER_SW_SESSION_TERMINATED',
+        type: 'V_SW_SESSION_TERMINATED',
         reason: 'unregister'
       })
 
@@ -522,7 +522,7 @@ describe('createSession', () => {
       session.onTerminated(secondCallback)
 
       mockServiceWorker._sendToSession({
-        type: 'VROWSER_SW_SESSION_TERMINATED',
+        type: 'V_SW_SESSION_TERMINATED',
         reason: 'unregister'
       })
 

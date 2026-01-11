@@ -14,7 +14,7 @@ VERSION response message (Service Worker -> Page via MessagePort)
 
 ## Properties
 
-| Property                       | Type                   | Overrides                                                                                |
-| ------------------------------ | ---------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="type"></a> `type`       | `"VROWSER_SW_VERSION"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
-| <a id="version"></a> `version` | `string`               | -                                                                                        |
+| Property                       | Type             | Overrides                                                                                |
+| ------------------------------ | ---------------- | ---------------------------------------------------------------------------------------- |
+| <a id="type"></a> `type`       | `"V_SW_VERSION"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| <a id="version"></a> `version` | `string`         | -                                                                                        |

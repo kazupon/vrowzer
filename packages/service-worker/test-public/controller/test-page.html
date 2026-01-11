@@ -27,7 +27,7 @@
           ch.port1.onmessage = (e) => {
             resolve(e.data?.version ?? null)
           }
-          sw.postMessage({ type: 'VROWSER_SW_VERSION' }, [ch.port2])
+          sw.postMessage({ type: 'V_SW_VERSION' }, [ch.port2])
         })
       }
 

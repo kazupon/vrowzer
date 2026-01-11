@@ -31,8 +31,8 @@ Service Worker Controller
 ## Service worker requirements
 
 - Possible to handle the service worker message protocols.
-- Responds to `{ type: 'VROWSER_SW_VERSION' }` using `MessageChannel` port -> {version}
-- Accepts `{ type: 'VROWSER_SW_SKIP_WAITING' }` -> `self.skipWaiting()`
+- Responds to `{ type: 'V_SW_VERSION' }` using `MessageChannel` port -> {version}
+- Accepts `{ type: 'V_SW_SKIP_WAITING' }` -> `self.skipWaiting()`
 - (Optional) in activate: `event.waitUntil(self.clients.claim())` - enables immediate control
 
 The above requirements can be met by using a separately provided module within your service worker.

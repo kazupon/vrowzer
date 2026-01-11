@@ -15,7 +15,7 @@
  * @license MIT
  */
 
-import { VROWSER_SW_SESSION_CIRCUIT_BREAKER } from './protocols.ts'
+import { V_SW_SESSION_CIRCUIT_BREAKER } from './protocols.ts'
 import { SESSION_SYMBOL } from './symbols.ts'
 import * as registry from './registry.ts'
 
@@ -223,7 +223,7 @@ export async function terminateAllServiceWorkers(
     // Send terminate message via session.send() (dedicated protocol)
     const result = await session.send<SvcWorkerSessionCircuitBreakerResult>(
       {
-        type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+        type: V_SW_SESSION_CIRCUIT_BREAKER,
         mode: 'terminate',
         clearCaches: options?.clearCaches
       },
@@ -273,7 +273,7 @@ export async function terminateServiceWorker(
   // Send terminate message via session.send() (dedicated protocol)
   return session.send<SvcWorkerSessionCircuitBreakerResult>(
     {
-      type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+      type: V_SW_SESSION_CIRCUIT_BREAKER,
       mode: 'terminate',
       clearCaches: options?.clearCaches
     },

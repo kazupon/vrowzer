@@ -14,6 +14,6 @@ SESSION_CLOSE message (Page -> Service Worker via session MessagePort)
 
 ## Properties
 
-| Property                 | Type                         | Overrides                                                                                |
-| ------------------------ | ---------------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="type"></a> `type` | `"VROWSER_SW_SESSION_CLOSE"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property                 | Type                   | Overrides                                                                                |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------------- |
+| <a id="type"></a> `type` | `"V_SW_SESSION_CLOSE"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |

@@ -14,6 +14,6 @@ SKIP_WAITING message (Page -> Service Worker)
 
 ## Properties
 
-| Property                 | Type                        | Overrides                                                                                |
-| ------------------------ | --------------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="type"></a> `type` | `"VROWSER_SW_SKIP_WAITING"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property                 | Type                  | Overrides                                                                                |
+| ------------------------ | --------------------- | ---------------------------------------------------------------------------------------- |
+| <a id="type"></a> `type` | `"V_SW_SKIP_WAITING"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |

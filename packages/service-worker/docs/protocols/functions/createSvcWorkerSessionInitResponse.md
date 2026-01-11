@@ -10,7 +10,7 @@
 function createSvcWorkerSessionInitResponse(success, version): SvcWorkerSessionInitResponse;
 ```
 
-Create a [service worker 'VROWSER_SW_SESSION_INIT' response](../interfaces/SvcWorkerSessionInitResponse.md)
+Create a [service worker 'V_SW_SESSION_INIT' response](../interfaces/SvcWorkerSessionInitResponse.md)
 
 ## Parameters
 

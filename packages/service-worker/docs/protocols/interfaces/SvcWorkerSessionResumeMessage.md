@@ -16,7 +16,7 @@ Used to restore functionality after a suspend operation.
 
 ## Properties
 
-| Property                 | Type                          | Description                      | Overrides                                                                                |
-| ------------------------ | ----------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="id"></a> `id`     | `string`                      | Request ID for response matching | -                                                                                        |
-| <a id="type"></a> `type` | `"VROWSER_SW_SESSION_RESUME"` | -                                | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property                 | Type                    | Description                      | Overrides                                                                                |
+| ------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
+| <a id="id"></a> `id`     | `string`                | Request ID for response matching | -                                                                                        |
+| <a id="type"></a> `type` | `"V_SW_SESSION_RESUME"` | -                                | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |

@@ -12,11 +12,11 @@ const sessions = new Map()
 
 function handleSessionMessage(clientId, port, data) {
   switch (data.type) {
-    case 'VROWSER_SW_SESSION_CLOSE':
+    case 'V_SW_SESSION_CLOSE':
       port.close()
       sessions.delete(clientId)
       break
-    case 'VROWSER_SW_SESSION_PONG':
+    case 'V_SW_SESSION_PONG':
       const session = sessions.get(clientId)
       if (session) {
         session.lastPong = Date.now()
@@ -30,16 +30,16 @@ sw.addEventListener('message', event => {
   if (!data || typeof data.type !== 'string') return
 
   switch (data.type) {
-    case 'VROWSER_SW_VERSION': {
+    case 'V_SW_VERSION': {
       const port = event.ports && event.ports[0]
-      port?.postMessage({ type: 'VROWSER_SW_VERSION', version: SW_VERSION })
+      port?.postMessage({ type: 'V_SW_VERSION', version: SW_VERSION })
       break
     }
-    case 'VROWSER_SW_SKIP_WAITING': {
+    case 'V_SW_SKIP_WAITING': {
       self.skipWaiting()
       break
     }
-    case 'VROWSER_SW_SESSION_INIT': {
+    case 'V_SW_SESSION_INIT': {
       const port = event.ports && event.ports[0]
       const clientId = event.source?.id
       if (port && clientId) {

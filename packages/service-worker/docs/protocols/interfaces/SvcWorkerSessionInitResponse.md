@@ -10,8 +10,8 @@ SESSION_INIT response (Service Worker -> Page via MessagePort)
 
 ## Properties
 
-| Property                       | Type                        |
-| ------------------------------ | --------------------------- |
-| <a id="success"></a> `success` | `boolean`                   |
-| <a id="type"></a> `type`       | `"VROWSER_SW_SESSION_INIT"` |
-| <a id="version"></a> `version` | `string`                    |
+| Property                       | Type                  |
+| ------------------------------ | --------------------- |
+| <a id="success"></a> `success` | `boolean`             |
+| <a id="type"></a> `type`       | `"V_SW_SESSION_INIT"` |
+| <a id="version"></a> `version` | `string`              |

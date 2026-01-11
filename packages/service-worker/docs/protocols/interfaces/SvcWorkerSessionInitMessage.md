@@ -15,6 +15,6 @@ Sent with a MessagePort to establish a persistent session
 
 ## Properties
 
-| Property                 | Type                        | Overrides                                                                                |
-| ------------------------ | --------------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="type"></a> `type` | `"VROWSER_SW_SESSION_INIT"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property                 | Type                  | Overrides                                                                                |
+| ------------------------ | --------------------- | ---------------------------------------------------------------------------------------- |
+| <a id="type"></a> `type` | `"V_SW_SESSION_INIT"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |

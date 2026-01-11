@@ -10,7 +10,7 @@
 function createSvcWorkerSkipWaitingMessage(): SvcWorkerSkipWaitingMessage;
 ```
 
-Create a [service worker 'VROWSER_SW_SKIP_WAITING' message](../interfaces/SvcWorkerSkipWaitingMessage.md)
+Create a [service worker 'V_SW_SKIP_WAITING' message](../interfaces/SvcWorkerSkipWaitingMessage.md)
 
 ## Returns
 

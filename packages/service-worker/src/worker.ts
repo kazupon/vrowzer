@@ -33,13 +33,13 @@
  */
 
 import {
-  VROWSER_SW_SESSION_PONG,
-  VROWSER_SW_SESSION_CLOSE,
-  VROWSER_SW_SESSION_INIT,
-  VROWSER_SW_SESSION_CIRCUIT_BREAKER,
-  VROWSER_SW_SESSION_RESUME,
-  VROWSER_SW_SKIP_WAITING,
-  VROWSER_SW_VERSION,
+  V_SW_SESSION_PONG,
+  V_SW_SESSION_CLOSE,
+  V_SW_SESSION_INIT,
+  V_SW_SESSION_CIRCUIT_BREAKER,
+  V_SW_SESSION_RESUME,
+  V_SW_SKIP_WAITING,
+  V_SW_VERSION,
   createSvcWorkerSessionCircuitBreakerResponse,
   createSvcWorkerSessionResumeResponse,
   createSvcWorkerSessionInitResponse,
@@ -300,14 +300,14 @@ export function createSvcWorker(
       debug?.('createSvcWorker: session message from', clientId, data.type)
 
       switch (data.type) {
-        case VROWSER_SW_SESSION_CLOSE: {
+        case V_SW_SESSION_CLOSE: {
           debug?.('createSvcWorker: session close from', clientId)
           port.close()
           sessions.delete(clientId)
           break
         }
 
-        case VROWSER_SW_SESSION_PONG: {
+        case V_SW_SESSION_PONG: {
           const session = sessions.get(clientId)
           if (session) {
             session.lastPong = Date.now()
@@ -316,13 +316,13 @@ export function createSvcWorker(
           break
         }
 
-        case VROWSER_SW_SESSION_CIRCUIT_BREAKER: {
+        case V_SW_SESSION_CIRCUIT_BREAKER: {
           // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
           handleCircuitBreaker(data, port)
           break
         }
 
-        case VROWSER_SW_SESSION_RESUME: {
+        case V_SW_SESSION_RESUME: {
           handleResume(data, port)
           break
         }
@@ -393,7 +393,7 @@ export function createSvcWorker(
       debug?.('createSvcWorker: received message', data.type)
 
       switch (data.type) {
-        case VROWSER_SW_VERSION: {
+        case V_SW_VERSION: {
           const port = event.ports?.[0]
           if (port) {
             debug?.('createSvcWorker: responding with version', version)
@@ -402,14 +402,14 @@ export function createSvcWorker(
           break
         }
 
-        case VROWSER_SW_SKIP_WAITING: {
+        case V_SW_SKIP_WAITING: {
           debug?.('createSvcWorker: executing skipWaiting')
           // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
           self.skipWaiting()
           break
         }
 
-        case VROWSER_SW_SESSION_INIT: {
+        case V_SW_SESSION_INIT: {
           const port = event.ports?.[0]
           const clientId = (event.source as Client | null)?.id
 

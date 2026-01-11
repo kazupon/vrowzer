@@ -14,7 +14,7 @@ Terminated notification message (Service Worker -> Page via session MessagePort)
 
 ## Properties
 
-| Property                     | Type                              | Description                | Overrides                                                                                |
-| ---------------------------- | --------------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="reason"></a> `reason` | `"unregister"`                    | The reason for termination | -                                                                                        |
-| <a id="type"></a> `type`     | `"VROWSER_SW_SESSION_TERMINATED"` | -                          | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property                     | Type                        | Description                | Overrides                                                                                |
+| ---------------------------- | --------------------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
+| <a id="reason"></a> `reason` | `"unregister"`              | The reason for termination | -                                                                                        |
+| <a id="type"></a> `type`     | `"V_SW_SESSION_TERMINATED"` | -                          | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |

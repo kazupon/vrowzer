@@ -388,54 +388,54 @@ Re-exports [terminateServiceWorker](../admin/functions/terminateServiceWorker.md
 
 ---
 
-### VROWSER_SW_SESSION_CIRCUIT_BREAKER
+### V_SW_SESSION_CIRCUIT_BREAKER
 
-Re-exports [VROWSER_SW_SESSION_CIRCUIT_BREAKER](../protocols/variables/VROWSER_SW_SESSION_CIRCUIT_BREAKER.md)
-
----
-
-### VROWSER_SW_SESSION_CLOSE
-
-Re-exports [VROWSER_SW_SESSION_CLOSE](../protocols/variables/VROWSER_SW_SESSION_CLOSE.md)
+Re-exports [V_SW_SESSION_CIRCUIT_BREAKER](../protocols/variables/V_SW_SESSION_CIRCUIT_BREAKER.md)
 
 ---
 
-### VROWSER_SW_SESSION_INIT
+### V_SW_SESSION_CLOSE
 
-Re-exports [VROWSER_SW_SESSION_INIT](../protocols/variables/VROWSER_SW_SESSION_INIT.md)
-
----
-
-### VROWSER_SW_SESSION_PING
-
-Re-exports [VROWSER_SW_SESSION_PING](../protocols/variables/VROWSER_SW_SESSION_PING.md)
+Re-exports [V_SW_SESSION_CLOSE](../protocols/variables/V_SW_SESSION_CLOSE.md)
 
 ---
 
-### VROWSER_SW_SESSION_PONG
+### V_SW_SESSION_INIT
 
-Re-exports [VROWSER_SW_SESSION_PONG](../protocols/variables/VROWSER_SW_SESSION_PONG.md)
-
----
-
-### VROWSER_SW_SESSION_RESUME
-
-Re-exports [VROWSER_SW_SESSION_RESUME](../protocols/variables/VROWSER_SW_SESSION_RESUME.md)
+Re-exports [V_SW_SESSION_INIT](../protocols/variables/V_SW_SESSION_INIT.md)
 
 ---
 
-### VROWSER_SW_SESSION_TERMINATED
+### V_SW_SESSION_PING
 
-Re-exports [VROWSER_SW_SESSION_TERMINATED](../protocols/variables/VROWSER_SW_SESSION_TERMINATED.md)
-
----
-
-### VROWSER_SW_SKIP_WAITING
-
-Re-exports [VROWSER_SW_SKIP_WAITING](../protocols/variables/VROWSER_SW_SKIP_WAITING.md)
+Re-exports [V_SW_SESSION_PING](../protocols/variables/V_SW_SESSION_PING.md)
 
 ---
 
-### VROWSER_SW_VERSION
+### V_SW_SESSION_PONG
 
-Re-exports [VROWSER_SW_VERSION](../protocols/variables/VROWSER_SW_VERSION.md)
+Re-exports [V_SW_SESSION_PONG](../protocols/variables/V_SW_SESSION_PONG.md)
+
+---
+
+### V_SW_SESSION_RESUME
+
+Re-exports [V_SW_SESSION_RESUME](../protocols/variables/V_SW_SESSION_RESUME.md)
+
+---
+
+### V_SW_SESSION_TERMINATED
+
+Re-exports [V_SW_SESSION_TERMINATED](../protocols/variables/V_SW_SESSION_TERMINATED.md)
+
+---
+
+### V_SW_SKIP_WAITING
+
+Re-exports [V_SW_SKIP_WAITING](../protocols/variables/V_SW_SKIP_WAITING.md)
+
+---
+
+### V_SW_VERSION
+
+Re-exports [V_SW_VERSION](../protocols/variables/V_SW_VERSION.md)
