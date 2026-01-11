@@ -556,9 +556,9 @@ function getServiceWorkerVersion(
       }
     }
 
-    // @ts-expect-error -- FXIME: why? TS2769 error...
     ch.port1.addEventListener(
       'message',
+      // @ts-expect-error -- FXIME: why? TS2769 error...
       (e: MessageEvent) => {
         if (isSvcWrokerVersionMessageResponse(e.data)) {
           cleanup()
