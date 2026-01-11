@@ -373,4 +373,187 @@ describe('createSvcWorkerController', () => {
       controller.dispose()
     })
   })
+
+  describe('properties', () => {
+    test('should expose scriptURL property', () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/props-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      expect(controller.scriptURL).toBe('/controller/props-test.js')
+    })
+
+    test('should expose scriptURL as string when URL object is provided', () => {
+      const url = new URL('/controller/props-test-url.js', location.origin)
+      const controller = createSvcWorkerController({
+        scriptURL: url,
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      expect(controller.scriptURL).toBe(url.href)
+    })
+
+    test('should expose version property', () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/props-test.js',
+        version: 'v2.0.0',
+        scope: '/controller/'
+      })
+
+      expect(controller.version).toBe('v2.0.0')
+    })
+  })
+
+  describe('suspend and resume', () => {
+    test('suspend should throw error if session not established', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/suspend-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      // Don't call ready() - session is not established
+      await expect(controller.suspend()).rejects.toThrow(
+        'Session not established. Call ready() first.'
+      )
+    })
+
+    test('resume should throw error if session not established', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/resume-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      // Don't call ready() - session is not established
+      await expect(controller.resume()).rejects.toThrow(
+        'Session not established. Call ready() first.'
+      )
+    })
+
+    test('suspend should throw error if not in activated state', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/suspend-state-test.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      // State is 'installing' initially
+      expect(controller.state).toBe('installing')
+
+      await expect(controller.suspend()).rejects.toThrow(
+        'Session not established. Call ready() first.'
+      )
+    })
+  })
+
+  describe('circuit breaker with protocol-enabled service worker', () => {
+    test('should suspend service worker successfully', async () => {
+      const suspendedEvents: void[] = []
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/v1-circuit-breaker.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      controller.on('suspended', () => {
+        suspendedEvents.push(undefined)
+      })
+
+      await controller.ready()
+      expect(controller.state).toBe('activated')
+      expect(controller.session).not.toBeNull()
+
+      const result = await controller.suspend()
+
+      expect(result.mode).toBe('suspend')
+      expect(result.terminated).toBe(false)
+      expect(controller.state).toBe('suspended')
+      expect(suspendedEvents).toHaveLength(1)
+    })
+
+    test('should resume service worker after suspend', async () => {
+      const resumedEvents: void[] = []
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/v1-circuit-breaker.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      controller.on('resumed', () => {
+        resumedEvents.push(undefined)
+      })
+
+      await controller.ready()
+
+      await controller.suspend()
+      expect(controller.state).toBe('suspended')
+
+      const result = await controller.resume()
+
+      expect(result).toBeDefined()
+      expect(controller.state).toBe('activated')
+      expect(resumedEvents).toHaveLength(1)
+    })
+
+    test('should throw error when resuming non-suspended service worker', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/v1-circuit-breaker.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      await controller.ready()
+      expect(controller.state).toBe('activated')
+
+      await expect(controller.resume()).rejects.toThrow('Cannot resume in state: activated')
+    })
+
+    test('should allow suspend with clearCaches option', async () => {
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/v1-circuit-breaker.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      await controller.ready()
+
+      const result = await controller.suspend({ clearCaches: true })
+
+      expect(result.mode).toBe('suspend')
+      expect(result.cachesCleared).toBeDefined()
+      expect(Array.isArray(result.cachesCleared)).toBe(true)
+      expect(controller.state).toBe('suspended')
+    })
+
+    test('should transition through correct states: activated -> suspended -> activated', async () => {
+      const stateChanges: string[] = []
+      const controller = createSvcWorkerController({
+        scriptURL: '/controller/v1-circuit-breaker.js',
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      controller.on('suspended', () => {
+        stateChanges.push('suspended')
+      })
+      controller.on('resumed', () => {
+        stateChanges.push('resumed')
+      })
+
+      await controller.ready()
+      expect(controller.state).toBe('activated')
+
+      await controller.suspend()
+      expect(controller.state).toBe('suspended')
+
+      await controller.resume()
+      expect(controller.state).toBe('activated')
+
+      expect(stateChanges).toEqual(['suspended', 'resumed'])
+    })
+  })
 })

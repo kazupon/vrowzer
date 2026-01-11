@@ -3,6 +3,8 @@ import {
   VROWSER_SW_SESSION_PONG,
   VROWSER_SW_SESSION_CLOSE,
   VROWSER_SW_SESSION_INIT,
+  VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+  VROWSER_SW_SESSION_RESUME,
   VROWSER_SW_SKIP_WAITING,
   VROWSER_SW_VERSION
 } from './protocols.ts'
@@ -439,6 +441,158 @@ describe('createSvcWorker', () => {
     test('should expose onSessionRequest handler', () => {
       const self = createSvcWorker(mockSelf, { version: 'v1' })
       expect(typeof self.onSessionRequest).toBe('function')
+    })
+  })
+
+  describe('suspended property', () => {
+    test('should initially be false', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      expect(self.suspended).toBe(false)
+    })
+
+    test('should be readonly', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      expect(() => {
+        // @ts-expect-error - testing readonly
+        self.suspended = true
+      }).toThrow()
+    })
+
+    test('should be included in "in" operator', () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      expect('suspended' in self).toBe(true)
+    })
+  })
+
+  describe('circuit breaker', () => {
+    // Helper to create a mock MessagePort
+    function createMockPort() {
+      const portListeners = new Map<string, Set<EventListener>>()
+      return {
+        postMessage: vi.fn(),
+        close: vi.fn(),
+        start: vi.fn(),
+        addEventListener: vi.fn((type: string, listener: EventListener) => {
+          if (!portListeners.has(type)) {
+            portListeners.set(type, new Set())
+          }
+          portListeners.get(type)!.add(listener)
+        }),
+        removeEventListener: vi.fn((type: string, listener: EventListener) => {
+          portListeners.get(type)?.delete(listener)
+        }),
+        _dispatchEvent: (type: string, event: unknown) => {
+          portListeners.get(type)?.forEach(listener => listener(event as Event))
+        }
+      }
+    }
+
+    function setupSession(_self: ReturnType<typeof createSvcWorker>) {
+      const mockPort = createMockPort()
+      mockSelf._dispatchEvent('message', {
+        data: { type: VROWSER_SW_SESSION_INIT },
+        ports: [mockPort],
+        source: { id: 'client-123' }
+      })
+      return mockPort
+    }
+
+    test('should handle CIRCUIT_BREAKER suspend message', async () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      const mockPort = setupSession(self)
+
+      expect(self.suspended).toBe(false)
+
+      // Send circuit breaker message
+      mockPort._dispatchEvent('message', {
+        data: {
+          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          id: 'cb-1',
+          mode: 'suspend'
+        }
+      })
+
+      // Wait for async handler
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      expect(self.suspended).toBe(true)
+      expect(mockPort.postMessage).toHaveBeenCalledWith({
+        type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+        id: 'cb-1',
+        success: true,
+        data: {
+          mode: 'suspend',
+          terminated: false,
+          cachesCleared: []
+        }
+      })
+    })
+
+    test('should handle RESUME message', async () => {
+      const self = createSvcWorker(mockSelf, { version: 'v1' })
+      const mockPort = setupSession(self)
+
+      // First suspend
+      mockPort._dispatchEvent('message', {
+        data: {
+          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          id: 'cb-1',
+          mode: 'suspend'
+        }
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+      expect(self.suspended).toBe(true)
+
+      // Then resume
+      mockPort._dispatchEvent('message', {
+        data: {
+          type: VROWSER_SW_SESSION_RESUME,
+          id: 'resume-1'
+        }
+      })
+
+      expect(self.suspended).toBe(false)
+      expect(mockPort.postMessage).toHaveBeenCalledWith({
+        type: VROWSER_SW_SESSION_RESUME,
+        id: 'resume-1',
+        success: true,
+        data: {}
+      })
+    })
+
+    test('should log debug messages for circuit breaker', async () => {
+      const debug = vi.fn()
+      const self = createSvcWorker(mockSelf, { version: 'v1', debug })
+      const mockPort = setupSession(self)
+
+      mockPort._dispatchEvent('message', {
+        data: {
+          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          id: 'cb-1',
+          mode: 'suspend'
+        }
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      expect(debug).toHaveBeenCalledWith('createSvcWorker: circuit breaker suspended')
+    })
+
+    test('should log debug messages for resume', () => {
+      const debug = vi.fn()
+      const self = createSvcWorker(mockSelf, { version: 'v1', debug })
+      const mockPort = setupSession(self)
+
+      // Resume (even without prior suspend)
+      mockPort._dispatchEvent('message', {
+        data: {
+          type: VROWSER_SW_SESSION_RESUME,
+          id: 'resume-1'
+        }
+      })
+
+      expect(debug).toHaveBeenCalledWith('createSvcWorker: circuit breaker resumed')
     })
   })
 })

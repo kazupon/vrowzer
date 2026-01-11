@@ -39,12 +39,21 @@ import { createEmitter, waitOnce } from '@kazupon/jts-utils/event'
 import {
   isSvcWrokerVersionMessageResponse,
   createSvcWorkerVersionMessage,
-  createSvcWorkerSkipWaitingMessage
+  createSvcWorkerSkipWaitingMessage,
+  VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+  VROWSER_SW_SESSION_RESUME
 } from './protocols.ts'
 import { createSession } from './session.ts'
+import { SESSION_SYMBOL } from './symbols.ts'
+import * as registry from './registry.ts'
 
 import type { Emittable } from '@kazupon/jts-utils'
 import type { SvcWorkerSession } from './session.ts'
+import type {
+  SvcWorkerSessionCircuitBreakerResult,
+  SvcWorkerSessionResumeResult,
+  SvcWorkerTerminatedReason
+} from './protocols.ts'
 
 /**
  * {@link SvcWorkerController | Service Worker Controller} instance creation options
@@ -103,7 +112,7 @@ export interface ReloadSuggestInfo {
 }
 
 /**
- * {@link SvcWorkerController | Service Worker Controller} state type
+ * {@link SvcWorkerController | Service Worker Controller} state
  *
  * Note that while it's similar to the state provided by {@link ServiceWorkerState | service worker state}, it's not identical.
  * It has been adjusted to be easier for the Service worker controller to handle the expected service worker.
@@ -117,8 +126,22 @@ export interface ReloadSuggestInfo {
  *   - Expected service worker becomes the controller after promotion
  *   - Installing service worker skips waiting and transitions directly to activated state
  *   - Expected service worker is active but not yet controlling the page (reload suggested)
+ * - `'suspended'`: Service worker functionality is temporarily disabled (soft kill / circuit breaker engaged)
+ * - `'terminated'`: Service worker has been unregistered (hard kill / circuit breaker tripped)
+ *
+ * State transitions:
+ * - `activated` → `suspended`: suspend() called (soft kill / circuit breaker engaged)
+ * - `activated` → `terminated`: terminate() called (hard kill / circuit breaker tripped)
+ * - `suspended` → `activated`: resume() called (circuit breaker disengaged)
+ * - `suspended` → `terminated`: terminate() called (hard kill / circuit breaker tripped)
  */
-export type SvcWorkerControllerState = 'installing' | 'waiting' | 'activating' | 'activated'
+export type SvcWorkerControllerState =
+  | 'installing'
+  | 'waiting'
+  | 'activating'
+  | 'activated'
+  | 'suspended'
+  | 'terminated'
 
 /**
  * {@link SvcWorkerController | Service Worker Controller} state change information
@@ -167,6 +190,22 @@ export type SvcWorkerControllerEventMap = {
    * Payload is {@link StateChangeInfo}
    */
   changeState: StateChangeInfo
+  /**
+   * Fired when the service worker is suspended (soft kill / circuit breaker engaged).
+   * The service worker remains registered but functionality is disabled.
+   */
+  suspended: void
+  /**
+   * Fired when the service worker is terminated (hard kill / circuit breaker tripped).
+   * The service worker has been unregistered.
+   * Payload is the reason for termination.
+   */
+  terminated: SvcWorkerTerminatedReason
+  /**
+   * Fired when the service worker is resumed after suspension.
+   * Functionality has been restored.
+   */
+  resumed: void
 }
 
 /**
@@ -201,6 +240,14 @@ export interface SvcWorkerControllerReadyOptions {
  */
 export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventMap>, Disposable {
   /**
+   * The script URL of the service worker
+   */
+  readonly scriptURL: string
+  /**
+   * The version tag of the service worker
+   */
+  readonly version: string
+  /**
    * The current state of the {@link SvcWorkerController}
    */
   readonly state: SvcWorkerControllerState
@@ -227,6 +274,30 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
    */
   ready: (options?: SvcWorkerControllerReadyOptions) => Promise<boolean>
   /**
+   * Suspend the service worker (soft kill / circuit breaker).
+   *
+   * This engages the circuit breaker, disabling service worker functionality
+   * without unregistering it. The service worker remains active but should
+   * bypass its fetch handlers.
+   *
+   * @param options - Suspend options
+   * @returns Result of the suspend operation
+   */
+  suspend: (options?: {
+    clearCaches?: boolean
+    signal?: AbortSignal
+  }) => Promise<SvcWorkerSessionCircuitBreakerResult>
+  /**
+   * Resume the service worker after suspension.
+   *
+   * This disengages the circuit breaker, restoring normal service worker
+   * functionality.
+   *
+   * @param options - Resume options
+   * @returns Result of the resume operation
+   */
+  resume: (options?: { signal?: AbortSignal }) => Promise<SvcWorkerSessionResumeResult>
+  /**
    * Dispose the controller instance and remove from cache.
    * After disposal, a new instance can be created with the same options.
    */
@@ -235,6 +306,16 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
    * Symbol.dispose for `using` syntax support (TypeScript 5.2+)
    */
   [Symbol.dispose]: () => void
+}
+
+/**
+ * Internal interface extending SvcWorkerController with Symbol-based hidden properties.
+ * Used by `admin.ts` to access session.
+ *
+ * @internal
+ */
+export interface SvcWorkerControllerInternal extends SvcWorkerController {
+  [SESSION_SYMBOL]: SvcWorkerSession | null
 }
 
 // Singleton instance cache
@@ -363,6 +444,13 @@ export function createSvcWorkerController(
         ...(_debug ? { debug: _debug } : {})
       })
       _debug?.('createSvcWorkerController: session established, version:', _session.version)
+
+      // Register terminated callback to update state when service worker unregisters
+      _session.onTerminated(reason => {
+        _debug?.('createSvcWorkerController: received terminated notification, reason:', reason)
+        _state = 'terminated'
+        _emitter.emit('terminated', reason)
+      })
     } catch (error) {
       _debug?.('createSvcWorkerController: failed to establish session', error)
       // Session is optional - controller still works without it
@@ -398,6 +486,7 @@ export function createSvcWorkerController(
           setupControllerChangeHandler(timeout)
         }
         emitProgress('already-expected-controller')
+        registry.register(instance)
         return true
       }
 
@@ -426,6 +515,7 @@ export function createSvcWorkerController(
             setupControllerChangeHandler(timeout)
           }
           emitProgress('controller-is-expected')
+          registry.register(instance)
           return true
         }
 
@@ -459,6 +549,7 @@ export function createSvcWorkerController(
             })
           }
           emitProgress('expected-active-returning (reload suggested)')
+          registry.register(instance)
           return true
         }
 
@@ -494,14 +585,92 @@ export function createSvcWorkerController(
     }
   }
 
+  async function suspend(
+    suspendOptions: { clearCaches?: boolean; signal?: AbortSignal } = {}
+  ): Promise<SvcWorkerSessionCircuitBreakerResult> {
+    if (!_session) {
+      throw new SvcWorkerControllerError('Session not established. Call ready() first.')
+    }
+    if (_state !== 'activated' && _state !== 'suspended') {
+      throw new SvcWorkerControllerError(`Cannot suspend in state: ${_state}`)
+    }
+
+    _debug?.('createSvcWorkerController: suspending service worker')
+
+    try {
+      const result = await _session.send<SvcWorkerSessionCircuitBreakerResult>(
+        {
+          type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+          mode: 'suspend',
+          clearCaches: suspendOptions.clearCaches
+        },
+        suspendOptions.signal ? { signal: suspendOptions.signal } : undefined
+      )
+
+      _state = 'suspended'
+      _emitter.emit('suspended')
+      _debug?.('createSvcWorkerController: suspended')
+
+      return result
+    } catch (error) {
+      throw new SvcWorkerControllerError(
+        'Failed to suspend service worker',
+        error instanceof Error ? error : undefined
+      )
+    }
+  }
+
+  async function resume(
+    resumeOptions: { signal?: AbortSignal } = {}
+  ): Promise<SvcWorkerSessionResumeResult> {
+    if (!_session) {
+      throw new SvcWorkerControllerError('Session not established. Call ready() first.')
+    }
+    if (_state !== 'suspended') {
+      throw new SvcWorkerControllerError(`Cannot resume in state: ${_state}`)
+    }
+
+    _debug?.('createSvcWorkerController: resuming service worker')
+
+    try {
+      const result = await _session.send<SvcWorkerSessionResumeResult>(
+        {
+          type: VROWSER_SW_SESSION_RESUME
+        },
+        resumeOptions.signal ? { signal: resumeOptions.signal } : undefined
+      )
+
+      _state = 'activated'
+      _emitter.emit('resumed')
+      _debug?.('createSvcWorkerController: resumed')
+
+      return result
+    } catch (error) {
+      throw new SvcWorkerControllerError(
+        'Failed to resume service worker',
+        error instanceof Error ? error : undefined
+      )
+    }
+  }
+
   function dispose(): void {
+    registry.unregister(instance)
     instanceCache.delete(key)
     optionsCache.delete(key)
     reset()
   }
 
-  const instance = Object.freeze({
+  // Convert scriptURL to string for consistent access
+  const _scriptURL = typeof scriptURL === 'string' ? scriptURL : scriptURL.href
+
+  const instance: SvcWorkerControllerInternal = Object.freeze({
     ..._emitter,
+    get scriptURL() {
+      return _scriptURL
+    },
+    get version() {
+      return version
+    },
     get state() {
       return _state
     },
@@ -511,7 +680,12 @@ export function createSvcWorkerController(
     get session() {
       return _session
     },
+    get [SESSION_SYMBOL]() {
+      return _session
+    },
     ready,
+    suspend,
+    resume,
     dispose,
     [Symbol.dispose]: dispose
   })

@@ -37,11 +37,16 @@ import {
   VROWSER_SW_SESSION_CLOSE,
   VROWSER_SW_SESSION_INIT,
   VROWSER_SW_SESSION_REQUEST,
+  VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+  VROWSER_SW_SESSION_RESUME,
   VROWSER_SW_SKIP_WAITING,
   VROWSER_SW_VERSION,
+  createSvcWorkerSessionCircuitBreakerResponse,
+  createSvcWorkerSessionResumeResponse,
   createSvcWorkerSessionRequestResponse,
   createSvcWorkerSessionInitResponse,
   createSvcWorkerSessionPingMessage,
+  createSvcWorkerSessionTerminatedMessage,
   createSvcWorkerVersionResponse
 } from './protocols.ts'
 
@@ -49,7 +54,11 @@ import type {
   SvcWorkerMessage,
   SvcWorkerSessionMessage,
   SvcWorkerSessionRequest,
-  SvcWorkerSessionResponse
+  SvcWorkerSessionResponse,
+  SvcWorkerSessionCircuitBreakerMessage,
+  SvcWorkerSessionResumeMessage,
+  SvcWorkerSessionCircuitBreakerResult,
+  SvcWorkerSessionResumeResult
 } from './protocols.ts'
 
 /**
@@ -122,6 +131,24 @@ export interface SvcWorker extends ServiceWorkerGlobalScope, Disposable {
    */
   readonly sessionCount: number
   /**
+   * Whether the service worker is suspended (circuit breaker engaged).
+   *
+   * When `true`, fetch handlers should bypass their logic and
+   * return `fetch(event.request)` directly.
+   *
+   * @example
+   * ```typescript
+   * sw.addEventListener('fetch', (event) => {
+   *   if (sw.suspended) {
+   *     event.respondWith(fetch(event.request))
+   *     return
+   *   }
+   *   // Normal fetch handling...
+   * })
+   * ```
+   */
+  readonly suspended: boolean
+  /**
    * Register a handler for session requests
    */
   onSessionRequest(handler: SessionRequestHandler): void
@@ -159,6 +186,124 @@ export function createSvcWorker(
   const sessions = new Map<string, SessionInfo>()
   let sessionRequestHandler: SessionRequestHandler | null = null
   let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null
+
+  // Circuit breaker state (memory only, not persisted)
+  let _suspended = false
+
+  function cleanupSession(
+    session: SessionInfo,
+    clientId: string,
+    sessions: Map<string, SessionInfo>
+  ) {
+    debug?.('createSvcWorker: cleaning up session', clientId)
+    session.port.close()
+    sessions.delete(clientId)
+  }
+
+  // Circuit breaker handler (built-in, not overridable by user)
+  async function handleCircuitBreaker(
+    message: SvcWorkerSessionCircuitBreakerMessage,
+    port: MessagePort
+  ): Promise<void> {
+    const cachesCleared: string[] = []
+
+    try {
+      if (message.mode === 'suspend') {
+        // Suspend: Disable functionality (fetch handlers should bypass)
+        _suspended = true
+        debug?.('createSvcWorker: circuit breaker suspended')
+      }
+
+      // Clear caches if requested
+      if (message.clearCaches) {
+        const cacheNames = await caches.keys()
+        for (const name of cacheNames) {
+          await caches.delete(name)
+          cachesCleared.push(name)
+        }
+        debug?.('createSvcWorker: circuit breaker cleared caches', cachesCleared)
+      }
+
+      if (message.mode === 'terminate') {
+        // Terminate: Service worker unregisters itself
+        debug?.('createSvcWorker: circuit breaker terminating')
+
+        // Notify all sessions about termination before unregistering
+        const terminatedMessage = createSvcWorkerSessionTerminatedMessage('unregister')
+        for (const [clientId, session] of sessions) {
+          try {
+            session.port.postMessage(terminatedMessage)
+          } catch (e) {
+            // Port may already be closed, ignore
+            // TODO: should be good handling/logging here
+            console.error(e)
+          } finally {
+            cleanupSession(session, clientId, sessions)
+          }
+        }
+
+        // Stop heartbeat since all sessions are closed
+        stopHeartbeat()
+
+        await self.registration.unregister()
+      }
+
+      // Send success response (SvcWorkerSessionGenericResponse format)
+      const response =
+        createSvcWorkerSessionCircuitBreakerResponse<SvcWorkerSessionCircuitBreakerResult>(
+          message.id,
+          true,
+          {
+            data: {
+              mode: message.mode,
+              terminated: message.mode === 'terminate',
+              cachesCleared
+            }
+          }
+        )
+      port.postMessage(response)
+    } catch (error) {
+      // Send error response
+      const response =
+        createSvcWorkerSessionCircuitBreakerResponse<SvcWorkerSessionCircuitBreakerResult>(
+          message.id,
+          false,
+          {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        )
+      port.postMessage(response)
+    }
+  }
+
+  // Resume handler (built-in, not overridable by user)
+  function handleResume(message: SvcWorkerSessionResumeMessage, port: MessagePort): void {
+    try {
+      // Resume: Re-enable functionality
+      _suspended = false
+      debug?.('createSvcWorker: circuit breaker resumed')
+
+      // Send success response (SvcWorkerSessionGenericResponse format)
+      const response = createSvcWorkerSessionResumeResponse<SvcWorkerSessionResumeResult>(
+        message.id,
+        true,
+        {
+          data: {}
+        }
+      )
+      port.postMessage(response)
+    } catch (error) {
+      // Send error response
+      const response = createSvcWorkerSessionResumeResponse<SvcWorkerSessionResumeResult>(
+        message.id,
+        false,
+        {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      )
+      port.postMessage(response)
+    }
+  }
 
   // Handle session port messages
   function createSessionPortHandler(clientId: string, port: MessagePort) {
@@ -208,6 +353,17 @@ export function createSvcWorker(
           break
         }
 
+        case VROWSER_SW_SESSION_CIRCUIT_BREAKER: {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+          handleCircuitBreaker(data, port)
+          break
+        }
+
+        case VROWSER_SW_SESSION_RESUME: {
+          handleResume(data, port)
+          break
+        }
+
         default: {
           console.warn('createSvcWorker: unknown session message type received:', data)
           break
@@ -229,8 +385,7 @@ export function createSvcWorker(
         // Check if session is stale
         if (now - session.lastPong > sessionTimeout) {
           debug?.('createSvcWorker: session timeout, removing', clientId)
-          session.port.close()
-          sessions.delete(clientId)
+          cleanupSession(session, clientId, sessions)
           continue
         }
 
@@ -260,8 +415,7 @@ export function createSvcWorker(
     for (const [clientId, session] of sessions) {
       if (!activeClientIds.has(clientId)) {
         debug?.('createSvcWorker: orphaned session, removing', clientId)
-        session.port.close()
-        sessions.delete(clientId)
+        cleanupSession(session, clientId, sessions)
       }
     }
   }
@@ -352,7 +506,7 @@ export function createSvcWorker(
     // Close all sessions
     for (const [clientId, session] of sessions) {
       debug?.('createSvcWorker: closing session', clientId)
-      session.port.close()
+      cleanupSession(session, clientId, sessions)
     }
     sessions.clear()
   }
@@ -373,6 +527,9 @@ export function createSvcWorker(
     },
     get sessionCount() {
       return sessions.size
+    },
+    get suspended() {
+      return _suspended
     },
     onSessionRequest,
     dispose,
@@ -411,7 +568,7 @@ export function createSvcWorker(
 
     set(target, prop, value, receiver) {
       // Readonly extension properties
-      if (prop === 'version' || prop === 'sessionCount') {
+      if (prop === 'version' || prop === 'sessionCount' || prop === 'suspended') {
         throw new TypeError(`Cannot assign to read only property '${String(prop)}'`)
       }
 

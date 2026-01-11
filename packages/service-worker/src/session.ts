@@ -15,15 +15,21 @@
 import {
   createSvcWorkerSessionRequest,
   createSvcWorkerSessionCloseMessage,
-  isSvcWorkerSessionRequestResponse,
   isSvcWorkerSessionPingMessage,
+  isSvcWorkerSessionGenericResponse,
   isSvcWorkerSessionInitResponse,
+  isSvcWorkerSessionTerminatedMessage,
   createSvcWorkerSessionInitMessage,
   createSvcWorkerSessionPongMessage
 } from './protocols.ts'
 import { abortError } from '@kazupon/jts-utils/abort'
 
-import type { SvcWorkerSessionInitResponse, SvcWorkerSessionMessage } from './protocols.ts'
+import type {
+  SvcWorkerSessionInitResponse,
+  SvcWorkerSessionMessage,
+  SvcWorkerMessageBase,
+  SvcWorkerTerminatedReason
+} from './protocols.ts'
 
 /**
  * Session Error
@@ -67,7 +73,10 @@ export interface SvcWorkerSession extends Disposable {
   /**
    * Send a request to the Service Worker and wait for a response
    *
-   * @param type - The message type
+   * The message is wrapped in VROWSER_SW_SESSION_REQUEST format,
+   * with the `type` parameter becoming `requestType` in the wrapped message.
+   *
+   * @param type - The message type (becomes requestType in the wrapped message)
    * @param payload - Optional payload data
    * @param options - Request options
    * @returns Promise resolving to the response data
@@ -82,11 +91,49 @@ export interface SvcWorkerSession extends Disposable {
     }
   ): Promise<T>
   /**
+   * Send a message through the session port and wait for response
+   *
+   * Unlike request(), this sends the message with its own 'type' field intact,
+   * without wrapping it in VROWSER_SW_SESSION_REQUEST.
+   *
+   * An 'id' field will be auto-generated if not present, used for response matching.
+   * The service worker should respond with a message containing the same 'id'.
+   *
+   * @param message - The message to send (must have 'type' field)
+   * @param options - Request options
+   * @returns Promise resolving to the response data
+   * @throws {SvcWorkerSessionError} If the session is not connected or the request fails
+   * @throws {DOMException} If the request is aborted
+   *
+   * @example
+   * ```typescript
+   * const result = await session.send<CircuitBreakerResult>({
+   *   type: VROWSER_SW_SESSION_CIRCUIT_BREAKER,
+   *   mode: 'suspend'
+   * })
+   * ```
+   */
+  send<T>(
+    message: SvcWorkerMessageBase & Record<string, unknown>,
+    options?: {
+      signal?: AbortSignal
+    }
+  ): Promise<T>
+  /**
    * Close the session
    *
    * @throws {SvcWorkerSessionError} If an error occurs while closing the session
    */
   close(): void
+  /**
+   * Register a callback to be called when the service worker is terminated.
+   *
+   * This is triggered when the service worker sends a VROWSER_SW_SESSION_TERMINATED
+   * message, typically when it has unregistered itself via circuit breaker.
+   *
+   * @param callback - The callback to invoke when terminated, receives the reason
+   */
+  onTerminated(callback: (reason: SvcWorkerTerminatedReason) => void): void
 }
 
 /**
@@ -135,6 +182,7 @@ export async function createSession(
 
   let _connected = false
   let _version = ''
+  let _onTerminatedCallback: ((reason: SvcWorkerTerminatedReason) => void) | null = null
 
   // Handle incoming messages on the session port
   function handleMessage(event: MessageEvent<SvcWorkerSessionMessage>) {
@@ -150,8 +198,17 @@ export async function createSession(
       return
     }
 
-    // Handle responses
-    if (isSvcWorkerSessionRequestResponse(data)) {
+    // Handle TERMINATED notification
+    if (isSvcWorkerSessionTerminatedMessage(data)) {
+      debug?.('createSession: received TERMINATED notification, reason:', data.reason)
+      _onTerminatedCallback?.(data.reason)
+      return
+    }
+
+    // Handle any response with id + success fields (generic response handling)
+    // This handles both VROWSER_SW_SESSION_REQUEST responses and
+    // dedicated protocol responses (CIRCUIT_BREAKER, RESUME, etc.)
+    if (isSvcWorkerSessionGenericResponse(data)) {
       const pending = pendingRequests.get(data.id)
       if (pending) {
         pendingRequests.delete(data.id)
@@ -263,6 +320,51 @@ export async function createSession(
       })
     }
 
+    function send<T>(
+      message: SvcWorkerMessageBase & Record<string, unknown>,
+      sendOptions: { signal?: AbortSignal } = {}
+    ): Promise<T> {
+      if (!_connected) {
+        return Promise.reject(new SvcWorkerSessionError('Session not connected'))
+      }
+
+      const { signal } = sendOptions
+      // Auto-generate id if not present
+      const id = (message as { id?: string }).id ?? crypto.randomUUID()
+      const messageWithId = { ...message, id }
+
+      // Check if already aborted
+      if (signal?.aborted) {
+        return Promise.reject(abortError(signal, { message: 'Request aborted' }) as DOMException)
+      }
+
+      return new Promise<T>((resolveSend, rejectSend) => {
+        function onAbort() {
+          pendingRequests.delete(id)
+          rejectSend(new SvcWorkerSessionError('Request aborted'))
+        }
+
+        // Handle abort signal
+        if (signal) {
+          signal.addEventListener('abort', onAbort, { once: true })
+        }
+
+        pendingRequests.set(id, {
+          resolve: (value: unknown) => {
+            signal?.removeEventListener('abort', onAbort)
+            resolveSend(value as T)
+          },
+          reject: (error: Error) => {
+            signal?.removeEventListener('abort', onAbort)
+            rejectSend(error)
+          }
+        })
+
+        debug?.('createSession: sending message', message.type, id)
+        port.postMessage(messageWithId)
+      })
+    }
+
     function close() {
       if (!_connected) {
         return
@@ -286,6 +388,10 @@ export async function createSession(
       _connected = false
     }
 
+    function onTerminated(callback: (reason: SvcWorkerTerminatedReason) => void) {
+      _onTerminatedCallback = callback
+    }
+
     return Object.freeze({
       get connected() {
         return _connected
@@ -294,7 +400,9 @@ export async function createSession(
         return _version
       },
       request,
+      send,
       close,
+      onTerminated,
       [Symbol.dispose]() {
         close()
       }

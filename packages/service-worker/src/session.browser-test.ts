@@ -212,6 +212,191 @@ describe('createSession', () => {
     })
   })
 
+  describe('session.send', () => {
+    test('should send message and receive response', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+      const port = mockServiceWorker._getSessionPort()!
+
+      // Listen for the send message and respond
+      port.onmessage = (event: MessageEvent) => {
+        const data = event.data as { type: string; id: string }
+        if (data.type === 'TEST_SEND') {
+          mockServiceWorker._sendToSession({
+            type: 'TEST_SEND',
+            id: data.id,
+            success: true,
+            data: { result: 'ok' }
+          })
+        }
+      }
+
+      const result = await session.send<{ result: string }>({
+        type: 'TEST_SEND',
+        customField: 'value'
+      })
+
+      expect(result).toEqual({ result: 'ok' })
+
+      session.close()
+    })
+
+    test('should auto-generate id if not provided', async () => {
+      const debug = vi.fn()
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker, { debug })
+      const port = mockServiceWorker._getSessionPort()!
+
+      let receivedId: string | undefined
+
+      port.onmessage = (event: MessageEvent) => {
+        const data = event.data as { type: string; id: string }
+        if (data.type === 'TEST_SEND') {
+          receivedId = data.id
+          mockServiceWorker._sendToSession({
+            type: 'TEST_SEND',
+            id: data.id,
+            success: true,
+            data: {}
+          })
+        }
+      }
+
+      await session.send({ type: 'TEST_SEND' })
+
+      expect(receivedId).toBeDefined()
+      expect(typeof receivedId).toBe('string')
+      expect(receivedId!.length).toBeGreaterThan(0)
+
+      session.close()
+    })
+
+    test('should use provided id if present', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+      const port = mockServiceWorker._getSessionPort()!
+
+      let receivedId: string | undefined
+
+      port.onmessage = (event: MessageEvent) => {
+        const data = event.data as { type: string; id: string }
+        if (data.type === 'TEST_SEND') {
+          receivedId = data.id
+          mockServiceWorker._sendToSession({
+            type: 'TEST_SEND',
+            id: data.id,
+            success: true,
+            data: {}
+          })
+        }
+      }
+
+      await session.send({ type: 'TEST_SEND', id: 'custom-id-123' })
+
+      expect(receivedId).toBe('custom-id-123')
+
+      session.close()
+    })
+
+    test('should reject send when not connected', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+      session.close()
+
+      expect(session.connected).toBe(false)
+      await expect(session.send({ type: 'TEST_SEND' })).rejects.toThrow(SvcWorkerSessionError)
+      await expect(session.send({ type: 'TEST_SEND' })).rejects.toThrow('Session not connected')
+    })
+
+    test('should abort send with AbortSignal', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+
+      const abortController = new AbortController()
+      const sendPromise = session.send({ type: 'TEST_SEND' }, { signal: abortController.signal })
+
+      // Abort immediately
+      abortController.abort()
+
+      await expect(sendPromise).rejects.toThrow(SvcWorkerSessionError)
+      await expect(sendPromise).rejects.toThrow('Request aborted')
+
+      session.close()
+    })
+
+    test('should reject if signal is already aborted', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+
+      const abortController = new AbortController()
+      abortController.abort()
+
+      await expect(
+        session.send({ type: 'TEST_SEND' }, { signal: abortController.signal })
+      ).rejects.toThrow()
+
+      session.close()
+    })
+
+    test('should timeout on send', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+
+      // Send with short timeout, don't respond
+      await expect(
+        session.send({ type: 'TEST_SEND' }, { signal: AbortSignal.timeout(50) })
+      ).rejects.toThrow('Request aborted')
+
+      session.close()
+    })
+
+    test('should handle error response', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+      const port = mockServiceWorker._getSessionPort()!
+
+      port.onmessage = (event: MessageEvent) => {
+        const data = event.data as { type: string; id: string }
+        if (data.type === 'TEST_SEND') {
+          mockServiceWorker._sendToSession({
+            type: 'TEST_SEND',
+            id: data.id,
+            success: false,
+            error: 'Something went wrong'
+          })
+        }
+      }
+
+      await expect(session.send({ type: 'TEST_SEND' })).rejects.toThrow(SvcWorkerSessionError)
+      await expect(session.send({ type: 'TEST_SEND' })).rejects.toThrow('Something went wrong')
+
+      session.close()
+    })
+
+    test('should reject pending sends on close', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      const session = await createSession(mockServiceWorker)
+
+      // Start a send but don't let it complete
+      const sendPromise = session.send({ type: 'TEST_SEND' })
+
+      // Close immediately
+      session.close()
+
+      await expect(sendPromise).rejects.toThrow(SvcWorkerSessionError)
+      await expect(sendPromise).rejects.toThrow('Session closed')
+    })
+  })
+
   describe('session.close', () => {
     test('should close session and update connected state', async () => {
       const mockServiceWorker = createMockServiceWorker()
@@ -317,6 +502,109 @@ describe('createSession', () => {
       expect(session.version).toBe('delayed-v1')
 
       session.close()
+    })
+  })
+
+  describe('onTerminated', () => {
+    test('should call callback when terminated message is received', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      using session = await createSession(mockServiceWorker)
+
+      const terminatedCallback = vi.fn()
+      session.onTerminated(terminatedCallback)
+
+      // Send terminated message from "service worker"
+      mockServiceWorker._sendToSession({
+        type: 'VROWSER_SW_SESSION_TERMINATED',
+        reason: 'unregister'
+      })
+
+      // Wait for message to be processed
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      expect(terminatedCallback).toHaveBeenCalledTimes(1)
+      expect(terminatedCallback).toHaveBeenCalledWith('unregister')
+    })
+
+    test('should pass reason to callback', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      using session = await createSession(mockServiceWorker)
+
+      let receivedReason: string | undefined
+      session.onTerminated(reason => {
+        receivedReason = reason
+      })
+
+      mockServiceWorker._sendToSession({
+        type: 'VROWSER_SW_SESSION_TERMINATED',
+        reason: 'unregister'
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      expect(receivedReason).toBe('unregister')
+    })
+
+    test('should log with debug when terminated message is received', async () => {
+      const debug = vi.fn()
+      const mockServiceWorker = createMockServiceWorker()
+
+      using session = await createSession(mockServiceWorker, { debug })
+
+      session.onTerminated(() => {})
+
+      mockServiceWorker._sendToSession({
+        type: 'VROWSER_SW_SESSION_TERMINATED',
+        reason: 'unregister'
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      expect(debug).toHaveBeenCalledWith(
+        'createSession: received TERMINATED notification, reason:',
+        'unregister'
+      )
+    })
+
+    test('should not throw if no callback is registered', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      using session = await createSession(mockServiceWorker)
+
+      // No callback registered, but sending terminated message should not throw
+      mockServiceWorker._sendToSession({
+        type: 'VROWSER_SW_SESSION_TERMINATED',
+        reason: 'unregister'
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      // Should not throw
+      expect(session.connected).toBe(true)
+    })
+
+    test('should replace callback when called multiple times', async () => {
+      const mockServiceWorker = createMockServiceWorker()
+
+      using session = await createSession(mockServiceWorker)
+
+      const firstCallback = vi.fn()
+      const secondCallback = vi.fn()
+
+      session.onTerminated(firstCallback)
+      session.onTerminated(secondCallback)
+
+      mockServiceWorker._sendToSession({
+        type: 'VROWSER_SW_SESSION_TERMINATED',
+        reason: 'unregister'
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      expect(firstCallback).not.toHaveBeenCalled()
+      expect(secondCallback).toHaveBeenCalledTimes(1)
     })
   })
 })
