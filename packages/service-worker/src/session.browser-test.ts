@@ -152,66 +152,6 @@ describe('createSession', () => {
     })
   })
 
-  describe('session.request', () => {
-    test('should send request via session port', async () => {
-      const mockServiceWorker = createMockServiceWorker()
-
-      const session = await createSession(mockServiceWorker)
-
-      // Verify the session port is available for communication
-      const port = mockServiceWorker._getSessionPort()
-      expect(port).not.toBeNull()
-
-      // Verify session is ready for requests
-      expect(session.connected).toBe(true)
-
-      session.close()
-    })
-
-    test('should reject request when not connected', async () => {
-      const mockSW = createMockServiceWorker()
-
-      const session = await createSession(mockSW)
-      session.close()
-
-      expect(session.connected).toBe(false)
-      await expect(session.request('TEST_REQUEST')).rejects.toThrow(SvcWorkerSessionError)
-      await expect(session.request('TEST_REQUEST')).rejects.toThrow('Session not connected')
-    })
-
-    test('should timeout on request', async () => {
-      const mockSW = createMockServiceWorker()
-
-      const session = await createSession(mockSW)
-
-      // Request with short timeout using AbortSignal.timeout, don't respond
-      await expect(
-        session.request('TEST_REQUEST', undefined, { signal: AbortSignal.timeout(50) })
-      ).rejects.toThrow('Request aborted')
-
-      session.close()
-    })
-
-    test('should abort request with AbortSignal', async () => {
-      const mockServiceWorker = createMockServiceWorker()
-
-      const session = await createSession(mockServiceWorker)
-
-      const abortController = new AbortController()
-      const requestPromise = session.request('TEST_REQUEST', undefined, {
-        signal: abortController.signal
-      })
-
-      // Abort immediately
-      abortController.abort()
-
-      await expect(requestPromise).rejects.toThrow(SvcWorkerSessionError)
-      await expect(requestPromise).rejects.toThrow('Request aborted')
-
-      session.close()
-    })
-  })
-
   describe('session.send', () => {
     test('should send message and receive response', async () => {
       const mockServiceWorker = createMockServiceWorker()
@@ -407,21 +347,6 @@ describe('createSession', () => {
       session.close()
 
       expect(session.connected).toBe(false)
-    })
-
-    test('should reject pending requests on close', async () => {
-      const mockServiceWorker = createMockServiceWorker()
-
-      const session = await createSession(mockServiceWorker)
-
-      // Start a request but don't let it complete
-      const requestPromise = session.request('TEST_REQUEST')
-
-      // Close immediately
-      session.close()
-
-      await expect(requestPromise).rejects.toThrow(SvcWorkerSessionError)
-      await expect(requestPromise).rejects.toThrow('Session closed')
     })
 
     test('should be idempotent - calling close multiple times is safe', async () => {

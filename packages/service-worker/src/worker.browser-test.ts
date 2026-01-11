@@ -437,11 +437,6 @@ describe('createSvcWorker', () => {
       expect(mockPort2.close).toHaveBeenCalled()
       expect(self.sessionCount).toBe(0)
     })
-
-    test('should expose onSessionRequest handler', () => {
-      const self = createSvcWorker(mockSelf, { version: 'v1' })
-      expect(typeof self.onSessionRequest).toBe('function')
-    })
   })
 
   describe('suspended property', () => {

@@ -13,7 +13,6 @@
  */
 
 import {
-  createSvcWorkerSessionRequest,
   createSvcWorkerSessionCloseMessage,
   isSvcWorkerSessionPingMessage,
   isSvcWorkerSessionGenericResponse,
@@ -59,7 +58,7 @@ export interface SvcWorkerSessionOptions {
  * Service Worker Session interface
  *
  * Provides a persistent connection to an active Service Worker
- * with request/response capabilities.
+ * with send/response capabilities.
  */
 export interface SvcWorkerSession extends Disposable {
   /**
@@ -71,30 +70,7 @@ export interface SvcWorkerSession extends Disposable {
    */
   readonly version: string
   /**
-   * Send a request to the Service Worker and wait for a response
-   *
-   * The message is wrapped in VROWSER_SW_SESSION_REQUEST format,
-   * with the `type` parameter becoming `requestType` in the wrapped message.
-   *
-   * @param type - The message type (becomes requestType in the wrapped message)
-   * @param payload - Optional payload data
-   * @param options - Request options
-   * @returns Promise resolving to the response data
-   * @throws {SvcWorkerSessionError} If the session is not connected or the request fails
-   * @throws {DOMException} If the request is aborted
-   */
-  request<T>(
-    type: string,
-    payload?: unknown,
-    options?: {
-      signal?: AbortSignal
-    }
-  ): Promise<T>
-  /**
    * Send a message through the session port and wait for response
-   *
-   * Unlike request(), this sends the message with its own 'type' field intact,
-   * without wrapping it in VROWSER_SW_SESSION_REQUEST.
    *
    * An 'id' field will be auto-generated if not present, used for response matching.
    * The service worker should respond with a message containing the same 'id'.
@@ -147,9 +123,6 @@ export interface SvcWorkerSession extends Disposable {
  * ```typescript
  * const session = await createSession(navigator.serviceWorker.controller)
  * console.log('Connected to SW version:', session.version)
- *
- * const result = await session.request('CUSTOM_REQUEST', { data: 'test' })
- * console.log('Response:', result)
  *
  * session.close()
  * ```
@@ -206,8 +179,7 @@ export async function createSession(
     }
 
     // Handle any response with id + success fields (generic response handling)
-    // This handles both VROWSER_SW_SESSION_REQUEST responses and
-    // dedicated protocol responses (CIRCUIT_BREAKER, RESUME, etc.)
+    // This handles dedicated protocol responses (CIRCUIT_BREAKER, RESUME, etc.)
     if (isSvcWorkerSessionGenericResponse(data)) {
       const pending = pendingRequests.get(data.id)
       if (pending) {
@@ -276,50 +248,6 @@ export async function createSession(
   })
 
   function _createSession(): Readonly<SvcWorkerSession> {
-    function request<T>(
-      type: string,
-      payload?: unknown,
-      requestOptions: { signal?: AbortSignal } = {}
-    ): Promise<T> {
-      if (!_connected) {
-        return Promise.reject(new SvcWorkerSessionError('Session not connected'))
-      }
-
-      const { signal } = requestOptions
-      const id = crypto.randomUUID()
-
-      // Check if already aborted
-      if (signal?.aborted) {
-        return Promise.reject(abortError(signal, { message: 'Request aborted' }) as DOMException)
-      }
-
-      return new Promise<T>((resolveRequest, rejectRequest) => {
-        function onAbort() {
-          pendingRequests.delete(id)
-          rejectRequest(new SvcWorkerSessionError('Request aborted'))
-        }
-
-        // Handle abort signal
-        if (signal) {
-          signal.addEventListener('abort', onAbort, { once: true })
-        }
-
-        pendingRequests.set(id, {
-          resolve: (value: unknown) => {
-            signal?.removeEventListener('abort', onAbort)
-            resolveRequest(value as T)
-          },
-          reject: (error: Error) => {
-            signal?.removeEventListener('abort', onAbort)
-            rejectRequest(error)
-          }
-        })
-
-        debug?.('createSession: sending request', type, id)
-        port.postMessage(createSvcWorkerSessionRequest(type, id, payload))
-      })
-    }
-
     function send<T>(
       message: SvcWorkerMessageBase & Record<string, unknown>,
       sendOptions: { signal?: AbortSignal } = {}
@@ -399,7 +327,6 @@ export async function createSession(
       get version() {
         return _version
       },
-      request,
       send,
       close,
       onTerminated,

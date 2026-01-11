@@ -32,11 +32,6 @@ export const VROWSER_SW_SESSION_PING = 'VROWSER_SW_SESSION_PING'
 export const VROWSER_SW_SESSION_PONG = 'VROWSER_SW_SESSION_PONG'
 
 /**
- * Session request message (Page -> Service Worker)
- */
-export const VROWSER_SW_SESSION_REQUEST = 'VROWSER_SW_SESSION_REQUEST'
-
-/**
  * Managed service worker version
  */
 export const VROWSER_SW_VERSION = 'VROWSER_SW_VERSION'
@@ -132,16 +127,6 @@ export interface SvcWorkerSessionPongMessage extends SvcWorkerMessageBase {
 }
 
 /**
- * Session request message (Page -> Service Worker via session MessagePort)
- */
-export interface SvcWorkerSessionRequest extends SvcWorkerMessageBase {
-  type: typeof VROWSER_SW_SESSION_REQUEST
-  requestType: string
-  id: string
-  payload?: unknown
-}
-
-/**
  * Session response structure
  */
 export interface SvcWorkerSessionResponse<T = unknown> {
@@ -149,14 +134,6 @@ export interface SvcWorkerSessionResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
-}
-
-/**
- * Session response message (Service Worker -> Page via session MessagePort)
- */
-export interface SvcWorkerSessionRequestResponse<T = unknown>
-  extends SvcWorkerSessionResponse<T>, SvcWorkerMessageBase {
-  type: typeof VROWSER_SW_SESSION_REQUEST
 }
 
 /**
@@ -295,54 +272,6 @@ export function createSvcWorkerSessionInitResponse(
   version: string
 ): SvcWorkerSessionInitResponse {
   return { type: VROWSER_SW_SESSION_INIT, success, version }
-}
-
-/**
- * Create a {@link SvcWorkerSessionRequest | service worker 'VROWSER_SW_SESSION_REQUEST' message}
- *
- * @param requestType - The type of the request
- * @param id - The unique ID for the request
- * @param payload - Optionalo payload data
- * @returns The constructed {@link SvcWorkerSessionRequest}
- */
-export function createSvcWorkerSessionRequest(
-  requestType: string,
-  id: string,
-  payload?: unknown
-): SvcWorkerSessionRequest {
-  return {
-    type: VROWSER_SW_SESSION_REQUEST,
-    requestType,
-    id,
-    payload
-  }
-}
-
-/**
- * Create a {@link SvcWorkerSessionRequestResponse | service worker 'VROWSER_SW_SESSION_REQUEST' response}
- *
- * @param value - The response data
- * @returns The constructed {@link SvcWorkerSessionRequestResponse}
- */
-export function createSvcWorkerSessionRequestResponse<T = unknown>(
-  value: SvcWorkerSessionResponse<T>
-): SvcWorkerSessionRequestResponse<T> {
-  return {
-    type: VROWSER_SW_SESSION_REQUEST,
-    ...value
-  } as SvcWorkerSessionRequestResponse<T>
-}
-
-export function isSvcWorkerSessionRequestResponse<T = unknown>(
-  message: unknown
-): message is SvcWorkerSessionRequestResponse<T> {
-  return (
-    message != null &&
-    typeof message === 'object' &&
-    'type' in message &&
-    message.type === VROWSER_SW_SESSION_REQUEST &&
-    isSvcWorkerSessionResponse<T>(message)
-  )
 }
 
 /**
@@ -603,7 +532,6 @@ export type SvcWorkerSessionMessage =
   | SvcWorkerSessionCloseMessage
   | SvcWorkerSessionPingMessage
   | SvcWorkerSessionPongMessage
-  | SvcWorkerSessionRequest
   | SvcWorkerSessionCircuitBreakerMessage
   | SvcWorkerSessionResumeMessage
   | SvcWorkerSessionTerminatedMessage

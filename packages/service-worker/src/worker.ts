@@ -36,14 +36,12 @@ import {
   VROWSER_SW_SESSION_PONG,
   VROWSER_SW_SESSION_CLOSE,
   VROWSER_SW_SESSION_INIT,
-  VROWSER_SW_SESSION_REQUEST,
   VROWSER_SW_SESSION_CIRCUIT_BREAKER,
   VROWSER_SW_SESSION_RESUME,
   VROWSER_SW_SKIP_WAITING,
   VROWSER_SW_VERSION,
   createSvcWorkerSessionCircuitBreakerResponse,
   createSvcWorkerSessionResumeResponse,
-  createSvcWorkerSessionRequestResponse,
   createSvcWorkerSessionInitResponse,
   createSvcWorkerSessionPingMessage,
   createSvcWorkerSessionTerminatedMessage,
@@ -53,8 +51,6 @@ import {
 import type {
   SvcWorkerMessage,
   SvcWorkerSessionMessage,
-  SvcWorkerSessionRequest,
-  SvcWorkerSessionResponse,
   SvcWorkerSessionCircuitBreakerMessage,
   SvcWorkerSessionResumeMessage,
   SvcWorkerSessionCircuitBreakerResult,
@@ -108,14 +104,6 @@ export interface SvcWorkerOptions {
 }
 
 /**
- * Session request handler function type
- */
-export type SessionRequestHandler = (
-  request: SvcWorkerSessionRequest,
-  clientId: string
-) => Promise<SvcWorkerSessionResponse> | SvcWorkerSessionResponse
-
-/**
  * Service Worker interface that extends {@link ServiceWorkerGlobalScope}
  *
  * This interface provides transparent access to all native Service Worker APIs
@@ -149,10 +137,6 @@ export interface SvcWorker extends ServiceWorkerGlobalScope, Disposable {
    */
   readonly suspended: boolean
   /**
-   * Register a handler for session requests
-   */
-  onSessionRequest(handler: SessionRequestHandler): void
-  /**
    * Dispose the service worker and clean up resources
    */
   dispose(): void
@@ -184,7 +168,6 @@ export function createSvcWorker(
 
   // Session management
   const sessions = new Map<string, SessionInfo>()
-  let sessionRequestHandler: SessionRequestHandler | null = null
   let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null
 
   // Circuit breaker state (memory only, not persisted)
@@ -329,26 +312,6 @@ export function createSvcWorker(
           if (session) {
             session.lastPong = Date.now()
             debug?.('createSvcWorker: PONG received from', clientId)
-          }
-          break
-        }
-
-        case VROWSER_SW_SESSION_REQUEST: {
-          if (sessionRequestHandler) {
-            const request = data
-            Promise.resolve(sessionRequestHandler(request, clientId))
-              .then(response => {
-                port.postMessage(createSvcWorkerSessionRequestResponse(response))
-              })
-              .catch((error: unknown) => {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-                const response: SvcWorkerSessionResponse = {
-                  id: request.id,
-                  success: false,
-                  error: errorMessage
-                }
-                port.postMessage(createSvcWorkerSessionRequestResponse(response))
-              })
           }
           break
         }
@@ -516,10 +479,6 @@ export function createSvcWorker(
     cleanup()
   }
 
-  function onSessionRequest(handler: SessionRequestHandler) {
-    sessionRequestHandler = handler
-  }
-
   // Extension properties and methods
   const extensions: Record<string | symbol, unknown> = {
     get version() {
@@ -531,7 +490,6 @@ export function createSvcWorker(
     get suspended() {
       return _suspended
     },
-    onSessionRequest,
     dispose,
     [Symbol.dispose]: dispose
   }
