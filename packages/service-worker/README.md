@@ -39,7 +39,7 @@ The controller manages Service Worker registration, version verification,
 and lifecycle on the page side.
 
 ```ts
-import { createSvcWorkerController } from '@vrowser/service-worker'
+import { createSvcWorkerController } from '@vrowser/service-worker/controller'
 
 const controller = createSvcWorkerController({
   scriptURL: '/sw.js',
@@ -113,7 +113,7 @@ import {
   terminateServiceWorker,
   suspendAllServiceWorkers,
   terminateAllServiceWorkers
-} from '@vrowser/service-worker'
+} from '@vrowser/service-worker/admin'
 
 // List all registered controllers
 const controllers = getAllControllers()
