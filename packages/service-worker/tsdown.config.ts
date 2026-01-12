@@ -1,14 +1,7 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  entry: [
-    './src/index.ts',
-    './src/admin.ts',
-    './src/controller.ts',
-    './src/protocols.ts',
-    './src/worker.ts',
-    './src/protocols.ts'
-  ],
+  entry: ['./src/admin.ts', './src/controller.ts', './src/protocols.ts', './src/worker.ts'],
   clean: true,
   publint: true,
   dts: true,

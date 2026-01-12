@@ -393,13 +393,12 @@ controller.dispose()
 
 ## 📦 Exports
 
-| Entry Point                          | Description                                 |
-| ------------------------------------ | ------------------------------------------- |
-| `@vrowser/service-worker`            | Main entry (admin + controller + protocols) |
-| `@vrowser/service-worker/admin`      | Admin API only                              |
-| `@vrowser/service-worker/controller` | Controller only                             |
-| `@vrowser/service-worker/worker`     | Service Worker wrapper                      |
-| `@vrowser/service-worker/protocols`  | Message protocols and types                 |
+| Entry Point                          | Description                 |
+| ------------------------------------ | --------------------------- |
+| `@vrowser/service-worker/admin`      | Admin API                   |
+| `@vrowser/service-worker/controller` | Controller                  |
+| `@vrowser/service-worker/worker`     | Service Worker wrapper      |
+| `@vrowser/service-worker/protocols`  | Message protocols and types |
 
 ## 📚 API References
 
