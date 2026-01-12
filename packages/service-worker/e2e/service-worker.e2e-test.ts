@@ -303,21 +303,23 @@ describe('Controller API (createSvcWorkerController)', () => {
     await page.close()
   })
 
-  test('reloadSuggested event is fired when Service Worker is activated', async () => {
+  test('controllerchange event is fired after clients.claim()', async () => {
     const page = await context.newPage()
     await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
-    // Check that reloadSuggested event was fired
-    const events = await getRecordedEvents(page)
-    const reloadSuggestedEvent = events.find(e => e.type === 'reloadSuggested')
+    // With `clients.claim()` working correctly, controllerchange should be fired
+    // and `navigator.serviceWorker.controller` should be set
+    const controllerChanges = await page.evaluate(() => window.testState.controllerChanges)
+    expect(controllerChanges.length).toBeGreaterThan(0)
+    expect(controllerChanges[0]?.controller).toContain('e2e-sw.js')
 
-    expect(reloadSuggestedEvent).toBeDefined()
-    expect(reloadSuggestedEvent?.data).toMatchObject({
-      reason: 'unclaimed',
-      version: 'v1'
-    })
+    // navigator.serviceWorker.controller should be set
+    const controllerUrl = await page.evaluate(
+      () => navigator.serviceWorker.controller?.scriptURL ?? null
+    )
+    expect(controllerUrl).toContain('e2e-sw.js')
 
     await page.close()
   })
@@ -348,11 +350,7 @@ describe('Worker API (createSvcWorker)', () => {
 
     await waitForStatus(page, 'activated')
 
-    // Reload the page to ensure service worker controls it
-    await page.reload()
-    await waitForStatus(page, 'activated')
-
-    // Fetch the test API endpoint
+    // With `clients.claim()` working, no reload needed
     const apiResponse = await fetchServiceWorkerApi(page)
 
     expect(apiResponse.version).toBe('v1')
@@ -368,10 +366,7 @@ describe('Worker API (createSvcWorker)', () => {
 
     await waitForStatus(page, 'activated')
 
-    // Reload the page to ensure service worker controls it
-    await page.reload()
-    await waitForStatus(page, 'activated')
-
+    // With `clients.claim()` working, no reload needed
     const apiResponse = await fetchServiceWorkerApi(page)
 
     expect(apiResponse.version).toBe('custom-version-123')
@@ -413,7 +408,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
       }
       const result = await controller.suspend()
       // Return a plain object for serialization
-      // SvcWorkerSessionCircuitBreakerResult: {mode, terminated, cachesCleared}
+      // `SvcWorkerSessionCircuitBreakerResult`: {mode, terminated, cachesCleared}
       return {
         mode: result.mode,
         terminated: result.terminated
@@ -444,7 +439,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
     await callControllerMethod(page, 'suspend')
 
     // The fetch handler should now be bypassed, so we need to check directly
-    // Since the SW is suspended, fetching /api/test should return network fetch (no SW handling)
+    // Since the service worker is suspended, fetching /api/test should return network fetch (no SW handling)
     // However, the /api/test endpoint only exists in the SW, so it will fail
     // Instead, let's verify via the controller state
     const state = await getControllerState(page)
@@ -490,10 +485,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
 
     await waitForStatus(page, 'activated')
 
-    // Reload to ensure service worker controls the page
-    await page.reload()
-    await waitForStatus(page, 'activated')
-
+    // With `clients.claim()` working, no reload needed
     // Verify initial fetch works
     let apiResponse = await fetchServiceWorkerApi(page)
     expect(apiResponse.suspended).toBe(false)
@@ -633,7 +625,7 @@ describe('Admin API', () => {
     expect(await getControllerState(page)).toBe('suspended')
 
     // Resume all
-    // SvcWorkerSessionResumeResult is an empty object - success is indicated by Promise resolving
+    // `SvcWorkerSessionResumeResult` is an empty object - success is indicated by Promise resolving
     const resultCount = await page.evaluate(async () => {
       const admin =
         // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
@@ -702,10 +694,7 @@ describe('Multi-tab Scenarios', () => {
     await page1.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
     await waitForStatus(page1, 'activated')
 
-    // Reload to ensure page1 is controlled
-    await page1.reload()
-    await waitForStatus(page1, 'activated')
-
+    // With `clients.claim()` working, no reload needed
     const page2 = await context.newPage()
     await page2.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
     await waitForStatus(page2, 'activated')
@@ -767,10 +756,7 @@ describe('Version Management', () => {
     await page1.goto(`${BASE_URL}/e2e/api-test.html?version=version-a`)
     await waitForStatus(page1, 'activated')
 
-    // Reload to ensure service worker controls the page
-    await page1.reload()
-    await waitForStatus(page1, 'activated')
-
+    // With `clients.claim()` working, no reload needed
     const api1 = await fetchServiceWorkerApi(page1)
     expect(api1.version).toBe('version-a')
 
@@ -783,10 +769,7 @@ describe('Version Management', () => {
     await page1.goto(`${BASE_URL}/e2e/api-test.html?version=version-b`)
     await waitForStatus(page1, 'activated')
 
-    // Reload to ensure new service worker controls the page
-    await page1.reload()
-    await waitForStatus(page1, 'activated')
-
+    // With `clients.claim()` working, no reload needed
     const api2 = await fetchServiceWorkerApi(page1)
     expect(api2.version).toBe('version-b')
 

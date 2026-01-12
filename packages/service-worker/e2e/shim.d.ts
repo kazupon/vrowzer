@@ -5,8 +5,9 @@ declare global {
     dynamicImport?: <T = unknown>(url: string) => Promise<T>
     testState: {
       controller: SvcWorkerController | null
-      states: SvcWorkerControllerState[]
-      events: { type: string; data?: unknown }[]
+      states: Array<SvcWorkerControllerState>
+      events: Array<{ type: string; data?: unknown }>
+      controllerChanges: Array<{ time: number; controller: string | null }>
     }
   }
 }

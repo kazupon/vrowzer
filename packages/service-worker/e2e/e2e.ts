@@ -21,8 +21,18 @@ window.dynamicImport = function <T = unknown>(url: string): Promise<T> {
 window.testState = {
   controller: null,
   states: [],
-  events: []
+  events: [],
+  controllerChanges: [] as Array<{ time: number; controller: string | null }>
 }
+
+// Track controllerchange events
+navigator.serviceWorker.addEventListener('controllerchange', () => {
+  const controller = navigator.serviceWorker.controller
+  window.testState.controllerChanges.push({
+    time: Date.now(),
+    controller: controller?.scriptURL ?? null
+  })
+})
 
 async function init() {
   try {

@@ -529,7 +529,9 @@ export function createSvcWorker(
       }
 
       // Fallback to native property
-      const value = Reflect.get(target, prop, receiver) // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- for generic
+      // NOTE: Use `target` instead of `receiver` to ensure native getters (like `clients`)
+      // are called with the correct `this` context (ServiceWorkerGlobalScope)
+      const value = Reflect.get(target, prop, target) // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- for generic
       if (typeof value === 'function') {
         return (value as (...args: unknown[]) => unknown).bind(target)
       }
