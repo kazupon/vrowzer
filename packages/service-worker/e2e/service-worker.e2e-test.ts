@@ -302,6 +302,25 @@ describe('Controller API (createSvcWorkerController)', () => {
 
     await page.close()
   })
+
+  test('reloadSuggested event is fired when Service Worker is activated', async () => {
+    const page = await context.newPage()
+    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+
+    await waitForStatus(page, 'activated')
+
+    // Check that reloadSuggested event was fired
+    const events = await getRecordedEvents(page)
+    const reloadSuggestedEvent = events.find(e => e.type === 'reloadSuggested')
+
+    expect(reloadSuggestedEvent).toBeDefined()
+    expect(reloadSuggestedEvent?.data).toMatchObject({
+      reason: 'unclaimed',
+      version: 'v1'
+    })
+
+    await page.close()
+  })
 })
 
 // =============================================================================
@@ -329,7 +348,7 @@ describe('Worker API (createSvcWorker)', () => {
 
     await waitForStatus(page, 'activated')
 
-    // Reload the page to ensure SW controls it
+    // Reload the page to ensure service worker controls it
     await page.reload()
     await waitForStatus(page, 'activated')
 
@@ -349,7 +368,7 @@ describe('Worker API (createSvcWorker)', () => {
 
     await waitForStatus(page, 'activated')
 
-    // Reload the page to ensure SW controls it
+    // Reload the page to ensure service worker controls it
     await page.reload()
     await waitForStatus(page, 'activated')
 
@@ -471,7 +490,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
 
     await waitForStatus(page, 'activated')
 
-    // Reload to ensure SW controls the page
+    // Reload to ensure service worker controls the page
     await page.reload()
     await waitForStatus(page, 'activated')
 
