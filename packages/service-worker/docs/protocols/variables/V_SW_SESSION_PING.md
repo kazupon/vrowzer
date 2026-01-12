@@ -10,4 +10,4 @@
 const V_SW_SESSION_PING: "V_SW_SESSION_PING" = 'V_SW_SESSION_PING';
 ```
 
-Session heartbeat ping message (Service Worker -> Page)
+Session heartbeat ping message (Service Worker -> Page).

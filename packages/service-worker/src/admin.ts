@@ -1,11 +1,11 @@
 /**
  * Service Worker Administration API
  *
- * Provides management functions for service workers registered via SvcWorkerController.
+ * Provides management functions for service workers registered via {@link SvcWorkerController}.
  * Implements kill switch / circuit breaker pattern for fail-safe control.
  *
- * This module does not bypass navigator.serviceWorker APIs directly.
- * It only operates on service workers managed by SvcWorkerController.
+ * This module does not bypass `navigator.serviceWorker` APIs directly.
+ * It only operates on service workers managed by `SvcWorkerController`.
  *
  * @module admin
  */
@@ -26,13 +26,13 @@ import type {
 } from './protocols.ts'
 
 /**
- * Get all registered service worker controllers
+ * Get all registered service worker controllers.
  *
  * @returns A readonly array of all registered controllers
  *
  * @example
- * ```typescript
- * import { getAllControllers } from '@vrowser/service-worker'
+ * ```ts
+ * import { getAllControllers } from '@vrowser/service-worker/admin'
  *
  * const controllers = getAllControllers()
  * for (const controller of controllers) {
@@ -45,15 +45,15 @@ export function getAllControllers(): readonly SvcWorkerController[] {
 }
 
 /**
- * Get a controller by its script URL and version
+ * Get a controller by its script URL and version.
  *
  * @param scriptURL - The service worker script URL
  * @param version - The service worker version
  * @returns The controller if found, undefined otherwise
  *
  * @example
- * ```typescript
- * import { getController } from '@vrowser/service-worker'
+ * ```ts
+ * import { getController } from '@vrowser/service-worker/admin'
  *
  * const controller = getController('/sw.js', 'v1.0.0')
  * if (controller) {
@@ -69,14 +69,14 @@ export function getController(
 }
 
 /**
- * Dispose all registered controllers
+ * Dispose all registered controllers.
  *
  * This will clean up resources but will NOT terminate the service workers.
  * Use {@link terminateAllServiceWorkers} to terminate service workers.
  *
  * @example
- * ```typescript
- * import { disposeAllControllers } from '@vrowser/service-worker'
+ * ```ts
+ * import { disposeAllControllers } from '@vrowser/service-worker/admin'
  *
  * // Clean up all controllers on page unload
  * window.addEventListener('unload', () => {
@@ -91,21 +91,21 @@ export function disposeAllControllers(): void {
 }
 
 /**
- * Options for suspend operations
+ * Options for suspend operations.
  */
 export interface SuspendOptions {
   /**
-   * Whether to clear all caches when suspending
+   * Whether to clear all caches when suspending.
    */
   clearCaches?: boolean
   /**
-   * Optional abort signal to cancel the operation
+   * Optional abort signal to cancel the operation.
    */
   signal?: AbortSignal
 }
 
 /**
- * Suspend all registered service workers (soft kill / circuit breaker)
+ * Suspend all registered service workers (soft kill / circuit breaker).
  *
  * This engages the circuit breaker on all service workers, disabling
  * their functionality without unregistering them.
@@ -114,8 +114,8 @@ export interface SuspendOptions {
  * @returns Map of registry keys to suspend results
  *
  * @example
- * ```typescript
- * import { suspendAllServiceWorkers } from '@vrowser/service-worker'
+ * ```ts
+ * import { suspendAllServiceWorkers } from '@vrowser/service-worker/admin'
  *
  * // Suspend all service workers (e.g., for maintenance)
  * const results = await suspendAllServiceWorkers()
@@ -139,7 +139,7 @@ export async function suspendAllServiceWorkers(
 }
 
 /**
- * Suspend a specific service worker (soft kill / circuit breaker)
+ * Suspend a specific service worker (soft kill / circuit breaker).
  *
  * This engages the circuit breaker, disabling service worker functionality
  * without unregistering it.
@@ -151,8 +151,8 @@ export async function suspendAllServiceWorkers(
  * @throws Error if controller is not found
  *
  * @example
- * ```typescript
- * import { suspendServiceWorker } from '@vrowser/service-worker'
+ * ```ts
+ * import { suspendServiceWorker } from '@vrowser/service-worker/admin'
  *
  * // Suspend a specific service worker
  * const result = await suspendServiceWorker('/sw.js', 'v1.0.0')
@@ -174,7 +174,7 @@ export async function suspendServiceWorker(
 }
 
 /**
- * Options for terminate operations
+ * Options for terminate operations.
  */
 export interface TerminateOptions {
   /**
@@ -188,7 +188,7 @@ export interface TerminateOptions {
 }
 
 /**
- * Terminate all registered service workers (hard kill / circuit breaker trip)
+ * Terminate all registered service workers (hard kill / circuit breaker trip).
  *
  * This trips the circuit breaker on all service workers, causing them
  * to unregister themselves. This is a destructive operation.
@@ -197,8 +197,8 @@ export interface TerminateOptions {
  * @returns Map of registry keys to terminate results
  *
  * @example
- * ```typescript
- * import { terminateAllServiceWorkers } from '@vrowser/service-worker'
+ * ```ts
+ * import { terminateAllServiceWorkers } from '@vrowser/service-worker/admin'
  *
  * // Terminate all service workers (e.g., for emergency shutdown)
  * const results = await terminateAllServiceWorkers({ clearCaches: true })
@@ -247,8 +247,8 @@ export async function terminateAllServiceWorkers(
  * @throws Error if controller is not found or session is not established
  *
  * @example
- * ```typescript
- * import { terminateServiceWorker } from '@vrowser/service-worker'
+ * ```ts
+ * import { terminateServiceWorker } from '@vrowser/service-worker/admin'
  *
  * // Terminate a specific service worker
  * const result = await terminateServiceWorker('/sw.js', 'v1.0.0', { clearCaches: true })
@@ -291,8 +291,8 @@ export async function terminateServiceWorker(
  * @returns Map of registry keys to resume results
  *
  * @example
- * ```typescript
- * import { resumeAllServiceWorkers } from '@vrowser/service-worker'
+ * ```ts
+ * import { resumeAllServiceWorkers } from '@vrowser/service-worker/admin'
  *
  * // Resume all suspended service workers
  * const results = await resumeAllServiceWorkers()
@@ -327,8 +327,8 @@ export async function resumeAllServiceWorkers(
  * @throws Error if controller is not found
  *
  * @example
- * ```typescript
- * import { resumeServiceWorker } from '@vrowser/service-worker'
+ * ```ts
+ * import { resumeServiceWorker } from '@vrowser/service-worker/admin'
  *
  * // Resume a specific service worker
  * const result = await resumeServiceWorker('/sw.js', 'v1.0.0')

@@ -10,7 +10,7 @@
 function createSvcWorkerSessionPingMessage(id): SvcWorkerSessionPingMessage;
 ```
 
-Create a [service worker 'V_SW_SESSION_PING' message](../interfaces/SvcWorkerSessionPingMessage.md)
+Create a [service worker 'V_SW_SESSION_PING' message](../interfaces/SvcWorkerSessionPingMessage.md).
 
 ## Parameters
 

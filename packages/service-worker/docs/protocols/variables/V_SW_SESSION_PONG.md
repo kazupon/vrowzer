@@ -10,4 +10,4 @@
 const V_SW_SESSION_PONG: "V_SW_SESSION_PONG" = 'V_SW_SESSION_PONG';
 ```
 
-Session heartbeat pong response (Page -> Service Worker)
+Session heartbeat pong response (Page -> Service Worker).

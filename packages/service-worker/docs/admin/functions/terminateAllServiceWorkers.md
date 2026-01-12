@@ -10,7 +10,7 @@
 function terminateAllServiceWorkers(options?): Promise<Map<string, SvcWorkerSessionCircuitBreakerResult>>;
 ```
 
-Terminate all registered service workers (hard kill / circuit breaker trip)
+Terminate all registered service workers (hard kill / circuit breaker trip).
 
 This trips the circuit breaker on all service workers, causing them
 to unregister themselves. This is a destructive operation.
@@ -29,8 +29,8 @@ Map of registry keys to terminate results
 
 ## Example
 
-```typescript
-import { terminateAllServiceWorkers } from '@vrowser/service-worker'
+```ts
+import { terminateAllServiceWorkers } from '@vrowser/service-worker/admin'
 
 // Terminate all service workers (e.g., for emergency shutdown)
 const results = await terminateAllServiceWorkers({ clearCaches: true })

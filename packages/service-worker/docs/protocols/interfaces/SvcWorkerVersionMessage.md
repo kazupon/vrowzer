@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerVersionMessage
 
-VERSION request message (Page -> Service Worker)
+VERSION request message (Page -> Service Worker).
 
 ## Extends
 

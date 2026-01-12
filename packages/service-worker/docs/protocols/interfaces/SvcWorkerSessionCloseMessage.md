@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerSessionCloseMessage
 
-SESSION_CLOSE message (Page -> Service Worker via session MessagePort)
+SESSION_CLOSE message (Page -> Service Worker via session MessagePort).
 
 ## Extends
 

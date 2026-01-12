@@ -16,7 +16,7 @@
 import type { SvcWorkerController } from './controller.ts'
 
 /**
- * Extended controller interface with scriptURL and version properties
+ * Extended controller interface with scriptURL and version properties.
  *
  * Used internally by the registry to identify controllers.
  *
@@ -30,7 +30,7 @@ interface RegistrableController extends SvcWorkerController {
 const controllers = new Map<string, SvcWorkerController>()
 
 /**
- * Generate registry key from scriptURL and version
+ * Generate registry key from scriptURL and version.
  *
  * @param scriptURL - A service worker script URL
  * @param version - A service worker version
@@ -44,7 +44,7 @@ export function getRegistryKey(scriptURL: string | URL, version: string): string
 }
 
 /**
- * Register a controller instance
+ * Register a controller instance.
  *
  * Called internally by `controller.ts` when a controller is created.
  *
@@ -59,7 +59,7 @@ export function register(controller: SvcWorkerController): void {
 }
 
 /**
- * Unregister a controller instance
+ * Unregister a controller instance.
  *
  * Called internally by `controller.ts` when a controller is disposed.
  *
@@ -74,7 +74,7 @@ export function unregister(controller: SvcWorkerController): void {
 }
 
 /**
- * Get all registered controllers
+ * Get all registered controllers.
  *
  * @returns A readonly array of all registered {@link SvcWorkerController | service worker controllers}
  */
@@ -83,7 +83,7 @@ export function getAll(): readonly SvcWorkerController[] {
 }
 
 /**
- * Get a controller by its script URL and version
+ * Get a controller by its script URL and version.
  *
  * @param scriptURL - A service worker script URL
  * @param version - A service worker version
@@ -95,7 +95,7 @@ export function get(scriptURL: string | URL, version: string): SvcWorkerControll
 }
 
 /**
- * Clear all registered controllers
+ * Clear all registered controllers.
  *
  * Used for testing purposes.
  *

@@ -29,8 +29,8 @@ Map of registry keys to resume results
 
 ## Example
 
-```typescript
-import { resumeAllServiceWorkers } from '@vrowser/service-worker'
+```ts
+import { resumeAllServiceWorkers } from '@vrowser/service-worker/admin'
 
 // Resume all suspended service workers
 const results = await resumeAllServiceWorkers()

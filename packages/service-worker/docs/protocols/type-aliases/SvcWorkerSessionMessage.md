@@ -16,4 +16,4 @@ type SvcWorkerSessionMessage =
   | SvcWorkerSessionTerminatedMessage;
 ```
 
-Union type of all session messages (via session MessagePort)
+Union type of all session messages (via session MessagePort).

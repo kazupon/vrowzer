@@ -1,30 +1,32 @@
 /**
  * Service Worker Controller
  *
- * ## Features
- * - Defines service worker version tag and verifies via service worker messaging.
- * - Handles the below status combination service worker on registration:
- *   - `registration.installing`
- *   - `registration.waiting`
- *   - `registration.active`
+ * This module provides a controller for managing Service Worker lifecycle on the page side.
  *
- * ### Optional policy:
- * 1. If any waiting exists, always request `skipWaiting` (aggressive).
- * 2. If controller does not switch (expected is active but not controller), suggest reload via callback.
+ * ## Features
+ * - Version verification via service worker messaging
+ * - Handles registration states: `installing`, `waiting`, `active`
+ * - Singleton pattern: One controller instance per scriptURL + version combination
+ * - Session management with MessagePort-based bidirectional communication
+ * - Circuit breaker: suspend (soft kill) and resume capabilities
+ *
+ * ### Skip Waiting Policy
+ * - `'strict'`: Request `skipWaiting` only if waiting/installing matches expected version
+ * - `'force'`: If `registration.waiting` exists, always request `skipWaiting`
  *
  * ## Behavior
- * - Returns immediately if expected service worker is already the controller.
- * - Returns when expected service worker becomes active, even if not yet controlling the page.
- *   (For service workers that don't call `clients.claim()`, reload is needed to gain control)
- * - Calls {@link SvcWorkerControllerEventMap.reloadSuggested | reloadSuggested} when expected is active but not controller.
+ * - Returns immediately if expected service worker is already the controller
+ * - Returns when expected service worker becomes active, even if not yet controlling the page
+ * - Emits {@link SvcWorkerControllerEventMap.reloadSuggested | reloadSuggested} when expected is active but not controller
  *
- * ## Service worker requirements
- * - Possible to handle the service worker message protocols.
- * - Responds to `{ type: 'V_SW_VERSION' }` using `MessageChannel` port -> {version}
- * - Accepts `{ type: 'V_SW_SKIP_WAITING' }` -> `self.skipWaiting()`
- * - (Optional) in activate: `event.waitUntil(self.clients.claim())` - enables immediate control
+ * ## Service Worker Requirements
+ * The service worker must handle the following message protocols:
+ * - `V_SW_VERSION`: Respond with version via MessagePort
+ * - `V_SW_SKIP_WAITING`: Call `self.skipWaiting()`
+ * - `V_SW_SESSION_INIT`: Establish session (for circuit breaker support)
+ * - (Optional) `clients.claim()` in activate event for immediate control
  *
- * The above requirements can be met by using a separately provided module within your service worker.
+ * These requirements are satisfied by using the `worker` module.
  *
  * @module controller
  */
@@ -56,28 +58,28 @@ import type {
 } from './protocols.ts'
 
 /**
- * {@link SvcWorkerController | Service Worker Controller} instance creation options
+ * {@link SvcWorkerController | Service Worker Controller} instance creation options.
  *
  * Use in {@link createSvcWorkerController} function.
  */
 export interface SvcWorkerControllerOptions extends RegistrationOptions {
   /**
-   * The URL of the service worker script to register
-   * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register}
+   * The URL of the service worker script to register.
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register
    */
   scriptURL: string | URL
   /**
-   * The version tag string to identify the service worker
+   * The version tag string to identify the service worker.
    */
   version: string
   /**
-   * debug logger function
+   * debug logger function.
    */
   debug?: Console['debug']
 }
 
 /**
- * Service worker controller error
+ * Service worker controller error.
  */
 export class SvcWorkerControllerError extends Error {
   name = 'SvcWorkerControllerError'
@@ -87,7 +89,7 @@ export class SvcWorkerControllerError extends Error {
 }
 
 /**
- * Reload suggest reason
+ * Reload suggest reason.
  *
  * Reasons:
  * - 'unclaimed': Expected service worker is active but not controlling the page (no clients.claim())
@@ -96,23 +98,23 @@ export class SvcWorkerControllerError extends Error {
 export type ReloadSuggestReason = 'unclaimed' | 'promoted'
 
 /**
- * Reload suggest information for service worker
+ * Reload suggest information for service worker.
  */
 export interface ReloadSuggestInfo {
   /**
-   * The reason for suggesting reload
+   * The reason for suggesting reload.
    *
    * @see {@link ReloadSuggestReason}
    */
   reason: ReloadSuggestReason
   /**
-   * The version of the service worker for suggesting reload
+   * The version of the service worker for suggesting reload.
    */
   version: string
 }
 
 /**
- * {@link SvcWorkerController | Service Worker Controller} state
+ * {@link SvcWorkerController | Service Worker Controller} state.
  *
  * Note that while it's similar to the state provided by {@link ServiceWorkerState | service worker state}, it's not identical.
  * It has been adjusted to be easier for the Service worker controller to handle the expected service worker.
@@ -144,32 +146,32 @@ export type SvcWorkerControllerState =
   | 'terminated'
 
 /**
- * {@link SvcWorkerController | Service Worker Controller} state change information
+ * {@link SvcWorkerController | Service Worker Controller} state change information.
  */
 export interface StateChangeInfo {
   /**
-   * The current state of the {@link SvcWorkerController}
+   * The current state of the {@link SvcWorkerController}.
    */
   state: SvcWorkerControllerState
   /**
-   * The version of the service worker that triggered the state change
+   * The version of the service worker that triggered the state change.
    */
   version: string
   /**
-   * The {@link ServiceWorker | service worker} instance that triggered the state change
+   * The {@link ServiceWorker | service worker} instance that triggered the state change.
    */
   serviceWorker: ServiceWorker
 }
 
 /**
- * Event map for {@link SvcWorkerController}
+ * Event map for {@link SvcWorkerController}.
  *
  * This type defines the payload types for each event.
  * When subscribing to events via `on()`, you receive these payload types.
  */
 export type SvcWorkerControllerEventMap = {
   /**
-   * Service worker controller progress hook
+   * Service worker controller progress hook.
    *
    * This callback is useful to debug or UI/telemetry.
    * Payload is the current phase description string.
@@ -209,7 +211,7 @@ export type SvcWorkerControllerEventMap = {
 }
 
 /**
- * Skip waiting policy type
+ * Skip waiting policy.
  *
  * Policies:
  * - 'strict': request `skipWaiting` only if `waiting` / `installing` matches expected service worker version
@@ -218,17 +220,17 @@ export type SvcWorkerControllerEventMap = {
 export type SkipWaitingPolicy = 'strict' | 'force'
 
 /**
- * An options for {@link SvcWorkerController.re | Service Worker Controller}
+ * An options for {@link SvcWorkerController.re | Service Worker Controller}.
  */
 export interface SvcWorkerControllerReadyOptions {
   /**
-   * Policy for `skipWaiting`
+   * Policy for `skipWaiting`.
    *
    * @default 'strict'
    */
   skipWaitingPolicy?: SkipWaitingPolicy
   /**
-   * Timeout in milliseconds to wait for expected service worker to become active
+   * Timeout in milliseconds to wait for expected service worker to become active.
    *
    * @default 3000
    */
@@ -236,23 +238,23 @@ export interface SvcWorkerControllerReadyOptions {
 }
 
 /**
- * Service worker controller
+ * Service worker controller.
  */
 export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventMap>, Disposable {
   /**
-   * The script URL of the service worker
+   * The script URL of the service worker.
    */
   readonly scriptURL: string
   /**
-   * The version tag of the service worker
+   * The version tag of the service worker.
    */
   readonly version: string
   /**
-   * The current state of the {@link SvcWorkerController}
+   * The current state of the {@link SvcWorkerController}.
    */
   readonly state: SvcWorkerControllerState
   /**
-   * The {@link ServiceWorker | service worker} instance that is managed by service worker controller
+   * The {@link ServiceWorker | service worker} instance that is managed by service worker controller.
    */
   readonly serviceWorker: ServiceWorker | null
   /**

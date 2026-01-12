@@ -10,7 +10,7 @@
 function createSvcWorkerSessionPongMessage(id): SvcWorkerSessionPongMessage;
 ```
 
-Create a [service worker 'V_SW_SESSION_PONG' message](../interfaces/SvcWorkerSessionPongMessage.md)
+Create a [service worker 'V_SW_SESSION_PONG' message](../interfaces/SvcWorkerSessionPongMessage.md).
 
 ## Parameters
 

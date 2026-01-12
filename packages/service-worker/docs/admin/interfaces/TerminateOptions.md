@@ -6,7 +6,7 @@
 
 # Interface: TerminateOptions
 
-Options for terminate operations
+Options for terminate operations.
 
 ## Properties
 

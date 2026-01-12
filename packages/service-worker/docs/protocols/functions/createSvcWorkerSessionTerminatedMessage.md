@@ -10,7 +10,7 @@
 function createSvcWorkerSessionTerminatedMessage(reason): SvcWorkerSessionTerminatedMessage;
 ```
 
-Create a [SvcWorkerSessionTerminatedMessage](../interfaces/SvcWorkerSessionTerminatedMessage.md)
+Create a [SvcWorkerSessionTerminatedMessage](../interfaces/SvcWorkerSessionTerminatedMessage.md).
 
 ## Parameters
 

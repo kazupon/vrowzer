@@ -10,7 +10,7 @@
 function getAllControllers(): readonly SvcWorkerController[];
 ```
 
-Get all registered service worker controllers
+Get all registered service worker controllers.
 
 ## Returns
 
@@ -20,8 +20,8 @@ A readonly array of all registered controllers
 
 ## Example
 
-```typescript
-import { getAllControllers } from '@vrowser/service-worker'
+```ts
+import { getAllControllers } from '@vrowser/service-worker/admin'
 
 const controllers = getAllControllers()
 for (const controller of controllers) {

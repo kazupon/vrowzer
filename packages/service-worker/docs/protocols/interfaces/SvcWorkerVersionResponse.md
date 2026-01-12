@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerVersionResponse
 
-VERSION response message (Service Worker -> Page via MessagePort)
+VERSION response message (Service Worker -> Page via MessagePort).
 
 ## Extends
 

@@ -6,22 +6,34 @@
  * > It cannot be used in regular JavaScript applications.
  *
  * This module provides a Proxy-based wrapper for Service Workers that:
- * - Transparently accesses all native {@link ServiceWorkerGlobalScope} APIs
- * - Handles protocol messages defined in {@link module:protocols}
+ * - Transparently passes through all native {@link ServiceWorkerGlobalScope} APIs
+ * - Handles protocol messages defined in `protocols` module
  *
  * ## Features
  * - Service Worker version management
  * - Optional execution of `skipWaiting`
+ * - Session management with MessagePort-based communication
+ * - Circuit breaker (suspend/resume) for emergency shutdown
+ * - Heartbeat monitoring and stale session cleanup
  *
  * ## Usage
- * ```typescript
+ * ```ts
  * const sw = createSvcWorker(self, { version: '1.0.0' })
  *
  * // Native APIs work transparently
- * sw.addEventListener('fetch', (event) => { ... })
+ * sw.addEventListener('fetch', (event) => {
+ *   // Check suspended flag for circuit breaker
+ *   if (sw.suspended) {
+ *     event.respondWith(fetch(event.request))
+ *     return
+ *   }
+ *   // Normal handling...
+ * })
  *
  * // Extended properties
- * console.log(sw.version)
+ * console.log(sw.version)      // '1.0.0'
+ * console.log(sw.suspended)    // false
+ * console.log(sw.sessionCount) // 0
  * ```
  *
  * @module worker
@@ -125,7 +137,7 @@ export interface SvcWorker extends ServiceWorkerGlobalScope, Disposable {
    * return `fetch(event.request)` directly.
    *
    * @example
-   * ```typescript
+   * ```ts
    * sw.addEventListener('fetch', (event) => {
    *   if (sw.suspended) {
    *     event.respondWith(fetch(event.request))
@@ -150,7 +162,9 @@ export interface SvcWorker extends ServiceWorkerGlobalScope, Disposable {
  * @returns A {@link SvcWorker} instance that wraps the native service worker
  *
  * @example
- * ```typescript
+ * ```ts
+ * import { createSvcWorker } from '@vrowser/service-worker/worker'
+ *
  * const sw = createSvcWorker(self, { version: '1.0.0' })
  *
  * sw.addEventListener('fetch', (event) => {

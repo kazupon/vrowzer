@@ -10,7 +10,7 @@
 function suspendAllServiceWorkers(options?): Promise<Map<string, SvcWorkerSessionCircuitBreakerResult>>;
 ```
 
-Suspend all registered service workers (soft kill / circuit breaker)
+Suspend all registered service workers (soft kill / circuit breaker).
 
 This engages the circuit breaker on all service workers, disabling
 their functionality without unregistering them.
@@ -29,8 +29,8 @@ Map of registry keys to suspend results
 
 ## Example
 
-```typescript
-import { suspendAllServiceWorkers } from '@vrowser/service-worker'
+```ts
+import { suspendAllServiceWorkers } from '@vrowser/service-worker/admin'
 
 // Suspend all service workers (e.g., for maintenance)
 const results = await suspendAllServiceWorkers()

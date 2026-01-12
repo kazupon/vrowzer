@@ -10,7 +10,7 @@
 function isSvcWorkerSessionPingMessage(message): message is SvcWorkerSessionPingMessage;
 ```
 
-Type guard for [SvcWorkerSessionPingMessage](../interfaces/SvcWorkerSessionPingMessage.md)
+Type guard for [SvcWorkerSessionPingMessage](../interfaces/SvcWorkerSessionPingMessage.md).
 
 ## Parameters
 

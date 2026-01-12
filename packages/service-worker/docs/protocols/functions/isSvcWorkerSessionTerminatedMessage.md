@@ -10,7 +10,7 @@
 function isSvcWorkerSessionTerminatedMessage(message): message is SvcWorkerSessionTerminatedMessage;
 ```
 
-Type guard for [SvcWorkerSessionTerminatedMessage](../interfaces/SvcWorkerSessionTerminatedMessage.md)
+Type guard for [SvcWorkerSessionTerminatedMessage](../interfaces/SvcWorkerSessionTerminatedMessage.md).
 
 ## Parameters
 

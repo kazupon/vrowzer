@@ -5,12 +5,11 @@ Safely deploy and manage Service Workers with version control, bidirectional com
 ## ✨ Features
 
 - ✅ **Version Management** - Tag and verify Service Worker versions for controlled updates
-- ✅ **Persistent Sessions** - MessageChannel-based bidirectional communication between page and Service Worker
-- ✅ **Kill Switch / Circuit Breaker** - Suspend (soft kill) or terminate (hard kill) Service Workers on demand
 - ✅ **Singleton Controller** - One controller instance per scriptURL + version combination
 - ✅ **State Management** - Track Service Worker lifecycle states with events
 - ✅ **Heartbeat Monitoring** - Automatic session health checks and stale session cleanup
-- ✅ **TypeScript First** - Full type definitions and type guards for all protocols
+- ✅ **Continuing Sessions** - MessageChannel-based bidirectional communication between page and Service Worker
+- ✅ **Kill Switch / Circuit Breaker** - Suspend (soft kill) or terminate (hard kill) Service Workers on demand
 
 ## 💿 Installation
 
@@ -35,8 +34,7 @@ bun add @vrowser/service-worker
 
 ### Service Worker Controller
 
-The controller manages Service Worker registration, version verification,
-and lifecycle on the page side.
+The controller manages Service Worker registration, version verification, and lifecycle on the page side.
 
 ```ts
 import { createSvcWorkerController } from '@vrowser/service-worker/controller'
@@ -71,7 +69,7 @@ if (success) {
 
 ### Service Worker
 
-Use `createSvcWorker` to wrap the Service Worker global scope. It provides a Proxy-based wrapper that transparently passes through all native `ServiceWorkerGlobalScope` APIs while adding version management and session handling.
+Use `createSvcWorker` to wrap the [Service Worker global scope](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope). It provides a Proxy-based wrapper that transparently passes through all native APIs while adding version management and session handling.
 
 ```ts
 // sw.js
@@ -282,7 +280,7 @@ const sw = createSvcWorker(self, {
 })
 ```
 
-**Singleton Pattern:**
+**Singleton:**
 Controllers are cached by `scriptURL::version` key. Creating a controller
 with the same scriptURL and version returns the existing instance.
 
@@ -407,8 +405,8 @@ See the [API References](./docs/index.md)
 ## 🤝 Sponsors
 
 <p align="center">
-  <a href="https://github.com/sponsors/kazupon">
-    <img alt="sponsors" src="https://raw.githubusercontent.com/user-attachments/assets/e6d69be7-7b67-43cd-9e82-e2eed66f1cf9" />
+  <a href="https://cdn.jsdelivr.net/gh/kazupon/sponsors/sponsors.svg">
+    <img alt="sponsor" src='https://cdn.jsdelivr.net/gh/kazupon/sponsors/sponsors.svg'/>
   </a>
 </p>
 

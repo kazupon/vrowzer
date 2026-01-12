@@ -37,8 +37,8 @@ Error if controller is not found
 
 ## Example
 
-```typescript
-import { resumeServiceWorker } from '@vrowser/service-worker'
+```ts
+import { resumeServiceWorker } from '@vrowser/service-worker/admin'
 
 // Resume a specific service worker
 const result = await resumeServiceWorker('/sw.js', 'v1.0.0')

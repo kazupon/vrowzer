@@ -13,7 +13,7 @@ function createSvcWorkerSessionResumeResponse<T>(
 value): SvcWorkerSessionGenericResponse<T>;
 ```
 
-Create a resume response message
+Create a resume response message.
 
 ## Type Parameters
 

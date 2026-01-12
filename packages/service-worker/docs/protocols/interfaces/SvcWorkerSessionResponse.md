@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerSessionResponse\<T\>
 
-Session response structure
+Session response structure.
 
 ## Type Parameters
 

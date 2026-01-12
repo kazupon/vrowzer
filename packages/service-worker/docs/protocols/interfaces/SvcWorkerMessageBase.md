@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerMessageBase
 
-Base message structure for all protocol messages
+Base message structure for all protocol messages.
 
 ## Extended by
 

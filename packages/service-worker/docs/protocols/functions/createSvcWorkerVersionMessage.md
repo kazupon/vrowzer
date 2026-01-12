@@ -10,7 +10,7 @@
 function createSvcWorkerVersionMessage(): SvcWorkerVersionMessage;
 ```
 
-Create a [service worker 'V_SW_VERSION' message](../interfaces/SvcWorkerVersionMessage.md)
+Create a [service worker 'V_SW_VERSION' message](../interfaces/SvcWorkerVersionMessage.md).
 
 ## Returns
 

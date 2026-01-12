@@ -10,7 +10,7 @@
 function isSvcWorkerSessionInitResponse(message): message is SvcWorkerSessionInitResponse;
 ```
 
-Type guard for [SvcWorkerSessionInitResponse](../interfaces/SvcWorkerSessionInitResponse.md)
+Type guard for [SvcWorkerSessionInitResponse](../interfaces/SvcWorkerSessionInitResponse.md).
 
 ## Parameters
 

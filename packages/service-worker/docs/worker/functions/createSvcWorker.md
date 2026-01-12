@@ -27,7 +27,9 @@ A [SvcWorker](../interfaces/SvcWorker.md) instance that wraps the native service
 
 ## Example
 
-```typescript
+```ts
+import { createSvcWorker } from '@vrowser/service-worker/worker'
+
 const sw = createSvcWorker(self, { version: '1.0.0' })
 
 sw.addEventListener('fetch', (event) => {

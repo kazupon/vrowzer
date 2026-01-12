@@ -12,32 +12,32 @@
  */
 
 /**
- * Session initialization message
+ * Session initialization message.
  */
 export const V_SW_SESSION_INIT = 'V_SW_SESSION_INIT'
 
 /**
- * Session close message
+ * Session close message.
  */
 export const V_SW_SESSION_CLOSE = 'V_SW_SESSION_CLOSE'
 
 /**
- * Session heartbeat ping message (Service Worker -> Page)
+ * Session heartbeat ping message (Service Worker -> Page).
  */
 export const V_SW_SESSION_PING = 'V_SW_SESSION_PING'
 
 /**
- * Session heartbeat pong response (Page -> Service Worker)
+ * Session heartbeat pong response (Page -> Service Worker).
  */
 export const V_SW_SESSION_PONG = 'V_SW_SESSION_PONG'
 
 /**
- * Managed service worker version
+ * Managed service worker version.
  */
 export const V_SW_VERSION = 'V_SW_VERSION'
 
 /**
- * Whether to skip waiting for `self.skipWaiting()` to be called on the service worker side after installation
+ * Whether to skip waiting for `self.skipWaiting()` to be called on the service worker side after installation.
  */
 export const V_SW_SKIP_WAITING = 'V_SW_SKIP_WAITING'
 
@@ -58,21 +58,21 @@ export const V_SW_SESSION_RESUME = 'V_SW_SESSION_RESUME'
 export const V_SW_SESSION_TERMINATED = 'V_SW_SESSION_TERMINATED'
 
 /**
- * Base message structure for all protocol messages
+ * Base message structure for all protocol messages.
  */
 export interface SvcWorkerMessageBase {
   type: string
 }
 
 /**
- * VERSION request message (Page -> Service Worker)
+ * VERSION request message (Page -> Service Worker).
  */
 export interface SvcWorkerVersionMessage extends SvcWorkerMessageBase {
   type: typeof V_SW_VERSION
 }
 
 /**
- * VERSION response message (Service Worker -> Page via MessagePort)
+ * VERSION response message (Service Worker -> Page via MessagePort).
  */
 export interface SvcWorkerVersionResponse extends SvcWorkerMessageBase {
   type: typeof V_SW_VERSION
@@ -80,22 +80,22 @@ export interface SvcWorkerVersionResponse extends SvcWorkerMessageBase {
 }
 
 /**
- * SKIP_WAITING message (Page -> Service Worker)
+ * SKIP_WAITING message (Page -> Service Worker).
  */
 export interface SvcWorkerSkipWaitingMessage extends SvcWorkerMessageBase {
   type: typeof V_SW_SKIP_WAITING
 }
 
 /**
- * SESSION_INIT message (Page -> Service Worker)
- * Sent with a MessagePort to establish a persistent session
+ * SESSION_INIT message (Page -> Service Worker).
+ * Sent with a MessagePort to establish a persistent session.
  */
 export interface SvcWorkerSessionInitMessage extends SvcWorkerMessageBase {
   type: typeof V_SW_SESSION_INIT
 }
 
 /**
- * SESSION_INIT response (Service Worker -> Page via MessagePort)
+ * SESSION_INIT response (Service Worker -> Page via MessagePort).
  */
 export interface SvcWorkerSessionInitResponse {
   type: typeof V_SW_SESSION_INIT
@@ -104,14 +104,14 @@ export interface SvcWorkerSessionInitResponse {
 }
 
 /**
- * SESSION_CLOSE message (Page -> Service Worker via session MessagePort)
+ * SESSION_CLOSE message (Page -> Service Worker via session MessagePort).
  */
 export interface SvcWorkerSessionCloseMessage extends SvcWorkerMessageBase {
   type: typeof V_SW_SESSION_CLOSE
 }
 
 /**
- * PING message (Service Worker -> Page via session MessagePort)
+ * PING message (Service Worker -> Page via session MessagePort).
  */
 export interface SvcWorkerSessionPingMessage extends SvcWorkerMessageBase {
   type: typeof V_SW_SESSION_PING
@@ -119,7 +119,7 @@ export interface SvcWorkerSessionPingMessage extends SvcWorkerMessageBase {
 }
 
 /**
- * PONG response (Page -> Service Worker via session MessagePort)
+ * PONG response (Page -> Service Worker via session MessagePort).
  */
 export interface SvcWorkerSessionPongMessage extends SvcWorkerMessageBase {
   type: typeof V_SW_SESSION_PONG
@@ -127,7 +127,7 @@ export interface SvcWorkerSessionPongMessage extends SvcWorkerMessageBase {
 }
 
 /**
- * Session response structure
+ * Session response structure.
  */
 export interface SvcWorkerSessionResponse<T = unknown> {
   id: string
@@ -137,7 +137,7 @@ export interface SvcWorkerSessionResponse<T = unknown> {
 }
 
 /**
- * Create a {@link SvcWorkerVersionMessage | service worker 'V_SW_VERSION' message}
+ * Create a {@link SvcWorkerVersionMessage | service worker 'V_SW_VERSION' message}.
  *
  * @returns The constructed {@link SvcWorkerVersionMessage}
  */
@@ -146,7 +146,7 @@ export function createSvcWorkerVersionMessage(): SvcWorkerVersionMessage {
 }
 
 /**
- * Type guard for {@link SvcWorkerVersionMessage}
+ * Type guard for {@link SvcWorkerVersionMessage}.
  *
  * @param message - The message to check
  * @returns True if the message is a SvcWorkerVersionMessage, false otherwise
@@ -165,7 +165,7 @@ export function isSvcWrokerVersionMessageResponse(
 }
 
 /**
- * Create a {@link SvcWorkerVersionResponse | service worker 'V_SW_VERSION' response}
+ * Create a {@link SvcWorkerVersionResponse | service worker 'V_SW_VERSION' response}.
  *
  * @param version - The version string of the service worker
  * @returns The constructed {@link SvcWorkerVersionResponse}
@@ -175,7 +175,7 @@ export function createSvcWorkerVersionResponse(version: string): SvcWorkerVersio
 }
 
 /**
- * Create a {@link SvcWorkerSkipWaitingMessage | service worker 'V_SW_SKIP_WAITING' message}
+ * Create a {@link SvcWorkerSkipWaitingMessage | service worker 'V_SW_SKIP_WAITING' message}.
  *
  * @returns The constructed {@link SvcWorkerSkipWaitingMessage}
  */
@@ -184,7 +184,7 @@ export function createSvcWorkerSkipWaitingMessage(): SvcWorkerSkipWaitingMessage
 }
 
 /**
- * Type guard for {@link SvcWorkerSessionPingMessage}
+ * Type guard for {@link SvcWorkerSessionPingMessage}.
  *
  * @param message - The message to check
  * @returns True if the message is a SvcWorkerSessionPingMessage, false otherwise
@@ -201,7 +201,7 @@ export function isSvcWorkerSessionPingMessage(
 }
 
 /**
- * Create a {@link SvcWorkerSessionPingMessage | service worker 'V_SW_SESSION_PING' message}
+ * Create a {@link SvcWorkerSessionPingMessage | service worker 'V_SW_SESSION_PING' message}.
  *
  * @param id - The unique ID for the ping message
  * @returns The constructed {@link SvcWorkerSessionPingMessage}
@@ -211,7 +211,7 @@ export function createSvcWorkerSessionPingMessage(id: string): SvcWorkerSessionP
 }
 
 /**
- * Create a {@link SvcWorkerSessionPongMessage | service worker 'V_SW_SESSION_PONG' message}
+ * Create a {@link SvcWorkerSessionPongMessage | service worker 'V_SW_SESSION_PONG' message}.
  *
  * @param id - The ID of the PING message to respond to
  * @returns The constructed SvcWorkerSessionPongMessage
@@ -221,7 +221,7 @@ export function createSvcWorkerSessionPongMessage(id: string): SvcWorkerSessionP
 }
 
 /**
- * Type guard for {@link SvcWorkerSessionResponse}
+ * Type guard for {@link SvcWorkerSessionResponse}.
  *
  * @param message - The message to check
  * @returns True if the message is a SvcWorkerSessionResponse, false otherwise
@@ -233,7 +233,7 @@ export function isSvcWorkerSessionResponse<T>(
 }
 
 /**
- * Create a {@link SvcWorkerSessionInitMessage | service worker 'V_SW_SESSION_INIT' message}
+ * Create a {@link SvcWorkerSessionInitMessage | service worker 'V_SW_SESSION_INIT' message}.
  *
  * @returns The constructed {@link SvcWorkerSessionInitMessage}
  */
@@ -242,7 +242,7 @@ export function createSvcWorkerSessionInitMessage(): SvcWorkerSessionInitMessage
 }
 
 /**
- * Type guard for {@link SvcWorkerSessionInitResponse}
+ * Type guard for {@link SvcWorkerSessionInitResponse}.
  *
  * @param message - The message to check
  * @returns True if the message is a SvcWorkerSessionInitResponse, false otherwise
@@ -261,7 +261,7 @@ export function isSvcWorkerSessionInitResponse(
 }
 
 /**
- * Create a {@link SvcWorkerSessionInitResponse | service worker 'V_SW_SESSION_INIT' response}
+ * Create a {@link SvcWorkerSessionInitResponse | service worker 'V_SW_SESSION_INIT' response}.
  *
  * @param success - Whether the session initialization was successful
  * @param version - The version of the service worker
@@ -275,7 +275,7 @@ export function createSvcWorkerSessionInitResponse(
 }
 
 /**
- * Create a {@link SvcWorkerSessionCloseMessage | service worker 'V_SW_SESSION_CLOSE' message}
+ * Create a {@link SvcWorkerSessionCloseMessage | service worker 'V_SW_SESSION_CLOSE' message}.
  *
  * @returns The constructed {@link SvcWorkerSessionCloseMessage}
  */
@@ -398,7 +398,7 @@ export function isSvcWorkerSessionGenericResponse<T = unknown>(
 }
 
 /**
- * Create a circuit breaker response message
+ * Create a circuit breaker response message.
  *
  * @param id - The request ID
  * @param success - Whether the operation succeeded
@@ -451,7 +451,7 @@ export function isSvcWorkerSessionResumeMessage(
 }
 
 /**
- * Create a resume response message
+ * Create a resume response message.
  *
  * @param id - The request ID
  * @param success - Whether the operation succeeded
@@ -498,7 +498,7 @@ export interface SvcWorkerSessionTerminatedMessage extends SvcWorkerMessageBase 
 }
 
 /**
- * Type guard for {@link SvcWorkerSessionTerminatedMessage}
+ * Type guard for {@link SvcWorkerSessionTerminatedMessage}.
  *
  * @param message - The message to check
  * @returns True if the message is a SvcWorkerSessionTerminatedMessage
@@ -514,7 +514,7 @@ export function isSvcWorkerSessionTerminatedMessage(
 }
 
 /**
- * Create a {@link SvcWorkerSessionTerminatedMessage}
+ * Create a {@link SvcWorkerSessionTerminatedMessage}.
  *
  * @param reason - The reason for termination
  * @returns The constructed message
@@ -526,7 +526,7 @@ export function createSvcWorkerSessionTerminatedMessage(
 }
 
 /**
- * Union type of all session messages (via session MessagePort)
+ * Union type of all session messages (via session MessagePort).
  */
 export type SvcWorkerSessionMessage =
   | SvcWorkerSessionCloseMessage

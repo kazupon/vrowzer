@@ -8,7 +8,7 @@
  */
 
 /**
- * Abortable option
+ * The Abortable options.
  */
 export interface AbortableOptions {
   /**

@@ -10,4 +10,4 @@
 const V_SW_SESSION_CLOSE: "V_SW_SESSION_CLOSE" = 'V_SW_SESSION_CLOSE';
 ```
 
-Session close message
+Session close message.

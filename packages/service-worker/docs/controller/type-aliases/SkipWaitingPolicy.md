@@ -10,7 +10,7 @@
 type SkipWaitingPolicy = "strict" | "force";
 ```
 
-Skip waiting policy type
+Skip waiting policy.
 
 Policies:
 

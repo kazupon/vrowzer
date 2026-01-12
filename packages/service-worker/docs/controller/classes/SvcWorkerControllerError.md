@@ -6,7 +6,7 @@
 
 # Class: SvcWorkerControllerError
 
-Service worker controller error
+Service worker controller error.
 
 ## Extends
 

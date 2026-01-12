@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerSessionInitResponse
 
-SESSION_INIT response (Service Worker -> Page via MessagePort)
+SESSION_INIT response (Service Worker -> Page via MessagePort).
 
 ## Properties
 

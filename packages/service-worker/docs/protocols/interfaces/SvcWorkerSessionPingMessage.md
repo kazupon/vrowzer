@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerSessionPingMessage
 
-PING message (Service Worker -> Page via session MessagePort)
+PING message (Service Worker -> Page via session MessagePort).
 
 ## Extends
 

@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerSessionPongMessage
 
-PONG response (Page -> Service Worker via session MessagePort)
+PONG response (Page -> Service Worker via session MessagePort).
 
 ## Extends
 

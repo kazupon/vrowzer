@@ -6,8 +6,8 @@
 
 # Interface: SvcWorkerSessionInitMessage
 
-SESSION_INIT message (Page -> Service Worker)
-Sent with a MessagePort to establish a persistent session
+SESSION_INIT message (Page -> Service Worker).
+Sent with a MessagePort to establish a persistent session.
 
 ## Extends
 

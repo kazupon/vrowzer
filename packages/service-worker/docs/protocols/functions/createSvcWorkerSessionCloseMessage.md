@@ -10,7 +10,7 @@
 function createSvcWorkerSessionCloseMessage(): SvcWorkerSessionCloseMessage;
 ```
 
-Create a [service worker 'V_SW_SESSION_CLOSE' message](../interfaces/SvcWorkerSessionCloseMessage.md)
+Create a [service worker 'V_SW_SESSION_CLOSE' message](../interfaces/SvcWorkerSessionCloseMessage.md).
 
 ## Returns
 

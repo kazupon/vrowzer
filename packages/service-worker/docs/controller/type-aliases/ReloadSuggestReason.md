@@ -10,7 +10,7 @@
 type ReloadSuggestReason = "unclaimed" | "promoted";
 ```
 
-Reload suggest reason
+Reload suggest reason.
 
 Reasons:
 

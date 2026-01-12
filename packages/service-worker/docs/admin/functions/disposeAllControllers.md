@@ -10,7 +10,7 @@
 function disposeAllControllers(): void;
 ```
 
-Dispose all registered controllers
+Dispose all registered controllers.
 
 This will clean up resources but will NOT terminate the service workers.
 Use [terminateAllServiceWorkers](terminateAllServiceWorkers.md) to terminate service workers.
@@ -21,8 +21,8 @@ Use [terminateAllServiceWorkers](terminateAllServiceWorkers.md) to terminate ser
 
 ## Example
 
-```typescript
-import { disposeAllControllers } from '@vrowser/service-worker'
+```ts
+import { disposeAllControllers } from '@vrowser/service-worker/admin'
 
 // Clean up all controllers on page unload
 window.addEventListener('unload', () => {

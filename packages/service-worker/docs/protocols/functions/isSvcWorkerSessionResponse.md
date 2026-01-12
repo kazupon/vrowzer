@@ -10,7 +10,7 @@
 function isSvcWorkerSessionResponse<T>(message): message is SvcWorkerSessionResponse<T>;
 ```
 
-Type guard for [SvcWorkerSessionResponse](../interfaces/SvcWorkerSessionResponse.md)
+Type guard for [SvcWorkerSessionResponse](../interfaces/SvcWorkerSessionResponse.md).
 
 ## Type Parameters
 

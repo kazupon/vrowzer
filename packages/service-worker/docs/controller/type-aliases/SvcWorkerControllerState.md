@@ -16,7 +16,7 @@ type SvcWorkerControllerState =
   | "terminated";
 ```
 
-[Service Worker Controller](../interfaces/SvcWorkerController.md) state
+[Service Worker Controller](../interfaces/SvcWorkerController.md) state.
 
 Note that while it's similar to the state provided by ServiceWorkerState \| service worker state, it's not identical.
 It has been adjusted to be easier for the Service worker controller to handle the expected service worker.

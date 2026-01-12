@@ -13,7 +13,7 @@ function suspendServiceWorker(
 options?): Promise<SvcWorkerSessionCircuitBreakerResult>;
 ```
 
-Suspend a specific service worker (soft kill / circuit breaker)
+Suspend a specific service worker (soft kill / circuit breaker).
 
 This engages the circuit breaker, disabling service worker functionality
 without unregistering it.
@@ -38,8 +38,8 @@ Error if controller is not found
 
 ## Example
 
-```typescript
-import { suspendServiceWorker } from '@vrowser/service-worker'
+```ts
+import { suspendServiceWorker } from '@vrowser/service-worker/admin'
 
 // Suspend a specific service worker
 const result = await suspendServiceWorker('/sw.js', 'v1.0.0')

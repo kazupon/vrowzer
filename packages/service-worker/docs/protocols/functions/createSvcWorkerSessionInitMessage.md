@@ -10,7 +10,7 @@
 function createSvcWorkerSessionInitMessage(): SvcWorkerSessionInitMessage;
 ```
 
-Create a [service worker 'V_SW_SESSION_INIT' message](../interfaces/SvcWorkerSessionInitMessage.md)
+Create a [service worker 'V_SW_SESSION_INIT' message](../interfaces/SvcWorkerSessionInitMessage.md).
 
 ## Returns
 

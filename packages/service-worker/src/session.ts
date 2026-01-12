@@ -31,7 +31,7 @@ import type {
 } from './protocols.ts'
 
 /**
- * Session Error
+ * Session Error.
  */
 export class SvcWorkerSessionError extends Error {
   name = 'SvcWorkerSessionError'
@@ -41,7 +41,7 @@ export class SvcWorkerSessionError extends Error {
 }
 
 /**
- * Options for creating a session
+ * Options for creating a session.
  */
 export interface SvcWorkerSessionOptions {
   /**
@@ -55,22 +55,22 @@ export interface SvcWorkerSessionOptions {
 }
 
 /**
- * Service Worker Session interface
+ * Service Worker Session interface.
  *
  * Provides a persistent connection to an active Service Worker
  * with send/response capabilities.
  */
 export interface SvcWorkerSession extends Disposable {
   /**
-   * Whether the session is currently connected
+   * Whether the session is currently connected.
    */
   readonly connected: boolean
   /**
-   * The version of the connected Service Worker
+   * The version of the connected Service Worker.
    */
   readonly version: string
   /**
-   * Send a message through the session port and wait for response
+   * Send a message through the session port and wait for response.
    *
    * An 'id' field will be auto-generated if not present, used for response matching.
    * The service worker should respond with a message containing the same 'id'.
@@ -82,7 +82,7 @@ export interface SvcWorkerSession extends Disposable {
    * @throws {DOMException} If the request is aborted
    *
    * @example
-   * ```typescript
+   * ```ts
    * const result = await session.send<CircuitBreakerResult>({
    *   type: V_SW_SESSION_CIRCUIT_BREAKER,
    *   mode: 'suspend'
@@ -96,7 +96,7 @@ export interface SvcWorkerSession extends Disposable {
     }
   ): Promise<T>
   /**
-   * Close the session
+   * Close the session.
    *
    * @throws {SvcWorkerSessionError} If an error occurs while closing the session
    */
@@ -113,14 +113,14 @@ export interface SvcWorkerSession extends Disposable {
 }
 
 /**
- * Create a session with an active Service Worker
+ * Create a session with an active Service Worker.
  *
  * @param serviceWorker - The active Service Worker to connect to
  * @param options - Session options
  * @returns Promise resolving to the established session
  *
  * @example
- * ```typescript
+ * ```ts
  * const session = await createSession(navigator.serviceWorker.controller)
  * console.log('Connected to SW version:', session.version)
  *

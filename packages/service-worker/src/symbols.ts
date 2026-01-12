@@ -1,6 +1,5 @@
 /**
  * Internal symbols for accessing private properties.
- * These symbols are not exported from index.ts.
  */
 
 /**

@@ -10,4 +10,4 @@
 const V_SW_VERSION: "V_SW_VERSION" = 'V_SW_VERSION';
 ```
 
-Managed service worker version
+Managed service worker version.

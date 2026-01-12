@@ -38,8 +38,8 @@ Error if controller is not found or session is not established
 
 ## Example
 
-```typescript
-import { terminateServiceWorker } from '@vrowser/service-worker'
+```ts
+import { terminateServiceWorker } from '@vrowser/service-worker/admin'
 
 // Terminate a specific service worker
 const result = await terminateServiceWorker('/sw.js', 'v1.0.0', { clearCaches: true })

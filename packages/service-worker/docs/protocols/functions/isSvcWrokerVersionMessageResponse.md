@@ -10,7 +10,7 @@
 function isSvcWrokerVersionMessageResponse(message): message is SvcWorkerVersionResponse;
 ```
 
-Type guard for [SvcWorkerVersionMessage](../interfaces/SvcWorkerVersionMessage.md)
+Type guard for [SvcWorkerVersionMessage](../interfaces/SvcWorkerVersionMessage.md).
 
 ## Parameters
 

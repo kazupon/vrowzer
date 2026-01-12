@@ -13,7 +13,7 @@ function createSvcWorkerSessionCircuitBreakerResponse<T>(
 value): SvcWorkerSessionGenericResponse<T>;
 ```
 
-Create a circuit breaker response message
+Create a circuit breaker response message.
 
 ## Type Parameters
 

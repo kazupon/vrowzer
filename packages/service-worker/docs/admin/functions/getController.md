@@ -12,7 +12,7 @@ function getController(scriptURL, version):
   | undefined;
 ```
 
-Get a controller by its script URL and version
+Get a controller by its script URL and version.
 
 ## Parameters
 
@@ -30,8 +30,8 @@ The controller if found, undefined otherwise
 
 ## Example
 
-```typescript
-import { getController } from '@vrowser/service-worker'
+```ts
+import { getController } from '@vrowser/service-worker/admin'
 
 const controller = getController('/sw.js', 'v1.0.0')
 if (controller) {

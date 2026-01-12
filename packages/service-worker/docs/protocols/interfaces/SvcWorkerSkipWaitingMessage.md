@@ -6,7 +6,7 @@
 
 # Interface: SvcWorkerSkipWaitingMessage
 
-SKIP_WAITING message (Page -> Service Worker)
+SKIP_WAITING message (Page -> Service Worker).
 
 ## Extends
 
