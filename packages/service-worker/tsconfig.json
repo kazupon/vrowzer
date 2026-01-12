@@ -4,7 +4,7 @@
     "module": "esnext",
     "target": "esnext",
     "moduleResolution": "bundler",
-    "lib": ["ESNext", "WebWorker"],
+    "lib": ["DOM", "ESNext", "WebWorker"],
 
     // Other Outputs
     "sourceMap": true,
@@ -34,5 +34,5 @@
     "allowImportingTsExtensions": true,
     "skipLibCheck": true
   },
-  "include": ["src", "tsdown.config.ts"]
+  "include": ["src", "e2e", "tsdown.config.ts"]
 }

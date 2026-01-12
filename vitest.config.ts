@@ -24,7 +24,7 @@ export default defineConfig({
       {
         test: {
           name: 'service-worker:e2e',
-          include: ['./packages/service-worker/src/**/*.e2e-test.ts'],
+          include: ['./packages/service-worker/e2e/**/*.e2e-test.ts'],
           testTimeout: 30000,
           hookTimeout: 60000
         }

@@ -18,6 +18,7 @@
         "**/*.{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "**/*.browser-{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "scripts/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "packages/service-worker/e2e/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "packages/service-worker/test-public/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
       ],
       "rules": {
