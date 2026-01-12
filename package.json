@@ -16,7 +16,6 @@
     "dev:memfs": "pnpm --filter memfs-test dev",
     "dev:svc": "pnpm --filter svc-sandbox dev",
     "dev:vrowser": "pnpm --filter vrowser dev",
-    "e2e": "pnpm -r e2e",
     "fix": "pnpm run --color \"/^fix:/\"",
     "fix:eslint": "eslint . --fix",
     "fix:knip": "knip --fix --no-exit-code",
@@ -31,7 +30,8 @@
     "preview:svc": "pnpm --filter svc-sandbox preview",
     "preview:vrowser": "pnpm --filter vrowser preview",
     "test": "pnpm run --color \"/^test:/\"",
-    "test:unit": "vitest run",
+    "test:e2e": "vitest run --project *:e2e",
+    "test:unit": "vitest run --project *:unit",
     "typecheck": "tsgo --noEmit --diagnostics --project ./tsconfig.typecheck.json"
   },
   "devDependencies": {

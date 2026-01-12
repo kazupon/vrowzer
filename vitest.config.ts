@@ -5,21 +5,28 @@ export default defineConfig({
   test: {
     projects: [
       {
-        publicDir: 'packages/service-worker/test-public', // for servie worker and web worker colocation
+        publicDir: 'packages/service-worker/test-public',
         test: {
-          name: 'service-worker',
-          include: ['./packages/**/*.browser-test.ts'],
+          name: 'service-worker:unit',
+          include: ['./packages/service-worker/src/**/*.browser-test.ts'],
           browser: {
             enabled: true,
             headless: true,
             provider: playwright(),
-            // https://vitest.dev/guide/browser/playwright
             instances: [
               {
                 browser: 'chromium'
               }
             ]
           }
+        }
+      },
+      {
+        test: {
+          name: 'service-worker:e2e',
+          include: ['./packages/service-worker/src/**/*.e2e-test.ts'],
+          testTimeout: 30000,
+          hookTimeout: 60000
         }
       }
     ]
