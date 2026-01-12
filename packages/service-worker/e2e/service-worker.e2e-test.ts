@@ -323,6 +323,36 @@ describe('Controller API (createSvcWorkerController)', () => {
 
     await page.close()
   })
+
+  test('reloadSuggested event is fired when clients.claim() is not called', async () => {
+    const page = await context.newPage()
+    // Use e2e-sw-no-claim.js which does NOT call clients.claim()
+    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-no-claim.js?version=v1`)
+
+    await waitForStatus(page, 'activated')
+
+    // Check that reloadSuggested event was fired
+    const events = await getRecordedEvents(page)
+    const reloadSuggestedEvent = events.find(e => e.type === 'reloadSuggested')
+
+    expect(reloadSuggestedEvent).toBeDefined()
+    expect(reloadSuggestedEvent?.data).toMatchObject({
+      reason: 'unclaimed',
+      version: 'v1'
+    })
+
+    // controllerchange should NOT be fired (no clients.claim())
+    const controllerChanges = await page.evaluate(() => window.testState.controllerChanges)
+    expect(controllerChanges.length).toBe(0)
+
+    // navigator.serviceWorker.controller should be null
+    const controllerUrl = await page.evaluate(
+      () => navigator.serviceWorker.controller?.scriptURL ?? null
+    )
+    expect(controllerUrl).toBeNull()
+
+    await page.close()
+  })
 })
 
 // =============================================================================
