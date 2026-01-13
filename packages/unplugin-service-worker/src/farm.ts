@@ -1,7 +1,7 @@
 /**
  * This entry file is for Farm plugin.
  *
- * @module
+ * @module farm
  */
 
 /**

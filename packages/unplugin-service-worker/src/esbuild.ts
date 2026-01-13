@@ -1,7 +1,7 @@
 /**
  * This entry file is for esbuild plugin.
  *
- * @module
+ * @module esbuild
  */
 
 /**
@@ -20,7 +20,7 @@ import { Starter } from './index.ts'
  * import Starter from 'unplugin-starter/esbuild'
  *
  * build({ plugins: [Starter()] })
-```
+ * ```
  */
 const esbuild = Starter.esbuild
 export default esbuild

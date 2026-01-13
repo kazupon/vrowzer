@@ -1,7 +1,7 @@
 /**
  * This entry file is for Rolldown plugin.
  *
- * @module
+ * @module rolldown
  */
 
 /**

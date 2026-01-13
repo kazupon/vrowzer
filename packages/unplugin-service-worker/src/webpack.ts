@@ -1,7 +1,7 @@
 /**
  * This entry file is for webpack plugin.
  *
- * @module
+ * @module webpack
  */
 
 /**

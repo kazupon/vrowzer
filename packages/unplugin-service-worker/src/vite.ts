@@ -1,7 +1,7 @@
 /**
  * This entry file is for Vite plugin.
  *
- * @module
+ * @module vite
  */
 
 /**
