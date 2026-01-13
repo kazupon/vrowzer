@@ -47,6 +47,7 @@ import {
 } from './protocols.ts'
 import { createSession } from './session.ts'
 import { SESSION_SYMBOL } from './symbols.ts'
+import { safePostMessage } from './utils.ts'
 import * as registry from './registry.ts'
 
 import type { Emittable } from '@kazupon/jts-utils'
@@ -56,6 +57,12 @@ import type {
   SvcWorkerSessionResumeResult,
   SvcWorkerTerminatedReason
 } from './protocols.ts'
+
+/**
+ * Default timeout for circuit breaker operations (suspend/resume) in milliseconds.
+ * Used when no AbortSignal is provided by the caller.
+ */
+const DEFAULT_CIRCUIT_BREAKER_TIMEOUT = 30000
 
 /**
  * {@link SvcWorkerController | Service Worker Controller} instance creation options.
@@ -595,6 +602,16 @@ export function createSvcWorkerController(
 
     _debug?.('createSvcWorkerController: suspending service worker')
 
+    // Use provided signal or create one with default timeout
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let signal = suspendOptions.signal
+
+    if (!signal) {
+      const abortController = new AbortController()
+      timeoutId = setTimeout(() => abortController.abort(), DEFAULT_CIRCUIT_BREAKER_TIMEOUT)
+      signal = abortController.signal
+    }
+
     try {
       const result = await _session.send<SvcWorkerSessionCircuitBreakerResult>(
         {
@@ -602,7 +619,7 @@ export function createSvcWorkerController(
           mode: 'suspend',
           clearCaches: suspendOptions.clearCaches
         },
-        suspendOptions.signal ? { signal: suspendOptions.signal } : undefined
+        { signal }
       )
 
       _state = 'suspended'
@@ -615,6 +632,10 @@ export function createSvcWorkerController(
         'Failed to suspend service worker',
         error instanceof Error ? error : undefined
       )
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId)
+      }
     }
   }
 
@@ -630,12 +651,22 @@ export function createSvcWorkerController(
 
     _debug?.('createSvcWorkerController: resuming service worker')
 
+    // Use provided signal or create one with default timeout
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let signal = resumeOptions.signal
+
+    if (!signal) {
+      const abortController = new AbortController()
+      timeoutId = setTimeout(() => abortController.abort(), DEFAULT_CIRCUIT_BREAKER_TIMEOUT)
+      signal = abortController.signal
+    }
+
     try {
       const result = await _session.send<SvcWorkerSessionResumeResult>(
         {
           type: V_SW_SESSION_RESUME
         },
-        resumeOptions.signal ? { signal: resumeOptions.signal } : undefined
+        { signal }
       )
 
       _state = 'activated'
@@ -648,6 +679,10 @@ export function createSvcWorkerController(
         'Failed to resume service worker',
         error instanceof Error ? error : undefined
       )
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId)
+      }
     }
   }
 
@@ -737,7 +772,19 @@ function getServiceWorkerVersion(
     )
     ch.port1.start()
 
-    serviceWorker.postMessage(createSvcWorkerVersionMessage(), [ch.port2])
+    const sent = safePostMessage(serviceWorker, createSvcWorkerVersionMessage(), {
+      transfer: [ch.port2],
+      context: 'version request',
+      onError: error => {
+        cleanup()
+        reject(error as Error)
+      }
+    })
+
+    if (!sent) {
+      // onError already called cleanup and reject
+      return
+    }
   })
 }
 
@@ -810,7 +857,13 @@ async function promoteIfPossible(args: {
   // Policy: if any waiting exists, always request skipWaiting (aggressive).
   if (skipWaitingPolicy === 'force' && waiting) {
     onProgress?.('skipWaitingPolicy: force -> SKIP_WAITING')
-    waiting.postMessage(createSvcWorkerSkipWaitingMessage())
+    const sent = safePostMessage(waiting, createSvcWorkerSkipWaitingMessage(), {
+      context: 'force skipWaiting'
+    })
+    if (!sent) {
+      // skipWaiting send failed, log already printed, continue with 'none'
+      return 'none'
+    }
     return 'promoted-any-waiting'
   }
 
@@ -820,7 +873,12 @@ async function promoteIfPossible(args: {
     if (waitingVersion === version) {
       onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
       onProgress?.('found-expected-waiting -> SKIP_WAITING')
-      waiting.postMessage(createSvcWorkerSkipWaitingMessage())
+      const sent = safePostMessage(waiting, createSvcWorkerSkipWaitingMessage(), {
+        context: 'expected waiting skipWaiting'
+      })
+      if (!sent) {
+        return 'none'
+      }
       return 'promoted-waiting'
     }
   }
@@ -850,7 +908,12 @@ async function promoteIfPossible(args: {
         if (waitingVersion === version) {
           onStateChange?.({ state: 'waiting', version, serviceWorker: waiting })
           onProgress?.('installing->installed; expected in waiting -> SKIP_WAITING')
-          waiting.postMessage(createSvcWorkerSkipWaitingMessage())
+          const sent = safePostMessage(waiting, createSvcWorkerSkipWaitingMessage(), {
+            context: 'installing->waiting skipWaiting'
+          })
+          if (!sent) {
+            return 'none'
+          }
           return 'promoted-installing->waiting'
         }
       }

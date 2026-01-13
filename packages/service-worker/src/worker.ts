@@ -59,6 +59,7 @@ import {
   createSvcWorkerSessionTerminatedMessage,
   createSvcWorkerVersionResponse
 } from './protocols.ts'
+import { safePostMessage } from './utils.ts'
 
 import type {
   SvcWorkerMessage,
@@ -85,6 +86,8 @@ export class SvcWorkerError extends Error {
 interface SessionInfo {
   port: MessagePort
   lastPong: number
+  messageHandler: (event: MessageEvent) => void
+  messageErrorHandler: (event: MessageEvent) => void
 }
 
 /**
@@ -193,6 +196,12 @@ export function createSvcWorker(
     sessions: Map<string, SessionInfo>
   ) {
     debug?.('createSvcWorker: cleaning up session', clientId)
+    if (session.messageHandler) {
+      session.port.removeEventListener('message', session.messageHandler)
+    }
+    if (session.messageErrorHandler) {
+      session.port.removeEventListener('messageerror', session.messageErrorHandler)
+    }
     session.port.close()
     sessions.delete(clientId)
   }
@@ -228,15 +237,10 @@ export function createSvcWorker(
         // Notify all sessions about termination before unregistering
         const terminatedMessage = createSvcWorkerSessionTerminatedMessage('unregister')
         for (const [clientId, session] of sessions) {
-          try {
-            session.port.postMessage(terminatedMessage)
-          } catch (e) {
-            // Port may already be closed, ignore
-            // TODO: should be good handling/logging here
-            console.error(e)
-          } finally {
-            cleanupSession(session, clientId, sessions)
-          }
+          safePostMessage(session.port, terminatedMessage, {
+            context: `terminated notification to ${clientId}`
+          })
+          cleanupSession(session, clientId, sessions)
         }
 
         // Stop heartbeat since all sessions are closed
@@ -258,8 +262,10 @@ export function createSvcWorker(
             }
           }
         )
-      port.postMessage(response)
+      safePostMessage(port, response, { context: 'circuit breaker success response' })
     } catch (error) {
+      console.error('createSvcWorker: circuit breaker operation failed', error)
+
       // Send error response
       const response =
         createSvcWorkerSessionCircuitBreakerResponse<SvcWorkerSessionCircuitBreakerResult>(
@@ -269,7 +275,7 @@ export function createSvcWorker(
             error: error instanceof Error ? error.message : 'Unknown error'
           }
         )
-      port.postMessage(response)
+      safePostMessage(port, response, { context: 'circuit breaker error response' })
     }
   }
 
@@ -288,8 +294,10 @@ export function createSvcWorker(
           data: {}
         }
       )
-      port.postMessage(response)
+      safePostMessage(port, response, { context: 'resume success response' })
     } catch (error) {
+      console.error('createSvcWorker: resume operation failed', error)
+
       // Send error response
       const response = createSvcWorkerSessionResumeResponse<SvcWorkerSessionResumeResult>(
         message.id,
@@ -298,7 +306,7 @@ export function createSvcWorker(
           error: error instanceof Error ? error.message : 'Unknown error'
         }
       )
-      port.postMessage(response)
+      safePostMessage(port, response, { context: 'resume error response' })
     }
   }
 
@@ -316,7 +324,11 @@ export function createSvcWorker(
       switch (data.type) {
         case V_SW_SESSION_CLOSE: {
           debug?.('createSvcWorker: session close from', clientId)
-          port.close()
+          try {
+            port.close()
+          } catch (error) {
+            console.error('createSvcWorker: port.close() failed', clientId, error)
+          }
           sessions.delete(clientId)
           break
         }
@@ -369,7 +381,13 @@ export function createSvcWorker(
         // Send PING
         const pingId = crypto.randomUUID()
         debug?.('createSvcWorker: sending PING to', clientId, pingId)
-        session.port.postMessage(createSvcWorkerSessionPingMessage(pingId))
+        const sent = safePostMessage(session.port, createSvcWorkerSessionPingMessage(pingId), {
+          context: `PING to ${clientId}`,
+          onError: () => cleanupSession(session, clientId, sessions)
+        })
+        if (!sent) {
+          continue
+        }
       }
     }, heartbeatInterval)
   }
@@ -411,15 +429,18 @@ export function createSvcWorker(
           const port = event.ports?.[0]
           if (port) {
             debug?.('createSvcWorker: responding with version', version)
-            port.postMessage(createSvcWorkerVersionResponse(version))
+            safePostMessage(port, createSvcWorkerVersionResponse(version), {
+              context: 'version response'
+            })
           }
           break
         }
 
         case V_SW_SKIP_WAITING: {
           debug?.('createSvcWorker: executing skipWaiting')
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
-          self.skipWaiting()
+          self.skipWaiting().catch(error => {
+            console.error('createSvcWorker: skipWaiting failed', error)
+          })
           break
         }
 
@@ -434,31 +455,61 @@ export function createSvcWorker(
 
           debug?.('createSvcWorker: SESSION_INIT from', clientId)
 
-          // Cleanup any existing session for this client
-          const existingSession = sessions.get(clientId)
-          if (existingSession) {
-            existingSession.port.close()
+          try {
+            // Cleanup any existing session for this client
+            const existingSession = sessions.get(clientId)
+            if (existingSession) {
+              existingSession.port.close()
+            }
+
+            // Setup new session
+            const messageHandler = createSessionPortHandler(clientId, port)
+            const messageErrorHandler = (event: MessageEvent) => {
+              console.error('createSvcWorker: messageerror on session port', clientId, event)
+            }
+            port.addEventListener('message', messageHandler)
+            port.addEventListener('messageerror', messageErrorHandler)
+            port.start()
+
+            sessions.set(clientId, {
+              port,
+              lastPong: Date.now(),
+              messageHandler,
+              messageErrorHandler
+            })
+
+            // Start heartbeat if not already running
+            startHeartbeat()
+
+            // Cleanup stale sessions on new connection
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+            cleanupStaleSessions()
+
+            // Send init response
+            const initSent = safePostMessage(
+              port,
+              createSvcWorkerSessionInitResponse(true, version),
+              {
+                context: `init response to ${clientId}`,
+                onError: () => {
+                  const session = sessions.get(clientId)
+                  if (session) {
+                    cleanupSession(session, clientId, sessions)
+                  }
+                }
+              }
+            )
+            if (!initSent) {
+              debug?.('createSvcWorker: failed to send init response, session cleaned up', clientId)
+            }
+          } catch (error) {
+            console.error('createSvcWorker: SESSION_INIT setup failed', clientId, error)
+            // Cleanup session if it was partially set up
+            const session = sessions.get(clientId)
+            if (session) {
+              cleanupSession(session, clientId, sessions)
+            }
           }
-
-          // Setup new session
-          const handler = createSessionPortHandler(clientId, port)
-          port.addEventListener('message', handler)
-          port.start()
-
-          sessions.set(clientId, {
-            port,
-            lastPong: Date.now()
-          })
-
-          // Start heartbeat if not already running
-          startHeartbeat()
-
-          // Cleanup stale sessions on new connection
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
-          cleanupStaleSessions()
-
-          // Send init response
-          port.postMessage(createSvcWorkerSessionInitResponse(true, version))
           break
         }
 
@@ -469,9 +520,16 @@ export function createSvcWorker(
         }
       }
     }
+
+    function handleMessageError(event: MessageEvent) {
+      console.error('createSvcWorker: messageerror on main handler', event)
+    }
+
     self.addEventListener('message', handleMessage)
+    self.addEventListener('messageerror', handleMessageError)
     return () => {
       self.removeEventListener('message', handleMessage)
+      self.removeEventListener('messageerror', handleMessageError)
     }
   }
   const stopMessageHandler = registerMessageHandler()
@@ -530,7 +588,7 @@ export function createSvcWorker(
 
       // Fallback to native property
       // NOTE: Use `target` instead of `receiver` to ensure native getters (like `clients`)
-      // are called with the correct `this` context (ServiceWorkerGlobalScope)
+      // are called with the correct `this` context (`ServiceWorkerGlobalScope`)
       const value = Reflect.get(target, prop, target) // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- for generic
       if (typeof value === 'function') {
         return (value as (...args: unknown[]) => unknown).bind(target)

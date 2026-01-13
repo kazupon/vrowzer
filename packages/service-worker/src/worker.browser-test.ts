@@ -104,10 +104,13 @@ describe('createSvcWorker', () => {
 
       mockSelf._dispatchEvent('message', messageEvent)
 
-      expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: V_SW_VERSION,
-        version: 'v1.2.3'
-      })
+      expect(mockPort.postMessage).toHaveBeenCalledWith(
+        {
+          type: V_SW_VERSION,
+          version: 'v1.2.3'
+        },
+        undefined
+      )
     })
 
     test('should not respond if no port provided', () => {
@@ -301,11 +304,14 @@ describe('createSvcWorker', () => {
       mockSelf._dispatchEvent('message', messageEvent)
 
       expect(mockPort.start).toHaveBeenCalled()
-      expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: V_SW_SESSION_INIT,
-        success: true,
-        version: 'v1'
-      })
+      expect(mockPort.postMessage).toHaveBeenCalledWith(
+        {
+          type: V_SW_SESSION_INIT,
+          success: true,
+          version: 'v1'
+        },
+        undefined
+      )
       expect(self.sessionCount).toBe(1)
     })
 
@@ -484,6 +490,8 @@ describe('createSvcWorker', () => {
 
     function setupSession(_self: ReturnType<typeof createSvcWorker>) {
       const mockPort = createMockPort()
+      // Update matchAll to return the client so it's not cleaned up as stale
+      mockSelf.clients.matchAll = vi.fn(() => Promise.resolve([{ id: 'client-123' }] as Client[]))
       mockSelf._dispatchEvent('message', {
         data: { type: V_SW_SESSION_INIT },
         ports: [mockPort],
@@ -511,16 +519,19 @@ describe('createSvcWorker', () => {
       await new Promise(resolve => setTimeout(resolve, 10))
 
       expect(self.suspended).toBe(true)
-      expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: V_SW_SESSION_CIRCUIT_BREAKER,
-        id: 'cb-1',
-        success: true,
-        data: {
-          mode: 'suspend',
-          terminated: false,
-          cachesCleared: []
-        }
-      })
+      expect(mockPort.postMessage).toHaveBeenCalledWith(
+        {
+          type: V_SW_SESSION_CIRCUIT_BREAKER,
+          id: 'cb-1',
+          success: true,
+          data: {
+            mode: 'suspend',
+            terminated: false,
+            cachesCleared: []
+          }
+        },
+        undefined
+      )
     })
 
     test('should handle RESUME message', async () => {
@@ -548,12 +559,15 @@ describe('createSvcWorker', () => {
       })
 
       expect(self.suspended).toBe(false)
-      expect(mockPort.postMessage).toHaveBeenCalledWith({
-        type: V_SW_SESSION_RESUME,
-        id: 'resume-1',
-        success: true,
-        data: {}
-      })
+      expect(mockPort.postMessage).toHaveBeenCalledWith(
+        {
+          type: V_SW_SESSION_RESUME,
+          id: 'resume-1',
+          success: true,
+          data: {}
+        },
+        undefined
+      )
     })
 
     test('should log debug messages for circuit breaker', async () => {
