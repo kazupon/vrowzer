@@ -1,0 +1,77 @@
+{
+  "name": "@vrowser/unplugin-service-worker",
+  "description": "unplugin for @vrowser/service-worker",
+  "version": "0.0.1",
+  "author": {
+    "name": "kazuya kawaguchi",
+    "email": "kawakazu80@gmail.com"
+  },
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/kazupon",
+  "bugs": {
+    "url": "https://github.com/kazupon/vrowser/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazupon/vrowser.git",
+    "directory": "packages/unplugin-service-worker"
+  },
+  "keywords": [
+    "service-worker",
+    "unplugin",
+    "vite",
+    "webpack",
+    "rspack",
+    "rollup",
+    "rolldown",
+    "esbuild",
+    "farm",
+    "bun"
+  ],
+  "homepage": "https://github.com/kazupon/vrowser/packages/unplugin-service-worker/README.md",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 20.19.0"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./api": "./dist/api.mjs",
+    "./esbuild": "./dist/esbuild.mjs",
+    "./farm": "./dist/farm.mjs",
+    "./rolldown": "./dist/rolldown.mjs",
+    "./rollup": "./dist/rollup.mjs",
+    "./rspack": "./dist/rspack.mjs",
+    "./vite": "./dist/vite.mjs",
+    "./webpack": "./dist/webpack.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*.d.mts",
+        "./*"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "unplugin": "^2.3.11"
+  },
+  "devDependencies": {
+    "@vrowser/service-worker": "workspace:*",
+    "publint": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

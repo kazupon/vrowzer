@@ -10,6 +10,7 @@
     "build:memfs": "pnpm --filter memfs-test build",
     "build:service-worker": "pnpm --filter service-worker build",
     "build:svc": "pnpm --filter svc-sandbox build --minify false",
+    "build:unplugin-svc": "pnpm --filter unplugin-service-worker build",
     "build:vrowser": "pnpm --filter vrowser build",
     "dev": "pnpm --filter playground dev",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",

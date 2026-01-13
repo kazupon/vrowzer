@@ -19,6 +19,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
+    "emitDeclarationOnly": true,
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
@@ -38,6 +39,8 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
+    "allowArbitraryExtensions": true,
+    "allowImportingTsExtensions": true,
     "moduleDetection": "force",
     "resolveJsonModule": true,
     "skipLibCheck": true
