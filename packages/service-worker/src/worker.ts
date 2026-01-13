@@ -510,7 +510,7 @@ export function createSvcWorker(
 
   // Create Proxy for transparent access to native APIs
   return new Proxy(self, {
-    get(target, prop, receiver) {
+    get(target, prop, _receiver) {
       // Check extension properties first
       if (prop in extensions) {
         const ext = extensions

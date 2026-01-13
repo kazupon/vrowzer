@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import fs from 'node:fs'
 import pkg from './package.json' with { type: 'json' }
@@ -17,12 +17,12 @@ const targets = Object.keys(pkg.exports).reduce((acc, key) => {
   return acc
 }, [] as string[])
 
-console.log(`Building @vrowser/service-worker package v${pkg.version}`, targets)
+console.log(`Testing @vrowser/service-worker package v${pkg.version}`, targets)
 
-// create alias entries for each target
+// create `alias` entries for each target
 const alias = targets.reduce(
   (acc, target) => {
-    const entryPath = resolve(__dirname, `./dist/${target}.js`)
+    const entryPath = path.resolve(__dirname, `./dist/${target}.js`)
     if (!fs.existsSync(entryPath)) {
       throw new Error(`Build entry not found: ${entryPath}`)
     }

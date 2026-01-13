@@ -353,6 +353,140 @@ describe('Controller API (createSvcWorkerController)', () => {
 
     await page.close()
   })
+
+  test('skipWaiting allows new version to activate immediately', async () => {
+    const page = await context.newPage()
+    // Use e2e-sw-skip-waiting.js which calls skipWaiting() in install event
+    await page.goto(
+      `${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-skip-waiting.js?version=v1`
+    )
+
+    await waitForStatus(page, 'activated')
+
+    // Verify state transitions include activating (skipWaiting skips the waiting state)
+    const states = await getRecordedStates(page)
+    // With skipWaiting, the service worker should go: 'installing' -> 'activating' -> 'activated'
+    // (skipping 'waiting' state)
+    expect(states).toContain('activated')
+
+    // With `clients.claim()`, the page should be controlled
+    const controllerUrl = await page.evaluate(
+      () => navigator.serviceWorker.controller?.scriptURL ?? null
+    )
+    expect(controllerUrl).toContain('e2e-sw-skip-waiting.js')
+
+    await page.close()
+  })
+
+  test('skipWaitingPolicy "strict" promotes only expected version', async () => {
+    const page = await context.newPage()
+
+    // First, register service worker v1 and wait for activation
+    await page.goto(
+      `${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-no-skip-waiting.js?version=v1`
+    )
+    await waitForStatus(page, 'activated')
+
+    // Now register service worker v2 (will go to waiting state since v1 is active)
+    // Then create a controller with 'strict' policy expecting v2
+    const result = await page.evaluate(async () => {
+      const { createSvcWorkerController } =
+        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
+
+      // Dispose existing controller
+      window.testState.controller?.dispose()
+
+      // Register service worker v2 directly to create waiting state
+      await navigator.serviceWorker.register('/e2e-sw-no-skip-waiting.js?version=v2', {
+        scope: '/',
+        type: 'module'
+      })
+
+      // Wait a bit for v2 to enter waiting state
+      await new Promise(r => setTimeout(r, 500))
+
+      // Create controller with strict policy expecting v2
+      const controller = createSvcWorkerController({
+        scriptURL: '/e2e-sw-no-skip-waiting.js?version=v2',
+        version: 'v2',
+        scope: '/',
+        type: 'module'
+      })
+
+      const ready = await controller.ready({
+        skipWaitingPolicy: 'strict',
+        timeout: 10000
+      })
+
+      return {
+        ready,
+        version: controller.version,
+        state: controller.state
+      }
+    })
+
+    expect(result.ready).toBe(true)
+    expect(result.version).toBe('v2')
+    expect(result.state).toBe('activated')
+
+    await page.close()
+  })
+
+  test('skipWaitingPolicy "force" promotes any waiting service worker', async () => {
+    const page = await context.newPage()
+
+    // First, register SW v1 and wait for activation
+    await page.goto(
+      `${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-no-skip-waiting.js?version=v1`
+    )
+    await waitForStatus(page, 'activated')
+
+    // Now register service worker v2 (will go to waiting state)
+    // Then create a controller with 'force' policy
+    const result = await page.evaluate(async () => {
+      const { createSvcWorkerController } =
+        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
+
+      // Dispose existing controller
+      window.testState.controller?.dispose()
+
+      // Register service worker v2 directly to create waiting state
+      await navigator.serviceWorker.register('/e2e-sw-no-skip-waiting.js?version=v2', {
+        scope: '/',
+        type: 'module'
+      })
+
+      // Wait a bit for v2 to enter waiting state
+      await new Promise(r => setTimeout(r, 500))
+
+      // Create controller with force policy - should promote any waiting service worker
+      const controller = createSvcWorkerController({
+        scriptURL: '/e2e-sw-no-skip-waiting.js?version=v2',
+        version: 'v2',
+        scope: '/',
+        type: 'module'
+      })
+
+      const ready = await controller.ready({
+        skipWaitingPolicy: 'force',
+        timeout: 10000
+      })
+
+      return {
+        ready,
+        version: controller.version,
+        state: controller.state
+      }
+    })
+
+    expect(result.ready).toBe(true)
+    expect(result.version).toBe('v2')
+    expect(result.state).toBe('activated')
+
+    await page.close()
+  })
 })
 
 // =============================================================================
@@ -489,7 +623,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
     expect(await getControllerState(page)).toBe('suspended')
 
     // Resume
-    // SvcWorkerSessionResumeResult is an empty object - success is indicated by Promise resolving
+    // `SvcWorkerSessionResumeResult` is an empty object - success is indicated by Promise resolving
     await page.evaluate(async () => {
       const controller = window.testState.controller
       if (!controller) {
@@ -546,10 +680,7 @@ describe('Admin API', () => {
     context = await browser.newContext()
     const page = await context.newPage()
     await page.goto(`${BASE_URL}/e2e/api-test.html`)
-    await page.evaluate(async () => {
-      const registrations = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(registrations.map(r => r.unregister()))
-    })
+    await cleanupServiceWorkers(page)
     await page.close()
   })
 
