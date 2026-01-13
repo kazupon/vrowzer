@@ -590,6 +590,28 @@ export function createSvcWorkerController(
     }
   }
 
+  async function withDefaultTimeout<T>(
+    fn: (signal: AbortSignal) => Promise<T>,
+    providedSignal?: AbortSignal
+  ): Promise<T> {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let signal = providedSignal
+
+    if (!signal) {
+      const abortController = new AbortController()
+      timeoutId = setTimeout(() => abortController.abort(), DEFAULT_CIRCUIT_BREAKER_TIMEOUT)
+      signal = abortController.signal
+    }
+
+    try {
+      return await fn(signal)
+    } finally {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }
+
   async function suspend(
     suspendOptions: { clearCaches?: boolean; signal?: AbortSignal } = {}
   ): Promise<SvcWorkerSessionCircuitBreakerResult> {
@@ -602,24 +624,18 @@ export function createSvcWorkerController(
 
     _debug?.('createSvcWorkerController: suspending service worker')
 
-    // Use provided signal or create one with default timeout
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    let signal = suspendOptions.signal
-
-    if (!signal) {
-      const abortController = new AbortController()
-      timeoutId = setTimeout(() => abortController.abort(), DEFAULT_CIRCUIT_BREAKER_TIMEOUT)
-      signal = abortController.signal
-    }
-
     try {
-      const result = await _session.send<SvcWorkerSessionCircuitBreakerResult>(
-        {
-          type: V_SW_SESSION_CIRCUIT_BREAKER,
-          mode: 'suspend',
-          clearCaches: suspendOptions.clearCaches
-        },
-        { signal }
+      const result = await withDefaultTimeout(
+        signal =>
+          _session!.send<SvcWorkerSessionCircuitBreakerResult>(
+            {
+              type: V_SW_SESSION_CIRCUIT_BREAKER,
+              mode: 'suspend',
+              clearCaches: suspendOptions.clearCaches
+            },
+            { signal }
+          ),
+        suspendOptions.signal
       )
 
       _state = 'suspended'
@@ -632,10 +648,6 @@ export function createSvcWorkerController(
         'Failed to suspend service worker',
         error instanceof Error ? error : undefined
       )
-    } finally {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId)
-      }
     }
   }
 
@@ -651,22 +663,11 @@ export function createSvcWorkerController(
 
     _debug?.('createSvcWorkerController: resuming service worker')
 
-    // Use provided signal or create one with default timeout
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    let signal = resumeOptions.signal
-
-    if (!signal) {
-      const abortController = new AbortController()
-      timeoutId = setTimeout(() => abortController.abort(), DEFAULT_CIRCUIT_BREAKER_TIMEOUT)
-      signal = abortController.signal
-    }
-
     try {
-      const result = await _session.send<SvcWorkerSessionResumeResult>(
-        {
-          type: V_SW_SESSION_RESUME
-        },
-        { signal }
+      const result = await withDefaultTimeout(
+        signal =>
+          _session!.send<SvcWorkerSessionResumeResult>({ type: V_SW_SESSION_RESUME }, { signal }),
+        resumeOptions.signal
       )
 
       _state = 'activated'
@@ -679,10 +680,6 @@ export function createSvcWorkerController(
         'Failed to resume service worker',
         error instanceof Error ? error : undefined
       )
-    } finally {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId)
-      }
     }
   }
 
