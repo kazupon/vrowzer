@@ -50,7 +50,7 @@ import { SESSION_SYMBOL } from './symbols.ts'
 import { safePostMessage } from './utils.ts'
 import * as registry from './registry.ts'
 
-import type { Emittable } from '@kazupon/jts-utils'
+import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { SvcWorkerSession } from './session.ts'
 import type {
   SvcWorkerSessionCircuitBreakerResult,
@@ -72,9 +72,19 @@ const DEFAULT_CIRCUIT_BREAKER_TIMEOUT = 30000
 export interface SvcWorkerControllerOptions extends RegistrationOptions {
   /**
    * The URL of the service worker script to register.
+   * Must be a URL object for bundler static analysis compatibility.
+   *
+   * @example
+   * ```ts
+   * createSvcWorkerController({
+   *   scriptURL: new URL('./sw.js', import.meta.url),
+   *   version: 'v1'
+   * })
+   * ```
+   *
    * @see https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register
    */
-  scriptURL: string | URL
+  scriptURL: URL
   /**
    * The version tag string to identify the service worker.
    */
@@ -327,8 +337,8 @@ export interface SvcWorkerControllerInternal extends SvcWorkerController {
 const instanceCache = new Map<string, SvcWorkerController>()
 const optionsCache = new Map<string, SvcWorkerControllerOptions>()
 
-function getInstanceKey(scriptURL: string | URL, version: string): string {
-  return `${scriptURL.toString()}::${version}`
+function getInstanceKey(scriptURL: URL, version: string): string {
+  return `${scriptURL.href}::${version}`
 }
 
 function areOptionsEqual(a: SvcWorkerControllerOptions, b: SvcWorkerControllerOptions): boolean {
@@ -690,8 +700,8 @@ export function createSvcWorkerController(
     reset()
   }
 
-  // Convert scriptURL to string for consistent access
-  const _scriptURL = typeof scriptURL === 'string' ? scriptURL : scriptURL.href
+  // Use URL.href for consistent string access
+  const _scriptURL = scriptURL.href
 
   const instance: SvcWorkerControllerInternal = Object.freeze({
     ..._emitter,

@@ -40,7 +40,7 @@ The controller manages Service Worker registration, version verification, and li
 import { createSvcWorkerController } from '@vrowser/service-worker/controller'
 
 const controller = createSvcWorkerController({
-  scriptURL: '/sw.js',
+  scriptURL: new URL('./sw.js', import.meta.url),
   version: '1.0.0'
 })
 
@@ -120,16 +120,17 @@ controllers.forEach(c => {
 })
 
 // Suspend a specific Service Worker (soft kill)
-const result = await suspendServiceWorker('/sw.js', '1.0.0', {
+const swUrl = new URL('./sw.js', import.meta.url)
+const result = await suspendServiceWorker(swUrl, '1.0.0', {
   clearCaches: true
 })
 console.log('Suspended:', result.mode === 'suspend')
 
 // Resume after suspension
-await resumeServiceWorker('/sw.js', '1.0.0')
+await resumeServiceWorker(swUrl, '1.0.0')
 
 // Terminate a Service Worker (hard kill - unregisters)
-await terminateServiceWorker('/sw.js', '1.0.0', {
+await terminateServiceWorker(swUrl, '1.0.0', {
   clearCaches: true
 })
 
@@ -270,7 +271,7 @@ identify and verify the expected Service Worker.
 ```ts
 // Page side
 const controller = createSvcWorkerController({
-  scriptURL: '/sw.js',
+  scriptURL: new URL('./sw.js', import.meta.url),
   version: '2.0.0' // Expected version
 })
 
@@ -298,7 +299,7 @@ Disables Service Worker functionality without unregistering it.
 await controller.suspend({ clearCaches: true })
 
 // Via admin API
-await suspendServiceWorker('/sw.js', '1.0.0')
+await suspendServiceWorker(new URL('./sw.js', import.meta.url), '1.0.0')
 ```
 
 **Behavior:**
@@ -319,7 +320,7 @@ Restores Service Worker functionality after suspension.
 await controller.resume()
 
 // Via admin API
-await resumeServiceWorker('/sw.js', '1.0.0')
+await resumeServiceWorker(new URL('./sw.js', import.meta.url), '1.0.0')
 ```
 
 **Behavior:**
@@ -334,7 +335,7 @@ Unregisters the Service Worker completely.
 
 ```ts
 // Via admin API only
-await terminateServiceWorker('/sw.js', '1.0.0', {
+await terminateServiceWorker(new URL('./sw.js', import.meta.url), '1.0.0', {
   clearCaches: true
 })
 ```

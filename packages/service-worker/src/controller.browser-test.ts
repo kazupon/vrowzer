@@ -18,7 +18,7 @@ describe('createSvcWorkerController', () => {
       const stateChanges: StateChangeInfo[] = []
 
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
+        scriptURL: new URL('/controller/v1-basic.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -38,7 +38,7 @@ describe('createSvcWorkerController', () => {
     test('should return immediately if expected service worker is already controller', async () => {
       // First, register and activate the service worker
       const firstController = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
+        scriptURL: new URL('/controller/v1-basic.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -47,7 +47,7 @@ describe('createSvcWorkerController', () => {
       // Second call should return immediately
       const progressPhases: string[] = []
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
+        scriptURL: new URL('/controller/v1-basic.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -64,7 +64,7 @@ describe('createSvcWorkerController', () => {
 
     test('should handle service worker with skipWaiting called during install', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-skip-waiting.js',
+        scriptURL: new URL('/controller/v1-skip-waiting.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -80,7 +80,7 @@ describe('createSvcWorkerController', () => {
   describe('`clients.claim` behavior', () => {
     test('should activate service worker with `clients.claim()`', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-with-claim.js',
+        scriptURL: new URL('/controller/v1-with-claim.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -96,7 +96,7 @@ describe('createSvcWorkerController', () => {
       // For service workers without `clients.claim()`, the controller will still activate
       // but reloadSuggested event may be emitted
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-no-claim.js',
+        scriptURL: new URL('/controller/v1-no-claim.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -121,7 +121,7 @@ describe('createSvcWorkerController', () => {
   describe('timeout handling', () => {
     test('should return false when timeout is reached during slow install', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-slow-install.js',
+        scriptURL: new URL('/controller/v1-slow-install.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -139,7 +139,7 @@ describe('createSvcWorkerController', () => {
       const stateChanges: StateChangeInfo[] = []
 
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
+        scriptURL: new URL('/controller/v1-basic.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -164,7 +164,7 @@ describe('createSvcWorkerController', () => {
       const progressPhases: string[] = []
 
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
+        scriptURL: new URL('/controller/v1-basic.js', location.origin),
         version: 'v1',
         scope: '/controller/',
         debug: (...args: unknown[]) => progressPhases.push(String(args[1] || args[0]))
@@ -187,7 +187,7 @@ describe('createSvcWorkerController', () => {
     test('`strict` policy: should only skipWait expected version', async () => {
       // First register v1
       const firstController = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
+        scriptURL: new URL('/controller/v1-basic.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -195,7 +195,7 @@ describe('createSvcWorkerController', () => {
 
       // Now register v2 with expected-only policy
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v2-basic.js',
+        scriptURL: new URL('/controller/v2-basic.js', location.origin),
         version: 'v2',
         scope: '/controller/'
       })
@@ -209,7 +209,7 @@ describe('createSvcWorkerController', () => {
     test('`force` policy: should skipWait any waiting service worker', async () => {
       // First register v1
       const firstController = createSvcWorkerController({
-        scriptURL: '/controller/v1-basic.js',
+        scriptURL: new URL('/controller/v1-basic.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -217,7 +217,7 @@ describe('createSvcWorkerController', () => {
 
       // Now register v2 with always-when-waiting policy
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v2-basic.js',
+        scriptURL: new URL('/controller/v2-basic.js', location.origin),
         version: 'v2',
         scope: '/controller/'
       })
@@ -232,13 +232,13 @@ describe('createSvcWorkerController', () => {
   describe('singleton', () => {
     test('should return the same instance for same scriptURL and version', () => {
       const controller1 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
 
       const controller2 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -250,13 +250,13 @@ describe('createSvcWorkerController', () => {
 
     test('should return different instances for different versions', () => {
       const controller1 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
 
       const controller2 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v2',
         scope: '/controller/'
       })
@@ -269,13 +269,13 @@ describe('createSvcWorkerController', () => {
 
     test('should return different instances for different scriptURLs', () => {
       const controller1 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-a.js',
+        scriptURL: new URL('/controller/singleton-a.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
 
       const controller2 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-b.js',
+        scriptURL: new URL('/controller/singleton-b.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -287,20 +287,21 @@ describe('createSvcWorkerController', () => {
     })
 
     test('should throw error when called with different options for same key', () => {
+      const url = new URL('/controller/singleton-test.js', location.origin)
       const controller1 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: url,
         version: 'v1',
         scope: '/controller/'
       })
 
       expect(() => {
         createSvcWorkerController({
-          scriptURL: '/controller/singleton-test.js',
+          scriptURL: new URL('/controller/singleton-test.js', location.origin),
           version: 'v1',
           scope: '/different-scope/'
         })
       }).toThrow(
-        'already exists with different options: scriptURL=/controller/singleton-test.js, version=v1, scope=/controller/'
+        `already exists with different options: scriptURL=${url.href}, version=v1, scope=/controller/`
       )
 
       controller1.dispose()
@@ -308,7 +309,7 @@ describe('createSvcWorkerController', () => {
 
     test('should create new instance after dispose', () => {
       const controller1 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -316,7 +317,7 @@ describe('createSvcWorkerController', () => {
       controller1.dispose()
 
       const controller2 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -330,7 +331,7 @@ describe('createSvcWorkerController', () => {
       // `using` testing
       {
         using controller = createSvcWorkerController({
-          scriptURL: '/controller/singleton-test.js',
+          scriptURL: new URL('/controller/singleton-test.js', location.origin),
           version: 'v1',
           scope: '/controller/'
         })
@@ -342,7 +343,7 @@ describe('createSvcWorkerController', () => {
 
     test('should allow same options after dispose', () => {
       const controller1 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -351,7 +352,7 @@ describe('createSvcWorkerController', () => {
 
       // Should not throw - same options are allowed after dispose
       const controller2 = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -363,7 +364,7 @@ describe('createSvcWorkerController', () => {
 
     test('should work multiple dispose calls gracefully', () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/singleton-test.js',
+        scriptURL: new URL('/controller/singleton-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -375,14 +376,15 @@ describe('createSvcWorkerController', () => {
   })
 
   describe('properties', () => {
-    test('should expose scriptURL property', () => {
+    test('should expose scriptURL property as URL href', () => {
+      const url = new URL('/controller/props-test.js', location.origin)
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/props-test.js',
+        scriptURL: url,
         version: 'v1',
         scope: '/controller/'
       })
 
-      expect(controller.scriptURL).toBe('/controller/props-test.js')
+      expect(controller.scriptURL).toBe(url.href)
     })
 
     test('should expose scriptURL as string when URL object is provided', () => {
@@ -398,7 +400,7 @@ describe('createSvcWorkerController', () => {
 
     test('should expose version property', () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/props-test.js',
+        scriptURL: new URL('/controller/props-test.js', location.origin),
         version: 'v2.0.0',
         scope: '/controller/'
       })
@@ -410,7 +412,7 @@ describe('createSvcWorkerController', () => {
   describe('suspend and resume', () => {
     test('suspend should throw error if session not established', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/suspend-test.js',
+        scriptURL: new URL('/controller/suspend-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -423,7 +425,7 @@ describe('createSvcWorkerController', () => {
 
     test('resume should throw error if session not established', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/resume-test.js',
+        scriptURL: new URL('/controller/resume-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -436,7 +438,7 @@ describe('createSvcWorkerController', () => {
 
     test('suspend should throw error if not in activated state', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/suspend-state-test.js',
+        scriptURL: new URL('/controller/suspend-state-test.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -454,7 +456,7 @@ describe('createSvcWorkerController', () => {
     test('should suspend service worker successfully', async () => {
       const suspendedEvents: void[] = []
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-circuit-breaker.js',
+        scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -477,7 +479,7 @@ describe('createSvcWorkerController', () => {
     test('should resume service worker after suspend', async () => {
       const resumedEvents: void[] = []
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-circuit-breaker.js',
+        scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -500,7 +502,7 @@ describe('createSvcWorkerController', () => {
 
     test('should throw error when resuming non-suspended service worker', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-circuit-breaker.js',
+        scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -513,7 +515,7 @@ describe('createSvcWorkerController', () => {
 
     test('should allow suspend with clearCaches option', async () => {
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-circuit-breaker.js',
+        scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })
@@ -531,7 +533,7 @@ describe('createSvcWorkerController', () => {
     test('should transition through correct states: activated -> suspended -> activated', async () => {
       const stateChanges: string[] = []
       const controller = createSvcWorkerController({
-        scriptURL: '/controller/v1-circuit-breaker.js',
+        scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
         version: 'v1',
         scope: '/controller/'
       })

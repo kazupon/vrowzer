@@ -47,7 +47,7 @@ export function getAllControllers(): readonly SvcWorkerController[] {
 /**
  * Get a controller by its script URL and version.
  *
- * @param scriptURL - The service worker script URL
+ * @param scriptURL - The service worker script URL (must be a URL object)
  * @param version - The service worker version
  * @returns The controller if found, undefined otherwise
  *
@@ -55,16 +55,13 @@ export function getAllControllers(): readonly SvcWorkerController[] {
  * ```ts
  * import { getController } from '@vrowser/service-worker/admin'
  *
- * const controller = getController('/sw.js', 'v1.0.0')
+ * const controller = getController(new URL('./sw.js', import.meta.url), 'v1.0.0')
  * if (controller) {
  *   console.log(`Found controller: ${controller.state}`)
  * }
  * ```
  */
-export function getController(
-  scriptURL: string | URL,
-  version: string
-): SvcWorkerController | undefined {
+export function getController(scriptURL: URL, version: string): SvcWorkerController | undefined {
   return registry.get(scriptURL, version)
 }
 
@@ -144,7 +141,7 @@ export async function suspendAllServiceWorkers(
  * This engages the circuit breaker, disabling service worker functionality
  * without unregistering it.
  *
- * @param scriptURL - The service worker script URL
+ * @param scriptURL - The service worker script URL (must be a URL object)
  * @param version - The service worker version
  * @param options - Suspend options
  * @returns Result of the suspend operation
@@ -155,20 +152,18 @@ export async function suspendAllServiceWorkers(
  * import { suspendServiceWorker } from '@vrowser/service-worker/admin'
  *
  * // Suspend a specific service worker
- * const result = await suspendServiceWorker('/sw.js', 'v1.0.0')
+ * const result = await suspendServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')
  * console.log(`Suspended: ${result.mode === 'suspend'}`)
  * ```
  */
 export async function suspendServiceWorker(
-  scriptURL: string | URL,
+  scriptURL: URL,
   version: string,
   options?: SuspendOptions
 ): Promise<SvcWorkerSessionCircuitBreakerResult> {
   const controller = registry.get(scriptURL, version)
   if (!controller) {
-    throw new Error(
-      `Controller not found for ${typeof scriptURL === 'string' ? scriptURL : scriptURL.href}::${version}`
-    )
+    throw new Error(`Controller not found for ${scriptURL.href}::${version}`)
   }
   return controller.suspend(options)
 }
@@ -240,7 +235,7 @@ export async function terminateAllServiceWorkers(
  * This trips the circuit breaker, causing the service worker to unregister
  * itself. This is a destructive operation.
  *
- * @param scriptURL - The service worker script URL
+ * @param scriptURL - The service worker script URL (must be a URL object)
  * @param version - The service worker version
  * @param options - Terminate options
  * @returns Result of the terminate operation
@@ -251,24 +246,23 @@ export async function terminateAllServiceWorkers(
  * import { terminateServiceWorker } from '@vrowser/service-worker/admin'
  *
  * // Terminate a specific service worker
- * const result = await terminateServiceWorker('/sw.js', 'v1.0.0', { clearCaches: true })
+ * const result = await terminateServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0', { clearCaches: true })
  * console.log(`Terminated: ${result.terminated}`)
  * ```
  */
 export async function terminateServiceWorker(
-  scriptURL: string | URL,
+  scriptURL: URL,
   version: string,
   options?: TerminateOptions
 ): Promise<SvcWorkerSessionCircuitBreakerResult> {
   const controller = registry.get(scriptURL, version)
-  const urlString = typeof scriptURL === 'string' ? scriptURL : scriptURL.href
   if (!controller) {
-    throw new Error(`Controller not found for ${urlString}::${version}`)
+    throw new Error(`Controller not found for ${scriptURL.href}::${version}`)
   }
   const internal = controller as SvcWorkerControllerInternal
   const session = internal[SESSION_SYMBOL]
   if (!session) {
-    throw new Error(`Session not established for ${urlString}::${version}`)
+    throw new Error(`Session not established for ${scriptURL.href}::${version}`)
   }
   // Send terminate message via session.send() (dedicated protocol)
   return session.send<SvcWorkerSessionCircuitBreakerResult>(
@@ -320,7 +314,7 @@ export async function resumeAllServiceWorkers(
  *
  * This disengages the circuit breaker, restoring service worker functionality.
  *
- * @param scriptURL - The service worker script URL
+ * @param scriptURL - The service worker script URL (must be a URL object)
  * @param version - The service worker version
  * @param signal - Optional abort signal to cancel the operation
  * @returns Result of the resume operation
@@ -331,20 +325,18 @@ export async function resumeAllServiceWorkers(
  * import { resumeServiceWorker } from '@vrowser/service-worker/admin'
  *
  * // Resume a specific service worker
- * const result = await resumeServiceWorker('/sw.js', 'v1.0.0')
+ * const result = await resumeServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')
  * console.log('Resumed successfully')
  * ```
  */
 export async function resumeServiceWorker(
-  scriptURL: string | URL,
+  scriptURL: URL,
   version: string,
   signal?: AbortSignal
 ): Promise<SvcWorkerSessionResumeResult> {
   const controller = registry.get(scriptURL, version)
   if (!controller) {
-    throw new Error(
-      `Controller not found for ${typeof scriptURL === 'string' ? scriptURL : scriptURL.href}::${version}`
-    )
+    throw new Error(`Controller not found for ${scriptURL.href}::${version}`)
   }
   return controller.resume(signal ? { signal } : undefined)
 }

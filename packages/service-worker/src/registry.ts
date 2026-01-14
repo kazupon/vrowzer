@@ -32,15 +32,14 @@ const controllers = new Map<string, SvcWorkerController>()
 /**
  * Generate registry key from scriptURL and version.
  *
- * @param scriptURL - A service worker script URL
+ * @param scriptURL - A service worker script URL (as string)
  * @param version - A service worker version
  * @returns A registry key
  *
  * @internal
  */
-export function getRegistryKey(scriptURL: string | URL, version: string): string {
-  const url = typeof scriptURL === 'string' ? scriptURL : scriptURL.href
-  return `${url}::${version}`
+export function getRegistryKey(scriptURL: string, version: string): string {
+  return `${scriptURL}::${version}`
 }
 
 /**
@@ -85,12 +84,12 @@ export function getAll(): readonly SvcWorkerController[] {
 /**
  * Get a controller by its script URL and version.
  *
- * @param scriptURL - A service worker script URL
+ * @param scriptURL - A service worker script URL (must be a URL object)
  * @param version - A service worker version
  * @returns A {@link SvcWorkerController | service worker controller} if found, undefined otherwise
  */
-export function get(scriptURL: string | URL, version: string): SvcWorkerController | undefined {
-  const key = getRegistryKey(scriptURL, version)
+export function get(scriptURL: URL, version: string): SvcWorkerController | undefined {
+  const key = getRegistryKey(scriptURL.href, version)
   return controllers.get(key)
 }
 

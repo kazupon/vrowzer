@@ -30,88 +30,88 @@ describe('registry', () => {
 
   describe('getRegistryKey', () => {
     test('should generate key from string URL and version', () => {
-      const key = getRegistryKey('/sw.js', 'v1.0.0')
-      expect(key).toBe('/sw.js::v1.0.0')
+      const key = getRegistryKey('https://example.com/sw.js', 'v1.0.0')
+      expect(key).toBe('https://example.com/sw.js::v1.0.0')
     })
 
-    test('should generate key from URL object and version', () => {
+    test('should handle URL href string', () => {
       const url = new URL('https://example.com/sw.js')
-      const key = getRegistryKey(url, 'v2.0.0')
+      const key = getRegistryKey(url.href, 'v2.0.0')
       expect(key).toBe('https://example.com/sw.js::v2.0.0')
     })
 
     test('should handle empty version', () => {
-      const key = getRegistryKey('/sw.js', '')
-      expect(key).toBe('/sw.js::')
+      const key = getRegistryKey('https://example.com/sw.js', '')
+      expect(key).toBe('https://example.com/sw.js::')
     })
   })
 
   describe('register', () => {
     test('should register a controller', () => {
-      const controller = createMockController('/sw.js', 'v1.0.0')
+      const controller = createMockController('https://example.com/sw.js', 'v1.0.0')
 
       register(controller)
 
-      const result = get('/sw.js', 'v1.0.0')
+      const result = get(new URL('https://example.com/sw.js'), 'v1.0.0')
       expect(result).toBe(controller)
     })
 
     test('should overwrite existing controller with same key', () => {
-      const controller1 = createMockController('/sw.js', 'v1.0.0')
-      const controller2 = createMockController('/sw.js', 'v1.0.0')
+      const controller1 = createMockController('https://example.com/sw.js', 'v1.0.0')
+      const controller2 = createMockController('https://example.com/sw.js', 'v1.0.0')
 
       register(controller1)
       register(controller2)
 
-      const result = get('/sw.js', 'v1.0.0')
+      const result = get(new URL('https://example.com/sw.js'), 'v1.0.0')
       expect(result).toBe(controller2)
       expect(getAll()).toHaveLength(1)
     })
 
     test('should register multiple controllers with different keys', () => {
-      const controller1 = createMockController('/sw1.js', 'v1.0.0')
-      const controller2 = createMockController('/sw2.js', 'v1.0.0')
-      const controller3 = createMockController('/sw1.js', 'v2.0.0')
+      const controller1 = createMockController('https://example.com/sw1.js', 'v1.0.0')
+      const controller2 = createMockController('https://example.com/sw2.js', 'v1.0.0')
+      const controller3 = createMockController('https://example.com/sw1.js', 'v2.0.0')
 
       register(controller1)
       register(controller2)
       register(controller3)
 
       expect(getAll()).toHaveLength(3)
-      expect(get('/sw1.js', 'v1.0.0')).toBe(controller1)
-      expect(get('/sw2.js', 'v1.0.0')).toBe(controller2)
-      expect(get('/sw1.js', 'v2.0.0')).toBe(controller3)
+      expect(get(new URL('https://example.com/sw1.js'), 'v1.0.0')).toBe(controller1)
+      expect(get(new URL('https://example.com/sw2.js'), 'v1.0.0')).toBe(controller2)
+      expect(get(new URL('https://example.com/sw1.js'), 'v2.0.0')).toBe(controller3)
     })
   })
 
   describe('unregister', () => {
     test('should unregister a controller', () => {
-      const controller = createMockController('/sw.js', 'v1.0.0')
+      const controller = createMockController('https://example.com/sw.js', 'v1.0.0')
 
       register(controller)
-      expect(get('/sw.js', 'v1.0.0')).toBe(controller)
+      expect(get(new URL('https://example.com/sw.js'), 'v1.0.0')).toBe(controller)
 
       unregister(controller)
-      expect(get('/sw.js', 'v1.0.0')).toBeUndefined()
+      expect(get(new URL('https://example.com/sw.js'), 'v1.0.0')).toBeUndefined()
     })
 
     test('should not throw when unregistering non-existent controller', () => {
-      const controller = createMockController('/sw.js', 'v1.0.0')
+      const controller = createMockController('https://example.com/sw.js', 'v1.0.0')
 
       expect(() => unregister(controller)).not.toThrow()
     })
 
     test('should only unregister the specified controller', () => {
-      const controller1 = createMockController('/sw1.js', 'v1.0.0')
-      const controller2 = createMockController('/sw2.js', 'v1.0.0')
+      const controller1 = createMockController('https://example.com/sw1.js', 'v1.0.0')
+      const controller2 = createMockController('https://example.com/sw2.js', 'v1.0.0')
 
       register(controller1)
       register(controller2)
 
       unregister(controller1)
 
-      expect(get('/sw1.js', 'v1.0.0')).toBeUndefined()
-      expect(get('/sw2.js', 'v1.0.0')).toBe(controller2)
+      expect(get(new URL('https://example.com/sw1.js'), 'v1.0.0')).toBeUndefined()
+      expect(get(new URL('https://example.com/sw2.js'), 'v1.0.0')).toBe(controller2)
     })
   })
 
@@ -122,8 +122,8 @@ describe('registry', () => {
     })
 
     test('should return all registered controllers', () => {
-      const controller1 = createMockController('/sw1.js', 'v1.0.0')
-      const controller2 = createMockController('/sw2.js', 'v1.0.0')
+      const controller1 = createMockController('https://example.com/sw1.js', 'v1.0.0')
+      const controller2 = createMockController('https://example.com/sw2.js', 'v1.0.0')
 
       register(controller1)
       register(controller2)
@@ -135,7 +135,7 @@ describe('registry', () => {
     })
 
     test('should return readonly array', () => {
-      const controller = createMockController('/sw.js', 'v1.0.0')
+      const controller = createMockController('https://example.com/sw.js', 'v1.0.0')
       register(controller)
 
       const result = getAll()
@@ -147,27 +147,27 @@ describe('registry', () => {
 
   describe('get', () => {
     test('should return controller by scriptURL and version', () => {
-      const controller = createMockController('/sw.js', 'v1.0.0')
+      const controller = createMockController('https://example.com/sw.js', 'v1.0.0')
       register(controller)
 
-      const result = get('/sw.js', 'v1.0.0')
+      const result = get(new URL('https://example.com/sw.js'), 'v1.0.0')
       expect(result).toBe(controller)
     })
 
     test('should return undefined for non-existent controller', () => {
-      const result = get('/non-existent.js', 'v1.0.0')
+      const result = get(new URL('https://example.com/non-existent.js'), 'v1.0.0')
       expect(result).toBeUndefined()
     })
 
     test('should return undefined for wrong version', () => {
-      const controller = createMockController('/sw.js', 'v1.0.0')
+      const controller = createMockController('https://example.com/sw.js', 'v1.0.0')
       register(controller)
 
-      const result = get('/sw.js', 'v2.0.0')
+      const result = get(new URL('https://example.com/sw.js'), 'v2.0.0')
       expect(result).toBeUndefined()
     })
 
-    test('should work with URL object', () => {
+    test('should match URL href with controller scriptURL', () => {
       const controller = createMockController('https://example.com/sw.js', 'v1.0.0')
       register(controller)
 
@@ -179,8 +179,8 @@ describe('registry', () => {
 
   describe('clear', () => {
     test('should remove all controllers', () => {
-      const controller1 = createMockController('/sw1.js', 'v1.0.0')
-      const controller2 = createMockController('/sw2.js', 'v1.0.0')
+      const controller1 = createMockController('https://example.com/sw1.js', 'v1.0.0')
+      const controller2 = createMockController('https://example.com/sw2.js', 'v1.0.0')
 
       register(controller1)
       register(controller2)

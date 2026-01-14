@@ -491,6 +491,7 @@ describe('createSvcWorker', () => {
     function setupSession(_self: ReturnType<typeof createSvcWorker>) {
       const mockPort = createMockPort()
       // Update matchAll to return the client so it's not cleaned up as stale
+      // @ts-ignore -- for testing
       mockSelf.clients.matchAll = vi.fn(() => Promise.resolve([{ id: 'client-123' }] as Client[]))
       mockSelf._dispatchEvent('message', {
         data: { type: V_SW_SESSION_INIT },

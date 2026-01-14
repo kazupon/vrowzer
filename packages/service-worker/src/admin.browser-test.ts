@@ -43,7 +43,7 @@ describe('getAllControllers', () => {
 
   test('should return registered controller', async () => {
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
       version: 'v1',
       scope: '/controller/'
     })
@@ -57,31 +57,33 @@ describe('getAllControllers', () => {
 
 describe('getController', () => {
   test('should return undefined for non-existent controller', () => {
-    const controller = getController('/non-existent.js', 'v1')
+    const controller = getController(new URL('/non-existent.js', location.origin), 'v1')
     expect(controller).toBeUndefined()
   })
 
   test('should return the controller by scriptURL and version', async () => {
+    const url = new URL('/controller/v1-circuit-breaker.js', location.origin)
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: url,
       version: 'v1',
       scope: '/controller/'
     })
     await controller.ready()
 
-    const found = getController('/controller/v1-circuit-breaker.js', 'v1')
+    const found = getController(url, 'v1')
     expect(found).toBe(controller)
   })
 
   test('should return undefined for wrong version', async () => {
+    const url = new URL('/controller/v1-circuit-breaker.js', location.origin)
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: url,
       version: 'v1',
       scope: '/controller/'
     })
     await controller.ready()
 
-    const found = getController('/controller/v1-circuit-breaker.js', 'v2')
+    const found = getController(url, 'v2')
     expect(found).toBeUndefined()
   })
 })
@@ -89,7 +91,7 @@ describe('getController', () => {
 describe('disposeAllControllers', () => {
   test('should dispose all registered controllers', async () => {
     const controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
       version: 'v1',
       scope: '/controller/'
     })
@@ -105,8 +107,9 @@ describe('disposeAllControllers', () => {
 
 describe('suspendServiceWorker', () => {
   test('should suspend a specific service worker', async () => {
+    const url = new URL('/controller/v1-circuit-breaker.js', location.origin)
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: url,
       version: 'v1',
       scope: '/controller/'
     })
@@ -115,7 +118,7 @@ describe('suspendServiceWorker', () => {
     await controller.ready()
     expect(controller.state).toBe('activated')
 
-    const result = await suspendServiceWorker('/controller/v1-circuit-breaker.js', 'v1')
+    const result = await suspendServiceWorker(url, 'v1')
 
     expect(result.mode).toBe('suspend')
     expect(result.terminated).toBe(false)
@@ -124,20 +127,22 @@ describe('suspendServiceWorker', () => {
   })
 
   test('should throw error for non-existent controller', async () => {
-    await expect(suspendServiceWorker('/non-existent.js', 'v1')).rejects.toThrow(
-      'Controller not found for /non-existent.js::v1'
+    const url = new URL('/non-existent.js', location.origin)
+    await expect(suspendServiceWorker(url, 'v1')).rejects.toThrow(
+      `Controller not found for ${url.href}::v1`
     )
   })
 
   test('should suspend with clearCaches option', async () => {
+    const url = new URL('/controller/v1-circuit-breaker.js', location.origin)
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: url,
       version: 'v1',
       scope: '/controller/'
     })
     await controller.ready()
 
-    const result = await suspendServiceWorker('/controller/v1-circuit-breaker.js', 'v1', {
+    const result = await suspendServiceWorker(url, 'v1', {
       clearCaches: true
     })
 
@@ -150,7 +155,7 @@ describe('suspendServiceWorker', () => {
 describe('suspendAllServiceWorkers', () => {
   test('should suspend all activated service workers', async () => {
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
       version: 'v1',
       scope: '/controller/'
     })
@@ -173,8 +178,9 @@ describe('suspendAllServiceWorkers', () => {
 
 describe('resumeServiceWorker', () => {
   test('should resume a suspended service worker', async () => {
+    const url = new URL('/controller/v1-circuit-breaker.js', location.origin)
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: url,
       version: 'v1',
       scope: '/controller/'
     })
@@ -184,7 +190,7 @@ describe('resumeServiceWorker', () => {
     await controller.suspend()
     expect(controller.state).toBe('suspended')
 
-    const result = await resumeServiceWorker('/controller/v1-circuit-breaker.js', 'v1')
+    const result = await resumeServiceWorker(url, 'v1')
 
     expect(result).toBeDefined()
     expect(controller.state).toBe('activated')
@@ -192,8 +198,9 @@ describe('resumeServiceWorker', () => {
   })
 
   test('should throw error for non-existent controller', async () => {
-    await expect(resumeServiceWorker('/non-existent.js', 'v1')).rejects.toThrow(
-      'Controller not found for /non-existent.js::v1'
+    const url = new URL('/non-existent.js', location.origin)
+    await expect(resumeServiceWorker(url, 'v1')).rejects.toThrow(
+      `Controller not found for ${url.href}::v1`
     )
   })
 })
@@ -201,7 +208,7 @@ describe('resumeServiceWorker', () => {
 describe('resumeAllServiceWorkers', () => {
   test('should resume all suspended service workers', async () => {
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
       version: 'v1',
       scope: '/controller/'
     })
@@ -221,7 +228,7 @@ describe('resumeAllServiceWorkers', () => {
 
   test('should not resume non-suspended controllers', async () => {
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
       version: 'v1',
       scope: '/controller/'
     })
@@ -237,8 +244,9 @@ describe('resumeAllServiceWorkers', () => {
 
 describe('terminateServiceWorker', () => {
   test('should terminate a specific service worker', async () => {
+    const url = new URL('/controller/v1-circuit-breaker.js', location.origin)
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: url,
       version: 'v1',
       scope: '/controller/'
     })
@@ -247,7 +255,7 @@ describe('terminateServiceWorker', () => {
     await controller.ready()
     expect(controller.state).toBe('activated')
 
-    const result = await terminateServiceWorker('/controller/v1-circuit-breaker.js', 'v1')
+    const result = await terminateServiceWorker(url, 'v1')
 
     expect(result.mode).toBe('terminate')
     expect(result.terminated).toBe(true)
@@ -257,20 +265,22 @@ describe('terminateServiceWorker', () => {
   })
 
   test('should throw error for non-existent controller', async () => {
-    await expect(terminateServiceWorker('/non-existent.js', 'v1')).rejects.toThrow(
-      'Controller not found for /non-existent.js::v1'
+    const url = new URL('/non-existent.js', location.origin)
+    await expect(terminateServiceWorker(url, 'v1')).rejects.toThrow(
+      `Controller not found for ${url.href}::v1`
     )
   })
 
   test('should terminate with clearCaches option', async () => {
+    const url = new URL('/controller/v1-circuit-breaker.js', location.origin)
     using controller = createSvcWorkerController({
-      scriptURL: '/controller/v1-circuit-breaker.js',
+      scriptURL: url,
       version: 'v1',
       scope: '/controller/'
     })
     await controller.ready()
 
-    const result = await terminateServiceWorker('/controller/v1-circuit-breaker.js', 'v1', {
+    const result = await terminateServiceWorker(url, 'v1', {
       clearCaches: true
     })
 
