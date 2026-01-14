@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { Starter } from './index.ts'
+import { ServiceWorkerPlugin } from './index.ts'
 
 /**
  * Rolldown plugin
@@ -24,6 +24,6 @@ import { Starter } from './index.ts'
  * }
  * ```
  */
-const rolldown = Starter.rolldown
+const rolldown = ServiceWorkerPlugin.rolldown
 export default rolldown
 export { rolldown as 'module.exports' }

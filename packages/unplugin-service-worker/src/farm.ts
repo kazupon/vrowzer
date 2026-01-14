@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { Starter } from './index.ts'
+import { ServiceWorkerPlugin } from './index.ts'
 
 /**
  * Farm plugin
@@ -24,6 +24,6 @@ import { Starter } from './index.ts'
  * }
  * ```
  */
-const farm = Starter.farm
+const farm = ServiceWorkerPlugin.farm
 export default farm
 export { farm as 'module.exports' }

@@ -28,6 +28,12 @@ export default defineConfig({
           testTimeout: 30000,
           hookTimeout: 60000
         }
+      },
+      {
+        test: {
+          name: 'unplugin-service-worker:unit',
+          include: ['./packages/unplugin-service-worker/**/*.test.ts']
+        }
       }
     ]
   }

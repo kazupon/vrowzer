@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { Starter } from './index.ts'
+import { ServiceWorkerPlugin } from './index.ts'
 
 /**
  * Rspack plugin
@@ -24,6 +24,6 @@ import { Starter } from './index.ts'
  * }
  * ```
  */
-const rspack = Starter.rspack
+const rspack = ServiceWorkerPlugin.rspack
 export default rspack
 export { rspack as 'module.exports' }

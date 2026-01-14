@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { Starter } from './index.ts'
+import { ServiceWorkerPlugin } from './index.ts'
 
 /**
  * Webpack plugin
@@ -24,6 +24,6 @@ import { Starter } from './index.ts'
  * }
  * ```
  */
-const webpack = Starter.webpack
+const webpack = ServiceWorkerPlugin.webpack
 export default webpack
 export { webpack as 'module.exports' }

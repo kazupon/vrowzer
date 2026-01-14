@@ -9,21 +9,24 @@
  * @license MIT
  */
 
-import { Starter } from './index.ts'
+import { ServiceWorkerPlugin } from './index.ts'
 
 /**
- * Vite plugin
+ * Vite plugin for Service Worker bundling
+ *
+ * Detects `createSvcWorkerController({ scriptURL: new URL('./sw.js', import.meta.url) })`
+ * patterns and bundles Service Worker files.
  *
  * @example
  * ```ts
  * // vite.config.ts
- * import Starter from 'unplugin-starter/vite'
+ * import ServiceWorker from '@anthropic/unplugin-service-worker/vite'
  *
  * export default defineConfig({
- *   plugins: [Starter()],
+ *   plugins: [ServiceWorker()],
  * })
  * ```
  */
-const vite = Starter.vite
+const vite = ServiceWorkerPlugin.vite
 export default vite
 export { vite as 'module.exports' }

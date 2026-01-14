@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { Starter } from './index.ts'
+import { ServiceWorkerPlugin } from './index.ts'
 
 /**
  * Rollup plugin
@@ -24,6 +24,6 @@ import { Starter } from './index.ts'
  * }
  * ```
  */
-const rollup = Starter.rollup
+const rollup = ServiceWorkerPlugin.rollup
 export default rollup
 export { rollup as 'module.exports' }

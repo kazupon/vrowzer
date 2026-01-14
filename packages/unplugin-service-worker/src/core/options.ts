@@ -17,7 +17,8 @@ export type OptionsResolved = Overwrite<Required<Options>, Pick<Options, 'enforc
 
 export function resolveOptions(options: Options): OptionsResolved {
   return {
-    include: options.include || [/\.[cm]?[jt]sx?$/],
+    // Include JS/TS files and Vue/Svelte SFC files by default
+    include: options.include || [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/],
     exclude: options.exclude || [/node_modules/],
     enforce: 'enforce' in options ? options.enforce : 'pre'
   }

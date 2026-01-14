@@ -67,11 +67,19 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
+    "magic-string": "^0.30.17",
+    "rolldown": "1.0.0-beta.56",
+    "strip-literal": "^3.0.0",
     "unplugin": "^2.3.11"
   },
   "devDependencies": {
+    "@rspack/core": "^1.7.1",
     "@vrowser/service-worker": "workspace:*",
+    "esbuild": "^0.25.0",
     "publint": "catalog:",
-    "tsdown": "catalog:"
+    "rollup": "^4.55.1",
+    "tsdown": "catalog:",
+    "vite": "8.0.0-beta.4",
+    "webpack": "^5.104.1"
   }
 }

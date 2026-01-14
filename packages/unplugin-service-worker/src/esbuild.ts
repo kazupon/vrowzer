@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { Starter } from './index.ts'
+import { ServiceWorkerPlugin } from './index.ts'
 
 /**
  * Esbuild plugin
@@ -22,6 +22,6 @@ import { Starter } from './index.ts'
  * build({ plugins: [Starter()] })
  * ```
  */
-const esbuild = Starter.esbuild
+const esbuild = ServiceWorkerPlugin.esbuild
 export default esbuild
 export { esbuild as 'module.exports' }
