@@ -1,12 +1,15 @@
-[submodule "vite"]
-	path = vite
+[submodule "refers/vite"]
+	path = refers/vite
 	url = git@github.com:vitejs/vite.git
-[submodule "rolldown"]
-	path = rolldown
-	url = git@github.com:rolldown/rolldown.git
-[submodule "oxc"]
-	path = oxc
+[submodule "refers/oxc"]
+	path = refers/oxc
 	url = git@github.com:oxc-project/oxc.git
-[submodule "rs-napi"]
-	path = rs-napi
+[submodule "refers/rolldown"]
+	path = refers/rolldown
+	url = git@github.com:rolldown/rolldown.git
+[submodule "refers/rs-napi"]
+	path = refers/rs-napi
 	url = git@github.com:napi-rs/napi-rs.git
+[submodule "refers/unplugin"]
+	path = refers/unplugin
+	url = git@github.com:unjs/unplugin.git
