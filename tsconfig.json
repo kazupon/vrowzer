@@ -45,5 +45,5 @@
     "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "exclude": ["vite/**", "rolldown/**", "oxc/**", "rs-napi/**"]
+  "exclude": ["refers/**"]
 }
