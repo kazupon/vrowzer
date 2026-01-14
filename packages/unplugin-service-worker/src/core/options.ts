@@ -5,9 +5,27 @@
 
 import type { FilterPattern } from 'unplugin'
 
+/**
+ * Options for the Service Worker plugin.
+ */
 export interface Options {
+  /**
+   * Files to include for Service Worker processing.
+   *
+   * @default [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]
+   */
   include?: FilterPattern
+  /**
+   * Files to exclude from Service Worker processing.
+   *
+   * @default [/node_modules/]
+   */
   exclude?: FilterPattern
+  /**
+   * Enforcement phase of the plugin.
+   *
+   * @default 'pre'
+   */
   enforce?: 'pre' | 'post' | undefined
 }
 

@@ -6,23 +6,33 @@
 import { SW_ASSET_PREFIX, SW_ASSET_SUFFIX } from './constants.ts'
 
 /**
- * Bundled Service Worker information
+ * Bundled Service Worker information.
  */
 export interface ServiceWorkerBundle {
-  /** Output filename (e.g., "assets/sw-abc123.js") */
+  /**
+   * Output filename (e.g., "assets/sw-abc123.js").
+   */
   entryFilename: string
-  /** Bundled code content */
+  /**
+   * Bundled code content.
+   */
   entryCode: string
-  /** Placeholder for URL replacement (e.g., "__SW_ASSET__abc123__") */
+  /**
+   * Placeholder for URL replacement (e.g., "__SW_ASSET__abc123__").
+   */
   entryUrlPlaceholder: string
-  /** Set of referenced asset filenames */
+  /**
+   * Set of referenced asset filenames.
+   */
   referencedAssets: Set<string>
-  /** List of watched file paths */
+  /**
+   * List of watched file paths.
+   */
   watchedFiles: string[]
 }
 
 /**
- * Asset emitted during Service Worker bundling
+ * Asset emitted during Service Worker bundling.
  */
 export interface ServiceWorkerAsset {
   fileName: string
@@ -30,10 +40,19 @@ export interface ServiceWorkerAsset {
 }
 
 /**
- * Service Worker cache interface
+ * Service Worker cache interface.
  */
 export interface ServiceWorkerCache {
-  /** Save a bundled Service Worker */
+  /**
+   * Save a bundled Service Worker.
+   *
+   * @param inputId - An input file ID
+   * @param watchedFiles - The list of watched file paths
+   * @param entryFilename - An output filename
+   * @param entryCode - A bundled code content
+   * @param assets - The list of emitted assets
+   * @returns A saved Service Worker bundle
+   */
   saveBundle(
     inputId: string,
     watchedFiles: string[],
@@ -41,26 +60,71 @@ export interface ServiceWorkerCache {
     entryCode: string,
     assets: ServiceWorkerAsset[]
   ): ServiceWorkerBundle
-  /** Get cached bundle for input ID */
+
+  /**
+   * Get cached bundle for input ID.
+   *
+   * @param inputId - An input file ID
+   * @returns A Service Worker bundle or undefined if not found
+   */
   getBundle(inputId: string): ServiceWorkerBundle | undefined
-  /** Get all cached bundles */
+
+  /**
+   * Get all cached bundles
+   *
+   * @returns An iterable of all Service Worker bundles
+   */
   getAllBundles(): IterableIterator<ServiceWorkerBundle>
-  /** Get all cached assets */
+
+  /**
+   * Get all cached assets
+   *
+   * @returns An iterable of all Service Worker assets
+   */
   getAllAssets(): IterableIterator<ServiceWorkerAsset>
-  /** Get entry filename from placeholder hash */
+
+  /**
+   * Get entry filename from placeholder hash
+   *
+   * @param hash - A placeholder hash
+   * @returns An entry filename or undefined if not found
+   */
   getFilenameFromHash(hash: string): string | undefined
-  /** Register hash to filename mapping (for Webpack/Rspack child compiler) */
+
+  /**
+   * Register hash to filename mapping (for Webpack/Rspack child compiler)
+   *
+   * @param hash - A placeholder hash
+   * @param filename - An entry filename
+   */
   registerHashToFilename(hash: string, filename: string): void
-  /** Mark bundles as invalidated when a watched file changes */
+
+  /**
+   * Mark bundles as invalidated when a watched file changes
+   *
+   * @param filePath - A changed file path
+   */
   invalidateAffectedBundles(filePath: string): void
-  /** Remove bundle if it was invalidated */
+
+  /**
+   * Remove bundle if it was invalidated
+   *
+   * @param inputId - An input file ID
+   * @returns True if bundle was removed, false otherwise
+   */
   removeIfInvalidated(inputId: string): boolean
-  /** Clear all caches */
+
+  /**
+   * Clear all caches
+   */
   clear(): void
 }
 
 /**
- * Generate a simple hash from string
+ * Generate a simple hash from string.
+ *
+ * @param str - An input string
+ * @returns An alphanumeric hash string
  */
 function getHash(str: string): string {
   let hash = 0
@@ -73,10 +137,13 @@ function getHash(str: string): string {
 }
 
 /**
- * Create a Service Worker cache instance
- * Prevents duplicate bundling of the same Service Worker file
+ * Create a Service Worker cache instance.
+ *
+ * Prevents duplicate bundling of the same Service Worker file.
+ *
+ * @returns A readonly Service Worker cache instance
  */
-export function createServiceWorkerCache(): ServiceWorkerCache {
+export function createServiceWorkerCache(): Readonly<ServiceWorkerCache> {
   // Private state
   const _bundles = new Map<string, ServiceWorkerBundle>()
   const _assets = new Map<string, ServiceWorkerAsset>()
@@ -182,7 +249,7 @@ export function createServiceWorkerCache(): ServiceWorkerCache {
     _invalidatedBundles.clear()
   }
 
-  return {
+  return Object.freeze({
     saveBundle,
     getBundle,
     getAllBundles,
@@ -192,5 +259,5 @@ export function createServiceWorkerCache(): ServiceWorkerCache {
     invalidateAffectedBundles,
     removeIfInvalidated,
     clear
-  }
+  })
 }

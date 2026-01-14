@@ -15,15 +15,17 @@ import {
 import type { TransformResult } from './utils.ts'
 
 /**
- * Options for dev transform
+ * Options for dev transform.
  */
 export interface DevTransformOptions {
-  /** Base URL for assets (default: '/') */
+  /**
+   * Base URL for assets (default: '/')
+   */
   base?: string
 }
 
 /**
- * Inject query parameter to URL for dev mode identification
+ * Inject query parameter to URL for dev mode identification.
  *
  * @param url - Original URL
  * @returns URL with query parameter
@@ -35,7 +37,7 @@ export function injectDevQuery(url: string): string {
 }
 
 /**
- * Check if a URL has Service Worker query parameter
+ * Check if a URL has Service Worker query parameter.
  *
  * @param url - URL to check
  * @returns true if URL has Service Worker query
@@ -45,7 +47,7 @@ export function hasServiceWorkerQuery(url: string): boolean {
 }
 
 /**
- * Parse Service Worker query from URL
+ * Parse Service Worker query from URL.
  *
  * @param url - URL with query parameter
  * @returns Parsed query info or null
@@ -58,7 +60,7 @@ export function parseServiceWorkerQuery(url: string): { isServiceWorker: boolean
 }
 
 /**
- * Remove Service Worker query from URL to get clean path
+ * Remove Service Worker query from URL to get clean path.
  *
  * @param url - URL with query parameter
  * @returns Clean URL without query
@@ -72,13 +74,13 @@ export function cleanServiceWorkerUrl(url: string): string {
 }
 
 /**
- * Transform code for dev mode
+ * Transform code for dev mode.
  *
  * In dev mode, Service Worker URLs are transformed to include
  * query parameters that identify them for special handling.
  *
- * Example:
- * ```
+ * @example
+ * ```ts
  * // Before:
  * createSvcWorkerController({ scriptURL: new URL('./sw.js', import.meta.url) })
  *

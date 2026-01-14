@@ -7,34 +7,46 @@ import { stripLiteral } from 'strip-literal'
 import { SW_CONTROLLER_FILTER_RE, SW_CONTROLLER_URL_RE } from './constants.ts'
 
 /**
- * Detected Service Worker information
+ * Detected Service Worker information.
  */
 export interface DetectedServiceWorker {
-  /** Full regex match string */
+  /**
+   * Full regex match string
+   */
   fullMatch: string
-  /** URL expression: new URL('path', import.meta.url) */
+  /**
+   * URL expression: new URL('path', import.meta.url)
+   */
   urlExpression: string
-  /** Extracted URL path (without quotes) */
+  /**
+   * Extracted URL path (without quotes)
+   */
   urlPath: string
-  /** Start index of URL expression in original code */
+  /**
+   * Start index of URL expression in original code
+   */
   startIndex: number
-  /** End index of URL expression in original code */
+  /**
+   * End index of URL expression in original code
+   */
   endIndex: number
 }
 
 /**
- * Quick check if code contains createSvcWorkerController call
- * Use this for early filtering before detailed detection
+ * Quick check if code contains createSvcWorkerController call.
+ *
+ * Use this for early filtering before detailed detection.
  */
 export function hasServiceWorkerController(code: string): boolean {
   return SW_CONTROLLER_FILTER_RE.test(code)
 }
 
 /**
- * Detect all Service Worker controller patterns in the code
+ * Detect all Service Worker controller patterns in the code.
  *
  * Detects patterns like:
- * ```
+ * @example
+ * ```ts
  * createSvcWorkerController({
  *   scriptURL: new URL('./sw.js', import.meta.url),
  *   ...

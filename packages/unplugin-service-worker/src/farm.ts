@@ -1,5 +1,15 @@
 /**
- * This entry file is for Farm plugin.
+ * Farm plugin
+ *
+ * @example
+ * ```ts
+ * // farm.config.js
+ * import ServiceWorker from '@vrowser/unplugin-service-worker/farm'
+ *
+ * export default {
+ *   plugins: [ServiceWorker()],
+ * }
+ * ```
  *
  * @module farm
  */
@@ -11,19 +21,6 @@
 
 import { ServiceWorkerPlugin } from './index.ts'
 
-/**
- * Farm plugin
- *
- * @example
- * ```ts
- * // farm.config.js
- * import Starter from 'unplugin-starter/farm'
- *
- * export default {
- *   plugins: [Starter()],
- * }
- * ```
- */
 const farm = ServiceWorkerPlugin.farm
 export default farm
 export { farm as 'module.exports' }

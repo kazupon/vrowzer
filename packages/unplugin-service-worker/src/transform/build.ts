@@ -16,23 +16,27 @@ import type { ServiceWorkerCache } from '../core/cache.ts'
 import type { TransformResult, ResolvedServiceWorker } from './utils.ts'
 
 /**
- * Result of build transform
+ * Result of build transform.
  */
 export interface BuildTransformResult extends TransformResult {
-  /** Resolved Service Workers that need bundling */
+  /**
+   * Resolved Service Workers that need bundling
+   */
   serviceWorkers: ResolvedServiceWorker[]
 }
 
 /**
- * Options for build transform
+ * Options for build transform.
  */
 export interface BuildTransformOptions {
-  /** Service Worker cache instance */
+  /**
+   * Service Worker cache instance
+   */
   cache: ServiceWorkerCache
 }
 
 /**
- * Generate placeholder hash from file path
+ * Generate placeholder hash from file path.
  *
  * @param filePath - Absolute file path
  * @returns Hash string
@@ -48,7 +52,7 @@ export function generatePlaceholderHash(filePath: string): string {
 }
 
 /**
- * Generate placeholder URL for Service Worker
+ * Generate placeholder URL for Service Worker.
  *
  * @param filePath - Absolute file path
  * @returns Placeholder URL (e.g., "__SW_ASSET__abc123__")
@@ -59,13 +63,13 @@ export function generatePlaceholder(filePath: string): string {
 }
 
 /**
- * Transform code for build mode
+ * Transform code for build mode.
  *
  * In build mode, Service Worker URLs are replaced with placeholders
  * that will be resolved in renderChunk after bundling.
  *
- * Example:
- * ```
+ * @example
+ * ```ts
  * // Before:
  * createSvcWorkerController({ scriptURL: new URL('./sw.js', import.meta.url) })
  *
@@ -119,7 +123,7 @@ export function transformBuild(
 }
 
 /**
- * Replace placeholders in chunk code with actual asset URLs
+ * Replace placeholders in chunk code with actual asset URLs.
  *
  * @param code - Chunk code with placeholders
  * @param cache - Service Worker cache
@@ -156,7 +160,7 @@ export function replacePlaceholders(
 }
 
 /**
- * Extract placeholder hashes from code
+ * Extract placeholder hashes from code.
  *
  * @param code - Code containing placeholders
  * @returns Array of hashes

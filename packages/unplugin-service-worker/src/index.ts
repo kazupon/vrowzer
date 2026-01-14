@@ -181,8 +181,8 @@ function setupWebpackLikeCompiler(
         // Run after optimization but before summarizing
         stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_INLINE
       },
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises -- ignore
       async (assets, callback) => {
-        // eslint-disable-line @typescript-eslint/no-misused-promises -- ignore
         try {
           // Bundle pending Service Workers using child compiler
           for (const [swPath] of ctx.pendingServiceWorkers) {
@@ -456,8 +456,8 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
 
         configureServer(server) {
           // Middleware to handle Service Worker requests in dev mode
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- ignore
           server.middlewares.use(async (req, res, next) => {
-            // eslint-disable-line @typescript-eslint/no-misused-promises -- ignore
             const url = req.url
             if (!url) {
               next()
@@ -661,6 +661,129 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
       // Rspack-specific hook
       rspack(compiler: RspackCompiler) {
         setupWebpackLikeCompiler(compiler as unknown as WebpackCompiler, ctx, cache, name, 'rspack')
+      },
+
+      // esbuild-specific hooks
+      esbuild: {
+        setup(build) {
+          const pendingServiceWorkers = new Map<string, ResolvedServiceWorker>()
+          const processedFiles = new Map<string, string>() // swPath -> outputFileName
+
+          // Transform files to detect Service Worker references
+          build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async args => {
+            const fs = await import('node:fs/promises')
+            const contents = await fs.readFile(args.path, 'utf8')
+
+            if (!needsTransform(contents)) {
+              return null
+            }
+
+            const resolved = detectAndResolveServiceWorkers(contents, args.path)
+            if (resolved.length === 0) {
+              return null
+            }
+
+            const s = new MagicString(contents)
+
+            for (const sw of resolved) {
+              pendingServiceWorkers.set(sw.filePath, sw)
+
+              // Generate placeholder for Service Worker URL
+              const hashStr = generatePlaceholderHash(sw.filePath)
+              const placeholder = `${SW_ASSET_PREFIX}${hashStr}${SW_ASSET_SUFFIX}`
+
+              // Replace URL expression with placeholder
+              s.update(
+                sw.detected.startIndex,
+                sw.detected.endIndex,
+                `new URL("${placeholder}", import.meta.url)`
+              )
+            }
+
+            return {
+              contents: s.toString(),
+              loader: args.path.endsWith('.ts') || args.path.endsWith('.tsx') ? 'ts' : 'js'
+            }
+          })
+
+          // Bundle Service Workers and replace placeholders at the end
+          build.onEnd(async result => {
+            if (!result.outputFiles && !build.initialOptions.outdir) {
+              return
+            }
+
+            const outdir = build.initialOptions.outdir || '.'
+
+            // Bundle each Service Worker
+            for (const [swPath] of pendingServiceWorkers) {
+              // Check if already processed
+              if (processedFiles.has(swPath)) {
+                continue
+              }
+
+              // Normalize sourcemap option for rolldown
+              const sourcemapOption = build.initialOptions.sourcemap
+              const normalizedSourcemap: boolean | 'inline' | undefined =
+                sourcemapOption === 'both' || sourcemapOption === 'inline'
+                  ? 'inline'
+                  : sourcemapOption === 'external' || sourcemapOption === 'linked'
+                    ? true
+                    : sourcemapOption
+
+              // Bundle Service Worker
+              const bundleResult = await bundleServiceWorkerWithRolldown(swPath, {
+                minify: build.initialOptions.minify ?? false,
+                sourcemap: normalizedSourcemap ?? false
+              })
+
+              if (!bundleResult) {
+                console.error(`[unplugin-service-worker] Failed to bundle: ${swPath}`)
+                continue
+              }
+
+              // Generate output filename with content hash
+              const contentHash = generateContentHash(bundleResult.code)
+              const baseName = path.basename(swPath, path.extname(swPath))
+              const outputFileName = `${baseName}-${contentHash}.js`
+
+              processedFiles.set(swPath, outputFileName)
+
+              // Write Service Worker file
+              const fs = await import('node:fs/promises')
+              const outputPath = path.join(outdir, outputFileName)
+              await fs.mkdir(path.dirname(outputPath), { recursive: true })
+              await fs.writeFile(outputPath, bundleResult.code)
+
+              console.log(`[unplugin-service-worker] Emitted: ${outputFileName}`)
+            }
+
+            // Replace placeholders in output files
+            if (result.outputFiles) {
+              for (const outputFile of result.outputFiles) {
+                let text = outputFile.text
+                let modified = false
+
+                for (const [swPath, outputFileName] of processedFiles) {
+                  const hashStr = generatePlaceholderHash(swPath)
+                  const placeholder = `${SW_ASSET_PREFIX}${hashStr}${SW_ASSET_SUFFIX}`
+
+                  if (text.includes(placeholder)) {
+                    text = text.replace(new RegExp(placeholder, 'g'), outputFileName)
+                    modified = true
+                  }
+                }
+
+                if (modified) {
+                  // Update output file content
+                  Object.defineProperty(outputFile, 'text', { value: text })
+                  Object.defineProperty(outputFile, 'contents', {
+                    value: new TextEncoder().encode(text)
+                  })
+                }
+              }
+            }
+          })
+        }
       }
     }
   }

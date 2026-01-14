@@ -1,5 +1,15 @@
 /**
- * This entry file is for Rollup plugin.
+ * Rollup plugin
+ *
+ * @example
+ * ```ts
+ * // rollup.config.js
+ * import ServiceWorker from '@vrowser/unplugin-service-worker/rollup'
+ *
+ * export default {
+ *   plugins: [ServiceWorker()],
+ * }
+ * ```
  *
  * @module rollup
  */
@@ -11,19 +21,6 @@
 
 import { ServiceWorkerPlugin } from './index.ts'
 
-/**
- * Rollup plugin
- *
- * @example
- * ```ts
- * // rollup.config.js
- * import Starter from 'unplugin-starter/rollup'
- *
- * export default {
- *   plugins: [Starter()],
- * }
- * ```
- */
 const rollup = ServiceWorkerPlugin.rollup
 export default rollup
 export { rollup as 'module.exports' }

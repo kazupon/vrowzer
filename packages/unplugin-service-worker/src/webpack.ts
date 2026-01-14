@@ -1,5 +1,15 @@
 /**
- * This entry file is for webpack plugin.
+ * Webpack plugin
+ *
+ * @example
+ * ```js
+ * // webpack.config.js
+ * import ServiceWorker from '@vrowser/unplugin-service-worker/webpack'
+ *
+ * export default {
+ *   plugins: [ServiceWorker()],
+ * }
+ * ```
  *
  * @module webpack
  */
@@ -11,19 +21,6 @@
 
 import { ServiceWorkerPlugin } from './index.ts'
 
-/**
- * Webpack plugin
- *
- * @example
- * ```js
- * // webpack.config.js
- * import Starter from 'unplugin-starter/webpack'
- *
- * export default {
- *   plugins: [Starter()],
- * }
- * ```
- */
 const webpack = ServiceWorkerPlugin.webpack
 export default webpack
 export { webpack as 'module.exports' }

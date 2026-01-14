@@ -11,53 +11,72 @@ import { SW_CONTROLLER_FILTER_RE } from '../core/constants.ts'
 import type { DetectedServiceWorker } from '../core/detect.ts'
 
 /**
- * Transform context provided by the plugin
+ * Transform context provided by the plugin.
  */
 export interface TransformContext {
-  /** Source file ID */
+  /**
+   * Source file ID
+   */
   id: string
-  /** Source code */
+  /**
+   * Source code
+   */
   code: string
-  /** Whether in build mode */
+  /**
+   * Whether in build mode
+   */
   isBuild: boolean
 }
 
 /**
- * Result of resolving a Service Worker path
+ * Result of resolving a Service Worker path.
  */
 export interface ResolvedServiceWorker {
-  /** Detected Service Worker info */
+  /**
+   * Detected Service Worker info
+   */
   detected: DetectedServiceWorker
-  /** Resolved absolute file path */
+  /**
+   * Resolved absolute file path
+   */
   filePath: string
-  /** Relative URL path from source */
+  /**
+   * Relative URL path from source
+   */
   urlPath: string
 }
 
 /**
- * Result of transform operation
+ * Result of transform operation.
  */
 export interface TransformResult {
-  /** Transformed code */
+  /**
+   * Transformed code
+   */
   code: string
-  /** Source map */
+  /**
+   * Source map
+   */
   map: ReturnType<MagicString['generateMap']>
 }
 
 /**
- * Filter regex for transform (exported for use in unplugin filter)
+ * Filter regex for transform (exported for use in unplugin filter).
  */
 export const transformFilterRE = SW_CONTROLLER_FILTER_RE
 
 /**
- * Quick check if code needs transformation
+ * Quick check if code needs transformation.
+ *
+ * @param code - Source code
+ * @returns true if transformation is needed
  */
 export function needsTransform(code: string): boolean {
   return hasServiceWorkerController(code)
 }
 
 /**
- * Resolve Service Worker path to absolute file path
+ * Resolve Service Worker path to absolute file path.
  *
  * @param urlPath - URL path from source (e.g., './sw.js')
  * @param sourceId - Source file ID
@@ -76,7 +95,7 @@ export function resolveServiceWorkerPath(urlPath: string, sourceId: string): str
 }
 
 /**
- * Detect and resolve all Service Workers in the code
+ * Detect and resolve all Service Workers in the code.
  *
  * @param code - Source code
  * @param sourceId - Source file ID
@@ -96,7 +115,11 @@ export function detectAndResolveServiceWorkers(
 }
 
 /**
- * Generate transform result from MagicString
+ * Generate transform result from `MagicString`.
+ *
+ * @param s - MagicString instance
+ * @param sourceId - Source file ID
+ * @returns Transform result
  */
 export function generateTransformResult(s: MagicString, sourceId: string): TransformResult {
   return {
@@ -110,7 +133,7 @@ export function generateTransformResult(s: MagicString, sourceId: string): Trans
 }
 
 /**
- * Replace URL expression in code
+ * Replace URL expression in code.
  *
  * @param s - MagicString instance
  * @param sw - Detected Service Worker

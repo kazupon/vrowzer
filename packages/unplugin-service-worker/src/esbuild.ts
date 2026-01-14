@@ -1,5 +1,13 @@
 /**
- * This entry file is for esbuild plugin.
+ * Esbuild plugin
+ *
+ * @example
+ * ```ts
+ * import { build } from 'esbuild'
+ * import ServiceWorker from '@vrowser/unplugin-service-worker/esbuild'
+ *
+ * build({ plugins: [ServiceWorker()] })
+ * ```
  *
  * @module esbuild
  */
@@ -11,17 +19,6 @@
 
 import { ServiceWorkerPlugin } from './index.ts'
 
-/**
- * Esbuild plugin
- *
- * @example
- * ```ts
- * import { build } from 'esbuild'
- * import Starter from 'unplugin-starter/esbuild'
- *
- * build({ plugins: [Starter()] })
- * ```
- */
 const esbuild = ServiceWorkerPlugin.esbuild
 export default esbuild
 export { esbuild as 'module.exports' }
