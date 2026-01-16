@@ -47,7 +47,6 @@
     "refers/**",
     "packages/playground/src/**",
     "packages/memfs-test/src/**",
-    "packages/svc-sandbox/**",
     "packages/vrowser/src/**"
   ]
 }

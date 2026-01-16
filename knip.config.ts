@@ -13,6 +13,6 @@ export default {
       entry: ['src/**/*.ts', 'e2e/**/*.ts', 'e2e/**/*.js']
     }
   },
-  ignore: ['refers/**', 'packages/vrowser/**', 'packages/memfs-test/**', 'packages/svc-sandbox/**'],
+  ignore: ['refers/**', 'packages/vrowser/**', 'packages/memfs-test/**'],
   ignoreDependencies: ['lint-staged', '@kazupon/prettier-config', '@kazupon/eslint-plugin']
 } satisfies KnipConfig
