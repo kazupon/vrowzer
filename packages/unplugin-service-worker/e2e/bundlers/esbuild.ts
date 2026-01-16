@@ -1,8 +1,11 @@
 import { readFile, writeFile, copyFile, readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import * as esbuild from 'esbuild'
 
 import type { BuildResult } from './types.ts'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // Use built dist module instead of source
 const ServiceWorker = (await import('../../dist/esbuild.mjs')).default
@@ -16,6 +19,7 @@ export async function buildWithEsbuild(
     entryPoints: [join(playgroundDir, 'main.js')],
     bundle: true,
     format: 'esm',
+    absWorkingDir: join(__dirname, '..'),
     outdir: join(outputDir, 'assets'),
     entryNames: '[name]-[hash]',
     chunkNames: '[name]-[hash]',

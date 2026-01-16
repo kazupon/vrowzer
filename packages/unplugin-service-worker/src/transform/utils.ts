@@ -6,27 +6,8 @@
 import path from 'node:path'
 import MagicString from 'magic-string'
 import { detectServiceWorkers, hasServiceWorkerController } from '../core/detect.ts'
-import { SW_CONTROLLER_FILTER_RE } from '../core/constants.ts'
 
 import type { DetectedServiceWorker } from '../core/detect.ts'
-
-/**
- * Transform context provided by the plugin.
- */
-interface TransformContext {
-  /**
-   * Source file ID
-   */
-  id: string
-  /**
-   * Source code
-   */
-  code: string
-  /**
-   * Whether in build mode
-   */
-  isBuild: boolean
-}
 
 /**
  * Result of resolving a Service Worker path.
@@ -59,11 +40,6 @@ export interface TransformResult {
    */
   map: ReturnType<MagicString['generateMap']>
 }
-
-/**
- * Filter regex for transform (exported for use in unplugin filter).
- */
-const transformFilterRE = SW_CONTROLLER_FILTER_RE
 
 /**
  * Quick check if code needs transformation.

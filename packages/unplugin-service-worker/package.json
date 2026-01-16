@@ -44,6 +44,7 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./api": "./dist/api.mjs",
+    "./bun": "./dist/bun.mjs",
     "./esbuild": "./dist/esbuild.mjs",
     "./farm": "./dist/farm.mjs",
     "./rolldown": "./dist/rolldown.mjs",
@@ -64,7 +65,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "test:e2e:bun": "bun test ./e2e/bun.e2e_test.ts"
   },
   "dependencies": {
     "magic-string": "^0.30.17",

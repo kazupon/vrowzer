@@ -33,6 +33,7 @@
     "preview:vrowser": "pnpm --filter vrowser preview",
     "test": "pnpm run --color \"/^test:/\"",
     "test:e2e": "vitest run --project *:e2e",
+    "test:e2e:unplugin-svc": "vitest run --project unplugin-service-worker:e2e",
     "test:unit": "vitest run --project *:unit",
     "typecheck": "tsgo --noEmit --diagnostics --project ./tsconfig.typecheck.json"
   },
@@ -41,6 +42,7 @@
     "@kazupon/eslint-config": "^0.44.0",
     "@kazupon/eslint-plugin": "^0.7.1",
     "@kazupon/prettier-config": "^0.2.0",
+    "@types/bun": "^1.3.6",
     "@types/node": "catalog:",
     "@typescript/native-preview": "7.0.0-dev.20260103.1",
     "@vitest/browser-playwright": "^4.0.16",

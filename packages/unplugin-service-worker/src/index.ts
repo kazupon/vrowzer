@@ -720,7 +720,12 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
               return
             }
 
-            const outdir = build.initialOptions.outdir || '.'
+            // Resolve outdir to absolute path to avoid writing to wrong directory
+            const rawOutdir = build.initialOptions.outdir || '.'
+            const absWorkingDir = build.initialOptions.absWorkingDir || process.cwd()
+            const outdir = path.isAbsolute(rawOutdir)
+              ? rawOutdir
+              : path.resolve(absWorkingDir, rawOutdir)
 
             // Bundle each Service Worker
             for (const [swPath] of pendingServiceWorkers) {
@@ -848,10 +853,11 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
             let farmOutputDir: string | null = null
             try {
               // Try common Farm output locations
+              // Note: Do NOT include `outputDir` as fallback, as it may incorrectly
+              // point to source directories when derived from pendingServiceWorkers paths
               const possibleDirs = [
                 path.join(outputDir, 'dist'),
-                path.join(outputDir, '.output', 'farm'),
-                outputDir
+                path.join(outputDir, '.output', 'farm')
               ]
 
               for (const dir of possibleDirs) {

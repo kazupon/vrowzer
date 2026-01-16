@@ -9,6 +9,7 @@
  *           If not set, all bundlers are tested.
  */
 
+import { spawn } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readdir } from 'node:fs/promises'
@@ -327,3 +328,39 @@ for (const bundler of BUNDLERS_TO_TEST) {
     })
   })
 }
+
+// =============================================================================
+// Bun Bundler Tests (spawned via bun test)
+// =============================================================================
+
+/**
+ * Runs bun test as a child process.
+ * Actual tests are in bun.e2e_test.ts (underscore, not matched by vitest).
+ */
+function runBunTest(): Promise<{ success: boolean; exitCode: number | null }> {
+  return new Promise(resolve => {
+    const bunProcess = spawn('bun', ['test', './e2e/bun.e2e_test.ts'], {
+      cwd: join(__dirname, '..'),
+      stdio: 'inherit',
+      env: { ...process.env }
+    })
+
+    bunProcess.on('close', code => {
+      resolve({ success: code === 0, exitCode: code })
+    })
+
+    bunProcess.on('error', () => {
+      resolve({ success: false, exitCode: null })
+    })
+  })
+}
+
+// Only run Bun tests if no BUNDLER filter is set, or if 'bun' is in the filter
+const shouldRunBunTest = !BUNDLER_FILTER || BUNDLER_FILTER.includes('bun')
+
+describe.skipIf(!shouldRunBunTest)('bun bundler', () => {
+  test('all Bun E2E tests pass', { timeout: 60000 }, async () => {
+    const result = await runBunTest()
+    expect(result.success, `Bun tests failed with exit code ${result.exitCode}`).toBe(true)
+  })
+})
