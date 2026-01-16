@@ -10,8 +10,7 @@ export default {
       ignore: ['test-public/**', 'playground/**']
     },
     'packages/unplugin-service-worker': {
-      entry: ['src/**/*.ts', 'e2e/**/*.ts', 'e2e/**/*.js'],
-      ignoreDependencies: ['@farmfe/core', '@rollup/plugin-node-resolve', 'html-webpack-plugin']
+      entry: ['src/**/*.ts', 'e2e/**/*.ts', 'e2e/**/*.js']
     }
   },
   ignore: ['refers/**', 'packages/vrowser/**', 'packages/memfs-test/**', 'packages/svc-sandbox/**'],
