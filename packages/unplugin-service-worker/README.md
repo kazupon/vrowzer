@@ -1,12 +1,32 @@
-# @vrowser/service-worker
+# @vrowser/unplugin-service-worker
 
 unplugin for `@vrowser/service-worker`
 
 ## ✨ Features
 
-TOOD:
+- **Automatic bundling** - Detects `createSvcWorkerController()` calls and automatically bundles Service Workers
+- **Multi-bundler support** - Works with Vite, Rollup, Rolldown, esbuild, Webpack, Rspack, Farm, and Bun
+- **Zero-config** - Works out of the box with sensible defaults
+- **Dev mode support** - Hot reload support in Vite development mode
+- **Content hashing** - Generates hashed filenames for cache busting
 
 ## 💿 Installation
+
+```sh
+# npm
+npm install -D @vrowser/unplugin-service-worker
+
+# pnpm
+pnpm add -D @vrowser/unplugin-service-worker
+
+# yarn
+yarn add -D @vrowser/unpluign-service-worker
+
+# bun
+bun add -D @vrowser/unplugin-service-worker
+```
+
+> **Note**: This plugin requires `@vrowser/service-worker` to be installed in your project.
 
 <details>
 <summary>Vite</summary><br>
@@ -23,11 +43,11 @@ export default defineConfig({
 <br></details>
 
 <details>
-<summary>Rollup</summary><br>
+<summary>Rolldown / tsdown</summary><br>
 
 ```ts
-// rollup.config.js
-import ServiceWorker from '@vrowser/unplugin-service-worker/rollup'
+// rolldown.config.ts / tsdown.config.ts
+import ServiceWorker from '@vrowser/unplugin-service-worker/rolldown'
 
 export default {
   plugins: [ServiceWorker()],
@@ -37,11 +57,11 @@ export default {
 <br></details>
 
 <details>
-<summary>Rolldown / tsdown</summary><br>
+<summary>Rollup</summary><br>
 
 ```ts
-// rolldown.config.ts / tsdown.config.ts
-import ServiceWorker from '@vrowser/unplugin-service-worker/rolldown'
+// rollup.config.js
+import ServiceWorker from '@vrowser/unplugin-service-worker/rollup'
 
 export default {
   plugins: [ServiceWorker()],
@@ -94,9 +114,123 @@ export default {
 
 <br></details>
 
+<details>
+<summary>Farm</summary><br>
+
+```ts
+// farm.config.ts
+import ServiceWorker from '@vrowser/unplugin-service-worker/farm'
+
+export default {
+  plugins: [ServiceWorker()],
+}
+```
+
+<br></details>
+
+<details>
+<summary>Bun</summary><br>
+
+```ts
+import ServiceWorker from '@vrowser/unplugin-service-worker/bun'
+
+Bun.build({
+  entrypoints: ['./src/main.ts'],
+  outdir: './dist',
+  plugins: [ServiceWorker()],
+})
+```
+
+<br></details>
+
+## 📖 Details of Features
+
+### Automatic Service Worker Bundling
+
+The plugin detects `createSvcWorkerController()` calls with `new URL()` pattern and automatically bundles the referenced Service Worker file.
+
+```ts
+// src/main.ts
+import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+
+// The plugin detects this pattern and bundles './sw.ts' as a separate entry
+const controller = createSvcWorkerController(new URL('./sw.ts', import.meta.url))
+```
+
+**How it works:**
+
+1. Scans source files for `createSvcWorkerController(new URL(...))` pattern
+2. Resolves the Service Worker file path (supports `.js`, `.ts`, etc.)
+3. Bundles the Service Worker as a separate output file
+4. Replaces the URL reference with the correct output path
+
+**Before (source):**
+
+```ts
+createSvcWorkerController(new URL('./sw.ts', import.meta.url))
+```
+
+**After (bundled):**
+
+```ts
+createSvcWorkerController(new URL('/assets/sw-a1b2c3d4.js', import.meta.url))
+```
+
+### Dev Mode Support (Vite)
+
+In Vite development mode, Service Workers are bundled on-demand:
+
+- **On-demand bundling** - Service Worker is bundled when the browser requests it
+- **Inline source maps** - Easier debugging in browser DevTools
+- **No caching** - Immediate updates when you modify the Service Worker
+
+```ts
+// Development: URL includes query parameter for dev server handling
+new URL('./sw.ts?__sw=1', import.meta.url)
+
+// Production: URL points to bundled file with content hash
+new URL('/assets/sw-a1b2c3d4.js', import.meta.url)
+```
+
+### Content Hashing
+
+Production builds include content-based hashes in filenames:
+
+```sh
+dist/
+├── assets/
+│   ├── main-x9y8z7w6.js
+│   └── sw-a1b2c3d4.js    # Hash changes when SW content changes
+└── index.html
+```
+
+- Enables long-term browser caching
+- Automatic cache busting when Service Worker content changes
+- Hash is generated from the bundled output content
+
 ## ⚙️ Options
 
-TODO:
+```ts
+ServiceWorker({
+  // Files to include for Service Worker processing
+  // Default: [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]
+  include: [/\.tsx?$/],
+
+  // Files to exclude from Service Worker processing
+  // Default: [/node_modules/]
+  exclude: [/node_modules/, /\.test\.ts$/],
+
+  // Plugin enforcement phase
+  // Default: 'pre'
+  enforce: 'pre',
+})
+```
+
+| Option    | Type                           | Default                                      | Description                      |
+| --------- | ------------------------------ | -------------------------------------------- | -------------------------------- |
+| `include` | `FilterPattern`                | `[/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]` | Files to include for processing  |
+| `exclude` | `FilterPattern`                | `[/node_modules/]`                           | Files to exclude from processing |
+| `enforce` | `'pre' \| 'post' \| undefined` | `'pre'`                                      | Plugin enforcement phase         |
 
 ## 🤝 Sponsors
 
