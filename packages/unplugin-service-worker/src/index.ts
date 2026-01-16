@@ -36,15 +36,25 @@ import type { ResolvedServiceWorker } from './transform/utils.ts'
  * Service Worker plugin context
  */
 interface PluginContext {
-  /** Vite resolved config */
+  /**
+   * Vite resolved config
+   */
   viteConfig: ViteResolvedConfig | null
-  /** Whether in build mode */
+  /**
+   * Whether in build mode
+   */
   isBuild: boolean
-  /** Service Worker cache */
+  /**
+   * Service Worker cache
+   */
   cache: ServiceWorkerCache
-  /** Rollup reference IDs for emitted chunks */
+  /**
+   * Rollup reference IDs for emitted chunks
+   */
   rollupReferenceIds: Map<string, string>
-  /** Webpack/Rspack: Service Workers detected during transform */
+  /**
+   * Webpack/Rspack: Service Workers detected during transform
+   */
   pendingServiceWorkers: Map<string, ResolvedServiceWorker>
 }
 
