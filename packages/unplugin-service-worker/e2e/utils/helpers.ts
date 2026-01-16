@@ -54,41 +54,6 @@ export async function getRecordedEvents(
 }
 
 /**
- * Wait for the page to be controlled by Service Worker
- */
-export async function waitForServiceWorkerController(page: Page, timeout = 15000): Promise<void> {
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, {
-    timeout
-  })
-}
-
-/**
- * Check if page is controlled by Service Worker (non-blocking)
- */
-export async function isPageControlled(page: Page): Promise<boolean> {
-  return page.evaluate(() => navigator.serviceWorker.controller !== null)
-}
-
-/**
- * Fetch the test API endpoint from the Service Worker
- */
-export async function fetchServiceWorkerApi(page: Page): Promise<{
-  version: string
-  sessionCount: number
-  suspended: boolean
-}> {
-  await waitForServiceWorkerController(page)
-  return page.evaluate(async () => {
-    const response = await fetch('/api/test')
-    return response.json() as Promise<{
-      version: string
-      sessionCount: number
-      suspended: boolean
-    }>
-  })
-}
-
-/**
  * Call controller method from the page
  */
 export async function callControllerMethod(

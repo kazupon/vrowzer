@@ -39,7 +39,8 @@ export default defineConfig({
         test: {
           name: 'unplugin-service-worker:e2e',
           include: ['./packages/unplugin-service-worker/e2e/**/*.e2e-test.ts'],
-          testTimeout: 60000,
+          // bun.e2e-test.ts is a spawn wrapper that runs bun test for bun.e2e_test.ts
+          testTimeout: 60000, // Extended for Bun test spawn
           hookTimeout: 120000
         }
       }

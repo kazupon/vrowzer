@@ -8,6 +8,7 @@ const ServiceWorker = (await import('../../dist/bun.mjs')).default
 
 export async function buildWithBun(playgroundDir: string, outputDir: string): Promise<BuildResult> {
   // Check if running in Bun runtime
+  // @ts-ignore -- Bun global
   if (typeof globalThis.Bun === 'undefined') {
     return {
       success: false,
@@ -17,6 +18,8 @@ export async function buildWithBun(playgroundDir: string, outputDir: string): Pr
 
   await mkdir(join(outputDir, 'assets'), { recursive: true })
 
+  // @ts-ignore -- Bun global
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- for testing
   const result = await globalThis.Bun.build({
     entrypoints: [join(playgroundDir, 'main.js')],
     outdir: join(outputDir, 'assets'),
@@ -28,9 +31,11 @@ export async function buildWithBun(playgroundDir: string, outputDir: string): Pr
     plugins: [ServiceWorker()]
   })
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- for testing
   if (!result.success) {
     return {
       success: false,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- for testing
       error: new Error(result.logs.map((l: { message: string }) => l.message).join('\n'))
     }
   }

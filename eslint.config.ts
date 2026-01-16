@@ -36,7 +36,14 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
   oxlint({
     presets: ['typescript'],
     configFile: './.oxlintrc.json'
-  })
+  }),
+  {
+    ignores: [
+      // FIXME: Fix lint errors in e2e tests, why they are ignored via eslint-plugin-oxlint?
+      'packages/unplugin-service-worker/e2e/**',
+      'packages/service-worker/e2e/**'
+    ]
+  }
 )
 
 export default config

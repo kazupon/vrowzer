@@ -1,9 +1,12 @@
-import { join, basename } from 'node:path'
+import path from 'node:path'
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises'
-import { build } from '@farmfe/core'
+import { build, NoopLogger } from '@farmfe/core'
 import { rolldown } from 'rolldown'
 
 import type { BuildResult } from './types.ts'
+
+// Suppress Farm's build logs unless E2E_DEBUG is set
+const logger = process.env.E2E_DEBUG ? undefined : new NoopLogger()
 
 // Use built dist module instead of source
 const ServiceWorker = (await import('../../dist/farm.mjs')).default
@@ -28,9 +31,10 @@ export async function buildWithFarm(
 ): Promise<BuildResult> {
   await build({
     root: playgroundDir,
+    logger,
     compilation: {
       input: {
-        index: join(playgroundDir, 'index.html')
+        index: path.join(playgroundDir, 'index.html')
       },
       output: {
         path: outputDir,
@@ -50,13 +54,13 @@ export async function buildWithFarm(
       persistentCache: false
     },
     // @ts-ignore -- for testing
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- for testing
+
     plugins: [ServiceWorker()]
   })
 
   // Post-build: Bundle SW and replace placeholders
   // This is needed because Farm's unplugin adapter doesn't support renderChunk/generateBundle
-  const swPath = join(playgroundDir, 'sw.js')
+  const swPath = path.join(playgroundDir, 'sw.js')
 
   // Bundle SW with rolldown
   const bundle = await rolldown({
@@ -83,10 +87,10 @@ export async function buildWithFarm(
   // Generate SW filename with content hash
   const swContentHash = generateContentHash(swChunk.code)
   const swFilename = `sw-${swContentHash}.js`
-  const swOutputPath = join(outputDir, 'assets', swFilename)
+  const swOutputPath = path.join(outputDir, 'assets', swFilename)
 
   // Write SW file
-  await mkdir(join(outputDir, 'assets'), { recursive: true })
+  await mkdir(path.join(outputDir, 'assets'), { recursive: true })
   await writeFile(swOutputPath, swChunk.code)
 
   // Replace placeholders in all JS files
@@ -97,7 +101,7 @@ export async function buildWithFarm(
       continue
     }
 
-    const filePath = join(outputDir, file)
+    const filePath = path.join(outputDir, file)
     let content = await readFile(filePath, 'utf8')
 
     SW_ASSET_RE.lastIndex = 0

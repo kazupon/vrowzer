@@ -7,35 +7,29 @@
  * Environment variables:
  * - BUNDLER: Comma-separated list of bundlers to test (e.g., "vite,rollup")
  *           If not set, all bundlers are tested.
+ * - E2E_DEBUG: Enable debug logging (e.g., "1" or "true")
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { BUNDLERS } from './bundlers/index.ts'
+import { testCases } from './cases.ts'
 import { createStaticServer } from './utils/server.ts'
-import {
-  cleanupServiceWorkers,
-  waitForStatus,
-  getControllerState,
-  getRecordedStates,
-  getRecordedEvents,
-  fetchServiceWorkerApi,
-  callControllerMethod,
-  prepareOutputDir,
-  getSwScriptUrl,
-  waitForServiceWorkerController,
-  isPageControlled
-} from './utils/helpers.ts'
+import { cleanupServiceWorkers, prepareOutputDir } from './utils/helpers.ts'
 
 import type { Browser, BrowserContext } from '@playwright/test'
 import type { StaticServer } from './utils/server.ts'
+import type { Expect } from './cases.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PLAYGROUND_DIR = join(__dirname, 'playground')
+
+// Debug logging (enabled via E2E_DEBUG env var)
+const E2E_DEBUG = process.env.E2E_DEBUG === '1' || process.env.E2E_DEBUG === 'true'
+const debug = (...args: unknown[]) => E2E_DEBUG && console.log('[E2E]', ...args)
 
 // Filter bundlers based on BUNDLER env var
 const BUNDLER_FILTER = process.env.BUNDLER?.split(',').map(b => b.trim().toLowerCase())
@@ -68,16 +62,16 @@ for (const bundler of BUNDLERS_TO_TEST) {
       await prepareOutputDir(outputDir)
 
       // Build with this bundler
-      console.log(`[E2E] Building with ${bundler.name}...`)
+      debug(`Building with ${bundler.name}...`)
       const result = await bundler.build(PLAYGROUND_DIR, outputDir)
       if (!result.success) {
         throw result.error ?? new Error(`Build failed for ${bundler.name}`)
       }
-      console.log(`[E2E] Build complete for ${bundler.name}`)
+      debug(`Build complete for ${bundler.name}`)
 
       // Start static server
       server = await createStaticServer(outputDir)
-      console.log(`[E2E] Server started at ${server.url}`)
+      debug(`Server started at ${server.url}`)
     })
 
     // Stop server after tests
@@ -100,232 +94,23 @@ for (const bundler of BUNDLERS_TO_TEST) {
       await context?.close()
     })
 
-    // =========================================================================
-    // Service Worker Registration Tests
-    // =========================================================================
-
-    test('Service Worker registers and activates correctly', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      // Wait for activation
-      await waitForStatus(page, 'activated')
-
-      // Verify state
-      const state = await getControllerState(page)
-      expect(state).toBe('activated')
-
-      // Check that states were recorded
-      const states = await getRecordedStates(page)
-      expect(states.length).toBeGreaterThan(0)
-      expect(states).toContain('activated')
-
-      await page.close()
-    })
-
-    test('Service Worker is bundled as separate file with hash', async () => {
-      // Check that SW file exists in output with hash
-      const assets = await readdir(outputDir, { recursive: true })
-      const swFiles = assets.filter(
-        f => typeof f === 'string' && f.includes('sw') && f.endsWith('.js')
-      )
-
-      // Should have at least one sw file (bundled separately)
-      expect(swFiles.length).toBeGreaterThan(0)
-
-      // The SW file should have a hash in its name (e.g., sw-abc123.js, sw-AbC123.js, or sw-DY_EZcR_.js)
-      // Note: Rollup uses Base64-like hashes that may contain underscores
-      const hasHashedSw = swFiles.some(f => /sw.*-[\da-zA-Z_]+\.js$/.test(String(f)))
-      expect(hasHashedSw).toBe(true)
-    })
-
-    test('main.js references bundled Service Worker correctly', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      await waitForStatus(page, 'activated')
-
-      // Get the SW script URL from the controller or from the active registration
-      // Note: For Rollup/Rolldown, controller.scriptURL may be undefined due to
-      // ROLLUP_FILE_URL resolving to a string instead of URL object
-      let swUrl = await getSwScriptUrl(page)
-
-      // Fallback: get URL from active registration
-      if (!swUrl) {
-        swUrl = await page.evaluate(async () => {
-          const registrations = await navigator.serviceWorker.getRegistrations()
-          const active = registrations.find(r => r.active)
-          return active?.active?.scriptURL ?? null
-        })
-      }
-
-      expect(swUrl).not.toBeNull()
-
-      // The URL should contain a hashed filename
-      // Note: Rollup uses Base64-like hashes that may contain underscores
-      expect(swUrl).toMatch(/sw.*-[\da-zA-Z_]+\.js/)
-
-      await page.close()
-    })
-
-    // =========================================================================
-    // Fetch Intercept Tests
-    // =========================================================================
-
-    test.skip('Service Worker intercepts fetch requests after activation', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      await waitForStatus(page, 'activated')
-
-      // Wait for controllerchange event (clients.claim() should trigger this)
-      // or for the controller to be set
-      try {
-        await waitForServiceWorkerController(page, 10000)
-      } catch {
-        // If controller isn't set, check if we got controllerchange events
-        const changes = await page.evaluate(() => window.testState.controllerChanges)
-        if (changes.length === 0) {
-          // If no controllerchange, clients.claim() might not have worked
-          // This can happen in some edge cases - skip this test
-          console.warn('Warning: clients.claim() did not trigger controllerchange')
-          await page.close()
-          return
-        }
-      }
-
-      // Fetch the test API endpoint
-      const apiResponse = await fetchServiceWorkerApi(page)
-
-      expect(apiResponse.version).toBe('e2e-test-v1')
-      expect(apiResponse.suspended).toBe(false)
-      expect(typeof apiResponse.sessionCount).toBe('number')
-
-      await page.close()
-    })
-
-    test('Service Worker registration is active after ready', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      await waitForStatus(page, 'activated')
-
-      // Check that the Service Worker registration is active
-      const hasActiveRegistration = await page.evaluate(async () => {
-        const registrations = await navigator.serviceWorker.getRegistrations()
-        return registrations.some(r => r.active !== null)
+    // Register all shared test cases
+    for (const testCase of testCases) {
+      const testFn = testCase.skip ? test.skip : test
+      testFn(testCase.name, async () => {
+        await testCase.fn(
+          {
+            getPage: async () => {
+              const page = await context.newPage()
+              await page.goto(server.url)
+              return page
+            },
+            outputDir
+          },
+          expect as unknown as Expect
+        )
       })
-
-      expect(hasActiveRegistration).toBe(true)
-
-      await page.close()
-    })
-
-    // =========================================================================
-    // Circuit Breaker Tests (suspend/resume)
-    // =========================================================================
-
-    test('controller.suspend() changes state to suspended', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      await waitForStatus(page, 'activated')
-
-      // Suspend
-      await callControllerMethod(page, 'suspend')
-
-      // Verify state
-      const state = await getControllerState(page)
-      expect(state).toBe('suspended')
-
-      // Verify suspended event was fired
-      const events = await getRecordedEvents(page)
-      expect(events.some(e => e.type === 'suspended')).toBe(true)
-
-      await page.close()
-    })
-
-    test('controller.resume() restores from suspended state', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      await waitForStatus(page, 'activated')
-
-      // Suspend
-      await callControllerMethod(page, 'suspend')
-      expect(await getControllerState(page)).toBe('suspended')
-
-      // Resume
-      await callControllerMethod(page, 'resume')
-
-      // Verify state
-      const state = await getControllerState(page)
-      expect(state).toBe('activated')
-
-      // Verify resumed event was fired
-      const events = await getRecordedEvents(page)
-      expect(events.some(e => e.type === 'resumed')).toBe(true)
-
-      await page.close()
-    })
-
-    test.skip('fetch handler works again after resume', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      await waitForStatus(page, 'activated')
-
-      // Wait for controller to be set before testing fetch
-      const isControlled = await isPageControlled(page)
-      if (!isControlled) {
-        // Wait for controllerchange or timeout
-        try {
-          await waitForServiceWorkerController(page, 5000)
-        } catch {
-          // Skip this test if controller isn't set
-          console.warn('Warning: Page not controlled by Service Worker, skipping fetch test')
-          await page.close()
-          return
-        }
-      }
-
-      // Verify initial fetch works
-      let apiResponse = await fetchServiceWorkerApi(page)
-      expect(apiResponse.suspended).toBe(false)
-
-      // Suspend
-      await callControllerMethod(page, 'suspend')
-
-      // Resume
-      await callControllerMethod(page, 'resume')
-
-      // Verify fetch works again
-      apiResponse = await fetchServiceWorkerApi(page)
-      expect(apiResponse.suspended).toBe(false)
-      expect(apiResponse.version).toBe('e2e-test-v1')
-
-      await page.close()
-    })
-
-    // =========================================================================
-    // State Transition Tests
-    // =========================================================================
-
-    test('controller transitions through lifecycle states correctly', async () => {
-      const page = await context.newPage()
-      await page.goto(server.url)
-
-      await waitForStatus(page, 'activated')
-
-      const states = await getRecordedStates(page)
-
-      // Should have gone through installing -> activating -> activated
-      // (The exact sequence depends on browser behavior)
-      expect(states.length).toBeGreaterThan(0)
-      expect(states[states.length - 1]).toBe('activated')
-
-      await page.close()
-    })
+    }
   })
 }
 
@@ -334,16 +119,34 @@ for (const bundler of BUNDLERS_TO_TEST) {
 // =============================================================================
 
 /**
+ * Check if Bun is available in the environment
+ */
+function isBunAvailable(): boolean {
+  try {
+    const result = spawnSync('bun', ['--version'], { stdio: 'pipe' })
+    return result.status === 0
+  } catch {
+    return false
+  }
+}
+
+const TIMEOUT = 60000
+
+/**
  * Runs bun test as a child process.
  * Actual tests are in bun.e2e_test.ts (underscore, not matched by vitest).
  */
 function runBunTest(): Promise<{ success: boolean; exitCode: number | null }> {
   return new Promise(resolve => {
-    const bunProcess = spawn('bun', ['test', './e2e/bun.e2e_test.ts'], {
-      cwd: join(__dirname, '..'),
-      stdio: 'inherit',
-      env: { ...process.env }
-    })
+    const bunProcess = spawn(
+      'bun',
+      ['test', './e2e/bun.e2e_test.ts', '--timeout', TIMEOUT.toString()],
+      {
+        cwd: join(__dirname, '..'),
+        stdio: E2E_DEBUG ? 'inherit' : 'pipe',
+        env: { ...process.env }
+      }
+    )
 
     bunProcess.on('close', code => {
       resolve({ success: code === 0, exitCode: code })
@@ -358,8 +161,14 @@ function runBunTest(): Promise<{ success: boolean; exitCode: number | null }> {
 // Only run Bun tests if no BUNDLER filter is set, or if 'bun' is in the filter
 const shouldRunBunTest = !BUNDLER_FILTER || BUNDLER_FILTER.includes('bun')
 
-describe.skipIf(!shouldRunBunTest)('bun bundler', () => {
-  test('all Bun E2E tests pass', { timeout: 60000 }, async () => {
+// Check if Bun is available
+const bunAvailable = isBunAvailable()
+if (shouldRunBunTest && !bunAvailable) {
+  console.warn('[E2E] Warning: Bun is not installed. Skipping Bun bundler tests.')
+}
+
+describe.skipIf(!shouldRunBunTest || !bunAvailable)('bun bundler', () => {
+  test('all Bun E2E tests pass', { timeout: TIMEOUT }, async () => {
     const result = await runBunTest()
     expect(result.success, `Bun tests failed with exit code ${result.exitCode}`).toBe(true)
   })

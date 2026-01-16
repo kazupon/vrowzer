@@ -60,7 +60,10 @@ async function init() {
 
     statusEl.textContent = 'Waiting for ready()...'
 
-    const isReady = await controller.ready({ timeout: 15000 })
+    const isReady = await controller.ready({
+      timeout: 15000,
+      skipWaitingPolicy: 'force'
+    })
 
     if (isReady) {
       statusEl.textContent = 'activated'

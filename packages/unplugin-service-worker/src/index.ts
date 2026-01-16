@@ -766,8 +766,6 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
               const outputPath = path.join(outdir, outputFileName)
               await fs.mkdir(path.dirname(outputPath), { recursive: true })
               await fs.writeFile(outputPath, bundleResult.code)
-
-              console.log(`[unplugin-service-worker] Emitted: ${outputFileName}`)
             }
 
             // Replace placeholders in output files
