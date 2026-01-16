@@ -291,7 +291,7 @@ describe('Controller API (createSvcWorkerController)', () => {
         throw new Error('Existing controller not available')
       }
       const newController = createSvcWorkerController({
-        scriptURL: existingController.scriptURL,
+        scriptURL: new URL(existingController.scriptURL),
         version: existingController.version,
         scope: '/',
         type: 'module'
@@ -725,7 +725,7 @@ describe('Admin API', () => {
       if (!testController) {
         throw new Error('Test controller not available')
       }
-      const found = admin.getController(testController.scriptURL, 'v1')
+      const found = admin.getController(new URL(testController.scriptURL), 'v1')
       return found
         ? {
             version: found.version,

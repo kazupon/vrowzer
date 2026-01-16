@@ -21,6 +21,8 @@
 
 import { ServiceWorkerPlugin } from './index.ts'
 
-const farm = ServiceWorkerPlugin.farm
+import type { Options } from './core/options.ts'
+
+const farm: (options?: Options) => unknown[] = ServiceWorkerPlugin.farm
 export default farm
 export { farm as 'module.exports' }

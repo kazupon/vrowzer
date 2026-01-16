@@ -69,13 +69,13 @@
   },
   "devDependencies": {
     "@kazupon/jts-utils": "^0.12.0",
-    "@playwright/test": "^1.57.0",
+    "@playwright/test": "catalog:",
     "@vrowser/unplugin-service-worker": "workspace:*",
-    "get-port-please": "^3.1.2",
+    "get-port-please": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typedoc": "catalog:",
     "typedoc-plugin-markdown": "catalog:",
-    "vite": "8.0.0-beta.4"
+    "vite": "catalog:"
   }
 }

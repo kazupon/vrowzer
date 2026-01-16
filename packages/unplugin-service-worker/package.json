@@ -73,13 +73,15 @@
     "unplugin": "^2.3.11"
   },
   "devDependencies": {
-    "@rspack/core": "^1.7.1",
+    "@playwright/test": "catalog:",
+    "@rspack/core": "^1.7.2",
     "@vrowser/service-worker": "workspace:*",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.27.2",
+    "get-port-please": "catalog:",
     "publint": "catalog:",
     "rollup": "^4.55.1",
     "tsdown": "catalog:",
-    "vite": "8.0.0-beta.4",
+    "vite": "catalog:",
     "webpack": "^5.104.1"
   }
 }

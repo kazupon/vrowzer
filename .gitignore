@@ -25,6 +25,7 @@ dist
 tsconfig.tsbuildinfo
 __screenshots__
 test-results
+.output
 
 .notes
 .todo.md

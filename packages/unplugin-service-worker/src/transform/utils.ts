@@ -13,7 +13,7 @@ import type { DetectedServiceWorker } from '../core/detect.ts'
 /**
  * Transform context provided by the plugin.
  */
-export interface TransformContext {
+interface TransformContext {
   /**
    * Source file ID
    */
@@ -63,7 +63,7 @@ export interface TransformResult {
 /**
  * Filter regex for transform (exported for use in unplugin filter).
  */
-export const transformFilterRE = SW_CONTROLLER_FILTER_RE
+const transformFilterRE = SW_CONTROLLER_FILTER_RE
 
 /**
  * Quick check if code needs transformation.

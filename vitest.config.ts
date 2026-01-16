@@ -34,6 +34,14 @@ export default defineConfig({
           name: 'unplugin-service-worker:unit',
           include: ['./packages/unplugin-service-worker/**/*.test.ts']
         }
+      },
+      {
+        test: {
+          name: 'unplugin-service-worker:e2e',
+          include: ['./packages/unplugin-service-worker/e2e/**/*.e2e-test.ts'],
+          testTimeout: 60000,
+          hookTimeout: 120000
+        }
       }
     ]
   }

@@ -39,7 +39,7 @@ async function init() {
     statusEl!.textContent = 'Creating controller...'
 
     const controller = createSvcWorkerController({
-      scriptURL: swPath,
+      scriptURL: new URL(swPath, window.location.origin),
       version: swVersion,
       scope,
       type: swType as 'module' | 'classic'
