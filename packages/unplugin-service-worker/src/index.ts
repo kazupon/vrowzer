@@ -48,7 +48,11 @@ interface PluginContext {
 }
 
 /**
- * Replace URL expression with ROLLUP_FILE_URL reference
+ * Replace URL expression with ROLLUP_FILE_URL reference wrapped in URL constructor
+ *
+ * NOTE: `import.meta.ROLLUP_FILE_URL_*` resolves to a string (via `.href`),
+ * but `createSvcWorkerController` expects a URL object. So we wrap it in
+ * `new URL(...)` to ensure the result is a proper URL object.
  */
 function replaceWithRollupFileUrl(
   s: MagicString,
@@ -56,7 +60,7 @@ function replaceWithRollupFileUrl(
   endIndex: number,
   referenceId: string
 ): void {
-  s.update(startIndex, endIndex, `import.meta.ROLLUP_FILE_URL_${referenceId}`)
+  s.update(startIndex, endIndex, `new URL(import.meta.ROLLUP_FILE_URL_${referenceId})`)
 }
 
 /**
@@ -331,6 +335,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
     const isWebpack = meta.framework === 'webpack'
     const isRspack = meta.framework === 'rspack'
     const isWebpackLike = isWebpack || isRspack
+    const isFarm = meta.framework === 'farm'
 
     return {
       name,
@@ -341,8 +346,8 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
         cache.clear()
         ctx.rollupReferenceIds.clear()
         ctx.pendingServiceWorkers.clear()
-        // Rollup/Rolldown/Webpack/Rspack is always build mode
-        if (isRollupLike || isWebpackLike) {
+        // Rollup/Rolldown/Webpack/Rspack/Farm is always build mode
+        if (isRollupLike || isWebpackLike || isFarm) {
           ctx.isBuild = true
         }
       },
@@ -376,11 +381,14 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
                   const hashStr = Math.abs(hash).toString(36).slice(0, 8)
                   const placeholder = `${SW_ASSET_PREFIX}${hashStr}${SW_ASSET_SUFFIX}`
 
-                  s.update(
-                    sw.detected.startIndex,
-                    sw.detected.endIndex,
-                    `new URL(/* @vite-ignore */ ${JSON.stringify(placeholder)}, '' + import.meta.url)`
-                  )
+                  // Use different URL construction for Webpack/Rspack
+                  // Webpack/Rspack resolves import.meta.url to file:// path at build time,
+                  // so we use self.location.origin instead which works at runtime in browser
+                  const urlConstruction = isWebpackLike
+                    ? `new URL(/* @vite-ignore */ ${JSON.stringify(placeholder)}, self.location.origin)`
+                    : `new URL(/* @vite-ignore */ ${JSON.stringify(placeholder)}, '' + import.meta.url)`
+
+                  s.update(sw.detected.startIndex, sw.detected.endIndex, urlConstruction)
 
                   // Track Service Worker for bundling (Vite/Webpack/Rspack)
                   ctx.pendingServiceWorkers.set(sw.filePath, sw)
@@ -759,6 +767,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
 
             // Replace placeholders in output files
             if (result.outputFiles) {
+              // write: false mode - modify in-memory output files
               for (const outputFile of result.outputFiles) {
                 let text = outputFile.text
                 let modified = false
@@ -781,8 +790,149 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
                   })
                 }
               }
+            } else {
+              // write: true mode (default) - read files from disk and replace placeholders
+              const fs = await import('node:fs/promises')
+              const jsFiles = await fs.readdir(outdir, { recursive: true })
+
+              for (const file of jsFiles) {
+                if (typeof file !== 'string' || !file.endsWith('.js')) {
+                  continue
+                }
+
+                const filePath = path.join(outdir, file)
+                let content = await fs.readFile(filePath, 'utf8')
+                let modified = false
+
+                for (const [swPath, outputFileName] of processedFiles) {
+                  const hashStr = generatePlaceholderHash(swPath)
+                  const placeholder = `${SW_ASSET_PREFIX}${hashStr}${SW_ASSET_SUFFIX}`
+
+                  if (content.includes(placeholder)) {
+                    content = content.replace(new RegExp(placeholder, 'g'), outputFileName)
+                    modified = true
+                  }
+                }
+
+                if (modified) {
+                  await fs.writeFile(filePath, content)
+                }
+              }
             }
           })
+        }
+      },
+
+      // Farm-specific hooks
+      farm: {
+        finish: {
+          async executor() {
+            if (!isFarm || !ctx.isBuild) {
+              return
+            }
+
+            // Get output directory from pendingServiceWorkers
+            // Farm outputs to the configured output.path
+            const outputDir =
+              ctx.pendingServiceWorkers.size > 0
+                ? path.dirname(path.dirname(Array.from(ctx.pendingServiceWorkers.keys())[0] || ''))
+                : null
+
+            if (!outputDir) {
+              return
+            }
+
+            const fs = await import('node:fs/promises')
+
+            // Find the actual output directory by looking for JS files
+            let farmOutputDir: string | null = null
+            try {
+              // Try common Farm output locations
+              const possibleDirs = [
+                path.join(outputDir, 'dist'),
+                path.join(outputDir, '.output', 'farm'),
+                outputDir
+              ]
+
+              for (const dir of possibleDirs) {
+                try {
+                  const files = await fs.readdir(dir, { recursive: true })
+                  if (files.some(f => typeof f === 'string' && f.endsWith('.js'))) {
+                    farmOutputDir = dir
+                    break
+                  }
+                } catch {
+                  continue
+                }
+              }
+            } catch {
+              return
+            }
+
+            if (!farmOutputDir) {
+              return
+            }
+
+            // Bundle pending Service Workers
+            for (const [swPath] of ctx.pendingServiceWorkers) {
+              const hashStr = generatePlaceholderHash(swPath)
+
+              // Check if already bundled
+              if (cache.getFilenameFromHash(hashStr)) {
+                continue
+              }
+
+              // Bundle Service Worker with rolldown
+              const result = await bundleServiceWorkerWithRolldown(swPath, {
+                minify: false,
+                sourcemap: false
+              })
+
+              if (result) {
+                const basename = path.basename(swPath, path.extname(swPath))
+                const contentHash = generateContentHash(result.code)
+                const outputFilename = `assets/${basename}-${contentHash}.js`
+
+                // Register hash to filename mapping
+                cache.registerHashToFilename(hashStr, outputFilename)
+
+                // Write Service Worker file
+                const outputPath = path.join(farmOutputDir, outputFilename)
+                await fs.mkdir(path.dirname(outputPath), { recursive: true })
+                await fs.writeFile(outputPath, result.code)
+              }
+            }
+
+            // Replace placeholders in all JS files
+            const allFiles = await fs.readdir(farmOutputDir, { recursive: true })
+
+            for (const file of allFiles) {
+              if (typeof file !== 'string' || !file.endsWith('.js')) {
+                continue
+              }
+
+              const filePath = path.join(farmOutputDir, file)
+              let content = await fs.readFile(filePath, 'utf8')
+              let modified = false
+
+              SW_ASSET_RE.lastIndex = 0
+              let match: RegExpExecArray | null
+              while ((match = SW_ASSET_RE.exec(content))) {
+                const [full, hash] = match
+                if (!hash) continue
+
+                const filename = cache.getFilenameFromHash(hash)
+                if (filename) {
+                  content = content.replace(full, `/${filename}`)
+                  modified = true
+                }
+              }
+
+              if (modified) {
+                await fs.writeFile(filePath, content)
+              }
+            }
+          }
         }
       }
     }

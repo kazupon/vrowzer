@@ -1,6 +1,6 @@
 import { copyFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { rspack } from '@rspack/core'
+import { rspack, HtmlRspackPlugin } from '@rspack/core'
 
 import type { Stats } from '@rspack/core'
 import type { BuildResult } from './types.ts'
@@ -31,17 +31,14 @@ export async function buildWithRspack(
         optimization: {
           minimize: false
         },
-        // @ts-ignore -- for testing
-        builtins: {
-          html: [
-            {
-              template: join(playgroundDir, 'index.html'),
-              inject: 'body',
-              scriptLoading: 'module'
-            }
-          ]
-        },
-        plugins: [ServiceWorker()]
+        plugins: [
+          new HtmlRspackPlugin({
+            template: join(playgroundDir, 'index.html'),
+            inject: 'body',
+            scriptLoading: 'module'
+          }),
+          ServiceWorker()
+        ]
       },
       // eslint-disable-next-line @typescript-eslint/no-misused-promises -- for testing
       async (err: Error, stats: Stats) => {

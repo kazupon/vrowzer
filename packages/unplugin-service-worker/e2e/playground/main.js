@@ -32,7 +32,8 @@ async function init() {
     // The `new URL('./sw.js', import.meta.url)` pattern is detected by the plugin
     const controller = createSvcWorkerController({
       scriptURL: new URL('./sw.js', import.meta.url),
-      version: SW_VERSION
+      version: SW_VERSION,
+      type: 'module'
     })
 
     window.testState.controller = controller
