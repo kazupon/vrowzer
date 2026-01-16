@@ -62,16 +62,20 @@
   "scripts": {
     "build": "tsdown",
     "build:docs": "typedoc --excludeInternal",
+    "play": "vite --config vite.play.config.ts",
+    "play:build": "vite build --config vite.play.config.ts",
+    "play:preview": "vite preview --config vite.play.config.ts",
     "prepack": "pnpm build"
   },
   "devDependencies": {
     "@kazupon/jts-utils": "^0.12.0",
     "@playwright/test": "^1.57.0",
+    "@vrowser/unplugin-service-worker": "workspace:*",
     "get-port-please": "^3.1.2",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typedoc": "catalog:",
     "typedoc-plugin-markdown": "catalog:",
-    "vite": "^6.3.0"
+    "vite": "8.0.0-beta.4"
   }
 }

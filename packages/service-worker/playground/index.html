@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>unplugin-service-worker E2E Test</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <!--
+        <h1>unplugin-service-worker E2E Test</h1>
+        <p>Vanilla JS test application for @vrowser/unplugin-service-worker</p>
+        -->
+        <h1>Playground for @vrowser/service-worker</h1>
+      </header>
+
+      <main>
+        <!-- Status Section -->
+        <section id="status-section" class="section">
+          <h2>Service Worker Status</h2>
+          <div class="status-grid">
+            <div class="status-item">
+              <label>Status:</label>
+              <span id="status" class="value">Initializing...</span>
+            </div>
+            <div class="status-item">
+              <label>State:</label>
+              <span id="state" class="value">-</span>
+            </div>
+            <div class="status-item">
+              <label>Version:</label>
+              <span id="version" class="value">-</span>
+            </div>
+            <div class="status-item">
+              <label>Service Worker:</label>
+              <span id="sw-info" class="value">-</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- SvcWorkerController Control Section -->
+        <section id="controller-section" class="section">
+          <h2>SvcWorkerController Controls</h2>
+          <p class="section-description">
+            Control via controller instance methods (suspend, resume)
+          </p>
+          <div class="script-url-info">
+            <label>Script URL:</label>
+            <code id="controller-script-url">-</code>
+          </div>
+          <div class="button-group">
+            <button
+              id="btn-controller-suspend"
+              onclick="controllerSuspend()"
+              class="btn btn-warning"
+            >
+              Suspend
+            </button>
+            <button id="btn-controller-resume" onclick="controllerResume()" class="btn btn-success">
+              Resume
+            </button>
+          </div>
+        </section>
+
+        <!-- Admin API Control Section -->
+        <section id="admin-section" class="section">
+          <h2>Admin API Controls</h2>
+          <p class="section-description">
+            Control via Admin API (suspendServiceWorker, resumeServiceWorker,
+            terminateServiceWorker)
+          </p>
+          <div class="script-url-info">
+            <label>Script URL:</label>
+            <code id="admin-script-url">-</code>
+          </div>
+          <div class="button-group">
+            <button id="btn-admin-suspend" onclick="adminSuspend()" class="btn btn-warning">
+              Suspend
+            </button>
+            <button id="btn-admin-resume" onclick="adminResume()" class="btn btn-success">
+              Resume
+            </button>
+            <button id="btn-admin-terminate" onclick="adminTerminate()" class="btn btn-danger">
+              Terminate
+            </button>
+          </div>
+        </section>
+
+        <!-- API Test Section -->
+        <section class="section">
+          <h2>Fetch API Tests</h2>
+          <div class="button-group">
+            <button onclick="testFetch()" class="btn btn-primary">Test /api/status</button>
+            <button onclick="testEcho()" class="btn btn-primary">Test /api/echo</button>
+          </div>
+          <div class="response-box">
+            <label>API Response:</label>
+            <pre id="api-response">No response yet</pre>
+          </div>
+        </section>
+
+        <!-- Event Log Section -->
+        <section class="section">
+          <h2>Event Log</h2>
+          <div id="event-log" class="event-log"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
