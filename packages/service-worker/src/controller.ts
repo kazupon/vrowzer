@@ -401,6 +401,22 @@ export function createSvcWorkerController(
     _emitter.emit('reloadSuggested', info)
   }
 
+  /**
+   * Update controller state based on session suspended status.
+   * Must be called after establishSession() to get accurate suspended state.
+   */
+  function updateStateFromSession(serviceWorker: ServiceWorker): void {
+    if (_session?.suspended) {
+      // Service worker was suspended before page reload
+      _state = 'suspended'
+      _serviceWorker = serviceWorker
+      _emitter.emit('changeState', { state: 'suspended', version, serviceWorker })
+      _debug?.('createSvcWorkerController: detected suspended state from session')
+    } else {
+      emitStateChange('activated', serviceWorker)
+    }
+  }
+
   function setupControllerChangeHandler(timeout: number): void {
     if (_controllerChangeHandler) {
       return
@@ -495,9 +511,10 @@ export function createSvcWorkerController(
       if (await isExpectedController(version, signal)) {
         const controller = (_serviceWorker = navigator.serviceWorker.controller)
         if (controller) {
-          emitStateChange('activated', controller)
-          // Establish session with the controller
+          // Establish session first to get suspended status
           await establishSession(controller, signal)
+          // Set state based on session suspended status (handles page reload case)
+          updateStateFromSession(controller)
           setupControllerChangeHandler(timeout)
         }
         emitProgress('already-expected-controller')
@@ -524,9 +541,10 @@ export function createSvcWorkerController(
         if (await isExpectedController(version, signal)) {
           const controller = (_serviceWorker = navigator.serviceWorker.controller)
           if (controller) {
-            emitStateChange('activated', controller)
-            // Establish session with the controller
+            // Establish session first to get suspended status
             await establishSession(controller, signal)
+            // Set state based on session suspended status (handles page reload case)
+            updateStateFromSession(controller)
             setupControllerChangeHandler(timeout)
           }
           emitProgress('controller-is-expected')
@@ -542,17 +560,29 @@ export function createSvcWorkerController(
         // For service workers that don't call `clients.claim()`, the page won't be controlled until reload.
         // Suggest reload and return - caller decides what to do.
         if (expectedState === 'active') {
-          // Ensure state is updated to 'activated' since service worker is active
           const activeServiceWorker = registration.active
-          // NOTE: _state may have been updated by `emitStateChange` callback, so check current value
-          const currentState = _state
-          _debug?.('service worker contoller state ->', currentState)
-          if (activeServiceWorker && currentState !== 'activated') {
-            emitStateChange('activated', activeServiceWorker)
-          }
-          // Establish session with the active service worker (even if not controller)
           if (activeServiceWorker) {
+            // Establish session first to get suspended status
             await establishSession(activeServiceWorker, signal)
+            // Set state based on session suspended status (handles page reload case)
+            // Only update if not already in correct state
+            const targetState = _session?.suspended ? 'suspended' : 'activated'
+            if (_state !== targetState) {
+              if (_session?.suspended) {
+                _state = 'suspended'
+                _serviceWorker = activeServiceWorker
+                _emitter.emit('changeState', {
+                  state: 'suspended',
+                  version,
+                  serviceWorker: activeServiceWorker
+                })
+                _debug?.(
+                  'createSvcWorkerController: detected suspended state from session (active path)'
+                )
+              } else {
+                emitStateChange('activated', activeServiceWorker)
+              }
+            }
             setupControllerChangeHandler(timeout)
           }
           _debug?.('reload suggested ?', reloadSuggested)

@@ -308,7 +308,8 @@ describe('createSvcWorker', () => {
         {
           type: V_SW_SESSION_INIT,
           success: true,
-          version: 'v1'
+          version: 'v1',
+          suspended: false
         },
         undefined
       )

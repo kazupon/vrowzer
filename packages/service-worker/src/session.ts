@@ -70,6 +70,11 @@ export interface SvcWorkerSession extends Disposable {
    */
   readonly version: string
   /**
+   * Whether the Service Worker was in suspended state when the session was established.
+   * This is used to detect if a page reload occurred while the service worker was suspended.
+   */
+  readonly suspended: boolean
+  /**
    * Send a message through the session port and wait for response.
    *
    * An 'id' field will be auto-generated if not present, used for response matching.
@@ -155,6 +160,7 @@ export async function createSession(
 
   let _connected = false
   let _version = ''
+  let _suspended = false
   let _onTerminatedCallback: ((reason: SvcWorkerTerminatedReason) => void) | null = null
 
   // Handle incoming messages on the session port
@@ -231,7 +237,13 @@ export async function createSession(
         if (data.success) {
           _connected = true
           _version = data.version
-          debug?.('createSession: session established, version:', _version)
+          _suspended = data.suspended ?? false
+          debug?.(
+            'createSession: session established, version:',
+            _version,
+            'suspended:',
+            _suspended
+          )
           resolve(_createSession())
         } else {
           port.removeEventListener('message', handleMessage)
@@ -326,6 +338,9 @@ export async function createSession(
       },
       get version() {
         return _version
+      },
+      get suspended() {
+        return _suspended
       },
       send,
       close,

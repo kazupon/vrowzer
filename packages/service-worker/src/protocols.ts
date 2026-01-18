@@ -101,6 +101,11 @@ export interface SvcWorkerSessionInitResponse {
   type: typeof V_SW_SESSION_INIT
   success: boolean
   version: string
+  /**
+   * Whether the service worker is currently in suspended state (circuit breaker engaged).
+   * Optional for backward compatibility with older service workers.
+   */
+  suspended?: boolean
 }
 
 /**
@@ -265,13 +270,19 @@ export function isSvcWorkerSessionInitResponse(
  *
  * @param success - Whether the session initialization was successful
  * @param version - The version of the service worker
+ * @param suspended - Whether the service worker is in suspended state (optional for backward compatibility)
  * @returns The constructed {@link SvcWorkerSessionInitResponse}
  */
 export function createSvcWorkerSessionInitResponse(
   success: boolean,
-  version: string
+  version: string,
+  suspended?: boolean
 ): SvcWorkerSessionInitResponse {
-  return { type: V_SW_SESSION_INIT, success, version }
+  const response: SvcWorkerSessionInitResponse = { type: V_SW_SESSION_INIT, success, version }
+  if (suspended !== undefined) {
+    response.suspended = suspended
+  }
+  return response
 }
 
 /**

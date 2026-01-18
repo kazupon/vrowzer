@@ -155,10 +155,12 @@ sw.addEventListener('message', event => {
         port.start()
         sessions.set(clientId, { port, lastPong: Date.now() })
         // Must include type field for isSvcWorkerSessionInitResponse type guard
+        // Include suspended status for state recovery after page reload
         port.postMessage({
           type: 'V_SW_SESSION_INIT',
           success: true,
-          version: SW_VERSION
+          version: SW_VERSION,
+          suspended: _suspended
         })
       }
       break

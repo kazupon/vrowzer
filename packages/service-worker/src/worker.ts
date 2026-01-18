@@ -485,10 +485,10 @@ export function createSvcWorker(
             // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
             cleanupStaleSessions()
 
-            // Send init response
+            // Send init response with suspended status for state recovery after page reload
             const initSent = safePostMessage(
               port,
-              createSvcWorkerSessionInitResponse(true, version),
+              createSvcWorkerSessionInitResponse(true, version, _suspended),
               {
                 context: `init response to ${clientId}`,
                 onError: () => {

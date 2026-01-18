@@ -556,5 +556,42 @@ describe('createSvcWorkerController', () => {
 
       expect(stateChanges).toEqual(['suspended', 'resumed'])
     })
+
+    test('should recognize suspended state after page reload simulation', async () => {
+      // Step 1: Create controller and activate service worker
+      const controller1 = createSvcWorkerController({
+        scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      const result1 = await controller1.ready()
+      expect(result1).toBe(true)
+      expect(controller1.state).toBe('activated')
+
+      // Step 2: Suspend the service worker
+      await controller1.suspend()
+      expect(controller1.state).toBe('suspended')
+
+      // Step 3: Simulate page reload by disposing controller (but NOT unregistering SW)
+      // This mimics what happens when a page is reloaded - the controller instance is lost
+      // but the service worker remains registered and in suspended state
+      controller1.dispose()
+
+      // Step 4: Create a new controller (simulating what happens after page reload)
+      const controller2 = createSvcWorkerController({
+        scriptURL: new URL('/controller/v1-circuit-breaker.js', location.origin),
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      // Step 5: Call ready() on the new controller
+      const result2 = await controller2.ready()
+      expect(result2).toBe(true)
+
+      // Bug: The controller state should be 'suspended' because the service worker
+      // is still in suspended mode, but it incorrectly reports 'activated'
+      expect(controller2.state).toBe('suspended')
+    })
   })
 })

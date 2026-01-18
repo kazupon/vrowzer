@@ -132,7 +132,12 @@ describe('createSession', () => {
       const session = await createSession(mockServiceWorker, { debug })
 
       expect(debug).toHaveBeenCalledWith('createSession: initiating session with service worker')
-      expect(debug).toHaveBeenCalledWith('createSession: session established, version:', 'v1')
+      expect(debug).toHaveBeenCalledWith(
+        'createSession: session established, version:',
+        'v1',
+        'suspended:',
+        false
+      )
 
       session.close()
     })
