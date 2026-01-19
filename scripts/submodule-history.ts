@@ -1,8 +1,8 @@
 /**
  * Git Submodule History Tracker
  *
- * Records the current state of all git submodules in refers/ directory
- * to a dated markdown file in refers/__history__/.
+ * Records the current state of all git submodules in `refers/` directory
+ * to a dated markdown file in `refers/__history__/`.
  */
 
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -128,7 +128,4 @@ async function main(): Promise<void> {
   console.log(`Written: ${filepath}`)
 }
 
-main().catch(error => {
-  console.error('Error:', error)
-  process.exit(1)
-})
+await main()
