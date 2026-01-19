@@ -28,6 +28,7 @@
     "play:svc": "pnpm --filter service-worker play",
     "prepare": "git config --local core.hooksPath .githooks",
     "preview:vrowser": "pnpm --filter vrowser preview",
+    "submodule:history": "tsx scripts/submodule-history.ts",
     "test": "pnpm run --color \"/^test:/\"",
     "test:e2e": "vitest run --project *:e2e",
     "test:e2e:unplugin-svc": "vitest run --project unplugin-service-worker:e2e",
@@ -54,6 +55,7 @@
     "oxfmt": "^0.20.0",
     "oxlint": "^1.36.0",
     "oxlint-tsgolint": "^0.10.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.51.0",
     "vitest": "^4.0.16"
