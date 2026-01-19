@@ -8,9 +8,9 @@ This document compares the current HMR implementation in `packages/playground/sr
 
 ```typescript
 interface HotContext {
-  data: Record<string, unknown>;
-  accept(cb?: (mod?: unknown) => void): void;
-  dispose(cb: (data: Record<string, unknown>) => void): void;
+  data: Record<string, unknown>
+  accept(cb?: (mod?: unknown) => void): void
+  dispose(cb: (data: Record<string, unknown>) => void): void
 }
 ```
 
@@ -23,37 +23,25 @@ Reference: <https://vite.dev/guide/api-hmr.html>
 ```typescript
 interface ViteHotContext {
   // Data persistence across updates
-  readonly data: any;
+  readonly data: any
 
   // Accept updates
-  accept(): void;
-  accept(cb: (mod: ModuleNamespace | undefined) => void): void;
-  accept(dep: string, cb: (mod: ModuleNamespace | undefined) => void): void;
-  accept(
-    deps: readonly string[],
-    cb: (mods: Array<ModuleNamespace | undefined>) => void,
-  ): void;
+  accept(): void
+  accept(cb: (mod: ModuleNamespace | undefined) => void): void
+  accept(dep: string, cb: (mod: ModuleNamespace | undefined) => void): void
+  accept(deps: readonly string[], cb: (mods: Array<ModuleNamespace | undefined>) => void): void
 
   // Cleanup
-  dispose(cb: (data: any) => void): void;
-  prune(cb: (data: any) => void): void;
+  dispose(cb: (data: any) => void): void
+  prune(cb: (data: any) => void): void
 
   // Control
-  invalidate(message?: string): void;
+  invalidate(message?: string): void
 
   // Events
-  on<T extends CustomEventName>(
-    event: T,
-    cb: (payload: InferCustomEventPayload<T>) => void,
-  ): void;
-  off<T extends CustomEventName>(
-    event: T,
-    cb: (payload: InferCustomEventPayload<T>) => void,
-  ): void;
-  send<T extends CustomEventName>(
-    event: T,
-    data?: InferCustomEventPayload<T>,
-  ): void;
+  on<T extends CustomEventName>(event: T, cb: (payload: InferCustomEventPayload<T>) => void): void
+  off<T extends CustomEventName>(event: T, cb: (payload: InferCustomEventPayload<T>) => void): void
+  send<T extends CustomEventName>(event: T, data?: InferCustomEventPayload<T>): void
 }
 ```
 
@@ -127,9 +115,9 @@ To achieve full Vite HMR API compatibility, implement in priority order:
 
 ```typescript
 // Vite usage
-import.meta.hot.accept("./dep.js", (newDep) => {
+import.meta.hot.accept('./dep.js', newDep => {
   // Handle dependency update
-});
+})
 
 // Requires tracking import graph
 ```
@@ -138,9 +126,9 @@ import.meta.hot.accept("./dep.js", (newDep) => {
 
 ```typescript
 // Called when module is no longer imported
-import.meta.hot.prune((data) => {
+import.meta.hot.prune(data => {
   // Final cleanup
-});
+})
 ```
 
 ### Event System

@@ -250,85 +250,83 @@ sequenceDiagram
 ```typescript
 // File state management
 const files: Record<string, string> = {
-  "/main.js": 'console.log("Hello")',
-};
+  '/main.js': 'console.log("Hello")'
+}
 
 // Create MessageChannel
-const channel = new MessageChannel();
+const channel = new MessageChannel()
 
 // Transfer port1 to Worker (for sending bundled code to iframe)
-worker.postMessage({ type: "init", port: channel.port1 }, [channel.port1]);
+worker.postMessage({ type: 'init', port: channel.port1 }, [channel.port1])
 
 // Transfer port2 to iframe (for receiving bundled code from Worker)
-iframe.contentWindow.postMessage({ type: "init", port: channel.port2 }, "*", [
-  channel.port2,
-]);
+iframe.contentWindow.postMessage({ type: 'init', port: channel.port2 }, '*', [channel.port2])
 
 // Handle code updates from editor
 function onCodeUpdate(path: string, code: string) {
-  files[path] = code;
+  files[path] = code
   // Send bundle request directly to Worker
   worker.postMessage({
-    type: "bundle",
-    entry: "/main.js",
-    files: { ...files },
-  });
+    type: 'bundle',
+    entry: '/main.js',
+    files: { ...files }
+  })
 }
 
 // Handle Worker errors
-worker.onmessage = (e) => {
-  if (e.data.type === "bundle-error") {
-    console.error("Bundle error:", e.data.message);
+worker.onmessage = e => {
+  if (e.data.type === 'bundle-error') {
+    console.error('Bundle error:', e.data.message)
   }
-};
+}
 ```
 
 **Worker (bundler.worker.ts):**
 
 ```typescript
-let iframePort: MessagePort | null = null;
+let iframePort: MessagePort | null = null
 
-self.onmessage = async (e) => {
-  if (e.data.type === "init" && e.data.port) {
-    iframePort = e.data.port;
-    self.postMessage({ type: "ready" });
-  } else if (e.data.type === "bundle") {
+self.onmessage = async e => {
+  if (e.data.type === 'init' && e.data.port) {
+    iframePort = e.data.port
+    self.postMessage({ type: 'ready' })
+  } else if (e.data.type === 'bundle') {
     try {
-      const code = await bundle(e.data.entry, e.data.files);
+      const code = await bundle(e.data.entry, e.data.files)
       // Send bundled code directly to iframe
       iframePort?.postMessage({
-        type: "execute",
+        type: 'execute',
         code,
-        path: e.data.entry,
-      });
+        path: e.data.entry
+      })
     } catch (err) {
       // Report error to Main
-      self.postMessage({ type: "bundle-error", message: String(err) });
+      self.postMessage({ type: 'bundle-error', message: String(err) })
     }
   }
-};
+}
 ```
 
 **iframe (runtime.ts):**
 
 ```typescript
-let workerPort: MessagePort | null = null;
+let workerPort: MessagePort | null = null
 
-window.onmessage = (e) => {
-  if (e.data.type === "init" && e.data.port) {
-    workerPort = e.data.port;
-    workerPort.onmessage = handleExecute;
-    window.parent.postMessage({ type: "ready" }, "*");
+window.onmessage = e => {
+  if (e.data.type === 'init' && e.data.port) {
+    workerPort = e.data.port
+    workerPort.onmessage = handleExecute
+    window.parent.postMessage({ type: 'ready' }, '*')
   }
-};
+}
 
 function handleExecute(e: MessageEvent) {
-  if (e.data.type === "execute") {
+  if (e.data.type === 'execute') {
     try {
-      executeCode(e.data.code, e.data.path);
-      window.parent.postMessage({ type: "success" }, "*");
+      executeCode(e.data.code, e.data.path)
+      window.parent.postMessage({ type: 'success' }, '*')
     } catch (err) {
-      window.parent.postMessage({ type: "error", message: String(err) }, "*");
+      window.parent.postMessage({ type: 'error', message: String(err) }, '*')
     }
   }
 }

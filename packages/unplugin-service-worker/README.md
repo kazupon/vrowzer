@@ -36,7 +36,7 @@ bun add -D @vrowser/unplugin-service-worker
 import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
 
 export default defineConfig({
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 })
 ```
 
@@ -50,7 +50,7 @@ export default defineConfig({
 import ServiceWorker from '@vrowser/unplugin-service-worker/rolldown'
 
 export default {
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 }
 ```
 
@@ -64,7 +64,7 @@ export default {
 import ServiceWorker from '@vrowser/unplugin-service-worker/rollup'
 
 export default {
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 }
 ```
 
@@ -78,7 +78,7 @@ import { build } from 'esbuild'
 import ServiceWorker from '@vrowser/unplugin-service-worker/esbuild'
 
 build({
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 })
 ```
 
@@ -93,7 +93,7 @@ import ServiceWorker from '@vrowser/unplugin-service-worker/webpack'
 
 export default {
   /* ... */
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 }
 ```
 
@@ -108,7 +108,7 @@ import ServiceWorker from '@vrowser/unplugin-service-worker/rspack'
 
 export default {
   /* ... */
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 }
 ```
 
@@ -122,7 +122,7 @@ export default {
 import ServiceWorker from '@vrowser/unplugin-service-worker/farm'
 
 export default {
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 }
 ```
 
@@ -137,7 +137,7 @@ import ServiceWorker from '@vrowser/unplugin-service-worker/bun'
 Bun.build({
   entrypoints: ['./src/main.ts'],
   outdir: './dist',
-  plugins: [ServiceWorker()],
+  plugins: [ServiceWorker()]
 })
 ```
 
@@ -222,7 +222,7 @@ ServiceWorker({
 
   // Plugin enforcement phase
   // Default: 'pre'
-  enforce: 'pre',
+  enforce: 'pre'
 })
 ```
 

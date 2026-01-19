@@ -82,7 +82,7 @@ const sw = createSvcWorker(self, {
 })
 
 // Use suspended flag for kill switch bypass
-sw.addEventListener('fetch', (event) => {
+sw.addEventListener('fetch', event => {
   // When suspended, bypass all custom logic
   if (sw.suspended) {
     event.respondWith(fetch(event.request))
@@ -93,7 +93,7 @@ sw.addEventListener('fetch', (event) => {
   event.respondWith(handleFetch(event.request))
 })
 
-sw.addEventListener('activate', (event) => {
+sw.addEventListener('activate', event => {
   event.waitUntil(self.clients.claim())
 })
 ```
