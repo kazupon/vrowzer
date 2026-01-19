@@ -8,13 +8,13 @@ Run Vite HMR flavor on the browser
 - However, current HMR implementations are WebSocket-based, so there's no existing solution that uses an in-browser bundler like rolldown to deliver Vite-like high-performance preview experiences
 - This project was created to enable efficient, high-performance previews for no-code/low-code products using rolldown
 
-## ✨ Features
+## 📦 Packages
 
-TODO: Write later
-
-## Compatibility with Vite HMR
-
-TODO: Write later based on the compatibility table
+| Package                                                                | Description                                                                                                                     |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| [@vrowser/vite-dev-server](./packages/vite-dev-server)                 | Vite dev server for Vrowser                                                                                                     |
+| [@vrowser/service-worker](./packages/service-worker)                   | Safely deploy and manage Service Workers with version control, bidirectional communication, and emergency shutdown capabilities |
+| [@vrowser/unplugin-service-worker](./packages/unplugin-service-worker) | unplugin for `@vrowser/service-worker`                                                                                          |
 
 ## ©️ License
 

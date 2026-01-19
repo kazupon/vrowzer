@@ -1,6 +1,6 @@
 {
   "name": "@vrowser/vite-dev-server",
-  "description": "vite dev server for vrowser",
+  "description": "Vite dev server for vrowser",
   "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
