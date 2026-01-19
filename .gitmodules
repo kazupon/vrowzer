@@ -43,3 +43,6 @@
 [submodule "refers/encodeurl"]
 	path = refers/encodeurl
 	url = git@github.com:pillarjs/encodeurl.git
+[submodule "refers/hono"]
+	path = refers/hono
+	url = git@github.com:honojs/hono.git
