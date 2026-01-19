@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "preserve",
+    "target": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "isolatedDeclarations": false,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src", "rolldown.config.ts"]
+}

@@ -18,10 +18,18 @@
         "**/*.{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "**/*.browser-{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "scripts/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "packages/vite-dev-server/{src,types,misc}/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "packages/vite-dev-server/client.d.ts",
         "packages/{service-worker,unplugin-service-worker}/{playground,e2e,test-public}/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
       ],
       "rules": {
         "@kazupon/enforce-header-comment": "off"
+      }
+    },
+    {
+      "files": ["packages/vite-dev-server/**/*.{ts,mts,cts,tsx}"],
+      "rules": {
+        "@typescript-eslint/triple-slash-reference": "off"
       }
     },
     {

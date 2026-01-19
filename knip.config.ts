@@ -13,6 +13,12 @@ export default {
       entry: ['src/**/*.ts', 'e2e/**/*.ts', 'e2e/**/*.js']
     }
   },
-  ignore: ['refers/**', 'packages/vrowser/**', 'packages/memfs-test/**'],
+  ignore: [
+    'refers/**',
+    'packages/vrowser/**',
+    'packages/memfs-test/**',
+    // ignores for vite-dev-server package, because it will be forked from `vite` and maintained separately, preventing conflicts.
+    'packages/vite-dev-server/**'
+  ],
   ignoreDependencies: ['lint-staged', '@kazupon/prettier-config', '@kazupon/eslint-plugin']
 } satisfies KnipConfig
