@@ -68,13 +68,18 @@
     "build-bundle": "rolldown --config rolldown.config.ts",
     "build-types": "pnpm build-types-roll && pnpm build-types-check",
     "build-types-check": "echo 'build-types-check'",
-    "build-types-roll": "echo 'build-types-roll'",
+    "build-types-roll": "rolldown --config rolldown.dts.config.ts",
     "dev": "premove dist && pnpm build-bundle -w"
   },
   "dependencies": {
     "rolldown": "catalog:"
   },
   "devDependencies": {
-    "premove": "^4.0.0"
+    "premove": "^4.0.0",
+    "@babel/parser": "^7.28.6",
+    "rolldown-plugin-dts": "^0.20.0",
+    "estree-walker": "^3.0.3",
+    "magic-string": "catalog:",
+    "@oxc-project/types": "0.108.0"
   }
 }
