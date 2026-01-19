@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "magic-string": "^0.30.17",
-    "rolldown": "1.0.0-beta.56",
+    "rolldown": "catalog:",
     "strip-literal": "^3.0.0",
     "unplugin": "^2.3.11"
   },

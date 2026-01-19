@@ -42,6 +42,7 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       // FIXME: Fix lint errors in e2e tests, why they are ignored via eslint-plugin-oxlint?
       'packages/unplugin-service-worker/e2e/**',
       'packages/service-worker/e2e/**',
+      // ignores for vite-dev-server package, because it will be forked from `vite` and maintained separately, preventing conflicts.
       'packages/vite-dev-server/**'
     ]
   }
