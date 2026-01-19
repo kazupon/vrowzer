@@ -18,6 +18,9 @@ catalogs:
     magic-string:
       specifier: ^0.30.21
       version: 0.30.21
+    oxlint:
+      specifier: ^1.39.0
+      version: 1.39.0
     publint:
       specifier: ^0.3.16
       version: 0.3.16
@@ -93,7 +96,7 @@ importers:
         specifier: ^0.24.0
         version: 0.24.0
       oxlint:
-        specifier: ^1.39.0
+        specifier: 'catalog:'
         version: 1.39.0(oxlint-tsgolint@0.10.1)
       oxlint-tsgolint:
         specifier: ^0.10.1
@@ -144,6 +147,19 @@ importers:
       vite:
         specifier: ^8.0.0-beta.1
         version: 8.0.0-beta.4(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/oxlint-plugin-service-worker:
+    dependencies:
+      oxlint:
+        specifier: 'catalog:'
+        version: 1.39.0(oxlint-tsgolint@0.10.1)
+    devDependencies:
+      publint:
+        specifier: 'catalog:'
+        version: 0.3.16
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.18.4(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
 
   packages/playground:
     dependencies:

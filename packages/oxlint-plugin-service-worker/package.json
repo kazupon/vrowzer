@@ -1,0 +1,63 @@
+{
+  "name": "@vrowser/oxlint-plugin-service-worker",
+  "description": "oxlint plugin for @vrowser/service-worker",
+  "version": "0.0.0",
+  "author": {
+    "name": "kazuya kawaguchi",
+    "email": "kawakazu80@gmail.com"
+  },
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/kazupon",
+  "bugs": {
+    "url": "https://github.com/kazupon/vrowser/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazupon/vrowser.git",
+    "directory": "packages/oxlint-plugin-service-worker"
+  },
+  "keywords": [
+    "lint",
+    "oxlint",
+    "eslint",
+    "service-worker",
+    "vrowser"
+  ],
+  "homepage": "https://github.com/kazupon/vrowser/packages/oxlint-plugin-service-worker/README.md",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*.d.mts",
+        "./*"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "oxlint": "catalog:"
+  },
+  "devDependencies": {
+    "publint": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

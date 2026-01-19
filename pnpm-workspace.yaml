@@ -12,6 +12,7 @@ catalog:
   vite: 8.0.0-beta.4
   rolldown: ^1.0.0-beta.60
   magic-string: ^0.30.21
+  oxlint: ^1.39.0
 
 minimumReleaseAge: 1440
 
@@ -21,6 +22,7 @@ minimumReleaseAgeExclude:
   - '@kazupon/jts-utils'
   - eslint-plugin-oxlint
   - knip
+  - oxlint
 
 onlyBuiltDependencies:
   - '@rolldown/browser'
