@@ -1,5 +1,6 @@
 {
   "name": "vrowser",
+  "description": "Preview with Vite HMR flavor for the browser",
   "private": true,
   "type": "module",
   "scripts": {
