@@ -47,6 +47,7 @@
   "ignorePatterns": [
     "**/dist",
     "**/.output",
+    "**/.notes",
     ".vscode/**/*.json",
     "**/*.html",
     "**/tsconfig*.json",
