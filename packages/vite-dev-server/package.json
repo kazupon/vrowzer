@@ -72,6 +72,8 @@
     "dev": "premove dist && pnpm build-bundle -w"
   },
   "dependencies": {
+    "hono": "^4.7.10",
+    "@vrowser/service-worker": "workspace:*",
     "rolldown": "catalog:"
   },
   "devDependencies": {
