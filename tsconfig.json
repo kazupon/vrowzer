@@ -12,6 +12,13 @@
     "lib": ["esnext"],
     "types": ["bun", "node"],
 
+    // resolve workspace pacakges
+    "paths": {
+      "@vrowser/service-worker/controller": ["./packages/service-worker/src/controller.ts"],
+      "@vrowser/service-worker/worker": ["./packages/service-worker/src/worker.ts"],
+      "@vrowser/service-worker/admin": ["./packages/service-worker/src/admin.ts"]
+    },
+
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
