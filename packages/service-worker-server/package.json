@@ -52,8 +52,8 @@
     "build:docs": "typedoc --excludeInternal",
     "prepack": "pnpm build"
   },
-  "dependencies": {},
   "devDependencies": {
+    "@rolldown/plugin-node-polyfills": "^1.0.0",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typedoc": "catalog:"

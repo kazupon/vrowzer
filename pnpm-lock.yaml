@@ -289,11 +289,10 @@ importers:
         version: 8.0.0-beta.4(@types/node@25.0.9)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/service-worker-server:
-    dependencies:
-      '@vrowser/service-worker':
-        specifier: workspace:*
-        version: link:../service-worker
     devDependencies:
+      '@rolldown/plugin-node-polyfills':
+        specifier: ^1.0.0
+        version: 1.0.0
       publint:
         specifier: 'catalog:'
         version: 0.3.16
@@ -303,9 +302,6 @@ importers:
       typedoc:
         specifier: 'catalog:'
         version: 0.28.16(typescript@5.9.3)
-      typedoc-plugin-markdown:
-        specifier: 'catalog:'
-        version: 4.9.0(typedoc@0.28.16(typescript@5.9.3))
 
   packages/unplugin-service-worker:
     dependencies:
@@ -2271,6 +2267,9 @@ packages:
   '@rolldown/browser@1.0.0-beta.58':
     resolution: {integrity: sha512-mqlDLComPfEC1G47iq/W46EozaLen68inRDupzRCmJ6o1GeNksuKUHK7hYwFRwhqGnTcTE3Mcb8VvykrfnbFRw==}
     hasBin: true
+
+  '@rolldown/plugin-node-polyfills@1.0.0':
+    resolution: {integrity: sha512-JUmEhvz+B6+0AaeUGvZ7SnJec7wpwYqZ+FcAng1I3UVGYKA1uSmE1H4vKHUewU665Nb37znDd9N4o/iImmKeVg==}
 
   '@rolldown/pluginutils@1.0.0-beta.45':
     resolution: {integrity: sha512-Le9ulGCrD8ggInzWw/k2J8QcbPz7eGIOWqfJ2L+1R0Opm7n6J37s2hiDWlh6LJN0Lk9L5sUzMvRHKW7UxBZsQA==}
@@ -6950,6 +6949,8 @@ snapshots:
   '@rolldown/browser@1.0.0-beta.58':
     dependencies:
       '@napi-rs/wasm-runtime': 1.1.1
+
+  '@rolldown/plugin-node-polyfills@1.0.0': {}
 
   '@rolldown/pluginutils@1.0.0-beta.45': {}
 
