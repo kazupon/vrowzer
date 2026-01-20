@@ -288,6 +288,25 @@ importers:
         specifier: 'catalog:'
         version: 8.0.0-beta.4(@types/node@25.0.9)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/service-worker-server:
+    dependencies:
+      '@vrowser/service-worker':
+        specifier: workspace:*
+        version: link:../service-worker
+    devDependencies:
+      publint:
+        specifier: 'catalog:'
+        version: 0.3.16
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.18.4(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
+      typedoc:
+        specifier: 'catalog:'
+        version: 0.28.16(typescript@5.9.3)
+      typedoc-plugin-markdown:
+        specifier: 'catalog:'
+        version: 4.9.0(typedoc@0.28.16(typescript@5.9.3))
+
   packages/unplugin-service-worker:
     dependencies:
       magic-string:
@@ -345,6 +364,9 @@ importers:
 
   packages/vite-dev-server:
     dependencies:
+      '@vrowser/service-worker':
+        specifier: workspace:*
+        version: link:../service-worker
       hono:
         specifier: ^4.7.10
         version: 4.11.4

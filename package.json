@@ -9,6 +9,7 @@
     "build:docs": "pnpm -r run build:docs",
     "build:memfs": "pnpm --filter memfs-test build",
     "build:oxlint": "pnpm --filter oxlint-plugin-service-worker build",
+    "build:server": "pnpm --filter service-worker-server build",
     "build:svc": "pnpm --filter service-worker build",
     "build:unplugin": "pnpm --filter unplugin-service-worker build",
     "build:vite": "pnpm --filter vite-dev-server build",
