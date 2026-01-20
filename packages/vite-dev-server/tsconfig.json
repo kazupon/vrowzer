@@ -7,6 +7,5 @@
     "lib": ["ESNext", "DOM", "WebWorker"],
     "isolatedDeclarations": false,
     "allowImportingTsExtensions": false
-  },
-  "include": ["src", "rolldown.config.ts"]
+  }
 }

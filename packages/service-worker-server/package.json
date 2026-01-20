@@ -52,13 +52,10 @@
     "build:docs": "typedoc --excludeInternal",
     "prepack": "pnpm build"
   },
-  "dependencies": {
-    "@vrowser/service-worker": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "publint": "catalog:",
     "tsdown": "catalog:",
-    "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:"
+    "typedoc": "catalog:"
   }
 }

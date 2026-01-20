@@ -24,6 +24,7 @@
     "declaration": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
+    "isolatedDeclarations": true,
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
