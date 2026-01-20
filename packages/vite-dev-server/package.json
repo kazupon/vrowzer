@@ -74,6 +74,7 @@
   "dependencies": {
     "hono": "^4.7.10",
     "@vrowser/service-worker": "workspace:*",
+    "@vrowser/service-worker-server": "workspace:*",
     "rolldown": "catalog:"
   },
   "devDependencies": {

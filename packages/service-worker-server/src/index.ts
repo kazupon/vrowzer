@@ -16,6 +16,16 @@ import type { AddressInfo, ListenOptions } from 'node:net'
 import type { SvcWorker } from '@vrowser/service-worker/worker'
 
 /**
+ * The {@link SvcWorkerServer} constructor options
+ */
+export interface SvcWorkerServerOptions extends EventEmitterOptions {
+  /**
+   * The Service Worker instance
+   */
+  serviceWorker: SvcWorker
+}
+
+/**
  * Service Worker Server
  *
  * This class have like Node.js HTTP Server interfaces.
