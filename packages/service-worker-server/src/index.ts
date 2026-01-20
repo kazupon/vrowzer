@@ -133,13 +133,17 @@ export class SvcWorkerServer extends EventEmitter implements Disposable, AsyncDi
     // Update state
     this.#listening = true
 
+    // IMPORTANT: Register fetch handler synchronously during script evaluation.
+    // Service Workers require fetch event listeners to be added during the initial
+    // script execution, not asynchronously during event callbacks.
+    this.#svcWorker.addEventListener('fetch', this.#boundFetchHandler)
+
     // Check activated state
     const sw = this.#svcWorker as unknown as ServiceWorkerGlobalScope
     const isActivated = sw.registration.active !== null
 
     if (isActivated) {
-      // Already activated -> register fetch listener and emit 'listening' immediately (async)
-      this.#svcWorker.addEventListener('fetch', this.#boundFetchHandler)
+      // Already activated -> emit 'listening' immediately (async)
       queueMicrotask(() => {
         if (this.#listening) {
           this.emit('listening')
@@ -175,9 +179,8 @@ export class SvcWorkerServer extends EventEmitter implements Disposable, AsyncDi
           event.waitUntil(serviceWorkerScope.clients.claim())
         }
 
-        // Register fetch listener after activation
-        if (this.#listening && this.#boundFetchHandler) {
-          this.#svcWorker.addEventListener('fetch', this.#boundFetchHandler)
+        // Emit listening event after activation
+        if (this.#listening) {
           this.emit('listening')
         }
       }
@@ -300,14 +303,12 @@ export class SvcWorkerServer extends EventEmitter implements Disposable, AsyncDi
   }
 }
 
-function validServiceWorkerState(self: ServiceWorkerGlobalScope): void {
-  if (self.registration.installing) {
-    throw new SvcWorkerServerError('Service worker is still installing.')
-  }
-  if (self.registration.waiting) {
-    throw new SvcWorkerServerError('Service worker is waiting to activate.')
-  }
-  if (self.registration.active) {
-    throw new SvcWorkerServerError('Service worker is already active.')
-  }
+function validServiceWorkerState(_self: ServiceWorkerGlobalScope): void {
+  // During SW script execution, registration.installing points to THIS SW.
+  // This is the expected state for server initialization.
+  // We allow creation in any valid lifecycle state (installing, waiting, active).
+  // The listen() method handles waiting for activation if needed.
+  //
+  // TODO: Consider adding validation for truly invalid states if needed
+  // (e.g., when the SW global scope is not available)
 }

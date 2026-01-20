@@ -52,10 +52,16 @@
     "build:docs": "typedoc --excludeInternal",
     "prepack": "pnpm build"
   },
+  "dependencies": {
+    "@vrowser/service-worker": "workspace:*"
+  },
   "devDependencies": {
+    "@playwright/test": "catalog:",
     "@rolldown/plugin-node-polyfills": "^1.0.0",
+    "get-port-please": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
-    "typedoc": "catalog:"
+    "typedoc": "catalog:",
+    "vite": "catalog:"
   }
 }

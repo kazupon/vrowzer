@@ -157,32 +157,37 @@ describe('SvcWorkerServer', () => {
         expect(listeningEmitted).toBe(true)
       })
 
-      it('does not register fetch handler before activation', () => {
+      it('registers fetch handler synchronously but also registers activate handler', () => {
         server = createServer({ isActivated: false })
         server.listen(() => {})
 
-        // fetch listener should not be registered yet
-        expect(mockSvcWorker.addEventListener).not.toHaveBeenCalledWith(
-          'fetch',
-          expect.any(Function)
-        )
-        // Only activate listener should be registered
+        // Fetch handler IS registered synchronously (required by Service Worker spec)
+        expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith('fetch', expect.any(Function))
+        // Activate listener is also registered to wait for activation
         expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith(
           'activate',
           expect.any(Function)
         )
       })
 
-      it('registers fetch handler after activation', async () => {
+      it('emits listening event after activation', async () => {
         server = createServer({ isActivated: false })
+        let listeningEmitted = false
+        server.on('listening', () => {
+          listeningEmitted = true
+        })
         server.listen(() => {})
+
+        // Before activation, listening should not be emitted
+        await new Promise(r => setTimeout(r, 0))
+        expect(listeningEmitted).toBe(false)
 
         // Emit activate event
         mockSvcWorker.__emit('activate', {})
         await new Promise(r => setTimeout(r, 0))
 
-        // Now fetch listener should be registered
-        expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith('fetch', expect.any(Function))
+        // Now listening event should be emitted
+        expect(listeningEmitted).toBe(true)
       })
     })
 

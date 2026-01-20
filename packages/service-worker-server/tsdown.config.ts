@@ -8,5 +8,6 @@ export default defineConfig({
   publint: true,
   dts: true,
   fixedExtension: false,
+  external: ['@vrowser/service-worker/worker'],
   plugins: [nodePolyfills()]
 })

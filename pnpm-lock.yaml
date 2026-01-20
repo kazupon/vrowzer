@@ -289,10 +289,20 @@ importers:
         version: 8.0.0-beta.4(@types/node@25.0.9)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/service-worker-server:
+    dependencies:
+      '@vrowser/service-worker':
+        specifier: workspace:*
+        version: link:../service-worker
     devDependencies:
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.57.0
       '@rolldown/plugin-node-polyfills':
         specifier: ^1.0.0
         version: 1.0.0
+      get-port-please:
+        specifier: 'catalog:'
+        version: 3.2.0
       publint:
         specifier: 'catalog:'
         version: 0.3.16
@@ -302,6 +312,9 @@ importers:
       typedoc:
         specifier: 'catalog:'
         version: 0.28.16(typescript@5.9.3)
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.0-beta.4(@types/node@25.0.9)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/unplugin-service-worker:
     dependencies:
