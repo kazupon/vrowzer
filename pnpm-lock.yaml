@@ -363,6 +363,9 @@ importers:
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
+      '@vrowser/service-worker-server':
+        specifier: workspace:*
+        version: link:../service-worker-server
       hono:
         specifier: ^4.7.10
         version: 4.11.4

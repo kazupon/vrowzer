@@ -37,6 +37,12 @@ export default defineConfig({
       },
       {
         test: {
+          name: 'service-worker-server:unit',
+          include: ['./packages/service-worker-server/**/*.test.ts']
+        }
+      },
+      {
+        test: {
           name: 'unplugin-service-worker:e2e',
           include: ['./packages/unplugin-service-worker/e2e/**/*.e2e-test.ts'],
           // bun.e2e-test.ts is a spawn wrapper that runs bun test for bun.e2e_test.ts

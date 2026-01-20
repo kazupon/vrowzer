@@ -10,76 +10,254 @@
  */
 
 import { EventEmitter } from 'events'
+import { createSvcWorker } from '@vrowser/service-worker/worker'
 
-import type { EventEmitterOptions } from 'events'
-import type { AddressInfo, ListenOptions } from 'node:net'
-import type { SvcWorker } from '@vrowser/service-worker/worker'
+import type { SvcWorker, SvcWorkerOptions } from '@vrowser/service-worker/worker'
+
+/**
+ * Service worker server error
+ */
+export class SvcWorkerServerError extends Error {
+  name = 'SvcWorkerServerError'
+  constructor(message: string, cause?: Error) {
+    super(message, { cause })
+  }
+}
 
 /**
  * The {@link SvcWorkerServer} constructor options
  */
-export interface SvcWorkerServerOptions extends EventEmitterOptions {
+export interface SvcWorkerServerOptions extends SvcWorkerOptions {
   /**
-   * The Service Worker instance
+   * Automatically call `clients.claim()` on `activate` event.
    */
-  serviceWorker: SvcWorker
+  claimOnActivate?: boolean
 }
 
 /**
- * Service Worker Server
+ * Extend {@link ServiceWorkerState} with additional states
+ *
+ * - 'suspended': State when {@link SvcWorker | service worker} is suspended.
+ */
+export type SvcWorkerServerState = ServiceWorkerState | 'suspended'
+
+/**
+ * Options for the {@link SvcWorkerServer.listen} method
+ */
+export interface ListenOptions {
+  /**
+   * Timeout in milliseconds for waiting for the activate event.
+   * If the timeout is exceeded, an 'error' event is emitted.
+   * @default 30000 (30 seconds)
+   */
+  activateTimeout?: number
+}
+
+/**
+ * Default timeout for waiting for the activate event (30 seconds)
+ */
+const DEFAULT_ACTIVATE_TIMEOUT = 30000
+
+/**
+ * The Server for service worker environment
  *
  * This class have like Node.js HTTP Server interfaces.
- *
  * This class will be used as server that runs within a Service Worker environment.
  */
 export class SvcWorkerServer extends EventEmitter implements Disposable, AsyncDisposable {
-  #serviceWorker: SvcWorker
+  #svcWorker: SvcWorker
+  #options: SvcWorkerServerOptions
+  #listening: boolean = false
+  #fetchHandler: ((event: FetchEvent) => void) | null = null
+  #boundFetchHandler: ((event: FetchEvent) => void) | null = null
+  #activateHandler: ((event: ExtendableEvent) => void) | null = null
+  #activateTimeoutId: ReturnType<typeof setTimeout> | null = null
 
-  constructor(serviceWorker: SvcWorker, options?: EventEmitterOptions) {
-    super(options)
-    this.#serviceWorker = serviceWorker
+  constructor(self: ServiceWorkerGlobalScope, options: SvcWorkerServerOptions) {
+    validServiceWorkerState(self)
+    super()
+    this.#options = options
+    this.#svcWorker = createSvcWorker(self, options)
   }
 
-  // ----- net.Server methods -----
-
-  /**
-   * Start a server listening for connections.
-   */
-  listen(port?: number, hostname?: string, backlog?: number, listeningListener?: () => void): this
-  listen(port?: number, hostname?: string, listeningListener?: () => void): this
-  listen(port?: number, backlog?: number, listeningListener?: () => void): this
-  listen(port?: number, listeningListener?: () => void): this
-  listen(path: string, backlog?: number, listeningListener?: () => void): this
-  listen(path: string, listeningListener?: () => void): this
-  listen(options: ListenOptions, listeningListener?: () => void): this
-  listen(handle: unknown, backlog?: number, listeningListener?: () => void): this
-  listen(handle: unknown, listeningListener?: () => void): this
-  listen(..._args: unknown[]): this {
-    // TODO: implement
-    return this
+  get state(): SvcWorkerServerState {
+    // TODO:
+    return 'installing'
   }
 
   /**
-   * Stops the server from accepting new connections and keeps existing connections.
+   * Start a server listening for service worker fetch events
+   *
+   * When the service worker fetch event handler is bound, the 'listening' event will be emitted.
+   * And server will be started to accept {@link MessageChannel} port via `message` events from clients.
+   *
+   * @param handler - A fetch event handler
+   * @param options - Options for listening
+   * @returns The server instance
    */
-  close(callback?: (err?: Error) => void): this {
-    // TODO: implement
-    if (callback) {
-      callback()
+  listen(handler: (event: FetchEvent) => void, options?: ListenOptions): this {
+    // Prevent double listen
+    if (this.#listening) {
+      queueMicrotask(() =>
+        this.emit('error', new SvcWorkerServerError('Server is already listening'))
+      )
+      return this
     }
+
+    // Validate fetch handler
+    if (typeof handler !== 'function') {
+      queueMicrotask(() =>
+        this.emit('error', new SvcWorkerServerError('fetch handler must be a function'))
+      )
+      return this
+    }
+
+    // Resolve options
+    const activateTimeout = options?.activateTimeout ?? DEFAULT_ACTIVATE_TIMEOUT
+
+    // Store handler
+    this.#fetchHandler = handler
+
+    // Create wrapper with suspended/closed check
+    this.#boundFetchHandler = (event: FetchEvent) => {
+      if (this.#svcWorker.suspended || !this.#listening) {
+        return // Fall through to network
+      }
+      try {
+        this.#fetchHandler!(event)
+      } catch (err) {
+        this.emit('error', err)
+      }
+    }
+
+    // Update state
+    this.#listening = true
+
+    // Check activated state
+    const sw = this.#svcWorker as unknown as ServiceWorkerGlobalScope
+    const isActivated = sw.registration.active !== null
+
+    if (isActivated) {
+      // Already activated -> register fetch listener and emit 'listening' immediately (async)
+      this.#svcWorker.addEventListener('fetch', this.#boundFetchHandler)
+      queueMicrotask(() => {
+        if (this.#listening) {
+          this.emit('listening')
+        }
+      })
+    } else {
+      // Not activated -> wait for activate event with timeout
+
+      // Set timeout
+      this.#activateTimeoutId = setTimeout(() => {
+        this.#cleanupActivateWaiting()
+        if (this.#listening) {
+          this.#listening = false
+          this.#fetchHandler = null
+          this.#boundFetchHandler = null
+          this.emit(
+            'error',
+            new SvcWorkerServerError(
+              `Activate timeout: Service Worker did not activate within ${activateTimeout}ms`
+            )
+          )
+        }
+      }, activateTimeout)
+
+      // Set activate handler
+      this.#activateHandler = (event: ExtendableEvent) => {
+        // Cleanup timeout and handler
+        this.#cleanupActivateWaiting()
+
+        // Call `clients.claim()` if `claimOnActivate` is true
+        if (this.#options.claimOnActivate) {
+          const serviceWorkerScope = this.#svcWorker as unknown as ServiceWorkerGlobalScope
+          event.waitUntil(serviceWorkerScope.clients.claim())
+        }
+
+        // Register fetch listener after activation
+        if (this.#listening && this.#boundFetchHandler) {
+          this.#svcWorker.addEventListener('fetch', this.#boundFetchHandler)
+          this.emit('listening')
+        }
+      }
+      this.#svcWorker.addEventListener('activate', this.#activateHandler)
+    }
+
     return this
   }
 
   /**
-   * Returns the bound `address`, the address `family` name, and `port` of the server.
+   * Cleanup activate waiting state (timeout and handler)
    */
-  address(): AddressInfo | string | null {
+  #cleanupActivateWaiting(): void {
+    if (this.#activateTimeoutId !== null) {
+      clearTimeout(this.#activateTimeoutId)
+      this.#activateTimeoutId = null
+    }
+    if (this.#activateHandler) {
+      this.#svcWorker.removeEventListener('activate', this.#activateHandler)
+      this.#activateHandler = null
+    }
+  }
+
+  /**
+   * Stops the server from accepting new fetch event and keeps existing {@link MessageChannel} port connections
+   *
+   * When it will be finished, the optional callback `fn` will be called, and trigger 'close' event.
+   *
+   * @param cb - An optional callback function which will be called when the server is closed
+   * @returns The server instance
+   */
+  close(cb?: (err?: Error) => void): this {
+    // Emit callback and 'close' event even if not listening
+    if (!this.#listening) {
+      queueMicrotask(() => {
+        cb?.()
+        this.emit('close')
+      })
+      return this
+    }
+
+    // Cleanup activate waiting state (timeout and handler)
+    this.#cleanupActivateWaiting()
+
+    // Remove fetch event listener
+    if (this.#boundFetchHandler) {
+      this.#svcWorker.removeEventListener('fetch', this.#boundFetchHandler)
+      this.#boundFetchHandler = null
+    }
+
+    // Clear handler reference
+    this.#fetchHandler = null
+
+    // Update state
+    this.#listening = false
+
+    // Emit callback and 'close' event (async)
+    // NOTE: MessageChannel sessions are not closed (as per requirements)
+    queueMicrotask(() => {
+      cb?.()
+      this.emit('close')
+    })
+
+    return this
+  }
+
+  /**
+   * Returns the bound service worker address
+   *
+   * the address service worker script URL, or `null` if the server is not listening.
+   *
+   * @returns The service worker script URL or `null`
+   */
+  address(): URL | null {
     // TODO: implement
     return null
   }
 
   /**
-   * Asynchronously get the number of concurrent connections on the server.
+   * Asynchronously get the number of concurrent {@link MessageChannel} port connections on the server.
    */
   getConnections(cb: (error: Error | null, count: number) => void): this {
     // TODO: implement
@@ -87,28 +265,15 @@ export class SvcWorkerServer extends EventEmitter implements Disposable, AsyncDi
     return this
   }
 
-  // ----- http.Server methods -----
-
   /**
-   * Sets the timeout value for sockets, and emits a `'timeout'` event on
-   * the Server object, passing the socket as an argument, if a timeout occurs.
-   */
-  setTimeout(msecs?: number, callback?: () => void): this
-  setTimeout(callback: () => void): this
-  setTimeout(_msecsOrCallback?: number | (() => void), _callback?: () => void): this {
-    // TODO: implement
-    return this
-  }
-
-  /**
-   * Closes all connections connected to this server.
+   * Closes all {@link MessageChannel} port connections connected to this server.
    */
   closeAllConnections(): void {
     // TODO: implement
   }
 
   /**
-   * Closes all connections connected to this server which are not sending a request
+   * Closes all {@link MessageChannel} port connections connected to this server which are not sending a request
    * or waiting for a response.
    */
   closeIdleConnections(): void {
@@ -132,5 +297,17 @@ export class SvcWorkerServer extends EventEmitter implements Disposable, AsyncDi
         }
       })
     })
+  }
+}
+
+function validServiceWorkerState(self: ServiceWorkerGlobalScope): void {
+  if (self.registration.installing) {
+    throw new SvcWorkerServerError('Service worker is still installing.')
+  }
+  if (self.registration.waiting) {
+    throw new SvcWorkerServerError('Service worker is waiting to activate.')
+  }
+  if (self.registration.active) {
+    throw new SvcWorkerServerError('Service worker is already active.')
   }
 }
