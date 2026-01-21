@@ -1,5 +1,8 @@
 // ...
 
+import {
+  httpServerStart,
+} from '../http'
 import type { InlineConfig, ResolvedConfig } from '../config'
 
 // ..
@@ -11,7 +14,15 @@ import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
 
 import type { CommonServerOptions } from '../http'
 
+import {
+  type Hostname,
+  createDebugger
+} from '../utils'
+
 import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
+import {
+  DEFAULT_DEV_PORT
+} from '../constants'
 
 import type { RequiredExceptFor } from '../typeUtils'
 
@@ -29,9 +40,12 @@ import type { HmrOptions } from './hmr'
 
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
-import type { SvcWorkerServer, SvcWorkerServerOptions } from '@vrowser/service-worker-server'
-import type { SvcWorker } from '@vrowser/service-worker/worker'
+import { createSvcWorkerServer } from '@vrowser/service-worker-server'
+
 import type { Env, BlankSchema } from 'hono/types'
+import type { SvcWorkerServer } from '@vrowser/service-worker-server'
+
+const SVC_DEBUG = createDebugger('vite:svc-worker-server')
 
 export interface ServerOptions extends CommonServerOptions {
   /**
@@ -373,7 +387,7 @@ export interface ResolvedServerUrls {
 }
 
 export async function createServer(
-  serviceWorker: SvcWorker,
+  serviceWorkerScope: ServiceWorkerGlobalScope,
   inlineConfig: InlineConfig | ResolvedConfig = {},
   options: {
     listen: boolean
@@ -388,10 +402,24 @@ export async function createServer(
   // TODO: ...
 
   const { root, server: serverConfig } = config
+  const { middlewareMode } = serverConfig
 
   // TODO: ...
 
   const middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
+  const httpServer = middlewareMode
+    ? null
+    : createSvcWorkerServer(serviceWorkerScope, {
+      version: '0.0.0',
+      claimOnActivate: true,
+      debug: SVC_DEBUG!,
+    })
+  const fetchHandler = handle(middlewares)
+
+  // NOTE(kazupon): first implementation for service worker dev server
+  middlewares.get('/hello', (c) => {
+    return c.text('Vite Dev Server on Service Worker says hello!')
+  })
 
   // TODO: ...
 
@@ -403,7 +431,7 @@ export async function createServer(
   // })
   // let pluginContainer = createPluginContainer(environments)
 
-  const closeHttpServer = createServerCloseFn(serviceWorker)
+  const closeHttpServer = createServerCloseFn(httpServer)
 
   // const devHtmlTransformFn = createDevHtmlTransformFn(config)
 
@@ -425,24 +453,240 @@ export async function createServer(
       closeHttpServer(),
       // server._ssrCompatModuleRunner?.close(),
     ])
-    // server.resolvedUrls = null
-    // server._ssrCompatModuleRunner = undefined
+    server.resolvedUrls = null
+    server._ssrCompatModuleRunner = undefined
   }
 
   // let hot = ws
   let server: ViteDevServer = {
     config,
     middlewares,
+    httpServer,
+    // watcher,
+    // ws,
+    // get hot() {
+    //   warnFutureDeprecation(config, 'removeServerHot')
+    //   return hot
+    // },
+    // set hot(h) {
+    //   hot = h
+    // },
+
+    // environments,
+    // get pluginContainer() {
+    //   warnFutureDeprecation(config, 'removeServerPluginContainer')
+    //   return pluginContainer
+    // },
+    // set pluginContainer(p) {
+    //   pluginContainer = p
+    // },
+    // get moduleGraph() {
+    //   warnFutureDeprecation(config, 'removeServerModuleGraph')
+    //   return moduleGraph
+    // },
+    // set moduleGraph(graph) {
+    //   moduleGraph = graph
+    // },
+
+    resolvedUrls: null, // will be set on listen
+    // ssrTransform(
+    //   code: string,
+    //   inMap: SourceMap | { mappings: '' } | null,
+    //   url: string,
+    //   originalCode = code,
+    // ) {
+    //   return ssrTransform(code, inMap, url, originalCode, {
+    //     json: {
+    //       stringify:
+    //         config.json.stringify === true && config.json.namedExports !== true,
+    //     },
+    //   })
+    // },
+    // transformRequest(url, options) {
+    //   warnFutureDeprecation(config, 'removeServerTransformRequest')
+    //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
+    //   return environment.transformRequest(url)
+    // },
+    // warmupRequest(url, options) {
+    //   warnFutureDeprecation(config, 'removeServerWarmupRequest')
+    //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
+    //   return environment.warmupRequest(url)
+    // },
+    // transformIndexHtml(url, html, originalUrl) {
+    //   return devHtmlTransformFn(server, url, html, originalUrl)
+    // },
+    // async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
+    //   warnFutureDeprecation(config, 'removeSsrLoadModule')
+    //   return ssrLoadModule(url, server, opts?.fixStacktrace)
+    // },
+    // ssrFixStacktrace(e) {
+    //   warnFutureDeprecation(
+    //     config,
+    //     'removeSsrLoadModule',
+    //     "ssrFixStacktrace doesn't need to be used for Environment Module Runners.",
+    //   )
+    //   ssrFixStacktrace(e, server.environments.ssr.moduleGraph)
+    // },
+    // ssrRewriteStacktrace(stack: string) {
+    //   warnFutureDeprecation(
+    //     config,
+    //     'removeSsrLoadModule',
+    //     "ssrRewriteStacktrace doesn't need to be used for Environment Module Runners.",
+    //   )
+    //   return ssrRewriteStacktrace(stack, server.environments.ssr.moduleGraph)
+    //     .result
+    // },
+    // async reloadModule(module) {
+    //   warnFutureDeprecation(config, 'removeServerReloadModule')
+    //   if (serverConfig.hmr !== false && module.file) {
+    //     // TODO: Should we also update the node moduleGraph for backward compatibility?
+    //     const environmentModule = (module._clientModule ?? module._ssrModule)!
+    //     updateModules(
+    //       environments[environmentModule.environment]!,
+    //       module.file,
+    //       [environmentModule],
+    //       monotonicDateNow(),
+    //     )
+    //   }
+    // },
+    async listen(port: number = -1, isRestart: boolean = false) {
+    // async listen(port?: number, isRestart?: boolean) {
+      // const hostname = await resolveHostname(config.server.host)
+      // if (httpServer) {
+      //   httpServer.prependListener('listening', () => {
+      //     server.resolvedUrls = resolveServerUrls(
+      //       httpServer,
+      //       config.server,
+      //       hostname,
+      //       httpsOptions,
+      //       config,
+      //     )
+      //   })
+      // }
+      // await startServer(server, hostname, port)
+      await startServer(server, fetchHandler, port)
+      if (httpServer) {
+        if (!isRestart && config.server.open) server.openBrowser()
+      }
+      return server
+    },
+    openBrowser() {
+      console.warn('[@vrowser/vite-dev-server] not supported: server.openBrowser()')
+      // NOTE(kazupon): commented out, because Service Worker server don't need to open browser
+      // const options = server.config.server
+      // const url = getServerUrlByHost(server.resolvedUrls, options.host)
+      // if (url) {
+      //   const path =
+      //     typeof options.open === 'string'
+      //       ? new URL(options.open, url).href
+      //       : url
+
+      //   // We know the url that the browser would be opened to, so we can
+      //   // start the request while we are awaiting the browser. This will
+      //   // start the crawling of static imports ~500ms before.
+      //   // preTransformRequests needs to be enabled for this optimization.
+      //   if (server.config.server.preTransformRequests) {
+      //     setTimeout(() => {
+      //       const getMethod = path.startsWith('https:') ? httpsGet : httpGet
+
+      //       getMethod(
+      //         path,
+      //         {
+      //           headers: {
+      //             // Allow the history middleware to redirect to /index.html
+      //             Accept: 'text/html',
+      //           },
+      //         },
+      //         (res) => {
+      //           res.on('end', () => {
+      //             // Ignore response, scripts discovered while processing the entry
+      //             // will be preprocessed (server.config.server.preTransformRequests)
+      //           })
+      //         },
+      //       )
+      //         .on('error', () => {
+      //           // Ignore errors
+      //         })
+      //         .end()
+      //     }, 0)
+      //   }
+
+      //   _openBrowser(path, true, server.config.logger)
+      // } else {
+      //   server.config.logger.warn('No URL available to open in browser')
+      // }
+    },
     async close() {
       if (!closeServerPromise) {
         closeServerPromise = closeServer()
       }
       return closeServerPromise
     },
+    // printUrls() {
+    //   if (server.resolvedUrls) {
+    //     printServerUrls(
+    //       server.resolvedUrls,
+    //       serverConfig.host,
+    //       config.logger.info,
+    //     )
+    //   } else if (middlewareMode) {
+    //     throw new Error('cannot print server URLs in middleware mode.')
+    //   } else {
+    //     throw new Error(
+    //       'cannot print server URLs before server.listen is called.',
+    //     )
+    //   }
+    // },
+    // bindCLIShortcuts(options) {
+    //   bindCLIShortcuts(server, options)
+    // },
+    // async restart(forceOptimize?: boolean) {
+    //   if (!server._restartPromise) {
+    //     server._forceOptimizeOnRestart = !!forceOptimize
+    //     server._restartPromise = restartServer(server).finally(() => {
+    //       server._restartPromise = null
+    //       server._forceOptimizeOnRestart = false
+    //     })
+    //   }
+    //   return server._restartPromise
+    // },
+
+    // waitForRequestsIdle(ignoredId?: string): Promise<void> {
+    //   return environments.client.waitForRequestsIdle(ignoredId)
+    // },
+
+    _setInternalServer(_server: ViteDevServer) {
+      // Rebind internal the server variable so functions reference the user
+      // server instance after a restart
+      server = _server
+    },
+    _restartPromise: null,
+    _forceOptimizeOnRestart: false,
+    _shortcutsState: options.previousShortcutsState,
   }
+
+  // maintain consistency with the server instance after restarting.
+  // const reflexServer = new Proxy(server, {
+  //   get: (_, property: keyof ViteDevServer) => {
+  //     return server[property]
+  //   },
+  //   set: (_, property: keyof ViteDevServer, value: never) => {
+  //     server[property] = value
+  //     return true
+  //   },
+  // })
 
   // TODO: setup for HMR, watchers ...
   // ...
+
+  if (!middlewareMode && httpServer) {
+    httpServer.once('listening', () => {
+      // NOTE(kazupon): commented out, because Service Worker server don't need port
+      serverConfig.port = 0
+      // update actual port since this may be different from initial value
+      // serverConfig.port = (httpServer.address() as net.AddressInfo).port
+    })
+  }
 
   // Pre applied internal middlewares ------------------------------------------
 
@@ -452,17 +696,102 @@ export async function createServer(
 
   // TODO: setup for configureServer hooks
 
+  // httpServer.listen can be called multiple times
+  // when port when using next port number
+  // this code is to avoid calling buildStart multiple times
+  let initingServer: Promise<void> | undefined
+  let serverInited = false
+  const initServer = async (onListen: boolean) => {
+    if (serverInited) return
+    if (initingServer) return initingServer
+
+    initingServer = (async function () {
+      // if (!config.experimental.bundledDev) {
+      //   // For backward compatibility, we call buildStart for the client
+      //   // environment when initing the server. For other environments
+      //   // buildStart will be called when the first request is transformed
+      //   await environments.client.pluginContainer.buildStart()
+      // }
+
+      // // ensure ws server started
+      // if (onListen || options.listen) {
+      //   await Promise.all(
+      //     Object.values(environments).map((e) => e.listen(server)),
+      //   )
+      // }
+
+      initingServer = undefined
+      serverInited = true
+    })()
+    return initingServer
+  }
+
+  if (!middlewareMode && httpServer) {
+    // overwrite listen to init optimizer before server start
+    const listen = httpServer.listen.bind(httpServer)
+    httpServer.listen = (async (_port: number, ...args: any[]) => {
+      try {
+        await initServer(true)
+      } catch (e) {
+        httpServer.emit('error', e as Error)
+        return
+      }
+      return listen(fetchHandler, ...args)
+    }) as any
+  } else {
+    await initServer(false)
+  }
+
   return server
 }
 
 // ...
 
-export function createServerCloseFn(
-  serviceWorker: SvcWorker,
-): () => Promise<void> {
-  // TODO: we need to manage hrm connections here too ?
+async function startServer(
+  server: ViteDevServer,
+  handler: (event: FetchEvent) => void, // NOTE(kazupon): for Service Worker fetch event handling
+  // NOTE(kazupon): the below options are not needed in Service Worker server
+  // hostname: Hostname,
+  inlinePort?: number,
+): Promise<void> {
+  const httpServer = server.httpServer
+  if (!httpServer) {
+    throw new Error('Cannot call server.listen in middleware mode.')
+  }
 
-  // let hasListened = false
+  // NOTE(kazupon): commented out, because Service Worker server don't need the port
+  // const options = server.config.server
+  // const configPort = inlinePort ?? options.port
+  // // When using non strict port for the dev server, the running port can be different from the config one.
+  // // When restarting, the original port may be available but to avoid a switch of URL for the running
+  // // browser tabs, we enforce the previously used port, expect if the config port changed.
+  // const port =
+  //   (!configPort || configPort === server._configServerPort
+  //     ? server._currentServerPort
+  //     : configPort) ?? DEFAULT_DEV_PORT
+  // server._configServerPort = configPort
+  server._configServerPort = inlinePort
+
+  // NOTE(kazupon): commented out, because Service Worker server need the custom handler
+  // const serverPort = await httpServerStart(httpServer, {
+  //   port,
+  //   strictPort: options.strictPort,
+  //   host: hostname.host,
+  //   logger: server.config.logger,
+  // })
+  const serverPort = await httpServerStart(httpServer, handler)
+  server._currentServerPort = serverPort
+  server._currentServerPort = serverPort
+}
+
+export function createServerCloseFn(
+  server: HttpServer | null,
+): () => Promise<void> {
+  if (!server) {
+    return () => Promise.resolve()
+  }
+
+  let hasListened = false
   // const openSockets = new Set<net.Socket>()
 
   // server.on('connection', (socket) => {
@@ -472,24 +801,24 @@ export function createServerCloseFn(
   //   })
   // })
 
-  // server.once('listening', () => {
-  //   hasListened = true
-  // })
+  server.once('listening', () => {
+    hasListened = true
+  })
 
   return () =>
     new Promise<void>((resolve, reject) => {
       // TODO: destroy HMR connections too ?
       // openSockets.forEach((s) => s.destroy())
-      // if (hasListened) {
-      //   server.close((err) => {
-      //     if (err) {
-      //       reject(err)
-      //     } else {
-      //       resolve()
-      //     }
-      //   })
-      // } else {
-      //   resolve()
-      // }
+      if (hasListened) {
+        server.close((err) => {
+          if (err) {
+            reject(err)
+          } else {
+            resolve()
+          }
+        })
+      } else {
+        resolve()
+      }
     })
 }
