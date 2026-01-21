@@ -45,8 +45,6 @@ import { createSvcWorkerServer } from '@vrowser/service-worker-server'
 import type { Env, BlankSchema } from 'hono/types'
 import type { SvcWorkerServer } from '@vrowser/service-worker-server'
 
-const SVC_DEBUG = createDebugger('vite:svc-worker-server')
-
 export interface ServerOptions extends CommonServerOptions {
   /**
    * Configure HMR-specific options (port, host, path & protocol)
@@ -412,7 +410,7 @@ export async function createServer(
     : createSvcWorkerServer(serviceWorkerScope, {
       version: '0.0.0',
       claimOnActivate: true,
-      debug: SVC_DEBUG!,
+      debug: createDebugger('vrowser:svc-worker-server')!,
     })
   const fetchHandler = handle(middlewares)
 

@@ -19,7 +19,7 @@ interface DebuggerOptions {
   depth?: number
 }
 
-export type ViteDebugScope = `vite:${string}`
+export type ViteDebugScope = `vite:${string}` | `vrowser:${string}`
 
 export function createDebugger(
   namespace: ViteDebugScope,
