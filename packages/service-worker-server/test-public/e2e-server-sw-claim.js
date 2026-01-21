@@ -4,12 +4,12 @@
  * E2E Test Service Worker with claimOnActivate: true
  */
 
-import { SvcWorkerServer } from '/dist/index.js'
+import { createSvcWorkerServer } from '/dist/index.js'
 
 const url = new URL(self.location.href)
 const version = url.searchParams.get('version') || 'v1'
 
-const server = new SvcWorkerServer(self, {
+const server = createSvcWorkerServer(self, {
   version,
   claimOnActivate: true // Explicitly true
 })

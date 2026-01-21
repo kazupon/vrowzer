@@ -1,5 +1,4 @@
 import { defineConfig } from 'tsdown'
-import nodePolyfills from '@rolldown/plugin-node-polyfills'
 
 export default defineConfig({
   entry: ['./src/index.ts'],
@@ -7,7 +6,5 @@ export default defineConfig({
   clean: true,
   publint: true,
   dts: true,
-  fixedExtension: false,
-  external: ['@vrowser/service-worker/worker'],
-  plugins: [nodePolyfills()]
+  fixedExtension: false
 })

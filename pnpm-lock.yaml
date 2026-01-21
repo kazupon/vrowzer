@@ -290,6 +290,9 @@ importers:
 
   packages/service-worker-server:
     dependencies:
+      '@kazupon/jts-utils':
+        specifier: ^0.12.0
+        version: 0.12.0(@vue/reactivity@3.5.26)
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -297,9 +300,6 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.57.0
-      '@rolldown/plugin-node-polyfills':
-        specifier: ^1.0.0
-        version: 1.0.0
       get-port-please:
         specifier: 'catalog:'
         version: 3.2.0
@@ -2283,9 +2283,6 @@ packages:
   '@rolldown/browser@1.0.0-beta.58':
     resolution: {integrity: sha512-mqlDLComPfEC1G47iq/W46EozaLen68inRDupzRCmJ6o1GeNksuKUHK7hYwFRwhqGnTcTE3Mcb8VvykrfnbFRw==}
     hasBin: true
-
-  '@rolldown/plugin-node-polyfills@1.0.0':
-    resolution: {integrity: sha512-JUmEhvz+B6+0AaeUGvZ7SnJec7wpwYqZ+FcAng1I3UVGYKA1uSmE1H4vKHUewU665Nb37znDd9N4o/iImmKeVg==}
 
   '@rolldown/pluginutils@1.0.0-beta.45':
     resolution: {integrity: sha512-Le9ulGCrD8ggInzWw/k2J8QcbPz7eGIOWqfJ2L+1R0Opm7n6J37s2hiDWlh6LJN0Lk9L5sUzMvRHKW7UxBZsQA==}
@@ -6965,8 +6962,6 @@ snapshots:
   '@rolldown/browser@1.0.0-beta.58':
     dependencies:
       '@napi-rs/wasm-runtime': 1.1.1
-
-  '@rolldown/plugin-node-polyfills@1.0.0': {}
 
   '@rolldown/pluginutils@1.0.0-beta.45': {}
 

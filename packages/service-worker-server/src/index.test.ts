@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
-import { SvcWorkerServer, SvcWorkerServerError } from './index'
+import { createSvcWorkerServer, SvcWorkerServerError } from './index'
+import type { SvcWorkerServer } from './index'
 
 // SvcWorker mock interface
 interface MockSvcWorker {
@@ -106,7 +107,7 @@ describe('SvcWorkerServer', () => {
       isActivated: options?.isActivated ?? true
     })
     ;(createSvcWorker as Mock).mockReturnValue(mockSvcWorker)
-    return new SvcWorkerServer(mockSelf as unknown as ServiceWorkerGlobalScope, {
+    return createSvcWorkerServer(mockSelf as unknown as ServiceWorkerGlobalScope, {
       version: '1.0.0',
       claimOnActivate: options?.claimOnActivate!
     })

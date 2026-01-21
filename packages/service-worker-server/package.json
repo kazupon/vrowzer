@@ -53,11 +53,11 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
+    "@kazupon/jts-utils": "^0.12.0",
     "@vrowser/service-worker": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
-    "@rolldown/plugin-node-polyfills": "^1.0.0",
     "get-port-please": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",

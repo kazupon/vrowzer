@@ -7,7 +7,7 @@
  * for handling fetch events in a server-like manner.
  */
 
-import { SvcWorkerServer } from '/dist/index.js'
+import { createSvcWorkerServer } from '/dist/index.js'
 
 // Get version from URL query parameter (e.g., /e2e-server-sw.js?version=v1)
 const url = new URL(self.location.href)
@@ -15,7 +15,7 @@ const version = url.searchParams.get('version') || 'v1'
 const claimOnActivate = url.searchParams.get('claim') !== 'false' // default: true
 
 // Create server instance
-const server = new SvcWorkerServer(self, {
+const server = createSvcWorkerServer(self, {
   version,
   claimOnActivate
 })

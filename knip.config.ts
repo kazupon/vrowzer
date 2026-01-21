@@ -11,6 +11,10 @@ export default {
     },
     'packages/unplugin-service-worker': {
       entry: ['src/**/*.ts', 'e2e/**/*.ts', 'e2e/**/*.js']
+    },
+    'packages/service-worker-server': {
+      entry: ['src/**/*.ts', 'e2e/**/*.ts'],
+      ignore: ['test-public/**']
     }
   },
   ignore: [
