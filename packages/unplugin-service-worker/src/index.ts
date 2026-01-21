@@ -45,6 +45,10 @@ interface PluginContext {
    */
   isBuild: boolean
   /**
+   * Whether in test mode (Vitest)
+   */
+  isTest: boolean
+  /**
    * Service Worker cache
    */
   cache: ServiceWorkerCache
@@ -344,6 +348,7 @@ function createViteConfigResolved(ctx: PluginContext) {
     const viteConfig = config as ViteResolvedConfig
     ctx.viteConfig = viteConfig
     ctx.isBuild = viteConfig.command === 'build'
+    ctx.isTest = viteConfig.mode === 'test'
   }
 }
 
@@ -852,6 +857,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
     const ctx: PluginContext = {
       viteConfig: null,
       isBuild: false,
+      isTest: false,
       cache,
       rollupReferenceIds: new Map(),
       pendingServiceWorkers: new Map()
@@ -932,11 +938,15 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
                 const hasQuery = sw.urlPath.includes('?')
                 const separator = hasQuery ? '&' : '?'
                 const devUrl = `${sw.urlPath}${separator}${SW_QUERY}=${SW_FILE_ID}`
-                s.update(
-                  sw.detected.startIndex,
-                  sw.detected.endIndex,
-                  `new URL(/* @vite-ignore */ ${JSON.stringify(devUrl)}, '' + import.meta.url)`
-                )
+
+                // In test environment (Vitest), omit /* @vite-ignore */ comment
+                // because it prevents Vitest's NormalizeURLPlugin from matching
+                // and transforming import.meta.url to self.location
+                const urlExpr = ctx.isTest
+                  ? `new URL(${JSON.stringify(devUrl)}, '' + import.meta.url)`
+                  : `new URL(/* @vite-ignore */ ${JSON.stringify(devUrl)}, '' + import.meta.url)`
+
+                s.update(sw.detected.startIndex, sw.detected.endIndex, urlExpr)
               }
 
               return {
