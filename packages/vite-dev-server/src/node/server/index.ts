@@ -243,6 +243,28 @@ export interface ViteDevServer {
    */
   httpServer: HttpServer | null
   /**
+   * Promise that resolves when the server is fully initialized.
+   *
+   * The fetch event handler is registered immediately (synchronously) when
+   * createServer is called with { listen: true }. However, some functionality
+   * like transformRequest, module resolution, and plugin hooks require
+   * waiting for this promise to resolve.
+   *
+   * @example
+   * ```ts
+   * const server = createServer(sw, config, { listen: true })
+   * // fetch event is already registered here
+   *
+   * sw.addEventListener('activate', (event) => {
+   *   event.waitUntil((async () => {
+   *     await server.ready
+   *     await sw.clients.claim()
+   *   })())
+   * })
+   * ```
+   */
+  ready: Promise<void>
+  /**
    * Chokidar watcher instance. If `config.server.watch` is set to `null`,
    * it will not watch any files and calling `add` or `unwatch` will have no effect.
    * https://github.com/paulmillr/chokidar/tree/3.6.0#api
@@ -384,15 +406,16 @@ export interface ResolvedServerUrls {
   network: string[]
 }
 
-export async function createServer(
+export function createServer(
   serviceWorkerScope: ServiceWorkerGlobalScope,
   inlineConfig: InlineConfig | ResolvedConfig = {},
   options: {
-    listen: boolean
+    listen?: boolean
+    version?: string
     previousEnvironments?: Record<string, DevEnvironment>
     previousShortcutsState?: ShortcutsState<ViteDevServer>
-  },
-): Promise<ViteDevServer> {
+  } = {},
+): ViteDevServer {
   // TOOD: implement for config resolving and etc ...
   // ...
   const config = inlineConfig as ResolvedConfig
@@ -408,7 +431,7 @@ export async function createServer(
   const httpServer = middlewareMode
     ? null
     : createSvcWorkerServer(serviceWorkerScope, {
-      version: '0.0.0',
+      version: options.version ?? '0.0.0',
       claimOnActivate: true,
       debug: createDebugger('vrowser:svc-worker-server')!,
     })
@@ -416,6 +439,7 @@ export async function createServer(
 
   // NOTE(kazupon): first implementation for service worker dev server
   middlewares.get('/hello', (c) => {
+    console.log(`[Hono] Fetch event for ${c.req.url}`)
     return c.text('Vite Dev Server on Service Worker says hello!')
   })
 
@@ -432,6 +456,14 @@ export async function createServer(
   const closeHttpServer = createServerCloseFn(httpServer)
 
   // const devHtmlTransformFn = createDevHtmlTransformFn(config)
+
+  // Ready promise for async initialization
+  let readyResolve: () => void
+  let readyReject: (err: Error) => void
+  const readyPromise = new Promise<void>((resolve, reject) => {
+    readyResolve = resolve
+    readyReject = reject
+  })
 
   // Promise used by `server.close()` to ensure `closeServer()` is only called once
   let closeServerPromise: Promise<void> | undefined
@@ -460,6 +492,7 @@ export async function createServer(
     config,
     middlewares,
     httpServer,
+    ready: readyPromise,
     // watcher,
     // ws,
     // get hot() {
@@ -724,6 +757,12 @@ export async function createServer(
     return initingServer
   }
 
+  // If options.listen is true, register fetch event handler immediately (synchronously)
+  // This is critical for Service Workers which require fetch listeners during script evaluation
+  if (options.listen && httpServer) {
+    httpServer.listen(fetchHandler)
+  }
+
   if (!middlewareMode && httpServer) {
     // overwrite listen to init optimizer before server start
     const listen = httpServer.listen.bind(httpServer)
@@ -736,9 +775,17 @@ export async function createServer(
       }
       return listen(fetchHandler, ...args)
     }) as any
-  } else {
-    await initServer(false)
   }
+
+  // Run async initialization in background and resolve ready promise when done
+  ;(async () => {
+    try {
+      await initServer(options.listen ?? false)
+      readyResolve!()
+    } catch (err) {
+      readyReject!(err as Error)
+    }
+  })()
 
   return server
 }

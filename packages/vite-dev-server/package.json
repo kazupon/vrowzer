@@ -69,7 +69,9 @@
     "build-types": "pnpm build-types-roll && pnpm build-types-check",
     "build-types-check": "echo 'build-types-check'",
     "build-types-roll": "rolldown --config rolldown.dts.config.ts",
-    "dev": "premove dist && pnpm build-bundle -w"
+    "dev": "premove dist && pnpm build-bundle -w",
+    "test": "vitest run --project vite-dev-server:unit",
+    "test:watch": "vitest watch --project vite-dev-server:unit"
   },
   "dependencies": {
     "hono": "^4.7.10",
@@ -84,6 +86,8 @@
     "rolldown-plugin-dts": "^0.20.0",
     "estree-walker": "^3.0.3",
     "magic-string": "catalog:",
-    "@oxc-project/types": "0.108.0"
+    "@oxc-project/types": "0.108.0",
+    "@vrowser/unplugin-service-worker": "workspace:*",
+    "vite": "catalog:"
   }
 }
