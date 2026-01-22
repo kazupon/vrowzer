@@ -62,9 +62,9 @@
   "scripts": {
     "build": "tsdown",
     "build:docs": "typedoc --excludeInternal",
-    "play": "vite --config vite.play.config.ts",
-    "play:build": "vite build --config vite.play.config.ts",
-    "play:preview": "vite preview --config vite.play.config.ts",
+    "play": "vite --config vite.config.ts",
+    "play:build": "vite build --config vite.config.ts",
+    "play:preview": "vite preview --config vite.config.ts",
     "prepack": "pnpm build"
   },
   "devDependencies": {
