@@ -49,6 +49,7 @@
     "@types/node": "catalog:",
     "@typescript/native-preview": "7.0.0-dev.20260103.1",
     "@vitest/browser-playwright": "^4.0.17",
+    "@vrowser/unplugin-service-worker": "workspace:*",
     "eslint": "^9.39.2",
     "eslint-plugin-jsdoc": "^61.7.1",
     "eslint-plugin-jsonc": "^2.21.0",

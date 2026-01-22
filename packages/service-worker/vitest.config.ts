@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import fs from 'node:fs'
 import pkg from './package.json' with { type: 'json' }
 
@@ -33,8 +33,8 @@ const alias = targets.reduce(
 )
 
 export default defineConfig({
-  root: '.',
-  publicDir: 'test-public',
+  root: __dirname,
+  publicDir: path.resolve(__dirname, 'test-public'),
   server: {
     port: 5173
   },

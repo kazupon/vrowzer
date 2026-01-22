@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     projects: [
       {
-        publicDir: 'packages/service-worker/test-public',
+        extends: './packages/service-worker/vitest.config.ts',
         test: {
           name: 'service-worker:unit',
           include: ['./packages/service-worker/src/**/*.browser-test.ts'],
@@ -56,6 +56,23 @@ export default defineConfig({
           // bun.e2e-test.ts is a spawn wrapper that runs bun test for bun.e2e_test.ts
           testTimeout: 60000, // Extended for Bun test spawn
           hookTimeout: 120000
+        }
+      },
+      {
+        extends: './packages/vite-dev-server/vitest.config.ts',
+        test: {
+          name: 'vite-dev-server:unit',
+          include: ['./packages/vite-dev-server/src/**/*.browser-test.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright(),
+            instances: [
+              {
+                browser: 'chromium'
+              }
+            ]
+          }
         }
       }
     ]

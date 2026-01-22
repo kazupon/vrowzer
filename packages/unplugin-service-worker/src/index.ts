@@ -109,19 +109,52 @@ function generateContentHash(content: string): string {
 }
 
 /**
+ * Default defines for Service Worker bundling.
+ * Service Workers are bundled into IIFE format where import.meta is not available,
+ * so we need to provide fallback values for import.meta and import.meta.env.
+ * These are ordered from most specific to least specific to ensure correct replacement.
+ */
+const DEFAULT_SERVICE_WORKER_DEFINES: Record<string, string> = {
+  // Specific environment variables first
+  'import.meta.env.VITE_DEBUG_FILTER': 'undefined',
+  'import.meta.env.DEBUG': 'undefined',
+  'import.meta.env.DEV': 'false',
+  'import.meta.env.PROD': 'true',
+  'import.meta.env.SSR': 'false',
+  'import.meta.env.MODE': '"production"',
+  'import.meta.env.BASE_URL': '"/"',
+  // Then the object replacements (less specific)
+  'import.meta.env': '{}',
+  'import.meta': '{}'
+}
+
+/**
  * Bundle Service Worker using rolldown
  */
 async function bundleServiceWorkerWithRolldown(
   entryPath: string,
-  options: { minify?: boolean; sourcemap?: boolean | 'inline' } = {}
+  options: {
+    minify?: boolean
+    sourcemap?: boolean | 'inline'
+    define?: Record<string, string>
+  } = {}
 ): Promise<{ code: string } | null> {
   const { rolldown } = await import('rolldown')
+
+  // Merge user-provided defines with default Service Worker defines
+  // User defines take precedence over defaults
+  const mergedDefines = {
+    ...DEFAULT_SERVICE_WORKER_DEFINES,
+    ...options.define
+  }
+
   const bundle = await rolldown({
     input: entryPath,
     platform: 'browser',
     resolve: {
       conditionNames: ['browser', 'import', 'module', 'default']
-    }
+    },
+    transform: { define: mergedDefines }
   })
 
   const { output } = await bundle.generate({
@@ -356,7 +389,7 @@ function createViteConfigResolved(ctx: PluginContext) {
  * Create Vite configureServer hook handler
  * NOTE: Using `unknown` type to avoid @types/node version mismatch issues between packages
  */
-function createViteConfigureServer() {
+function createViteConfigureServer(ctx: PluginContext) {
   return (serverArg: unknown) => {
     const server = serverArg as ViteDevServer
     // Middleware to handle Service Worker requests in dev mode
@@ -380,22 +413,59 @@ function createViteConfigureServer() {
       urlObj.searchParams.delete(SW_QUERY)
       const cleanPath = urlObj.pathname
 
-      // Resolve the file path
+      // Try to resolve the file path using multiple strategies
+      let filePath: string | null = null
+
+      // Strategy 1: Use Vite's resolveId
       const resolved = await server.pluginContainer.resolveId(cleanPath, undefined, {
         ssr: false
       })
-      if (!resolved) {
+      if (resolved) {
+        filePath = resolved.id
+      }
+
+      // Strategy 2: Try resolving relative to project root (for test mode)
+      if (!filePath && ctx.viteConfig) {
+        const rootPath = path.join(ctx.viteConfig.root, cleanPath)
+        try {
+          const fs = await import('node:fs/promises')
+          await fs.access(rootPath)
+          filePath = rootPath
+        } catch {
+          // File doesn't exist at this path
+        }
+      }
+
+      // Strategy 3: Try resolving from publicDir directly
+      // Vite's publicDir serves files at root (e.g., publicDir/foo.js -> /foo.js)
+      if (!filePath && ctx.viteConfig) {
+        const publicDir = ctx.viteConfig.publicDir
+        if (publicDir) {
+          // Try direct resolution from publicDir
+          const publicDirPath = path.join(publicDir, cleanPath)
+          try {
+            const fs = await import('node:fs/promises')
+            await fs.access(publicDirPath)
+            filePath = publicDirPath
+          } catch {
+            // File doesn't exist at this path
+          }
+        }
+      }
+
+      if (!filePath) {
         next()
         return
       }
 
-      const filePath = resolved.id
-
       try {
         // Bundle the Service Worker with rolldown
+        // Pass Vite's define config for import.meta and other globals
+        const define = ctx.viteConfig?.define as Record<string, string> | undefined
         const result = await bundleServiceWorkerWithRolldown(filePath, {
           minify: false,
-          sourcemap: 'inline'
+          sourcemap: 'inline',
+          define
         })
 
         if (!result) {
@@ -939,13 +1009,14 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
                 const separator = hasQuery ? '&' : '?'
                 const devUrl = `${sw.urlPath}${separator}${SW_QUERY}=${SW_FILE_ID}`
 
-                // In test environment (Vitest), omit /* @vite-ignore */ comment
-                // because it prevents Vitest's NormalizeURLPlugin from matching
-                // and transforming import.meta.url to self.location
+                // In test environment (Vitest browser mode), use self.location.href directly
+                // because import.meta.url contains file system paths that don't resolve correctly.
+                // Vitest's NormalizeURLPlugin is supposed to transform import.meta.url to self.location,
+                // but it may not run due to environment.name check.
+                // In regular dev mode, use import.meta.url with /* @vite-ignore */ comment.
                 const urlExpr = ctx.isTest
-                  ? `new URL(${JSON.stringify(devUrl)}, '' + import.meta.url)`
+                  ? `new URL(${JSON.stringify(devUrl)}, self.location.href)`
                   : `new URL(/* @vite-ignore */ ${JSON.stringify(devUrl)}, '' + import.meta.url)`
-
                 s.update(sw.detected.startIndex, sw.detected.endIndex, urlExpr)
               }
 
@@ -992,7 +1063,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
       // NOTE: Using `unknown` type to avoid @types/node version mismatch issues between packages
       vite: {
         configResolved: createViteConfigResolved(ctx),
-        configureServer: createViteConfigureServer(),
+        configureServer: createViteConfigureServer(ctx),
         renderChunk: createViteRenderChunk(ctx, cache),
         generateBundle: createViteGenerateBundle(ctx, cache)
       },

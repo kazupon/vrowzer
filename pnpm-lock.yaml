@@ -68,6 +68,9 @@ importers:
       '@vitest/browser-playwright':
         specifier: ^4.0.17
         version: 4.0.17(playwright@1.57.0)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vitest@4.0.17)
+      '@vrowser/unplugin-service-worker':
+        specifier: workspace:*
+        version: link:packages/unplugin-service-worker
       eslint:
         specifier: ^9.39.2
         version: 9.39.2(jiti@2.6.1)
@@ -395,6 +398,9 @@ importers:
       '@oxc-project/types':
         specifier: 0.108.0
         version: 0.108.0
+      '@vrowser/unplugin-service-worker':
+        specifier: workspace:*
+        version: link:../unplugin-service-worker
       estree-walker:
         specifier: ^3.0.3
         version: 3.0.3
@@ -407,6 +413,9 @@ importers:
       rolldown-plugin-dts:
         specifier: ^0.20.0
         version: 0.20.0(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(rolldown@1.0.0-beta.60)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.0-beta.4(@types/node@25.0.9)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/vrowser:
     dependencies:
