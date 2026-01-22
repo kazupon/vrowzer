@@ -155,6 +155,87 @@ describe('createServer', () => {
       expect(response.ok).toBe(true)
       expect(response.status).toBe(200)
     })
+
+    test('fetch requests from iframe should be intercepted by service worker', async () => {
+      currentController = createSvcWorkerController({
+        scriptURL: new URL('/test-sw.ts', import.meta.url),
+        version: 'test-v1',
+        scope: '/',
+      })
+
+      await currentController.ready()
+
+      // Create an iframe and perform fetch from within it
+      const iframe = document.createElement('iframe')
+      iframe.srcdoc = `
+        <!DOCTYPE html>
+        <html>
+          <head><title>Test iframe</title></head>
+          <body>
+            <script>
+              window.addEventListener('message', async (event) => {
+                if (event.data.type === 'FETCH_REQUEST') {
+                  try {
+                    const response = await fetch(event.data.url)
+                    const text = await response.text()
+                    parent.postMessage({
+                      type: 'FETCH_RESPONSE',
+                      ok: response.ok,
+                      status: response.status,
+                      text: text
+                    }, '*')
+                  } catch (error) {
+                    parent.postMessage({
+                      type: 'FETCH_RESPONSE',
+                      error: error.message
+                    }, '*')
+                  }
+                }
+              })
+              // Signal that iframe is ready
+              parent.postMessage({ type: 'IFRAME_READY' }, '*')
+            </script>
+          </body>
+        </html>
+      `
+      document.body.appendChild(iframe)
+
+      try {
+        // Wait for iframe to be ready
+        await new Promise<void>((resolve) => {
+          const handler = (event: MessageEvent) => {
+            if (event.data.type === 'IFRAME_READY') {
+              window.removeEventListener('message', handler)
+              resolve()
+            }
+          }
+          window.addEventListener('message', handler)
+        })
+
+        // Request fetch from iframe
+        const fetchResult = await new Promise<{ ok: boolean; status: number; text: string }>((resolve, reject) => {
+          const handler = (event: MessageEvent) => {
+            if (event.data.type === 'FETCH_RESPONSE') {
+              window.removeEventListener('message', handler)
+              if (event.data.error) {
+                reject(new Error(event.data.error))
+              } else {
+                resolve(event.data)
+              }
+            }
+          }
+          window.addEventListener('message', handler)
+          iframe.contentWindow!.postMessage({ type: 'FETCH_REQUEST', url: '/hello' }, '*')
+        })
+
+        expect(fetchResult.ok).toBe(true)
+        expect(fetchResult.status).toBe(200)
+        expect(fetchResult.text).toBe('Vite Dev Server on Service Worker says hello!')
+      } finally {
+        // Cleanup iframe
+        document.body.removeChild(iframe)
+      }
+    })
   })
 
   describe('server.close() behavior', () => {
