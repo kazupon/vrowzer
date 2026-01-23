@@ -29,7 +29,7 @@ import type { UnpluginInstance } from 'unplugin'
 import type { ViteDevServer, ResolvedConfig as ViteResolvedConfig } from 'vite'
 import type { Compiler as WebpackCompiler } from 'webpack'
 import type { ServiceWorkerCache } from './core/cache.ts'
-import type { Options } from './core/options.ts'
+import type { Options, OptionsResolved } from './core/options.ts'
 import type { ResolvedServiceWorker } from './transform/utils.ts'
 
 /**
@@ -389,7 +389,7 @@ function createViteConfigResolved(ctx: PluginContext) {
  * Create Vite configureServer hook handler
  * NOTE: Using `unknown` type to avoid @types/node version mismatch issues between packages
  */
-function createViteConfigureServer(ctx: PluginContext) {
+function createViteConfigureServer(ctx: PluginContext, options: OptionsResolved) {
   return (serverArg: unknown) => {
     const server = serverArg as ViteDevServer
     // Middleware to handle Service Worker requests in dev mode
@@ -484,6 +484,9 @@ function createViteConfigureServer(ctx: PluginContext) {
         }
 
         // Send the bundled Service Worker
+        if (options.serviceWorkerAllowed) {
+          res.setHeader('Service-Worker-Allowed', options.serviceWorkerAllowed)
+        }
         res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
         res.end(result.code)
@@ -1072,7 +1075,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
       // NOTE: Using `unknown` type to avoid @types/node version mismatch issues between packages
       vite: {
         configResolved: createViteConfigResolved(ctx),
-        configureServer: createViteConfigureServer(ctx),
+        configureServer: createViteConfigureServer(ctx, options),
         renderChunk: createViteRenderChunk(ctx, cache),
         generateBundle: createViteGenerateBundle(ctx, cache)
       },
