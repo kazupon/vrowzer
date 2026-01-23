@@ -34,7 +34,7 @@ export async function initServiceWorker(): Promise<SvcWorkerController> {
   console.log('[SW Controller] Initializing...')
 
   controller = createSvcWorkerController({
-    scriptURL: new URL('/src/sw/sw.ts', import.meta.url),
+    scriptURL: new URL('./sw.ts', import.meta.url),
     version: SW_VERSION,
     scope: '/',
     type: 'module'
