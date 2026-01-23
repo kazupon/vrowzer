@@ -775,30 +775,32 @@ export function createServer(
     httpServer.listen(fetchHandler)
   }
 
-  if (!middlewareMode && httpServer) {
-    // overwrite listen to init optimizer before server start
-    const listen = httpServer.listen.bind(httpServer)
-    httpServer.listen = (async (_port: number, ...args: any[]) => {
-      try {
-        await initServer(true)
-      } catch (e) {
-        httpServer.emit('error', e as Error)
-        return
-      }
-      return listen(fetchHandler, ...args)
-    }) as any
-  }
+  // overwrite listen to init optimizer before server start
+  const originalListen = httpServer.listen.bind(httpServer)
+  httpServer.listen = ((_port: number, ...args: any[]) => {
+    // Register fetch handler synchronously first for Service Worker compatibility
+    originalListen(fetchHandler, ...args)
 
-  // Run async initialization in background and resolve ready promise when done
-  // oxlint-disable-next-line @typescript-eslint/no-floating-promises
-  ; (async () => {
-    try {
-      await initServer(options.listen ?? false)
-      readyResolve!()
-    } catch (err) {
-      readyReject!(err as Error)
-    }
-  })()
+      // Run async initialization in background
+      ; (async () => {
+        try {
+          await initServer(true)
+        } catch (e) {
+          httpServer.emit('error', e as Error)
+        }
+      })()
+  }) as any
+
+    // Run async initialization in background and resolve ready promise when done
+    // oxlint-disable-next-line @typescript-eslint/no-floating-promises
+    ; (async () => {
+      try {
+        await initServer(options.listen ?? false)
+        readyResolve!()
+      } catch (err) {
+        readyReject!(err as Error)
+      }
+    })()
 
   return server
 }
