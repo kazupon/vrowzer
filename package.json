@@ -33,6 +33,7 @@
     "play:dev-server": "pnpm --filter play-dev-server dev",
     "play:svc": "pnpm --filter service-worker play",
     "prepare": "git config --local core.hooksPath .githooks",
+    "preview:dev-server": "pnpm --filter play-dev-server preview",
     "preview:vrowser": "pnpm --filter vrowser preview",
     "submodule:history": "tsx scripts/submodule-history.ts",
     "test": "pnpm run --color \"/^test:/\"",

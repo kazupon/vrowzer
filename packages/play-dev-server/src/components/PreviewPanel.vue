@@ -14,7 +14,7 @@ const isServiceWorkerReady = ref(false)
 const isPreviewReady = ref(false)
 const error = ref<string | null>(null)
 
-const PREVIEW_URL = '/src/preview/index.html'
+const PREVIEW_URL = '/preview/index.html'
 
 // Event handler references for cleanup
 let stateChangeHandler: ((info: StateChangeInfo) => void) | null = null
