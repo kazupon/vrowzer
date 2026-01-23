@@ -11,8 +11,13 @@ import type { Component } from 'vue'
 async function init() {
   console.log('[Main] Initializing...')
 
-  // Initialize Service Worker
-  await initServiceWorker()
+  try {
+    // Initialize Service Worker and wait for it to be ready
+    const controller = await initServiceWorker()
+    console.log('[Main] SW ready:', controller.state)
+  } catch (error) {
+    console.error('[Main] SW init failed:', error)
+  }
 
   // Mount Vue app
   console.log('[Main] Mounting Vue app...')

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
-import { getServiceWorker } from '../sw/controller.ts'
+import { getController, getServiceWorker } from '../sw/controller.ts'
 
-import type { FileChangeMessage, ServiceWorkerToMainMessage } from '../types.ts'
+import type { FileChangeMessage } from '../types.ts'
+import type { SvcWorkerController, StateChangeInfo } from '@vrowser/service-worker/controller'
 
 const props = defineProps<{
   code: string
@@ -15,68 +16,79 @@ const error = ref<string | null>(null)
 
 const PREVIEW_URL = '/src/preview/index.html'
 
+// Event handler references for cleanup
+let stateChangeHandler: ((info: StateChangeInfo) => void) | null = null
+let controllerRef: SvcWorkerController | null = null
+
 onMounted(() => {
   console.log('[Preview] Mounting...')
 
-  const serviceWorker = getServiceWorker()
-  if (!serviceWorker) {
-    error.value = 'Service Worker not available'
+  const controller = getController()
+  console.log('[Preview] Controller:', controller)
+  console.log('[Preview] Controller state:', controller?.state)
+
+  if (!controller) {
+    error.value = 'Service Worker Controller not available'
     return
   }
 
-  // Listen for Service Worker messages
-  navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage)
+  controllerRef = controller
 
-  // Initialize Service Worker communication
-  console.log('[Preview] Sending init to Service Worker')
-  serviceWorker.postMessage({ type: 'init' })
-})
-
-onUnmounted(() => {
-  navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage)
-})
-
-/**
- * Handle messages from Service Worker
- */
-function handleServiceWorkerMessage(event: MessageEvent<ServiceWorkerToMainMessage>) {
-  const { type } = event.data || {}
-  console.log('[Preview] Service Worker message:', type, event.data)
-
-  if (type === 'service-worker-ready') {
-    console.log('[Preview] Service Worker is ready')
+  // Check if already activated
+  if (controller.state === 'activated') {
+    console.log('[Preview] Service Worker already activated')
     isServiceWorkerReady.value = true
     error.value = null
 
-    // Send initial code and then load iframe
-    if (props.code) {
-      sendInitialCode(props.code)
-    }
-  }
-}
-
-/**
- * Send initial code to Service Worker and load iframe
- */
-function sendInitialCode(code: string) {
-  const serviceWorker = getServiceWorker()
-  if (!serviceWorker) {
-    console.warn('[Preview] No active Service Worker')
+    // Load iframe (send initial code if available)
+    loadIframe(props.code)
     return
   }
 
-  const message: FileChangeMessage = {
-    type: 'file-change',
-    path: '/__preview__/main.js',
-    content: code
+  // Listen for state changes via controller event
+  stateChangeHandler = (info: StateChangeInfo) => {
+    console.log('[Preview] Controller state changed:', info.state)
+    if (info.state === 'activated') {
+      console.log('[Preview] Service Worker is ready')
+      isServiceWorkerReady.value = true
+      error.value = null
+
+      // Load iframe (send initial code if available)
+      loadIframe(props.code)
+    }
   }
 
-  console.log('[Preview] Sending initial code to Service Worker')
-  serviceWorker.postMessage(message)
+  controller.on('changeState', stateChangeHandler)
+})
 
-  // Load iframe after code is sent to SW
+onUnmounted(() => {
+  if (controllerRef && stateChangeHandler) {
+    controllerRef.off('changeState', stateChangeHandler)
+  }
+})
+
+/**
+ * Load iframe and optionally send initial code to Service Worker
+ */
+function loadIframe(code?: string) {
+  // Send initial code if available
+  if (code) {
+    const serviceWorker = getServiceWorker()
+    if (serviceWorker) {
+      const message: FileChangeMessage = {
+        type: 'file-change',
+        path: '/__preview__/main.js',
+        content: code
+      }
+      console.log('[Preview] Sending initial code to Service Worker')
+      serviceWorker.postMessage(message)
+    }
+  }
+
+  // Load iframe
   const iframe = iframeRef.value
   if (iframe) {
+    console.log('[Preview] Loading iframe')
     iframe.src = PREVIEW_URL
     isPreviewReady.value = true
   }

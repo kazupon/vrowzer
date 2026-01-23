@@ -1,8 +1,11 @@
 /// <reference lib="webworker" />
 
-declare const self: ServiceWorkerGlobalScope
+import { createServer } from '@vrowser/vite-dev-server'
 
+import type { Context } from 'hono'
 import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
+
+declare const self: ServiceWorkerGlobalScope
 
 const SW_VERSION = 'play-dev-server-v1'
 
@@ -11,51 +14,64 @@ console.log('[SW] Service Worker loaded, version:', SW_VERSION)
 // Virtual file system
 const files = new Map<string, string>()
 
-/**
- * Service Worker Install Event
- */
-self.addEventListener('install', event => {
-  console.log('[SW] Installing...')
-  event.waitUntil(self.skipWaiting())
-})
+// /**
+//  * Service Worker Install Event - Skip waiting to activate immediately
+//  */
+// self.addEventListener('install', event => {
+//   console.log('[SW] Installing...')
+//   event.waitUntil(self.skipWaiting())
+// })
 
 /**
- * Service Worker Activate Event
+ * Create Vite Dev Server on Service Worker
  */
-self.addEventListener('activate', event => {
-  console.log('[SW] Activating...')
-  event.waitUntil(self.clients.claim())
-})
+const server = createServer(
+  self,
+  { root: '/', server: { middlewareMode: false } },
+  {
+    listen: true,
+    version: SW_VERSION,
+    configureMiddlewares: middlewares => {
+      // Handle /__preview__/* requests from virtual file system
+      middlewares.get('/__preview__/*', (c: Context) => {
+        const path = c.req.path
+        console.log('[SW] Intercepting preview request:', path)
+
+        if (files.has(path)) {
+          console.log('[SW] Serving virtual file:', path)
+          return c.body(files.get(path)!, 200, {
+            'Content-Type': getContentType(path),
+            'Cache-Control': 'no-cache'
+          })
+        }
+
+        return c.text('Not Found', 404)
+      })
+    }
+  }
+)
 
 /**
  * Message Handling from Main Thread
+ * Note: Protocol messages (V_SW_*) are handled by createSvcWorker internally
  */
 self.addEventListener('message', event => {
   const message = event.data as MainToServiceWorkerMessage
+
+  // Skip protocol messages handled by @vrowser/service-worker
+  if (typeof message?.type === 'string' && message.type.startsWith('V_SW_')) {
+    return
+  }
+
   console.log('[SW] Received message:', message.type)
 
   switch (message.type) {
-    case 'init': {
-      handleInit(event.source as Client)
-      break
-    }
     case 'file-change': {
       handleFileChange(message as FileChangeMessage)
       break
     }
-    default: {
-      console.warn('[SW] Unknown message type:', (message as { type: string }).type)
-    }
   }
 })
-
-/**
- * Handle init message from main thread
- */
-function handleInit(client: Client) {
-  console.log('[SW] Init from client:', client.id)
-  client.postMessage({ type: 'service-worker-ready' })
-}
 
 /**
  * Handle file change from editor
@@ -69,53 +85,12 @@ function handleFileChange(message: FileChangeMessage) {
 }
 
 /**
- * Preview path prefix - only requests with this prefix are handled by SW
+ * Service Worker Activate Event - Wait for server to be ready
  */
-const PREVIEW_PREFIX = '/__preview__/'
-
-/**
- * Fetch Event - Only intercept preview-related requests
- */
-self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url)
-
-  // Only handle requests with /__preview__/ prefix
-  // This ensures no conflict with Vite's resources
-  if (!url.pathname.startsWith(PREVIEW_PREFIX)) {
-    return // Let Vite handle all other requests
-  }
-
-  console.log('[SW] Intercepting preview request:', url.pathname)
-
-  // Check if this is a request for our virtual file system
-  if (files.has(url.pathname)) {
-    console.log('[SW] Serving virtual file:', url.pathname)
-    event.respondWith(serveVirtualFile(url.pathname))
-    return
-  }
-
-  // Return 404 for unknown preview files
-  event.respondWith(new Response('Not Found', { status: 404 }))
+self.addEventListener('activate', event => {
+  console.log('[SW] Activating...')
+  event.waitUntil(server.ready)
 })
-
-/**
- * Serve file from virtual file system
- */
-function serveVirtualFile(pathname: string): Response {
-  const content = files.get(pathname)
-
-  if (content) {
-    return new Response(content, {
-      status: 200,
-      headers: {
-        'Content-Type': getContentType(pathname),
-        'Cache-Control': 'no-cache'
-      }
-    })
-  }
-
-  return new Response('Not Found', { status: 404 })
-}
 
 /**
  * Get content type based on file extension
