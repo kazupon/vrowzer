@@ -415,6 +415,14 @@ export interface CreateServerOptions {
    */
   version?: string
   /**
+   * Base path for the Vite Dev Server routes.
+   * All routes will be prefixed with this path.
+   *
+   * @example '/__preview__' - Server handles /__preview__/* requests
+   * @default '/'
+   */
+  basePath?: string
+  /**
    * @internal
    */
   previousEnvironments?: Record<string, DevEnvironment>
@@ -440,7 +448,8 @@ export function createServer(
 
   // TODO: ...
 
-  const middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
+  const basePath = options.basePath || '/'
+  const middlewares = new Hono<ViteEnv, BlankSchema, '/'>().basePath(basePath)
   const httpServer = createSvcWorkerServer(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: !middlewareMode, // middlewareModeの場合はactivate制御をユーザーに委ねる
