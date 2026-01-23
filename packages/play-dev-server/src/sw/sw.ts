@@ -28,11 +28,12 @@ const files = new Map<string, string>()
 const server = createServer(
   self,
   { root: '/', server: { middlewareMode: true } },
-  { version: SW_VERSION }
+  { version: SW_VERSION, basePath: '/__preview__' }
 )
 
-// Register custom middleware for __preview__ paths
-server.middlewares.get('/__preview__/*', (c: Context) => {
+// Register middleware for virtual files
+// With basePath: '/__preview__', routes are automatically prefixed
+server.middlewares.get('/*', (c: Context) => {
   const path = c.req.path
   console.log('[SW] Intercepting preview request:', path)
 
@@ -86,9 +87,9 @@ function handleFileChange(message: FileChangeMessage) {
 /**
  * Service Worker Activate Event - Wait for server to be ready
  */
-self.addEventListener('activate', event => {
+self.addEventListener('activate', _event => {
   console.log('[SW] Activating...')
-  event.waitUntil(server.ready)
+  // _event.waitUntil(server.ready)
 })
 
 /**

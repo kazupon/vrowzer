@@ -5,15 +5,30 @@ const emit = defineEmits<{
   (e: 'update', code: string): void
 }>()
 
-const defaultCode = `// Simple counter example
+const defaultCode = `// Counter + Fetch request handle on Vite like dev server example
 let count = 0
+let serverMessage = ''
+
+async function fetchHello() {
+  try {
+    const res = await fetch('/__preview__/hello')
+    serverMessage = await res.text()
+  } catch (e) {
+    serverMessage = 'Error: ' + e.message
+  }
+  render()
+}
 
 function render() {
   document.getElementById('app').innerHTML = \`
     <div style="text-align: center; padding: 20px;">
+      <h2>Vite like dev server Response:</h2>
+      <p style="color: #646cff; font-weight: bold;">\${serverMessage}</p>
+      <hr style="margin: 20px 0; border-color: #333;">
       <h1>Counter: \${count}</h1>
       <button id="increment">+1</button>
       <button id="decrement">-1</button>
+      <button id="refresh" style="margin-left: 10px;">Fetch /hello</button>
     </div>
   \`
 
@@ -26,6 +41,8 @@ function render() {
     count--
     render()
   })
+
+  document.getElementById('refresh')?.addEventListener('click', fetchHello)
 }
 
 render()
