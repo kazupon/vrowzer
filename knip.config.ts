@@ -1,6 +1,6 @@
 import type { KnipConfig } from 'knip'
 
-export default {
+const config: KnipConfig = {
   workspaces: {
     'packages/playground': {
       entry: ['src/main.ts', 'src/preview/*.ts', 'src/worker/*.ts']
@@ -25,4 +25,6 @@ export default {
     'packages/vite-dev-server/**'
   ],
   ignoreDependencies: ['lint-staged', '@kazupon/prettier-config', '@kazupon/eslint-plugin']
-} satisfies KnipConfig
+}
+
+export default config

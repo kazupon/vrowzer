@@ -26,6 +26,7 @@
   "files.associations": {
     "*.json": "jsonc"
   },
+  "recommendations": ["Vue.volar"],
   "typescript.referencesCodeLens.enabled": true,
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.experimental.useTsgo": false

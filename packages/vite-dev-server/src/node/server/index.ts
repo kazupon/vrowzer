@@ -778,6 +778,7 @@ export function createServer(
   }
 
   // Run async initialization in background and resolve ready promise when done
+  // oxlint-disable-next-line @typescript-eslint/no-floating-promises
   ;(async () => {
     try {
       await initServer(options.listen ?? false)

@@ -3,8 +3,8 @@
  * @license MIT
  */
 
-import path from 'node:path'
 import MagicString from 'magic-string'
+import path from 'node:path'
 import { createUnplugin } from 'unplugin'
 import { createServiceWorkerCache } from './core/cache.ts'
 import {
@@ -20,13 +20,13 @@ import { detectAndResolveServiceWorkers, needsTransform } from './transform/util
 
 import type { Compiler as RspackCompiler } from '@rspack/core'
 import type { PluginBuild as EsbuildPluginBuild } from 'esbuild'
-import type { UnpluginInstance } from 'unplugin'
 import type { TransformPluginContext as RolldownTransformContext } from 'rolldown'
 import type {
   Plugin as RollupPlugin,
   TransformPluginContext as RollupTransformContext
 } from 'rollup'
-import type { ResolvedConfig as ViteResolvedConfig, ViteDevServer } from 'vite'
+import type { UnpluginInstance } from 'unplugin'
+import type { ViteDevServer, ResolvedConfig as ViteResolvedConfig } from 'vite'
 import type { Compiler as WebpackCompiler } from 'webpack'
 import type { ServiceWorkerCache } from './core/cache.ts'
 import type { Options } from './core/options.ts'
@@ -1096,5 +1096,5 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
 )
 
 // Re-export for convenience
-export { type Options } from './core/options.ts'
 export { type ServiceWorkerCache } from './core/cache.ts'
+export { type Options } from './core/options.ts'

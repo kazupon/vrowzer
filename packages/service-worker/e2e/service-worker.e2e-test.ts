@@ -7,15 +7,15 @@
  * - Admin API (getAllControllers, suspend/resume/terminate)
  */
 
+import { chromium } from '@playwright/test'
+import { getPort } from 'get-port-please'
 import { spawn } from 'node:child_process'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { chromium } from '@playwright/test'
-import { getPort } from 'get-port-please'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 
-import type { ChildProcess } from 'node:child_process'
 import type { Browser, BrowserContext, Page } from '@playwright/test'
+import type { ChildProcess } from 'node:child_process'
 import type { SvcWorkerControllerState } from '../src/controller.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -408,7 +408,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
       // Create controller with strict policy expecting v2
       const controller = createSvcWorkerController({
-        scriptURL: '/e2e-sw-no-skip-waiting.js?version=v2',
+        scriptURL: new URL('/e2e-sw-no-skip-waiting.js?version=v2', import.meta.url),
         version: 'v2',
         scope: '/',
         type: 'module'
@@ -463,7 +463,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
       // Create controller with force policy - should promote any waiting service worker
       const controller = createSvcWorkerController({
-        scriptURL: '/e2e-sw-no-skip-waiting.js?version=v2',
+        scriptURL: new URL('/e2e-sw-no-skip-waiting.js?version=v2', import.meta.url),
         version: 'v2',
         scope: '/',
         type: 'module'

@@ -13,4 +13,4 @@
  *
  * @internal
  */
-export const SESSION_SYMBOL = Symbol('svcWorkerSession')
+export const SESSION_SYMBOL: unique symbol = Symbol('svcWorkerSession')

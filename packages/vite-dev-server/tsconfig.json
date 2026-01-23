@@ -10,7 +10,6 @@
       "vite/module-runner": ["./src/module-runner/runner.ts"],
     },
 
-    "isolatedDeclarations": false,
     "allowImportingTsExtensions": false
   }
 }

@@ -25,7 +25,7 @@ declare global {
       errors: string[]
       controllerChanges: ControllerChange[]
     }
-    sendMessageToSW: <T = unknown>(type: string, data?: unknown) => Promise<T>
+    sendMessageToSW: <T = unknown>(type: string, data?: Record<string, unknown>) => Promise<T>
   }
 }
 

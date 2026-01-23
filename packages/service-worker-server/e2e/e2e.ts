@@ -37,7 +37,10 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
 })
 
 // Helper to communicate with Service Worker
-async function sendMessageToSW<T = unknown>(type: string, data?: unknown): Promise<T> {
+async function sendMessageToSW<T = unknown>(
+  type: string,
+  data?: Record<string, unknown>
+): Promise<T> {
   const sw = navigator.serviceWorker.controller
   if (!sw) {
     throw new Error('No active Service Worker controller')
@@ -48,7 +51,7 @@ async function sendMessageToSW<T = unknown>(type: string, data?: unknown): Promi
     channel.port1.onmessage = event => {
       resolve(event.data as T)
     }
-    channel.port1.onerror = reject
+    channel.port1.onmessageerror = () => reject(new Error('Message deserialization failed'))
     sw.postMessage({ type, ...data }, [channel.port2])
   })
 }

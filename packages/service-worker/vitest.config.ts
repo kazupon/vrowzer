@@ -1,6 +1,6 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vitest/config'
-import fs from 'node:fs'
 import pkg from './package.json' with { type: 'json' }
 
 const __dirname = import.meta.dirname
@@ -32,7 +32,7 @@ const alias = targets.reduce(
   {} as Record<string, string>
 )
 
-export default defineConfig({
+const config: ReturnType<typeof defineConfig> = defineConfig({
   root: __dirname,
   publicDir: path.resolve(__dirname, 'test-public'),
   server: {
@@ -42,3 +42,5 @@ export default defineConfig({
     alias
   }
 })
+
+export default config

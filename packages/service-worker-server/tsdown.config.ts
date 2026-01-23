@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsdown'
 
-export default defineConfig({
+const config: ReturnType<typeof defineConfig> = defineConfig({
   entry: ['./src/index.ts'],
   platform: 'browser',
   clean: true,
@@ -8,3 +8,5 @@ export default defineConfig({
   dts: true,
   fixedExtension: false
 })
+
+export default config

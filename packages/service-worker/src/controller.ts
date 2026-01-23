@@ -39,24 +39,24 @@
 import { abortError, throwIfAborted } from '@kazupon/jts-utils/abort'
 import { createEmitter, waitOnce } from '@kazupon/jts-utils/event'
 import {
-  isSvcWrokerVersionMessageResponse,
-  createSvcWorkerVersionMessage,
   createSvcWorkerSkipWaitingMessage,
+  createSvcWorkerVersionMessage,
+  isSvcWrokerVersionMessageResponse,
   V_SW_SESSION_CIRCUIT_BREAKER,
   V_SW_SESSION_RESUME
 } from './protocols.ts'
+import * as registry from './registry.ts'
 import { createSession } from './session.ts'
 import { SESSION_SYMBOL } from './symbols.ts'
 import { safePostMessage } from './utils.ts'
-import * as registry from './registry.ts'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
-import type { SvcWorkerSession } from './session.ts'
 import type {
   SvcWorkerSessionCircuitBreakerResult,
   SvcWorkerSessionResumeResult,
   SvcWorkerTerminatedReason
 } from './protocols.ts'
+import type { SvcWorkerSession } from './session.ts'
 
 /**
  * Default timeout for circuit breaker operations (suspend/resume) in milliseconds.
@@ -330,7 +330,7 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
  * @internal
  */
 export interface SvcWorkerControllerInternal extends SvcWorkerController {
-  [SESSION_SYMBOL]: SvcWorkerSession | null
+  readonly [SESSION_SYMBOL]: SvcWorkerSession | null
 }
 
 // Singleton instance cache

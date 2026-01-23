@@ -2,8 +2,8 @@
  * Vite configuration for @vrowser/service-worker playground
  */
 
-import { defineConfig } from 'vite'
 import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import { defineConfig } from 'vite'
 
 import type { Plugin } from 'vite'
 
@@ -86,7 +86,7 @@ function apiMiddleware(): Plugin {
   }
 }
 
-export default defineConfig({
+const config: ReturnType<typeof defineConfig> = defineConfig({
   root: './playground',
   plugins: [ServiceWorker(), apiMiddleware()],
   build: {
@@ -94,3 +94,5 @@ export default defineConfig({
     sourcemap: true
   }
 })
+
+export default config
