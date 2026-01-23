@@ -1,0 +1,45 @@
+:root {
+  --vite-purple: #646cff;
+  --vite-purple-light: #747bff;
+  --vite-cyan: #41d1ff;
+  --vite-magenta: #bd34fe;
+  --vite-bg-dark: #1a1a1a;
+  --vite-bg-soft: #242424;
+  --vite-border: #2e2e2e;
+  --vite-text: rgba(255, 255, 255, 0.87);
+  --vite-text-muted: #888888;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  color: var(--vite-text);
+  background-color: var(--vite-bg-dark);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100%;
+}
+
+::selection {
+  background: var(--vite-purple);
+  color: white;
+}
