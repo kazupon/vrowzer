@@ -461,7 +461,16 @@ function createViteConfigureServer(ctx: PluginContext) {
       try {
         // Bundle the Service Worker with rolldown
         // Pass Vite's define config for import.meta and other globals
-        const define = ctx.viteConfig?.define as Record<string, string> | undefined
+        // Sanitize define values to ensure they are all strings (rolldown requirement)
+        const rawDefine = ctx.viteConfig?.define as Record<string, unknown> | undefined
+        const define = rawDefine
+          ? Object.fromEntries(
+              Object.entries(rawDefine).map(([key, value]) => [
+                key,
+                typeof value === 'string' ? value : JSON.stringify(value)
+              ])
+            )
+          : undefined
         const result = await bundleServiceWorkerWithRolldown(filePath, {
           minify: false,
           sourcemap: 'inline',
