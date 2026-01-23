@@ -29,7 +29,7 @@
     "lint:knip": "knip",
     "lint:oxfmt": "oxfmt . --check --config ./node_modules/@kazupon/prettier-config/index.json",
     "lint:oxlint": "oxlint --type-aware --config .oxlintrc.json",
-    "paly:server": "pnpm --filter play-dev-server dev",
+    "play:server": "pnpm --filter play-dev-server dev",
     "play:svc": "pnpm --filter service-worker play",
     "prepare": "git config --local core.hooksPath .githooks",
     "preview:vrowser": "pnpm --filter vrowser preview",

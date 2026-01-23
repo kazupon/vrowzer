@@ -1,7 +1,7 @@
-import path from 'node:path'
-import fs from 'node:fs'
-import { defineConfig } from 'vitest/config'
 import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import fs from 'node:fs'
+import path from 'node:path'
+import { defineConfig } from 'vitest/config'
 import pkg from './package.json' with { type: 'json' }
 
 const __dirname = import.meta.dirname
@@ -55,7 +55,8 @@ if (fs.existsSync(serviceWorkerControllerPath)) {
 export default defineConfig({
   root: __dirname,
   publicDir: path.resolve(__dirname, 'test-public'),
-  plugins: [ServiceWorker()],
+  // NOTE: Cast to any due to vite version mismatch: vitest uses vite@7.x, but ServiceWorker plugin uses vite@8.x
+  plugins: [ServiceWorker() as any],
   server: {
     port: 5174
   },

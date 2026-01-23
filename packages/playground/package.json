@@ -12,14 +12,11 @@
     "@jridgewell/trace-mapping": "^0.3.31",
     "@rollup/plugin-alias": "^6.0.0",
     "@rollup/pluginutils": "^5.3.0",
-    "buffer": "^6.0.3",
     "convert-source-map": "^2.0.0",
     "es-module-lexer": "^2.0.0",
     "escape-html": "^1.0.3",
     "etag": "^1.8.1",
-    "events": "^3.3.0",
     "magic-string": "^0.30.21",
-    "memfs-browser": "3.5.10302",
     "mlly": "^1.8.0",
     "mrmime": "^1.0.1",
     "obug": "^2.1.1",
@@ -42,7 +39,7 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
     "typescript": "~5.9.3",
-    "vite": "8.0.0-beta.2",
+    "vite": "catalog:",
     "vue-tsc": "^3.1.4"
   }
 }
