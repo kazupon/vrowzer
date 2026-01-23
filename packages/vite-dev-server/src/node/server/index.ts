@@ -1,9 +1,9 @@
 // ...
 
+import type { InlineConfig, ResolvedConfig } from '../config'
 import {
   httpServerStart,
 } from '../http'
-import type { InlineConfig, ResolvedConfig } from '../config'
 
 // ..
 
@@ -15,14 +15,10 @@ import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
 import type { CommonServerOptions } from '../http'
 
 import {
-  type Hostname,
   createDebugger
 } from '../utils'
 
 import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
-import {
-  DEFAULT_DEV_PORT
-} from '../constants'
 
 import type { RequiredExceptFor } from '../typeUtils'
 
@@ -38,12 +34,12 @@ import type { HmrOptions } from './hmr'
 
 // ...
 
+import { createSvcWorkerServer } from '@vrowser/service-worker-server'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
-import { createSvcWorkerServer } from '@vrowser/service-worker-server'
 
-import type { Env, BlankSchema } from 'hono/types'
 import type { SvcWorkerServer } from '@vrowser/service-worker-server'
+import type { BlankSchema, Env } from 'hono/types'
 
 export interface ServerOptions extends CommonServerOptions {
   /**
@@ -79,15 +75,15 @@ export interface ServerOptions extends CommonServerOptions {
    * @default false
    */
   middlewareMode?:
-    | boolean
-    | {
-        /**
-         * Parent server instance to attach to
-         *
-         * This is needed to proxy MessageChannel connections
-         */
-        server: HttpServer
-      }
+  | boolean
+  | {
+    /**
+     * Parent server instance to attach to
+     *
+     * This is needed to proxy MessageChannel connections
+     */
+    server: HttpServer
+  }
   /**
    * Options for files served via '/\@fs/'.
    */
@@ -112,8 +108,8 @@ export interface ServerOptions extends CommonServerOptions {
    * sourcemap path and returns whether to ignore the source path.
    */
   sourcemapIgnoreList?:
-    | false
-    | ((sourcePath: string, sourcemapPath: string) => boolean)
+  | false
+  | ((sourcePath: string, sourcemapPath: string) => boolean)
   /**
    * Backward compatibility. The buildStart and buildEnd hooks were called only once for
    * the client environment. This option enables per-environment buildStart and buildEnd hooks.
@@ -222,18 +218,17 @@ export interface ViteDevServer {
    * - Can also be used as the handler function in Service Worker's fetch event
    * - Compatible with Web Standard Request/Response API
    *
-   * @example
+   * @example Middleware mode usage
    * ```ts
-   * // Add custom middleware
-   * server.middlewares.use('/api', async (c, next) => {
-   *   await next()
-   *   c.header('X-Custom', 'value')
+   * const server = createServer(self, { server: { middlewareMode: true } })
+   *
+   * // Add custom middleware before default handlers
+   * server.middlewares.get('/__preview__/*', (c) => {
+   *   return c.text('Preview content')
    * })
    *
-   * // Use in Service Worker fetch event
-   * self.addEventListener('fetch', (event) => {
-   *   event.respondWith(server.middlewares.fetch(event.request))
-   * })
+   * // Start listening for fetch events
+   * server.listen()
    * ```
    */
   middlewares: Hono<ViteEnv, BlankSchema, '/'>
@@ -287,10 +282,10 @@ export interface ViteDevServer {
    * in middleware mode or if the server is not listening on any port.
    */
   resolvedUrls: ResolvedServerUrls | null
- /**
-   * Programmatically resolve, load and transform a URL and get the result
-   * without going through the http request pipeline.
-   */
+  /**
+    * Programmatically resolve, load and transform a URL and get the result
+    * without going through the http request pipeline.
+    */
   transformRequest(
     url: string,
     options?: TransformOptions,
@@ -406,15 +401,33 @@ export interface ResolvedServerUrls {
   network: string[]
 }
 
+/**
+ * Options for {@link createServer} function.
+ */
+export interface CreateServerOptions {
+  /**
+   * Whether to start listening for fetch events immediately.
+   * When true, the fetch event handler is registered synchronously.
+   */
+  listen?: boolean
+  /**
+   * Version string for the service worker.
+   */
+  version?: string
+  /**
+   * @internal
+   */
+  previousEnvironments?: Record<string, DevEnvironment>
+  /**
+   * @internal
+   */
+  previousShortcutsState?: ShortcutsState<ViteDevServer>
+}
+
 export function createServer(
   serviceWorkerScope: ServiceWorkerGlobalScope,
   inlineConfig: InlineConfig | ResolvedConfig = {},
-  options: {
-    listen?: boolean
-    version?: string
-    previousEnvironments?: Record<string, DevEnvironment>
-    previousShortcutsState?: ShortcutsState<ViteDevServer>
-  } = {},
+  options: CreateServerOptions = {},
 ): ViteDevServer {
   // TOOD: implement for config resolving and etc ...
   // ...
@@ -428,13 +441,11 @@ export function createServer(
   // TODO: ...
 
   const middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
-  const httpServer = middlewareMode
-    ? null
-    : createSvcWorkerServer(serviceWorkerScope, {
-      version: options.version ?? '0.0.0',
-      claimOnActivate: true,
-      debug: createDebugger('vrowser:svc-worker-server')!,
-    })
+  const httpServer = createSvcWorkerServer(serviceWorkerScope, {
+    version: options.version ?? '0.0.0',
+    claimOnActivate: !middlewareMode, // middlewareModeの場合はactivate制御をユーザーに委ねる
+    debug: createDebugger('vrowser:svc-worker-server')!,
+  })
   const fetchHandler = handle(middlewares)
 
   // NOTE(kazupon): first implementation for service worker dev server
@@ -581,7 +592,7 @@ export function createServer(
     //   }
     // },
     async listen(port: number = -1, isRestart: boolean = false) {
-    // async listen(port?: number, isRestart?: boolean) {
+      // async listen(port?: number, isRestart?: boolean) {
       // const hostname = await resolveHostname(config.server.host)
       // if (httpServer) {
       //   httpServer.prependListener('listening', () => {
@@ -757,9 +768,10 @@ export function createServer(
     return initingServer
   }
 
-  // If options.listen is true, register fetch event handler immediately (synchronously)
+  // If `options.listen` is `true`, register fetch event handler immediately (synchronously)
   // This is critical for Service Workers which require fetch listeners during script evaluation
-  if (options.listen && httpServer) {
+  // In `middlewareMode`, user should call `server.listen()` manually to register fetch handler
+  if (options.listen && !middlewareMode) {
     httpServer.listen(fetchHandler)
   }
 
@@ -779,7 +791,7 @@ export function createServer(
 
   // Run async initialization in background and resolve ready promise when done
   // oxlint-disable-next-line @typescript-eslint/no-floating-promises
-  ;(async () => {
+  ; (async () => {
     try {
       await initServer(options.listen ?? false)
       readyResolve!()
@@ -801,9 +813,6 @@ async function startServer(
   inlinePort?: number,
 ): Promise<void> {
   const httpServer = server.httpServer
-  if (!httpServer) {
-    throw new Error('Cannot call server.listen in middleware mode.')
-  }
 
   // NOTE(kazupon): commented out, because Service Worker server don't need the port
   // const options = server.config.server
