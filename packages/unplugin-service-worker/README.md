@@ -208,6 +208,49 @@ dist/
 - Automatic cache busting when Service Worker content changes
 - Hash is generated from the bundled output content
 
+### Scope-based Output Path
+
+When you specify a `scope` parameter in `createSvcWorkerController()`, the plugin automatically places the bundled Service Worker in the corresponding directory. This allows the Service Worker to be registered with the intended scope without requiring a `Service-Worker-Allowed` header.
+
+```ts
+// src/main.ts
+import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+
+const controller = createSvcWorkerController({
+  scriptURL: new URL('./sw.ts', import.meta.url),
+  scope: '/' // Service Worker will be placed at root
+})
+```
+
+**Output path based on scope:**
+
+| `scope` value | Output path                     |
+| ------------- | ------------------------------- |
+| `'/'`         | `sw-[hash].js` (root)           |
+| `'/app/'`     | `app/sw-[hash].js`              |
+| `'/api/v1/'`  | `api/v1/sw-[hash].js`           |
+| Not specified | `assets/sw-[hash].js` (default) |
+
+**Example directory structure:**
+
+```sh
+# With scope: '/'
+dist/
+├── sw-a1b2c3d4.js     # At root, default scope is '/'
+├── assets/
+│   └── main-x9y8z7w6.js
+└── index.html
+
+# Without scope (default behavior)
+dist/
+├── assets/
+│   ├── main-x9y8z7w6.js
+│   └── sw-a1b2c3d4.js  # In assets/, default scope is '/assets/'
+└── index.html
+```
+
+> **Note**: The default scope of a Service Worker is determined by its script location. By placing the script at root, you can register it with `scope: '/'` without needing the `Service-Worker-Allowed` HTTP header.
+
 ## ⚙️ Options
 
 ```ts
@@ -222,15 +265,20 @@ ServiceWorker({
 
   // Plugin enforcement phase
   // Default: 'pre'
-  enforce: 'pre'
+  enforce: 'pre',
+
+  // Set Service-Worker-Allowed header in Vite dev server
+  // Default: undefined
+  serviceWorkerAllowed: '/'
 })
 ```
 
-| Option    | Type                           | Default                                      | Description                      |
-| --------- | ------------------------------ | -------------------------------------------- | -------------------------------- |
-| `include` | `FilterPattern`                | `[/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]` | Files to include for processing  |
-| `exclude` | `FilterPattern`                | `[/node_modules/]`                           | Files to exclude from processing |
-| `enforce` | `'pre' \| 'post' \| undefined` | `'pre'`                                      | Plugin enforcement phase         |
+| Option                 | Type                           | Default                                      | Description                                                                                                                                                                     |
+| ---------------------- | ------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `include`              | `FilterPattern`                | `[/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]` | Files to include for processing                                                                                                                                                 |
+| `exclude`              | `FilterPattern`                | `[/node_modules/]`                           | Files to exclude from processing                                                                                                                                                |
+| `enforce`              | `'pre' \| 'post' \| undefined` | `'pre'`                                      | Plugin enforcement phase                                                                                                                                                        |
+| `serviceWorkerAllowed` | `string \| undefined`          | `undefined`                                  | Set `Service-Worker-Allowed` header in Vite dev server. Allows registering a Service Worker with a scope broader than the script location. Only takes effect during `vite dev`. |
 
 ## 🤝 Sponsors
 

@@ -11,18 +11,19 @@
 export const SW_CONTROLLER_FILTER_RE = /createSvcWorkerController\s*\(/
 
 /**
- * Detailed regex for extracting scriptURL from createSvcWorkerController call.
+ * Detailed regex for extracting scriptURL and optional scope from createSvcWorkerController call.
  *
- * Detects: `createSvcWorkerController({ scriptURL: new URL('path', import.meta.url), ... })`
+ * Detects: `createSvcWorkerController({ scriptURL: new URL('path', import.meta.url), scope: '/', ... })`
  *
  * Capture groups:
  * - [1]: Full URL expression: `new URL('path', import.meta.url)`
  * - [2]: URL path literal: 'path' or "path" or `path`
+ * - [3]: Scope literal (optional): '/' or "/app/" etc.
  *
  * Uses 'd' flag for indices (`match.indices`) and 'g' flag for global matching
  */
 export const SW_CONTROLLER_URL_RE =
-  /\bcreateSvcWorkerController\s*\(\s*\{[^}]*scriptURL\s*:\s*(new\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*\))/dg
+  /\bcreateSvcWorkerController\s*\(\s*\{[^}]*?scriptURL\s*:\s*(new\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*\))(?:[^}]*?scope\s*:\s*('[^']+'|"[^"]+"))?/dg
 
 /**
  * Query parameter for Service Worker files in dev mode.

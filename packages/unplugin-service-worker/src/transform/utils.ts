@@ -25,6 +25,10 @@ export interface ResolvedServiceWorker {
    * Relative URL path from source
    */
   urlPath: string
+  /**
+   * Scope value if specified (e.g., '/')
+   */
+  scope?: string
 }
 
 /**
@@ -86,7 +90,8 @@ export function detectAndResolveServiceWorkers(
   return detected.map(sw => ({
     detected: sw,
     filePath: resolveServiceWorkerPath(sw.urlPath, sourceId),
-    urlPath: sw.urlPath
+    urlPath: sw.urlPath,
+    scope: sw.scope
   }))
 }
 

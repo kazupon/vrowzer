@@ -30,6 +30,10 @@ export interface DetectedServiceWorker {
    * End index of URL expression in original code
    */
   endIndex: number
+  /**
+   * Scope value if specified (e.g., '/')
+   */
+  scope?: string
 }
 
 /**
@@ -80,8 +84,10 @@ export function detectServiceWorkers(code: string): DetectedServiceWorker[] {
     // indices[0] = full match
     // indices[1] = URL expression (new URL(...))
     // indices[2] = URL path literal ('path' or "path" or `path`)
+    // indices[3] = Scope literal (optional, e.g., '/' or "/app/")
     const urlIndices = indices[1]
     const pathIndices = indices[2]
+    const scopeIndices = indices[3]
     if (!urlIndices || !pathIndices) {
       continue
     }
@@ -98,12 +104,22 @@ export function detectServiceWorkers(code: string): DetectedServiceWorker[] {
     // Remove quotes from path
     const urlPath = rawPath.slice(1, -1)
 
+    // Extract scope if present
+    let scope: string | undefined
+    if (scopeIndices) {
+      const [scopeStart, scopeEnd] = scopeIndices
+      const rawScope = code.slice(scopeStart, scopeEnd)
+      // Remove quotes from scope
+      scope = rawScope.slice(1, -1)
+    }
+
     results.push({
       fullMatch: match[0],
       urlExpression: code.slice(urlStart, urlEnd),
       urlPath,
       startIndex: urlStart,
-      endIndex: urlEnd
+      endIndex: urlEnd,
+      scope
     })
   }
 

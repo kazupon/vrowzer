@@ -62,9 +62,9 @@ interface PluginContext {
   pendingServiceWorkers: Map<string, ResolvedServiceWorker>
 }
 
-// =============================================================================
-// Utility Functions
-// =============================================================================
+/**
+ * Utility Functions
+ */
 
 /**
  * Replace URL expression with ROLLUP_FILE_URL reference wrapped in URL constructor
@@ -126,6 +126,44 @@ const DEFAULT_SERVICE_WORKER_DEFINES: Record<string, string> = {
   // Then the object replacements (less specific)
   'import.meta.env': '{}',
   'import.meta': '{}'
+}
+
+/**
+ * Get output directory from scope value.
+ *
+ * @param scope - Scope value (e.g., '/', '/app/', '/api/v1/')
+ * @param defaultDir - Default directory when scope is not specified
+ * @returns Directory path without leading/trailing slashes
+ */
+function getOutputDirFromScope(scope: string | undefined, defaultDir: string): string {
+  if (!scope) {
+    return defaultDir
+  }
+  // Remove leading and trailing slashes, return empty string for root
+  const normalized = scope.replace(/^\/|\/$/g, '')
+  return normalized || '' // empty string means root
+}
+
+/**
+ * Build output filename with scope-based directory.
+ *
+ * @param basename - Base name of the file (without extension)
+ * @param contentHash - Content hash for cache busting
+ * @param scope - Scope value (e.g., '/', '/app/')
+ * @param defaultDir - Default directory when scope is not specified
+ * @returns Full output filename with directory
+ */
+function buildOutputFilename(
+  basename: string,
+  contentHash: string,
+  scope: string | undefined,
+  defaultDir: string
+): string {
+  const dir = getOutputDirFromScope(scope, defaultDir)
+  if (dir === '') {
+    return `${basename}-${contentHash}.js`
+  }
+  return `${dir}/${basename}-${contentHash}.js`
 }
 
 /**
@@ -218,9 +256,9 @@ function transformForRollup(
   }
 }
 
-// =============================================================================
-// Webpack/Rspack-specific Functions
-// =============================================================================
+/**
+ * Webpack/Rspack-specific Functions
+ */
 
 /**
  * Bundle Service Worker using Webpack/Rspack child compiler
@@ -229,15 +267,20 @@ async function bundleWithChildCompiler(
   compiler: WebpackCompiler,
   compilation: Parameters<Parameters<WebpackCompiler['hooks']['thisCompilation']['tap']>[1]>[0],
   entryPath: string,
-  pluginName: string
+  pluginName: string,
+  scope?: string
 ): Promise<string | null> {
   return new Promise((resolve, reject) => {
+    // Determine output directory from scope
+    const outputDir = getOutputDirFromScope(scope, '')
+    const filenamePrefix = outputDir ? `${outputDir}/` : ''
+
     // Create child compiler
     const childCompiler = compilation.createChildCompiler(
       `${pluginName}:service-worker`,
       {
-        filename: `[name]-[contenthash:8].js`,
-        chunkFilename: `[name]-[contenthash:8].js`
+        filename: `${filenamePrefix}[name]-[contenthash:8].js`,
+        chunkFilename: `${filenamePrefix}[name]-[contenthash:8].js`
       },
       []
     )
@@ -297,7 +340,7 @@ function setupWebpackLikeCompiler(
       async (assets, callback) => {
         try {
           // Bundle pending Service Workers using child compiler
-          for (const [swPath] of ctx.pendingServiceWorkers) {
+          for (const [swPath, swInfo] of ctx.pendingServiceWorkers) {
             const hashStr = generatePlaceholderHash(swPath)
 
             // Check if already bundled
@@ -310,7 +353,8 @@ function setupWebpackLikeCompiler(
               compiler,
               compilation,
               swPath,
-              pluginName
+              pluginName,
+              swInfo?.scope
             )
 
             if (bundledFilename) {
@@ -369,9 +413,9 @@ function setupWebpackLikeCompiler(
   })
 }
 
-// =============================================================================
-// Vite-specific Functions
-// =============================================================================
+/**
+ * Vite-specific Functions
+ */
 
 /**
  * Create Vite configResolved hook handler
@@ -536,7 +580,13 @@ function createViteRenderChunk(ctx: PluginContext, cache: ServiceWorkerCache) {
         if (result) {
           const basename = path.basename(swPath, path.extname(swPath))
           const contentHash = generateContentHash(result.code)
-          const outputFilename = `${ctx.viteConfig.build.assetsDir}/${basename}-${contentHash}.js`
+          const swInfo = ctx.pendingServiceWorkers.get(swPath)
+          const outputFilename = buildOutputFilename(
+            basename,
+            contentHash,
+            swInfo?.scope,
+            ctx.viteConfig.build.assetsDir
+          )
 
           // Register the placeholder hash -> filename mapping
           // This is critical: the placeholder uses hash of swPath, not outputFilename
@@ -608,7 +658,13 @@ function createViteGenerateBundle(ctx: PluginContext, cache: ServiceWorkerCache)
         const basename = path.basename(swPath, path.extname(swPath))
         // Generate content hash for filename
         const contentHash = generateContentHash(result.code)
-        const outputFilename = `${ctx.viteConfig.build.assetsDir}/${basename}-${contentHash}.js`
+        const swInfo = ctx.pendingServiceWorkers.get(swPath)
+        const outputFilename = buildOutputFilename(
+          basename,
+          contentHash,
+          swInfo?.scope,
+          ctx.viteConfig.build.assetsDir
+        )
 
         // Register the placeholder hash -> filename mapping
         cache.registerHashToFilename(hashStr, outputFilename)
@@ -655,9 +711,9 @@ function createViteGenerateBundle(ctx: PluginContext, cache: ServiceWorkerCache)
   }
 }
 
-// =============================================================================
-// esbuild-specific Functions
-// =============================================================================
+/**
+ * esmbuild-specific Functions
+ */
 
 /**
  * Setup esbuild hooks for Service Worker bundling
@@ -744,7 +800,8 @@ function setupEsbuildHooks(build: EsbuildPluginBuild): void {
       // Generate output filename with content hash
       const contentHash = generateContentHash(bundleResult.code)
       const baseName = path.basename(swPath, path.extname(swPath))
-      const outputFileName = `${baseName}-${contentHash}.js`
+      const swInfo = pendingServiceWorkers.get(swPath)
+      const outputFileName = buildOutputFilename(baseName, contentHash, swInfo?.scope, '')
 
       processedFiles.set(swPath, outputFileName)
 
@@ -812,9 +869,9 @@ function setupEsbuildHooks(build: EsbuildPluginBuild): void {
   })
 }
 
-// =============================================================================
-// Farm-specific Functions
-// =============================================================================
+/**
+ * Farm-specific Functions
+ */
 
 /**
  * Create Farm finish hook executor
@@ -883,7 +940,8 @@ function createFarmFinishExecutor(ctx: PluginContext, cache: ServiceWorkerCache,
       if (result) {
         const basename = path.basename(swPath, path.extname(swPath))
         const contentHash = generateContentHash(result.code)
-        const outputFilename = `assets/${basename}-${contentHash}.js`
+        const swInfo = ctx.pendingServiceWorkers.get(swPath)
+        const outputFilename = buildOutputFilename(basename, contentHash, swInfo?.scope, 'assets')
 
         // Register hash to filename mapping
         cache.registerHashToFilename(hashStr, outputFilename)
@@ -927,9 +985,9 @@ function createFarmFinishExecutor(ctx: PluginContext, cache: ServiceWorkerCache,
   }
 }
 
-// =============================================================================
-// Main Plugin
-// =============================================================================
+/**
+ * Plugin entry point
+ */
 
 export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> = createUnplugin(
   (rawOptions = {}, meta) => {
