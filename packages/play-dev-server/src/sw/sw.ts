@@ -27,29 +27,28 @@ const files = new Map<string, string>()
  */
 const server = createServer(
   self,
-  { root: '/', server: { middlewareMode: false } },
-  {
-    listen: true,
-    version: SW_VERSION,
-    configureMiddlewares: middlewares => {
-      // Handle /__preview__/* requests from virtual file system
-      middlewares.get('/__preview__/*', (c: Context) => {
-        const path = c.req.path
-        console.log('[SW] Intercepting preview request:', path)
-
-        if (files.has(path)) {
-          console.log('[SW] Serving virtual file:', path)
-          return c.body(files.get(path)!, 200, {
-            'Content-Type': getContentType(path),
-            'Cache-Control': 'no-cache'
-          })
-        }
-
-        return c.text('Not Found', 404)
-      })
-    }
-  }
+  { root: '/', server: { middlewareMode: true } },
+  { version: SW_VERSION }
 )
+
+// Register custom middleware for __preview__ paths
+server.middlewares.get('/__preview__/*', (c: Context) => {
+  const path = c.req.path
+  console.log('[SW] Intercepting preview request:', path)
+
+  if (files.has(path)) {
+    console.log('[SW] Serving virtual file:', path)
+    return c.body(files.get(path)!, 200, {
+      'Content-Type': getContentType(path),
+      'Cache-Control': 'no-cache'
+    })
+  }
+
+  return c.text('Not Found', 404)
+})
+
+// Register fetch event handler synchronously
+server.listen()
 
 /**
  * Message Handling from Main Thread
