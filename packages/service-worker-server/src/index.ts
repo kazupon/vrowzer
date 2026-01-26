@@ -55,10 +55,10 @@ export interface ListenOptions {
 }
 
 /**
- * Type-safe message event with generic data type.
+ * Connection event payload for MessageChannel connections.
  *
- * This interface extends {@link ExtendableMessageEvent} but overrides the `data` property
- * with a generic type parameter for type safety.
+ * This interface represents a connection event that is emitted when a client
+ * sends a message with MessagePorts (typically for establishing a MessageChannel connection).
  *
  * @typeParam T - The type of the message data. Defaults to `unknown`.
  *
@@ -70,17 +70,31 @@ export interface ListenOptions {
  * }
  *
  * const server = createSvcWorkerServer<MyMessage>(self, options)
- * server.on('message', (event) => {
+ * server.on('connection', (event) => {
  *   // event.data is typed as MyMessage
  *   console.log(event.data.type, event.data.payload)
+ *   // Access the MessagePorts
+ *   console.log(event.ports)
  * })
  * ```
  */
-export interface TypedExtendableMessageEvent<T = unknown> extends ExtendableMessageEvent {
+export interface ConnectionEvent<T = unknown> {
+  /**
+   * The MessagePorts received from the client.
+   */
+  readonly ports: readonly MessagePort[]
+  /**
+   * The source of the message (Client, ServiceWorker, or MessagePort).
+   */
+  readonly source: Client | ServiceWorker | MessagePort | null
   /**
    * The message data with type safety.
    */
   readonly data: T
+  /**
+   * The client ID if the source is a Client.
+   */
+  readonly clientId?: string
 }
 
 /**
@@ -88,7 +102,7 @@ export interface TypedExtendableMessageEvent<T = unknown> extends ExtendableMess
  *
  * This type defines the payload types for each event.
  *
- * @typeParam MessageData - The type of the message data for the `message` event. Defaults to `unknown`.
+ * @typeParam MessageData - The type of the message data for the `connection` event. Defaults to `unknown`.
  */
 export type SvcWorkerServerEventMap<MessageData = unknown> = {
   /**
@@ -96,10 +110,10 @@ export type SvcWorkerServerEventMap<MessageData = unknown> = {
    */
   listening: void
   /**
-   * Emitted when a message is received from the client.
-   * This is a passthrough of the Service Worker's message event with type-safe data.
+   * Emitted when a client connects via MessageChannel.
+   * This event is fired only when the message contains MessagePorts.
    */
-  message: TypedExtendableMessageEvent<MessageData>
+  connection: ConnectionEvent<MessageData>
   /**
    * Emitted when the server is closed.
    */
@@ -121,7 +135,7 @@ const DEFAULT_ACTIVATE_TIMEOUT = 30000
  * This interface has like Node.js HTTP Server interfaces.
  * This will be used as server that runs within a Service Worker environment.
  *
- * @typeParam MessageData - The type of the message data for the `message` event. Defaults to `unknown`.
+ * @typeParam MessageData - The type of the message data for the `connection` event. Defaults to `unknown`.
  */
 export interface SvcWorkerServer<MessageData = unknown>
   extends Emittable<SvcWorkerServerEventMap<MessageData>>, Disposable, AsyncDisposable {
@@ -194,7 +208,7 @@ export interface SvcWorkerServer<MessageData = unknown>
 /**
  * Create a {@link SvcWorkerServer | Service worker server} instance.
  *
- * @typeParam MessageData - The type of the message data for the `message` event. Defaults to `unknown`.
+ * @typeParam MessageData - The type of the message data for the `connection` event. Defaults to `unknown`.
  * @param self - The {@link ServiceWorkerGlobalScope} instance (typically `self` in a service worker)
  * @param options - {@link SvcWorkerServerOptions | Service worker server options}
  * @returns {@link SvcWorkerServer | Service worker server instance}
@@ -207,9 +221,13 @@ export interface SvcWorkerServer<MessageData = unknown>
  * }
  *
  * const server = createSvcWorkerServer<MyMessage>(self, { version: '1.0.0' })
- * server.on('message', (event) => {
+ * server.on('connection', (event) => {
  *   // event.data is typed as MyMessage
  *   console.log(event.data.type, event.data.payload)
+ *   // Access the MessagePorts
+ *   console.log(event.ports)
+ *   // Access client ID if available
+ *   console.log(event.clientId)
  * })
  * ```
  */
@@ -288,9 +306,19 @@ export function createSvcWorkerServer<MessageData = unknown>(
     // script execution, not asynchronously during event callbacks.
     _svcWorker.addEventListener('fetch', _boundFetchHandler)
 
-    // Register message handler to passthrough message events
+    // Register message handler for connection events
     _messageHandler = (event: ExtendableMessageEvent) => {
-      _emitter.emit('message', event)
+      // Only emit connection event when ports are present
+      if (event.ports && event.ports.length > 0) {
+        const clientId = (event.source as Client | null)?.id
+        const connectionEvent: ConnectionEvent<MessageData> = {
+          ports: event.ports,
+          source: event.source,
+          data: event.data as MessageData,
+          ...(clientId !== undefined && { clientId })
+        }
+        _emitter.emit('connection', connectionEvent)
+      }
     }
     self.addEventListener('message', _messageHandler)
 

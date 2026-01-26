@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
 import { createSvcWorkerServer, SvcWorkerServerError } from './index'
-import type { SvcWorkerServer } from './index'
+import type { SvcWorkerServer, ConnectionEvent } from './index'
 
 // SvcWorker mock interface
 interface MockSvcWorker {
@@ -562,7 +562,7 @@ describe('SvcWorkerServer', () => {
     })
   })
 
-  describe('message event passthrough', () => {
+  describe('connection event', () => {
     it('registers message handler on self when listen() is called', () => {
       server = createServer()
       server.listen(() => {})
@@ -570,16 +570,50 @@ describe('SvcWorkerServer', () => {
       expect(mockSelf.addEventListener).toHaveBeenCalledWith('message', expect.any(Function))
     })
 
-    it('emits message event when self receives message', async () => {
+    it('emits connection event when message has ports', async () => {
       server = createServer()
 
-      const messagePromise = new Promise<ExtendableMessageEvent>(resolve => {
-        server.on('message', resolve)
+      const connectionPromise = new Promise<ConnectionEvent>(resolve => {
+        server.on('connection', resolve)
       })
 
       server.listen(() => {})
 
-      // Create mock ExtendableMessageEvent
+      // Create mock MessagePort
+      const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
+
+      // Create mock Client source
+      const mockClient = { id: 'client-123' } as unknown as Client
+
+      // Create mock ExtendableMessageEvent with ports
+      const mockMessageEvent = {
+        data: { type: 'test', payload: 'hello' },
+        source: mockClient,
+        ports: [mockPort]
+      } as unknown as ExtendableMessageEvent
+
+      // Emit message event on self
+      mockSelf.__emit('message', mockMessageEvent)
+
+      const receivedEvent = await connectionPromise
+      expect(receivedEvent.data).toEqual({ type: 'test', payload: 'hello' })
+      expect(receivedEvent.ports).toHaveLength(1)
+      expect(receivedEvent.ports[0]).toBe(mockPort)
+      expect(receivedEvent.source).toBe(mockClient)
+      expect(receivedEvent.clientId).toBe('client-123')
+    })
+
+    it('does not emit connection event when message has no ports', async () => {
+      server = createServer()
+
+      let connectionReceived = false
+      server.on('connection', () => {
+        connectionReceived = true
+      })
+
+      server.listen(() => {})
+
+      // Create mock ExtendableMessageEvent without ports
       const mockMessageEvent = {
         data: { type: 'test', payload: 'hello' },
         source: null,
@@ -589,9 +623,58 @@ describe('SvcWorkerServer', () => {
       // Emit message event on self
       mockSelf.__emit('message', mockMessageEvent)
 
-      const receivedEvent = await messagePromise
-      expect(receivedEvent).toBe(mockMessageEvent)
-      expect(receivedEvent.data).toEqual({ type: 'test', payload: 'hello' })
+      await new Promise(r => setTimeout(r, 0))
+      expect(connectionReceived).toBe(false)
+    })
+
+    it('does not emit connection event when ports is undefined', async () => {
+      server = createServer()
+
+      let connectionReceived = false
+      server.on('connection', () => {
+        connectionReceived = true
+      })
+
+      server.listen(() => {})
+
+      // Create mock ExtendableMessageEvent with undefined ports
+      const mockMessageEvent = {
+        data: { type: 'test' },
+        source: null,
+        ports: undefined
+      } as unknown as ExtendableMessageEvent
+
+      // Emit message event on self
+      mockSelf.__emit('message', mockMessageEvent)
+
+      await new Promise(r => setTimeout(r, 0))
+      expect(connectionReceived).toBe(false)
+    })
+
+    it('sets clientId to undefined when source is not a Client', async () => {
+      server = createServer()
+
+      const connectionPromise = new Promise<ConnectionEvent>(resolve => {
+        server.on('connection', resolve)
+      })
+
+      server.listen(() => {})
+
+      // Create mock MessagePort
+      const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
+
+      // Create mock ExtendableMessageEvent with null source
+      const mockMessageEvent = {
+        data: { type: 'test' },
+        source: null,
+        ports: [mockPort]
+      } as unknown as ExtendableMessageEvent
+
+      // Emit message event on self
+      mockSelf.__emit('message', mockMessageEvent)
+
+      const receivedEvent = await connectionPromise
+      expect(receivedEvent.clientId).toBeUndefined()
     })
 
     it('removes message handler on close()', async () => {
@@ -603,46 +686,99 @@ describe('SvcWorkerServer', () => {
       expect(mockSelf.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function))
     })
 
-    it('does not emit message event after close()', async () => {
+    it('does not emit connection event after close()', async () => {
       server = createServer()
 
-      let messageReceived = false
-      server.on('message', () => {
-        messageReceived = true
+      let connectionReceived = false
+      server.on('connection', () => {
+        connectionReceived = true
       })
 
       server.listen(() => {})
       await new Promise<void>(resolve => server.close(() => resolve()))
 
+      // Create mock MessagePort
+      const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
+
       // Emit message event after close
-      const mockMessageEvent = { data: 'test' } as unknown as ExtendableMessageEvent
+      const mockMessageEvent = {
+        data: 'test',
+        source: null,
+        ports: [mockPort]
+      } as unknown as ExtendableMessageEvent
       mockSelf.__emit('message', mockMessageEvent)
 
       await new Promise(r => setTimeout(r, 0))
-      expect(messageReceived).toBe(false)
+      expect(connectionReceived).toBe(false)
     })
 
-    it('can receive multiple message events', async () => {
+    it('can receive multiple connection events', async () => {
       server = createServer()
 
-      const messages: ExtendableMessageEvent[] = []
-      server.on('message', event => {
-        messages.push(event)
+      const connections: ConnectionEvent[] = []
+      server.on('connection', event => {
+        connections.push(event)
       })
 
       server.listen(() => {})
 
-      // Emit multiple messages
-      mockSelf.__emit('message', { data: 'first' } as unknown as ExtendableMessageEvent)
-      mockSelf.__emit('message', { data: 'second' } as unknown as ExtendableMessageEvent)
-      mockSelf.__emit('message', { data: 'third' } as unknown as ExtendableMessageEvent)
+      // Create mock MessagePort
+      const mockPort1 = { postMessage: vi.fn() } as unknown as MessagePort
+      const mockPort2 = { postMessage: vi.fn() } as unknown as MessagePort
+      const mockPort3 = { postMessage: vi.fn() } as unknown as MessagePort
+
+      // Emit multiple messages with ports
+      mockSelf.__emit('message', {
+        data: 'first',
+        source: null,
+        ports: [mockPort1]
+      } as unknown as ExtendableMessageEvent)
+      mockSelf.__emit('message', {
+        data: 'second',
+        source: null,
+        ports: [mockPort2]
+      } as unknown as ExtendableMessageEvent)
+      mockSelf.__emit('message', {
+        data: 'third',
+        source: null,
+        ports: [mockPort3]
+      } as unknown as ExtendableMessageEvent)
 
       await new Promise(r => setTimeout(r, 0))
 
-      expect(messages).toHaveLength(3)
-      expect(messages[0].data).toBe('first')
-      expect(messages[1].data).toBe('second')
-      expect(messages[2].data).toBe('third')
+      expect(connections).toHaveLength(3)
+      expect(connections[0]!.data).toBe('first')
+      expect(connections[1]!.data).toBe('second')
+      expect(connections[2]!.data).toBe('third')
+    })
+
+    it('emits connection event with multiple ports', async () => {
+      server = createServer()
+
+      const connectionPromise = new Promise<ConnectionEvent>(resolve => {
+        server.on('connection', resolve)
+      })
+
+      server.listen(() => {})
+
+      // Create multiple mock MessagePorts
+      const mockPort1 = { postMessage: vi.fn() } as unknown as MessagePort
+      const mockPort2 = { postMessage: vi.fn() } as unknown as MessagePort
+
+      // Create mock ExtendableMessageEvent with multiple ports
+      const mockMessageEvent = {
+        data: { type: 'test' },
+        source: null,
+        ports: [mockPort1, mockPort2]
+      } as unknown as ExtendableMessageEvent
+
+      // Emit message event on self
+      mockSelf.__emit('message', mockMessageEvent)
+
+      const receivedEvent = await connectionPromise
+      expect(receivedEvent.ports).toHaveLength(2)
+      expect(receivedEvent.ports[0]).toBe(mockPort1)
+      expect(receivedEvent.ports[1]).toBe(mockPort2)
     })
   })
 })
