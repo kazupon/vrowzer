@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@kazupon/jts-utils':
+      specifier: ^0.14.0
+      version: 0.14.0
     '@playwright/test':
       specifier: 1.57.0
       version: 1.57.0
@@ -295,8 +298,8 @@ importers:
   packages/service-worker:
     devDependencies:
       '@kazupon/jts-utils':
-        specifier: ^0.12.0
-        version: 0.12.0(@vue/reactivity@3.5.26)
+        specifier: 'catalog:'
+        version: 0.14.0(@vue/reactivity@3.5.26)
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.57.0
@@ -325,8 +328,8 @@ importers:
   packages/service-worker-server:
     dependencies:
       '@kazupon/jts-utils':
-        specifier: ^0.13.0
-        version: 0.13.0(@vue/reactivity@3.5.26)
+        specifier: 'catalog:'
+        version: 0.14.0(@vue/reactivity@3.5.26)
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -1170,17 +1173,8 @@ packages:
     peerDependencies:
       eslint: ^9.0.0
 
-  '@kazupon/jts-utils@0.12.0':
-    resolution: {integrity: sha512-MTJ8939ecbA7qxruiaDrFK3aNcMgwQ2FL/TtG4tyAc2v+fexa/77ixLDsA/bC08rtDLHHe+eLc1MygM+SoBJrg==}
-    engines: {node: '>= 20'}
-    peerDependencies:
-      '@vue/reactivity': ^3.4
-    peerDependenciesMeta:
-      '@vue/reactivity':
-        optional: true
-
-  '@kazupon/jts-utils@0.13.0':
-    resolution: {integrity: sha512-Pq7Uh78JEc6eIAaxGiEPC2GJo5K2p3jjB/Y9UN6Oj25oSySYPAsWKRz2tcFiYkBOFEVTJtMw0Y7VacYRVud2YA==}
+  '@kazupon/jts-utils@0.14.0':
+    resolution: {integrity: sha512-7VgsG8Q60akqIjkAeTtRllE+U6J0EVnOcAsmp8Rc2Wl29vQERLyoumUoCjxe1kiS3qSk3ayGqknIddl4t4swmw==}
     engines: {node: '>= 20'}
     peerDependencies:
       '@vue/reactivity': ^3.4
@@ -6211,11 +6205,7 @@ snapshots:
       '@eslint/core': 0.17.0
       eslint: 9.39.2(jiti@2.6.1)
 
-  '@kazupon/jts-utils@0.12.0(@vue/reactivity@3.5.26)':
-    optionalDependencies:
-      '@vue/reactivity': 3.5.26
-
-  '@kazupon/jts-utils@0.13.0(@vue/reactivity@3.5.26)':
+  '@kazupon/jts-utils@0.14.0(@vue/reactivity@3.5.26)':
     optionalDependencies:
       '@vue/reactivity': 3.5.26
 

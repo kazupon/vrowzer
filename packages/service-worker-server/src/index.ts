@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import { createEmitter } from '@kazupon/jts-utils/event'
+import { Emitter } from '@kazupon/jts-utils/event'
 import { createSvcWorker } from '@vrowser/service-worker/worker'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
@@ -235,7 +235,7 @@ export function createSvcWorkerServer<MessageData = unknown>(
   self: ServiceWorkerGlobalScope,
   options: SvcWorkerServerOptions
 ): SvcWorkerServer<MessageData> {
-  const _emitter = createEmitter<SvcWorkerServerEventMap<MessageData>>()
+  const _emitter = Emitter<SvcWorkerServerEventMap<MessageData>>()
   const _svcWorker: SvcWorker = createSvcWorker(self, options)
   const _options = options
 

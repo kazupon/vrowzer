@@ -53,7 +53,7 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
-    "@kazupon/jts-utils": "^0.13.0",
+    "@kazupon/jts-utils": "catalog:",
     "@vrowser/service-worker": "workspace:*"
   },
   "devDependencies": {

@@ -37,7 +37,7 @@
  */
 
 import { abortError, throwIfAborted } from '@kazupon/jts-utils/abort'
-import { createEmitter, waitOnce } from '@kazupon/jts-utils/event'
+import { Emitter, waitOnce } from '@kazupon/jts-utils/event'
 import {
   createSvcWorkerSkipWaitingMessage,
   createSvcWorkerVersionMessage,
@@ -379,7 +379,7 @@ export function createSvcWorkerController(
 
   _debug?.('createSvcWorkerController: options', options)
 
-  const _emitter = createEmitter<SvcWorkerControllerEventMap>()
+  const _emitter = Emitter<SvcWorkerControllerEventMap>()
   let _serviceWorker: ServiceWorker | null = null
   let _session: SvcWorkerSession | null = null
   let _state: SvcWorkerControllerState = 'installing'

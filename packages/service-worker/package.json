@@ -68,7 +68,7 @@
     "prepack": "pnpm build"
   },
   "devDependencies": {
-    "@kazupon/jts-utils": "^0.12.0",
+    "@kazupon/jts-utils": "catalog:",
     "@playwright/test": "catalog:",
     "@vrowser/unplugin-service-worker": "workspace:*",
     "get-port-please": "catalog:",

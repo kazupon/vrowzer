@@ -13,6 +13,7 @@ catalog:
   rolldown: ^1.0.0-beta.60
   magic-string: ^0.30.21
   oxlint: ^1.39.0
+  '@kazupon/jts-utils': ^0.14.0
 
 minimumReleaseAge: 1440
 
