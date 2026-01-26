@@ -52,6 +52,12 @@ export interface ListenOptions {
    * @default 30000 (30 seconds)
    */
   activateTimeout?: number
+  /**
+   * Enable listening for MessageChannel port connections.
+   * If set to true, the server will accept connections via `message` events from clients.
+   * @default false
+   */
+  enableListenConnections?: boolean
 }
 
 /**
@@ -148,7 +154,7 @@ export interface SvcWorkerServer<MessageData = unknown>
    * Start a server listening for service worker fetch events
    *
    * When the service worker fetch event handler is bound, the 'listening' event will be emitted.
-   * And server will be started to accept {@link MessageChannel} ports via `message` events from clients.
+   * If `enableListenConnections` option is set to `true`, server will be started to listen MessageChannel connection too via {@link SvcWorkerServer.listenConnections} internally.
    *
    * @param handler - A fetch event handler
    * @param options - Options for listening
@@ -160,14 +166,30 @@ export interface SvcWorkerServer<MessageData = unknown>
   ): SvcWorkerServer<MessageData>
 
   /**
+   * Start a MessageChannel port connections listening with `message` events from clients.
+   *
+   * @returns The server instance
+   */
+  listenConnections(): SvcWorkerServer<MessageData>
+
+  /**
    * Stops the server from accepting new fetch event and close {@link MessageChannel} port connections
    *
    * When it will be finished, the optional callback `fn` will be called, and trigger 'close' event.
    *
    * @param cb - An optional callback function which will be called when the server is closed
+   * @param stopConnectionListening - If `true`, also stops listening for MessageChannel port connections too via {@link SvcWorkerServer.closeConnections}. Defaults to `false`.
    * @returns The server instance
    */
-  close(cb?: (err?: Error) => void): SvcWorkerServer<MessageData>
+  close(cb?: (err?: Error) => void, stopConnectionListening?: boolean): SvcWorkerServer<MessageData>
+
+  /**
+   * Closes {@link MessageChannel} port connections connected to this server.
+   *
+   * @param cb - An optional callback function which will be called when MessageChannel port connections are closed
+   * @returns The server instance
+   */
+  closeConnections(cb?: (err?: Error) => void): SvcWorkerServer<MessageData>
 
   /**
    * Returns the bound service worker address
@@ -182,11 +204,6 @@ export interface SvcWorkerServer<MessageData = unknown>
    * Asynchronously get the number of concurrent {@link MessageChannel} port connections on the server.
    */
   getConnections(cb: (error: Error | null, count: number) => void): SvcWorkerServer<MessageData>
-
-  /**
-   * Closes all {@link MessageChannel} port connections connected to this server.
-   */
-  closeAllConnections(): void
 
   /**
    * `Symbol.dispose` for `using` syntax support (TypeScript 5.2+)
@@ -228,7 +245,7 @@ export interface SvcWorkerServer<MessageData = unknown>
 export function createSvcWorkerServer<MessageData = unknown>(
   self: ServiceWorkerGlobalScope,
   options: SvcWorkerServerOptions
-): SvcWorkerServer<MessageData> {
+): Readonly<SvcWorkerServer<MessageData>> {
   const _emitter = Emitter<SvcWorkerServerEventMap<MessageData>>()
   const _svcWorker: SvcWorker = createSvcWorker(self, options)
   const _options = options
@@ -236,6 +253,7 @@ export function createSvcWorkerServer<MessageData = unknown>(
   const _ports: Set<MessagePort> = new Set()
 
   let _listening = false
+  let _listeningConnections = false
   let _fetchHandler: ((event: FetchEvent) => void) | null = null
   let _boundFetchHandler: ((event: FetchEvent) => void) | null = null
   let _activateHandler: ((event: ExtendableEvent) => void) | null = null
@@ -254,6 +272,38 @@ export function createSvcWorkerServer<MessageData = unknown>(
       _svcWorker.removeEventListener('activate', _activateHandler)
       _activateHandler = null
     }
+  }
+
+  function listenConnections(): SvcWorkerServer<MessageData> {
+    // Already listening for connections -> do nothing
+    if (_listeningConnections) {
+      return instance
+    }
+
+    // Register message handler for connection events
+    _messageHandler = (event: ExtendableMessageEvent) => {
+      // Only emit connection event when ports are present
+      if (event.ports && event.ports.length > 0) {
+        // Register ports to the Set
+        for (const port of event.ports) {
+          _ports.add(port)
+        }
+
+        const clientId = (event.source as Client | null)?.id
+        const connectionEvent: ConnectionEvent<MessageData> = {
+          ports: event.ports,
+          source: event.source,
+          data: event.data as MessageData,
+          ...(clientId !== undefined && { clientId })
+        }
+        _emitter.emit('connection', connectionEvent)
+      }
+    }
+    self.addEventListener('message', _messageHandler)
+
+    _listeningConnections = true
+
+    return instance
   }
 
   function listen(
@@ -278,6 +328,7 @@ export function createSvcWorkerServer<MessageData = unknown>(
 
     // Resolve options
     const activateTimeout = listenOptions?.activateTimeout ?? DEFAULT_ACTIVATE_TIMEOUT
+    const enableListenConnections = listenOptions?.enableListenConnections ?? false
 
     // Store handler
     _fetchHandler = handler
@@ -302,26 +353,10 @@ export function createSvcWorkerServer<MessageData = unknown>(
     // script execution, not asynchronously during event callbacks.
     _svcWorker.addEventListener('fetch', _boundFetchHandler)
 
-    // Register message handler for connection events
-    _messageHandler = (event: ExtendableMessageEvent) => {
-      // Only emit connection event when ports are present
-      if (event.ports && event.ports.length > 0) {
-        // Register ports to the Set
-        for (const port of event.ports) {
-          _ports.add(port)
-        }
-
-        const clientId = (event.source as Client | null)?.id
-        const connectionEvent: ConnectionEvent<MessageData> = {
-          ports: event.ports,
-          source: event.source,
-          data: event.data as MessageData,
-          ...(clientId !== undefined && { clientId })
-        }
-        _emitter.emit('connection', connectionEvent)
-      }
+    // Register message handler if enableListenConnections is true
+    if (enableListenConnections) {
+      listenConnections()
     }
-    self.addEventListener('message', _messageHandler)
 
     // Check activated state
     const sw = _svcWorker as unknown as ServiceWorkerGlobalScope
@@ -375,7 +410,31 @@ export function createSvcWorkerServer<MessageData = unknown>(
     return instance
   }
 
-  function close(cb?: (err?: Error) => void): SvcWorkerServer<MessageData> {
+  function closeConnections(cb?: (err?: Error) => void): SvcWorkerServer<MessageData> {
+    // Remove message event listener
+    if (_messageHandler) {
+      self.removeEventListener('message', _messageHandler)
+      _messageHandler = null
+    }
+
+    // Close all MessagePort connections
+    closeAllConnections()
+
+    // Update state
+    _listeningConnections = false
+
+    // Emit callback (async)
+    queueMicrotask(() => {
+      cb?.()
+    })
+
+    return instance
+  }
+
+  function close(
+    cb?: (err?: Error) => void,
+    stopConnectionListening?: boolean
+  ): SvcWorkerServer<MessageData> {
     // Emit callback and 'close' event even if not listening
     if (!_listening) {
       queueMicrotask(() => {
@@ -394,14 +453,10 @@ export function createSvcWorkerServer<MessageData = unknown>(
       _boundFetchHandler = null
     }
 
-    // Remove message event listener
-    if (_messageHandler) {
-      self.removeEventListener('message', _messageHandler)
-      _messageHandler = null
+    // Stop connection listening if requested (via closeConnections)
+    if (stopConnectionListening) {
+      closeConnections()
     }
-
-    // Close all MessagePort connections
-    closeAllConnections()
 
     // Clear handler reference
     _fetchHandler = null
@@ -453,20 +508,21 @@ export function createSvcWorkerServer<MessageData = unknown>(
     })
   }
 
-  const instance: SvcWorkerServer<MessageData> = {
+  const instance: SvcWorkerServer<MessageData> = Object.freeze({
     ..._emitter,
     get state(): SvcWorkerServerState {
       // TODO:
       return 'installing'
     },
     listen,
+    listenConnections,
     close,
+    closeConnections,
     address,
     getConnections,
-    closeAllConnections,
     [Symbol.dispose]: dispose,
     [Symbol.asyncDispose]: asyncDispose
-  }
+  } as SvcWorkerServer<MessageData>)
 
   return instance
 }

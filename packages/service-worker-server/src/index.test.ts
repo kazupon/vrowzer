@@ -563,9 +563,9 @@ describe('SvcWorkerServer', () => {
   })
 
   describe('connection event', () => {
-    it('registers message handler on self when listen() is called', () => {
+    it('registers message handler on self when listenConnections() is called', () => {
       server = createServer()
-      server.listen(() => {})
+      server.listenConnections()
 
       expect(mockSelf.addEventListener).toHaveBeenCalledWith('message', expect.any(Function))
     })
@@ -577,7 +577,7 @@ describe('SvcWorkerServer', () => {
         server.on('connection', resolve)
       })
 
-      server.listen(() => {})
+      server.listenConnections()
 
       // Create mock MessagePort
       const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
@@ -611,7 +611,7 @@ describe('SvcWorkerServer', () => {
         connectionReceived = true
       })
 
-      server.listen(() => {})
+      server.listenConnections()
 
       // Create mock ExtendableMessageEvent without ports
       const mockMessageEvent = {
@@ -635,7 +635,7 @@ describe('SvcWorkerServer', () => {
         connectionReceived = true
       })
 
-      server.listen(() => {})
+      server.listenConnections()
 
       // Create mock ExtendableMessageEvent with undefined ports
       const mockMessageEvent = {
@@ -658,7 +658,7 @@ describe('SvcWorkerServer', () => {
         server.on('connection', resolve)
       })
 
-      server.listen(() => {})
+      server.listenConnections()
 
       // Create mock MessagePort
       const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
@@ -677,16 +677,16 @@ describe('SvcWorkerServer', () => {
       expect(receivedEvent.clientId).toBeUndefined()
     })
 
-    it('removes message handler on close()', async () => {
+    it('removes message handler on closeConnections()', async () => {
       server = createServer()
-      server.listen(() => {})
+      server.listenConnections()
 
-      await new Promise<void>(resolve => server.close(() => resolve()))
+      await new Promise<void>(resolve => server.closeConnections(() => resolve()))
 
       expect(mockSelf.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function))
     })
 
-    it('does not emit connection event after close()', async () => {
+    it('does not emit connection event after closeConnections()', async () => {
       server = createServer()
 
       let connectionReceived = false
@@ -694,8 +694,8 @@ describe('SvcWorkerServer', () => {
         connectionReceived = true
       })
 
-      server.listen(() => {})
-      await new Promise<void>(resolve => server.close(() => resolve()))
+      server.listenConnections()
+      await new Promise<void>(resolve => server.closeConnections(() => resolve()))
 
       // Create mock MessagePort
       const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
@@ -720,7 +720,7 @@ describe('SvcWorkerServer', () => {
         connections.push(event)
       })
 
-      server.listen(() => {})
+      server.listenConnections()
 
       // Create mock MessagePort
       const mockPort1 = { postMessage: vi.fn() } as unknown as MessagePort
@@ -759,7 +759,7 @@ describe('SvcWorkerServer', () => {
         server.on('connection', resolve)
       })
 
-      server.listen(() => {})
+      server.listenConnections()
 
       // Create multiple mock MessagePorts
       const mockPort1 = { postMessage: vi.fn() } as unknown as MessagePort
@@ -785,7 +785,7 @@ describe('SvcWorkerServer', () => {
   describe('getConnections()', () => {
     it('returns 0 when no connections', async () => {
       server = createServer()
-      server.listen(() => {})
+      server.listenConnections()
 
       const count = await new Promise<number>(resolve => {
         server.getConnections((_err, count) => resolve(count))
@@ -795,7 +795,7 @@ describe('SvcWorkerServer', () => {
 
     it('returns correct count after connections', async () => {
       server = createServer()
-      server.listen(() => {})
+      server.listenConnections()
 
       // Create mock ports
       const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
@@ -815,17 +815,86 @@ describe('SvcWorkerServer', () => {
 
     it('returns this for chaining', () => {
       server = createServer()
-      server.listen(() => {})
+      server.listenConnections()
 
       const result = server.getConnections(() => {})
       expect(result).toBe(server)
     })
   })
 
-  describe('closeAllConnections()', () => {
-    it('closes all connected ports', async () => {
+  describe('listenConnections()', () => {
+    it('returns this for chaining', () => {
+      server = createServer()
+      const result = server.listenConnections()
+      expect(result).toBe(server)
+    })
+
+    it('registers message handler on self', () => {
+      server = createServer()
+      server.listenConnections()
+      expect(mockSelf.addEventListener).toHaveBeenCalledWith('message', expect.any(Function))
+    })
+
+    it('emits connection event when message has ports', async () => {
+      server = createServer()
+      server.listenConnections()
+
+      const connectionPromise = new Promise<ConnectionEvent>(resolve => {
+        server.on('connection', resolve)
+      })
+
+      const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
+      mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
+
+      const event = await connectionPromise
+      expect(event.ports[0]).toBe(mockPort)
+    })
+
+    it('is idempotent - can be called multiple times', () => {
+      server = createServer()
+      server.listenConnections()
+      server.listenConnections()
+
+      // addEventListener should only be called once
+      expect(mockSelf.addEventListener).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('listen() with enableListenConnections', () => {
+    it('calls listenConnections when enableListenConnections is true', () => {
+      server = createServer()
+      server.listen(() => {}, { enableListenConnections: true })
+
+      expect(mockSelf.addEventListener).toHaveBeenCalledWith('message', expect.any(Function))
+    })
+
+    it('does not register message handler when enableListenConnections is false', () => {
+      server = createServer()
+      server.listen(() => {}, { enableListenConnections: false })
+
+      expect(mockSelf.addEventListener).not.toHaveBeenCalledWith('message', expect.any(Function))
+    })
+
+    it('does not register message handler by default', () => {
       server = createServer()
       server.listen(() => {})
+
+      expect(mockSelf.addEventListener).not.toHaveBeenCalledWith('message', expect.any(Function))
+    })
+  })
+
+  describe('closeConnections()', () => {
+    it('returns this for chaining', () => {
+      server = createServer()
+      server.listenConnections()
+
+      const result = server.closeConnections()
+      expect(result).toBe(server)
+    })
+
+    it('closes all connected ports', async () => {
+      server = createServer()
+      server.listenConnections()
 
       const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
       const mockPort2 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
@@ -835,45 +904,147 @@ describe('SvcWorkerServer', () => {
 
       await new Promise(r => setTimeout(r, 0))
 
-      server.closeAllConnections()
+      server.closeConnections()
 
       expect(mockPort1.close).toHaveBeenCalled()
       expect(mockPort2.close).toHaveBeenCalled()
+    })
 
-      // Verify count is 0 after closing
-      const count = await new Promise<number>(resolve => {
+    it('removes message handler', async () => {
+      server = createServer()
+      server.listenConnections()
+
+      await new Promise<void>(resolve => server.closeConnections(() => resolve()))
+
+      expect(mockSelf.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function))
+    })
+
+    it('does not emit connection event after closeConnections', async () => {
+      server = createServer()
+      server.listenConnections()
+
+      let connectionReceived = false
+      server.on('connection', () => {
+        connectionReceived = true
+      })
+
+      await new Promise<void>(resolve => server.closeConnections(() => resolve()))
+
+      const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
+
+      await new Promise(r => setTimeout(r, 0))
+      expect(connectionReceived).toBe(false)
+    })
+
+    it('calls callback', async () => {
+      server = createServer()
+      server.listenConnections()
+
+      const cbPromise = new Promise<void>(resolve => {
+        server.closeConnections(() => resolve())
+      })
+
+      await cbPromise
+    })
+
+    it('clears ports count after closeConnections()', async () => {
+      server = createServer()
+      server.listenConnections()
+
+      const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      const mockPort2 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+
+      mockSelf.__emit('message', { data: 'a', source: null, ports: [mockPort1] })
+      mockSelf.__emit('message', { data: 'b', source: null, ports: [mockPort2] })
+
+      await new Promise(r => setTimeout(r, 0))
+
+      // Verify count is 2 after closing
+      const countBefore = await new Promise<number>(resolve => {
         server.getConnections((_err, count) => resolve(count))
       })
-      expect(count).toBe(0)
+      expect(countBefore).toBe(2)
+
+      await new Promise<void>(resolve => server.closeConnections(() => resolve()))
+
+      // Verify count is 0 after closing
+      const countAfter = await new Promise<number>(resolve => {
+        server.getConnections((_err, count) => resolve(count))
+      })
+      expect(countAfter).toBe(0)
     })
 
     it('does nothing when no connections', () => {
       server = createServer()
-      server.listen(() => {})
+      server.listenConnections()
 
       // Should not throw
-      expect(() => server.closeAllConnections()).not.toThrow()
+      expect(() => server.closeConnections()).not.toThrow()
     })
   })
 
-  describe('close() with ports', () => {
-    it('closes all ports on close()', async () => {
+  describe('close() with stopConnectionListening', () => {
+    it('calls closeConnections when stopConnectionListening is true', async () => {
       server = createServer()
-      server.listen(() => {})
+      server.listen(() => {}, { enableListenConnections: true })
 
       const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
       mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
 
       await new Promise(r => setTimeout(r, 0))
 
+      await new Promise<void>(resolve => server.close(() => resolve(), true))
+
+      // closeConnections was called - message handler removed and ports closed
+      expect(mockSelf.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function))
+      expect(mockPort.close).toHaveBeenCalled()
+    })
+
+    it('does not call closeConnections when stopConnectionListening is false', async () => {
+      server = createServer()
+      server.listen(() => {}, { enableListenConnections: true })
+
+      const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
+
+      await new Promise(r => setTimeout(r, 0))
+
+      await new Promise<void>(resolve => server.close(() => resolve(), false))
+
+      // closeConnections was NOT called - message handler not removed
+      expect(mockSelf.removeEventListener).not.toHaveBeenCalledWith('message', expect.any(Function))
+    })
+
+    it('does not call closeConnections by default', async () => {
+      server = createServer()
+      server.listen(() => {}, { enableListenConnections: true })
+
       await new Promise<void>(resolve => server.close(() => resolve()))
+
+      // closeConnections was NOT called
+      expect(mockSelf.removeEventListener).not.toHaveBeenCalledWith('message', expect.any(Function))
+    })
+  })
+
+  describe('close() with ports and stopConnectionListening=true', () => {
+    it('closes all ports on close() with stopConnectionListening=true', async () => {
+      server = createServer()
+      server.listen(() => {}, { enableListenConnections: true })
+
+      const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
+
+      await new Promise(r => setTimeout(r, 0))
+
+      await new Promise<void>(resolve => server.close(() => resolve(), true))
 
       expect(mockPort.close).toHaveBeenCalled()
     })
 
-    it('clears ports count after close()', async () => {
+    it('clears ports count after close() with stopConnectionListening=true', async () => {
       server = createServer()
-      server.listen(() => {})
+      server.listen(() => {}, { enableListenConnections: true })
 
       const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
       const mockPort2 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
@@ -889,8 +1060,8 @@ describe('SvcWorkerServer', () => {
       })
       expect(countBefore).toBe(2)
 
-      // Close server
-      await new Promise<void>(resolve => server.close(() => resolve()))
+      // Close server with stopConnectionListening=true
+      await new Promise<void>(resolve => server.close(() => resolve(), true))
 
       // Verify ports are cleared
       const countAfter = await new Promise<number>(resolve => {
