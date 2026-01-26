@@ -55,10 +55,10 @@ export interface ListenOptions {
 }
 
 /**
- * Connection event payload for MessageChannel connections.
+ * Connection event payload for {@link MessageChannel} connections.
  *
  * This interface represents a connection event that is emitted when a client
- * sends a message with MessagePorts (typically for establishing a MessageChannel connection).
+ * sends a message with {@link MessagePort | MessagePorts} (typically for establishing a MessageChannel connection).
  *
  * @typeParam T - The type of the message data. Defaults to `unknown`.
  *
@@ -148,7 +148,7 @@ export interface SvcWorkerServer<MessageData = unknown>
    * Start a server listening for service worker fetch events
    *
    * When the service worker fetch event handler is bound, the 'listening' event will be emitted.
-   * And server will be started to accept {@link MessageChannel} port via `message` events from clients.
+   * And server will be started to accept {@link MessageChannel} ports via `message` events from clients.
    *
    * @param handler - A fetch event handler
    * @param options - Options for listening
@@ -160,7 +160,7 @@ export interface SvcWorkerServer<MessageData = unknown>
   ): SvcWorkerServer<MessageData>
 
   /**
-   * Stops the server from accepting new fetch event and keeps existing {@link MessageChannel} port connections
+   * Stops the server from accepting new fetch event and close {@link MessageChannel} port connections
    *
    * When it will be finished, the optional callback `fn` will be called, and trigger 'close' event.
    *
@@ -189,18 +189,12 @@ export interface SvcWorkerServer<MessageData = unknown>
   closeAllConnections(): void
 
   /**
-   * Closes all {@link MessageChannel} port connections connected to this server which are not sending a request
-   * or waiting for a response.
-   */
-  closeIdleConnections(): void
-
-  /**
-   * Symbol.dispose for `using` syntax support (TypeScript 5.2+)
+   * `Symbol.dispose` for `using` syntax support (TypeScript 5.2+)
    */
   [Symbol.dispose](): void
 
   /**
-   * Calls close() and returns a promise that fulfills when the server has closed.
+   * Calls `close()` and returns a promise that fulfills when the server has closed.
    */
   [Symbol.asyncDispose](): Promise<void>
 }
@@ -238,6 +232,8 @@ export function createSvcWorkerServer<MessageData = unknown>(
   const _emitter = Emitter<SvcWorkerServerEventMap<MessageData>>()
   const _svcWorker: SvcWorker = createSvcWorker(self, options)
   const _options = options
+
+  const _ports: Set<MessagePort> = new Set()
 
   let _listening = false
   let _fetchHandler: ((event: FetchEvent) => void) | null = null
@@ -310,6 +306,11 @@ export function createSvcWorkerServer<MessageData = unknown>(
     _messageHandler = (event: ExtendableMessageEvent) => {
       // Only emit connection event when ports are present
       if (event.ports && event.ports.length > 0) {
+        // Register ports to the Set
+        for (const port of event.ports) {
+          _ports.add(port)
+        }
+
         const clientId = (event.source as Client | null)?.id
         const connectionEvent: ConnectionEvent<MessageData> = {
           ports: event.ports,
@@ -399,6 +400,9 @@ export function createSvcWorkerServer<MessageData = unknown>(
       _messageHandler = null
     }
 
+    // Close all MessagePort connections
+    closeAllConnections()
+
     // Clear handler reference
     _fetchHandler = null
 
@@ -406,7 +410,6 @@ export function createSvcWorkerServer<MessageData = unknown>(
     _listening = false
 
     // Emit callback and 'close' event (async)
-    // NOTE: MessageChannel sessions are not closed (as per requirements)
     queueMicrotask(() => {
       cb?.()
       _emitter.emit('close')
@@ -423,17 +426,15 @@ export function createSvcWorkerServer<MessageData = unknown>(
   function getConnections(
     cb: (error: Error | null, count: number) => void
   ): SvcWorkerServer<MessageData> {
-    // TODO: implement
-    cb(null, 0)
+    queueMicrotask(() => cb(null, _ports.size))
     return instance
   }
 
   function closeAllConnections(): void {
-    // TODO: implement
-  }
-
-  function closeIdleConnections(): void {
-    // TODO: implement
+    for (const port of _ports) {
+      port.close()
+    }
+    _ports.clear()
   }
 
   function dispose(): void {
@@ -463,7 +464,6 @@ export function createSvcWorkerServer<MessageData = unknown>(
     address,
     getConnections,
     closeAllConnections,
-    closeIdleConnections,
     [Symbol.dispose]: dispose,
     [Symbol.asyncDispose]: asyncDispose
   }

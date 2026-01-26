@@ -781,4 +781,122 @@ describe('SvcWorkerServer', () => {
       expect(receivedEvent.ports[1]).toBe(mockPort2)
     })
   })
+
+  describe('getConnections()', () => {
+    it('returns 0 when no connections', async () => {
+      server = createServer()
+      server.listen(() => {})
+
+      const count = await new Promise<number>(resolve => {
+        server.getConnections((_err, count) => resolve(count))
+      })
+      expect(count).toBe(0)
+    })
+
+    it('returns correct count after connections', async () => {
+      server = createServer()
+      server.listen(() => {})
+
+      // Create mock ports
+      const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      const mockPort2 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+
+      // Emit connection events
+      mockSelf.__emit('message', { data: 'a', source: null, ports: [mockPort1] })
+      mockSelf.__emit('message', { data: 'b', source: null, ports: [mockPort2] })
+
+      await new Promise(r => setTimeout(r, 0))
+
+      const count = await new Promise<number>(resolve => {
+        server.getConnections((_err, count) => resolve(count))
+      })
+      expect(count).toBe(2)
+    })
+
+    it('returns this for chaining', () => {
+      server = createServer()
+      server.listen(() => {})
+
+      const result = server.getConnections(() => {})
+      expect(result).toBe(server)
+    })
+  })
+
+  describe('closeAllConnections()', () => {
+    it('closes all connected ports', async () => {
+      server = createServer()
+      server.listen(() => {})
+
+      const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      const mockPort2 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+
+      mockSelf.__emit('message', { data: 'a', source: null, ports: [mockPort1] })
+      mockSelf.__emit('message', { data: 'b', source: null, ports: [mockPort2] })
+
+      await new Promise(r => setTimeout(r, 0))
+
+      server.closeAllConnections()
+
+      expect(mockPort1.close).toHaveBeenCalled()
+      expect(mockPort2.close).toHaveBeenCalled()
+
+      // Verify count is 0 after closing
+      const count = await new Promise<number>(resolve => {
+        server.getConnections((_err, count) => resolve(count))
+      })
+      expect(count).toBe(0)
+    })
+
+    it('does nothing when no connections', () => {
+      server = createServer()
+      server.listen(() => {})
+
+      // Should not throw
+      expect(() => server.closeAllConnections()).not.toThrow()
+    })
+  })
+
+  describe('close() with ports', () => {
+    it('closes all ports on close()', async () => {
+      server = createServer()
+      server.listen(() => {})
+
+      const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
+
+      await new Promise(r => setTimeout(r, 0))
+
+      await new Promise<void>(resolve => server.close(() => resolve()))
+
+      expect(mockPort.close).toHaveBeenCalled()
+    })
+
+    it('clears ports count after close()', async () => {
+      server = createServer()
+      server.listen(() => {})
+
+      const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+      const mockPort2 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
+
+      mockSelf.__emit('message', { data: 'a', source: null, ports: [mockPort1] })
+      mockSelf.__emit('message', { data: 'b', source: null, ports: [mockPort2] })
+
+      await new Promise(r => setTimeout(r, 0))
+
+      // Verify ports are registered
+      const countBefore = await new Promise<number>(resolve => {
+        server.getConnections((_err, count) => resolve(count))
+      })
+      expect(countBefore).toBe(2)
+
+      // Close server
+      await new Promise<void>(resolve => server.close(() => resolve()))
+
+      // Verify ports are cleared
+      const countAfter = await new Promise<number>(resolve => {
+        server.getConnections((_err, count) => resolve(count))
+      })
+      expect(countAfter).toBe(0)
+    })
+  })
 })
