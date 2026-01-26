@@ -30,6 +30,10 @@ interface MockServiceWorkerGlobalScope {
     active: { scriptURL: string } | null
   }
   location: { href: string }
+  addEventListener: Mock
+  removeEventListener: Mock
+  __emit: (type: string, event: unknown) => void
+  __getListeners: (type: string) => Set<Function>
 }
 
 // Create SvcWorker mock
@@ -69,13 +73,25 @@ function createMockSvcWorker(options?: {
 function createMockServiceWorkerGlobalScope(): MockServiceWorkerGlobalScope {
   // Since validServiceWorkerState throws errors for all states,
   // self passed to constructor must have all null values
+  const listeners: Map<string, Set<Function>> = new Map()
   return {
     registration: {
       installing: null,
       waiting: null,
       active: null
     },
-    location: { href: 'https://example.com/sw.js' }
+    location: { href: 'https://example.com/sw.js' },
+    addEventListener: vi.fn((type: string, handler: Function) => {
+      if (!listeners.has(type)) listeners.set(type, new Set())
+      listeners.get(type)!.add(handler)
+    }),
+    removeEventListener: vi.fn((type: string, handler: Function) => {
+      listeners.get(type)?.delete(handler)
+    }),
+    __emit: (type: string, event: unknown) => {
+      listeners.get(type)?.forEach(fn => fn(event))
+    },
+    __getListeners: (type: string) => listeners.get(type) || new Set()
   }
 }
 
@@ -543,6 +559,90 @@ describe('SvcWorkerServer', () => {
       // Verify clients.claim() was NOT called
       expect(mockEvent.waitUntil).not.toHaveBeenCalled()
       expect(mockSvcWorker.clients.claim).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('message event passthrough', () => {
+    it('registers message handler on self when listen() is called', () => {
+      server = createServer()
+      server.listen(() => {})
+
+      expect(mockSelf.addEventListener).toHaveBeenCalledWith('message', expect.any(Function))
+    })
+
+    it('emits message event when self receives message', async () => {
+      server = createServer()
+
+      const messagePromise = new Promise<ExtendableMessageEvent>(resolve => {
+        server.on('message', resolve)
+      })
+
+      server.listen(() => {})
+
+      // Create mock ExtendableMessageEvent
+      const mockMessageEvent = {
+        data: { type: 'test', payload: 'hello' },
+        source: null,
+        ports: []
+      } as unknown as ExtendableMessageEvent
+
+      // Emit message event on self
+      mockSelf.__emit('message', mockMessageEvent)
+
+      const receivedEvent = await messagePromise
+      expect(receivedEvent).toBe(mockMessageEvent)
+      expect(receivedEvent.data).toEqual({ type: 'test', payload: 'hello' })
+    })
+
+    it('removes message handler on close()', async () => {
+      server = createServer()
+      server.listen(() => {})
+
+      await new Promise<void>(resolve => server.close(() => resolve()))
+
+      expect(mockSelf.removeEventListener).toHaveBeenCalledWith('message', expect.any(Function))
+    })
+
+    it('does not emit message event after close()', async () => {
+      server = createServer()
+
+      let messageReceived = false
+      server.on('message', () => {
+        messageReceived = true
+      })
+
+      server.listen(() => {})
+      await new Promise<void>(resolve => server.close(() => resolve()))
+
+      // Emit message event after close
+      const mockMessageEvent = { data: 'test' } as unknown as ExtendableMessageEvent
+      mockSelf.__emit('message', mockMessageEvent)
+
+      await new Promise(r => setTimeout(r, 0))
+      expect(messageReceived).toBe(false)
+    })
+
+    it('can receive multiple message events', async () => {
+      server = createServer()
+
+      const messages: ExtendableMessageEvent[] = []
+      server.on('message', event => {
+        messages.push(event)
+      })
+
+      server.listen(() => {})
+
+      // Emit multiple messages
+      mockSelf.__emit('message', { data: 'first' } as unknown as ExtendableMessageEvent)
+      mockSelf.__emit('message', { data: 'second' } as unknown as ExtendableMessageEvent)
+      mockSelf.__emit('message', { data: 'third' } as unknown as ExtendableMessageEvent)
+
+      await new Promise(r => setTimeout(r, 0))
+
+      expect(messages).toHaveLength(3)
+      expect(messages[0].data).toBe('first')
+      expect(messages[1].data).toBe('second')
+      expect(messages[2].data).toBe('third')
     })
   })
 })

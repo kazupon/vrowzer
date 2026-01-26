@@ -55,15 +55,51 @@ export interface ListenOptions {
 }
 
 /**
+ * Type-safe message event with generic data type.
+ *
+ * This interface extends {@link ExtendableMessageEvent} but overrides the `data` property
+ * with a generic type parameter for type safety.
+ *
+ * @typeParam T - The type of the message data. Defaults to `unknown`.
+ *
+ * @example
+ * ```ts
+ * interface MyMessage {
+ *   type: 'greeting' | 'farewell'
+ *   payload: string
+ * }
+ *
+ * const server = createSvcWorkerServer<MyMessage>(self, options)
+ * server.on('message', (event) => {
+ *   // event.data is typed as MyMessage
+ *   console.log(event.data.type, event.data.payload)
+ * })
+ * ```
+ */
+export interface TypedExtendableMessageEvent<T = unknown> extends ExtendableMessageEvent {
+  /**
+   * The message data with type safety.
+   */
+  readonly data: T
+}
+
+/**
  * Event map for {@link SvcWorkerServer}.
  *
  * This type defines the payload types for each event.
+ *
+ * @typeParam MessageData - The type of the message data for the `message` event. Defaults to `unknown`.
  */
-export type SvcWorkerServerEventMap = {
+export type SvcWorkerServerEventMap<MessageData = unknown> = {
   /**
    * Emitted when the server starts listening for fetch events.
    */
   listening: void
+  /**
+   * Emitted when a message is received from the client.
+   * This is a passthrough of the Service Worker's message event with type-safe data.
+   */
+  message: TypedExtendableMessageEvent<MessageData>
   /**
    * Emitted when the server is closed.
    */
@@ -84,9 +120,11 @@ const DEFAULT_ACTIVATE_TIMEOUT = 30000
  *
  * This interface has like Node.js HTTP Server interfaces.
  * This will be used as server that runs within a Service Worker environment.
+ *
+ * @typeParam MessageData - The type of the message data for the `message` event. Defaults to `unknown`.
  */
-export interface SvcWorkerServer
-  extends Emittable<SvcWorkerServerEventMap>, Disposable, AsyncDisposable {
+export interface SvcWorkerServer<MessageData = unknown>
+  extends Emittable<SvcWorkerServerEventMap<MessageData>>, Disposable, AsyncDisposable {
   /**
    * The current state of the server
    */
@@ -102,7 +140,10 @@ export interface SvcWorkerServer
    * @param options - Options for listening
    * @returns The server instance
    */
-  listen(handler: (event: FetchEvent) => void, options?: ListenOptions): SvcWorkerServer
+  listen(
+    handler: (event: FetchEvent) => void,
+    options?: ListenOptions
+  ): SvcWorkerServer<MessageData>
 
   /**
    * Stops the server from accepting new fetch event and keeps existing {@link MessageChannel} port connections
@@ -112,7 +153,7 @@ export interface SvcWorkerServer
    * @param cb - An optional callback function which will be called when the server is closed
    * @returns The server instance
    */
-  close(cb?: (err?: Error) => void): SvcWorkerServer
+  close(cb?: (err?: Error) => void): SvcWorkerServer<MessageData>
 
   /**
    * Returns the bound service worker address
@@ -126,7 +167,7 @@ export interface SvcWorkerServer
   /**
    * Asynchronously get the number of concurrent {@link MessageChannel} port connections on the server.
    */
-  getConnections(cb: (error: Error | null, count: number) => void): SvcWorkerServer
+  getConnections(cb: (error: Error | null, count: number) => void): SvcWorkerServer<MessageData>
 
   /**
    * Closes all {@link MessageChannel} port connections connected to this server.
@@ -153,15 +194,30 @@ export interface SvcWorkerServer
 /**
  * Create a {@link SvcWorkerServer | Service worker server} instance.
  *
+ * @typeParam MessageData - The type of the message data for the `message` event. Defaults to `unknown`.
  * @param self - The {@link ServiceWorkerGlobalScope} instance (typically `self` in a service worker)
  * @param options - {@link SvcWorkerServerOptions | Service worker server options}
  * @returns {@link SvcWorkerServer | Service worker server instance}
+ *
+ * @example
+ * ```ts
+ * interface MyMessage {
+ *   type: 'greeting' | 'farewell'
+ *   payload: string
+ * }
+ *
+ * const server = createSvcWorkerServer<MyMessage>(self, { version: '1.0.0' })
+ * server.on('message', (event) => {
+ *   // event.data is typed as MyMessage
+ *   console.log(event.data.type, event.data.payload)
+ * })
+ * ```
  */
-export function createSvcWorkerServer(
+export function createSvcWorkerServer<MessageData = unknown>(
   self: ServiceWorkerGlobalScope,
   options: SvcWorkerServerOptions
-): SvcWorkerServer {
-  const _emitter = createEmitter<SvcWorkerServerEventMap>()
+): SvcWorkerServer<MessageData> {
+  const _emitter = createEmitter<SvcWorkerServerEventMap<MessageData>>()
   const _svcWorker: SvcWorker = createSvcWorker(self, options)
   const _options = options
 
@@ -170,6 +226,7 @@ export function createSvcWorkerServer(
   let _boundFetchHandler: ((event: FetchEvent) => void) | null = null
   let _activateHandler: ((event: ExtendableEvent) => void) | null = null
   let _activateTimeoutId: ReturnType<typeof setTimeout> | null = null
+  let _messageHandler: ((event: ExtendableMessageEvent) => void) | null = null
 
   /**
    * Cleanup activate waiting state (timeout and handler)
@@ -188,7 +245,7 @@ export function createSvcWorkerServer(
   function listen(
     handler: (event: FetchEvent) => void,
     listenOptions?: ListenOptions
-  ): SvcWorkerServer {
+  ): SvcWorkerServer<MessageData> {
     // Prevent double listen
     if (_listening) {
       queueMicrotask(() =>
@@ -230,6 +287,12 @@ export function createSvcWorkerServer(
     // Service Workers require fetch event listeners to be added during the initial
     // script execution, not asynchronously during event callbacks.
     _svcWorker.addEventListener('fetch', _boundFetchHandler)
+
+    // Register message handler to passthrough message events
+    _messageHandler = (event: ExtendableMessageEvent) => {
+      _emitter.emit('message', event)
+    }
+    self.addEventListener('message', _messageHandler)
 
     // Check activated state
     const sw = _svcWorker as unknown as ServiceWorkerGlobalScope
@@ -283,7 +346,7 @@ export function createSvcWorkerServer(
     return instance
   }
 
-  function close(cb?: (err?: Error) => void): SvcWorkerServer {
+  function close(cb?: (err?: Error) => void): SvcWorkerServer<MessageData> {
     // Emit callback and 'close' event even if not listening
     if (!_listening) {
       queueMicrotask(() => {
@@ -300,6 +363,12 @@ export function createSvcWorkerServer(
     if (_boundFetchHandler) {
       _svcWorker.removeEventListener('fetch', _boundFetchHandler)
       _boundFetchHandler = null
+    }
+
+    // Remove message event listener
+    if (_messageHandler) {
+      self.removeEventListener('message', _messageHandler)
+      _messageHandler = null
     }
 
     // Clear handler reference
@@ -323,7 +392,9 @@ export function createSvcWorkerServer(
     return null
   }
 
-  function getConnections(cb: (error: Error | null, count: number) => void): SvcWorkerServer {
+  function getConnections(
+    cb: (error: Error | null, count: number) => void
+  ): SvcWorkerServer<MessageData> {
     // TODO: implement
     cb(null, 0)
     return instance
@@ -353,7 +424,7 @@ export function createSvcWorkerServer(
     })
   }
 
-  const instance: SvcWorkerServer = {
+  const instance: SvcWorkerServer<MessageData> = {
     ..._emitter,
     get state(): SvcWorkerServerState {
       // TODO:
