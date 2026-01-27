@@ -62,7 +62,10 @@ export default defineConfig({
         extends: './packages/vite-dev-server/vitest.config.ts',
         test: {
           name: 'vite-dev-server:unit',
-          include: ['./packages/vite-dev-server/src/**/*.browser-test.ts'],
+          include: [
+            './packages/vite-dev-server/src/**/*.browser-test.ts',
+            './packages/vite-dev-server/src/**/*.test.ts'
+          ],
           browser: {
             enabled: true,
             headless: true,
