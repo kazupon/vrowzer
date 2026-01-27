@@ -79,6 +79,7 @@
     "@kazupon/jts-utils": "catalog:",
     "@vrowser/service-worker": "workspace:*",
     "@vrowser/service-worker-server": "workspace:*",
+    "nanoid": "^5.1.6",
     "rolldown": "catalog:"
   },
   "devDependencies": {
