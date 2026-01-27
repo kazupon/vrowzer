@@ -76,6 +76,7 @@
   "dependencies": {
     "hono": "^4.7.10",
     "obug": "^1.0.2",
+    "@kazupon/jts-utils": "catalog:",
     "@vrowser/service-worker": "workspace:*",
     "@vrowser/service-worker-server": "workspace:*",
     "rolldown": "catalog:"

@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@kazupon/jts-utils':
-      specifier: ^0.14.0
-      version: 0.14.0
+      specifier: ^0.14.1
+      version: 0.14.1
     '@playwright/test':
       specifier: 1.57.0
       version: 1.57.0
@@ -299,7 +299,7 @@ importers:
     devDependencies:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.14.0(@vue/reactivity@3.5.26)
+        version: 0.14.1(@vue/reactivity@3.5.26)
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.57.0
@@ -329,7 +329,7 @@ importers:
     dependencies:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.14.0(@vue/reactivity@3.5.26)
+        version: 0.14.1(@vue/reactivity@3.5.26)
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -410,6 +410,9 @@ importers:
 
   packages/vite-dev-server:
     dependencies:
+      '@kazupon/jts-utils':
+        specifier: 'catalog:'
+        version: 0.14.1(@vue/reactivity@3.5.26)
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -1173,8 +1176,8 @@ packages:
     peerDependencies:
       eslint: ^9.0.0
 
-  '@kazupon/jts-utils@0.14.0':
-    resolution: {integrity: sha512-7VgsG8Q60akqIjkAeTtRllE+U6J0EVnOcAsmp8Rc2Wl29vQERLyoumUoCjxe1kiS3qSk3ayGqknIddl4t4swmw==}
+  '@kazupon/jts-utils@0.14.1':
+    resolution: {integrity: sha512-paMyGjw/daIDRs6WkGNsUSh/8TdoYGfpvz6rXca6NPWFSRi07A/rcBp+Ahsei4BUKXosKS8u+zT65/WIXRN9Lg==}
     engines: {node: '>= 20'}
     peerDependencies:
       '@vue/reactivity': ^3.4
@@ -6205,7 +6208,7 @@ snapshots:
       '@eslint/core': 0.17.0
       eslint: 9.39.2(jiti@2.6.1)
 
-  '@kazupon/jts-utils@0.14.0(@vue/reactivity@3.5.26)':
+  '@kazupon/jts-utils@0.14.1(@vue/reactivity@3.5.26)':
     optionalDependencies:
       '@vue/reactivity': 3.5.26
 
