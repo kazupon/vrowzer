@@ -757,6 +757,7 @@ export function createServer(
 
   // Pre applied internal middlewares ------------------------------------------
 
+  // request timer
   if (import.meta.env.DEBUG) {
     middlewares.use('*', timeMiddleware(root))
   }
