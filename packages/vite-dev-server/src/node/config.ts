@@ -135,8 +135,39 @@ export interface InlineConfig extends UserConfig {
   forceOptimizeDeps?: boolean
 }
 
-export interface ResolvedConfig extends UserConfig {
-  // TODO: fill in later
-}
+export interface ResolvedConfig extends Readonly<
+  Omit<
+    UserConfig,
+    | 'plugins'
+    | 'css'
+    | 'json'
+    | 'assetsInclude'
+    | 'optimizeDeps'
+    | 'worker'
+    | 'build'
+    | 'dev'
+    | 'environments'
+    | 'experimental'
+    | 'future'
+    | 'server'
+    | 'preview'
+  > & {
+    // TODO: fill in later
 
-// ...
+    root: string
+    base: string
+
+    // TODO: fill in later
+
+    /** @internal */
+    rawBase: string
+
+    // TODO: fill in later
+  }
+> { }
+
+// export interface ResolvedConfig extends UserConfig {
+//   // TODO: fill in later
+// }
+
+// TODO: fill in later

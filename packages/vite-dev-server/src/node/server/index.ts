@@ -37,6 +37,7 @@ import { createMessageChannelServer } from './ws'
 
 // TODO: fill in code later ...
 
+import { baseMiddleware } from './middlewares/base'
 import { timeMiddleware } from './middlewares/time'
 
 // TODO: fill in code later ...
@@ -200,7 +201,10 @@ export interface ViteEnv extends Env {
   // Bindings available throughout the request lifecycle
   Bindings: {}
   // Variables set during request processing
-  Variables: {}
+  Variables: {
+    /** Rewritten URL after base stripping (set by baseMiddleware) */
+    rewrittenUrl?: string
+  }
 }
 
 // TODO: enable later ...
@@ -447,7 +451,7 @@ export interface CreateServerOptions {
 
 export function createServer(
   serviceWorkerScope: ServiceWorkerGlobalScope,
-  inlineConfig: InlineConfig | ResolvedConfig = {},
+  inlineConfig: InlineConfig | ResolvedConfig = { base: '/' },
   options: CreateServerOptions = {},
 ): ViteDevServer {
   // TOOD: implement for config resolving and etc ...
@@ -760,6 +764,17 @@ export function createServer(
   // request timer
   if (import.meta.env.DEBUG) {
     middlewares.use('*', timeMiddleware(root))
+  }
+
+  // apply configureServer hooks ------------------------------------------------
+
+  // TODO: setup for configureServer hooks
+
+  // Internal middlewares ------------------------------------------------------
+
+  // base
+  if (config.base !== '/') {
+    middlewares.use('*', baseMiddleware(config.rawBase, !!middlewareMode))
   }
 
   // TODO: setup internal middlewares

@@ -12,6 +12,22 @@ import { FS_PREFIX } from './constants'
 
 // TODO: fill in code later ...
 
+const postfixRE = /[?#].*$/
+export function cleanUrl(url: string): string {
+  return url.replace(postfixRE, '')
+}
+
+// TODO: fill in code later ...
+
+export function withTrailingSlash(path: string): string {
+  if (path[path.length - 1] !== '/') {
+    return `${path}/`
+  }
+  return path
+}
+
+// TODO: fill in code later ...
+
 // set in bin/vite.js
 // NOTE(kazupon): for browser env, we use import.meta.env
 // const filter = process.env.VITE_DEBUG_FILTER
@@ -105,6 +121,31 @@ export function timeFrom(start: number, subtract = 0): string {
   const time = performance.now() - start - subtract
   const timeString = `${time.toFixed(2)}ms`.padEnd(5, ' ')
   return timeString
+}
+
+// TODO: fill in code later ...
+
+export function joinUrlSegments(a: string, b: string): string {
+  if (!a || !b) {
+    return a || b || ''
+  }
+  if (a.endsWith('/')) {
+    a = a.substring(0, a.length - 1)
+  }
+  if (b[0] !== '/') {
+    b = '/' + b
+  }
+  return a + b
+}
+
+// TODO: fill in code later ...
+
+export function stripBase(path: string, base: string): string {
+  if (path === base) {
+    return '/'
+  }
+  const devBase = withTrailingSlash(base)
+  return path.startsWith(devBase) ? path.slice(devBase.length - 1) : path
 }
 
 // TODO: fill in code later ...
