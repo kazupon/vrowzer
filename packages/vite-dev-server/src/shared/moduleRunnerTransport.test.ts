@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMessageChannelModuleRunnerTransport } from './moduleRunnerTransport'
+import {
+  createMessageChannelModuleRunnerTransport,
+  normalizeModuleRunnerTransport,
+} from './moduleRunnerTransport'
+
+import type { ModuleRunnerTransport } from './moduleRunnerTransport'
 
 describe('createMessageChannelModuleRunnerTransport', () => {
   let mockPort1PostMessage: ReturnType<typeof vi.fn>
@@ -69,7 +74,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('creates MessageChannel and transfers port2 via postMessage', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -94,7 +99,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('waits for connect confirmation message and resolves', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 500,
         pingInterval: 0,
       })
@@ -119,7 +124,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('rejects on timeout', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 50,
         pingInterval: 0,
       })
@@ -136,7 +141,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       const mockPostMessage = vi.fn()
       const onMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -161,7 +166,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       const onMessage = vi.fn()
       const onDisconnection = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -190,7 +195,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       const mockPostMessage = vi.fn()
       const onMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -214,7 +219,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('uses custom targetOrigin when provided', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         targetOrigin: 'https://example.com',
         pingInterval: 0,
@@ -240,7 +245,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('closes the port', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -262,7 +267,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       vi.useFakeTimers()
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 1000,
       })
@@ -295,7 +300,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('posts message to the port', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -317,7 +322,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('does nothing if port is undefined (before connect)', () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -334,7 +339,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       vi.useFakeTimers()
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 1000,
       })
@@ -363,7 +368,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       vi.useFakeTimers()
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-        
+
         timeout: 100,
         pingInterval: 0,
       })
@@ -383,6 +388,276 @@ describe('createMessageChannelModuleRunnerTransport', () => {
 
       transport.disconnect()
       vi.useRealTimers()
+    })
+  })
+})
+
+describe('normalizeModuleRunnerTransport', () => {
+  describe('connect()', () => {
+    it('calls transport.connect with handlers', async () => {
+      const mockConnect = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+      const onMessage = vi.fn()
+
+      await normalized.connect!(onMessage)
+
+      expect(mockConnect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          onMessage: expect.any(Function),
+          onDisconnection: expect.any(Function),
+        })
+      )
+    })
+
+    it('does nothing if already connected', async () => {
+      const mockConnect = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      await normalized.connect!()
+      await normalized.connect!()
+
+      expect(mockConnect).toHaveBeenCalledTimes(1)
+    })
+
+    it('waits for connecting promise if already connecting', async () => {
+      let resolveConnect: () => void
+      const connectPromise = new Promise<void>((resolve) => {
+        resolveConnect = resolve
+      })
+      const mockConnect = vi.fn().mockReturnValue(connectPromise)
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      const promise1 = normalized.connect!()
+      const promise2 = normalized.connect!()
+
+      expect(mockConnect).toHaveBeenCalledTimes(1)
+
+      resolveConnect!()
+      await promise1
+      await promise2
+
+      expect(mockConnect).toHaveBeenCalledTimes(1)
+    })
+
+    it('uses empty function if onMessage is not provided', async () => {
+      const mockConnect = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      await normalized.connect!()
+
+      expect(mockConnect).toHaveBeenCalledWith({
+        onMessage: expect.any(Function),
+        onDisconnection: expect.any(Function),
+      })
+    })
+  })
+
+  describe('disconnect()', () => {
+    it('calls transport.disconnect', async () => {
+      const mockDisconnect = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: vi.fn(),
+        disconnect: mockDisconnect,
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+      await normalized.connect!()
+      await normalized.disconnect!()
+
+      expect(mockDisconnect).toHaveBeenCalled()
+    })
+
+    it('does nothing if not connected', async () => {
+      const mockDisconnect = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: vi.fn(),
+        disconnect: mockDisconnect,
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+      await normalized.disconnect!()
+
+      expect(mockDisconnect).not.toHaveBeenCalled()
+    })
+
+    it('does nothing if disconnect is called while connecting (not yet connected)', async () => {
+      let resolveConnect: () => void
+      const connectPromise = new Promise<void>((resolve) => {
+        resolveConnect = resolve
+      })
+      const mockConnect = vi.fn().mockReturnValue(connectPromise)
+      const mockDisconnect = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        disconnect: mockDisconnect,
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      const connectP = normalized.connect!()
+      // disconnect is called before connect completes, so isConnected is still false
+      await normalized.disconnect!()
+
+      // disconnect should return early because isConnected is false
+      expect(mockDisconnect).not.toHaveBeenCalled()
+
+      resolveConnect!()
+      await connectP
+
+      // Now we can disconnect properly
+      await normalized.disconnect!()
+      expect(mockDisconnect).toHaveBeenCalled()
+    })
+  })
+
+  describe('send()', () => {
+    it('calls transport.send after connect', async () => {
+      const mockSend = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: vi.fn(),
+        send: mockSend,
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+      await normalized.connect!()
+
+      const payload = { type: 'custom', event: 'test', data: {} } as any
+      await normalized.send(payload)
+
+      expect(mockSend).toHaveBeenCalledWith(payload)
+    })
+
+    it('throws error if send is called before connect', async () => {
+      const transport: ModuleRunnerTransport = {
+        connect: vi.fn(),
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      await expect(normalized.send({ type: 'ping' } as any)).rejects.toThrow(
+        'send was called before connect'
+      )
+    })
+
+    it('waits for connecting promise before sending', async () => {
+      let resolveConnect: () => void
+      const connectPromise = new Promise<void>((resolve) => {
+        resolveConnect = resolve
+      })
+      const mockConnect = vi.fn().mockReturnValue(connectPromise)
+      const mockSend = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        send: mockSend,
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      normalized.connect!()
+      const sendP = normalized.send({ type: 'ping' } as any)
+
+      expect(mockSend).not.toHaveBeenCalled()
+
+      resolveConnect!()
+      await sendP
+
+      expect(mockSend).toHaveBeenCalled()
+    })
+  })
+
+  describe('invoke()', () => {
+    it('throws error if invoke is called before connect', async () => {
+      const transport: ModuleRunnerTransport = {
+        connect: vi.fn(),
+        send: vi.fn(),
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      await expect(normalized.invoke('fetchModule', ['/test.js', ''])).rejects.toThrow(
+        'invoke was called before connect'
+      )
+    })
+
+    it('waits for connecting promise before invoking', async () => {
+      let resolveConnect: () => void
+      const connectPromise = new Promise<void>((resolve) => {
+        resolveConnect = resolve
+      })
+      const mockConnect = vi.fn().mockReturnValue(connectPromise)
+      const mockSend = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        send: mockSend,
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+
+      normalized.connect!()
+
+      // invoke will wait for connect, but will eventually timeout or fail
+      // because there's no response handler set up
+      const invokeP = normalized.invoke('fetchModule', ['/test.js', ''])
+
+      expect(mockSend).not.toHaveBeenCalled()
+
+      resolveConnect!()
+
+      // After connect resolves, send should be called with the invoke payload
+      await vi.waitFor(() => {
+        expect(mockSend).toHaveBeenCalled()
+      })
+
+      // Clean up - the invoke will timeout, so we don't await it
+    })
+  })
+
+  describe('onDisconnection callback', () => {
+    it('sets isConnected to false when onDisconnection is called', async () => {
+      let onDisconnectionCallback: () => void
+      const mockConnect = vi.fn().mockImplementation(({ onDisconnection }) => {
+        onDisconnectionCallback = onDisconnection
+      })
+      const mockSend = vi.fn()
+      const transport: ModuleRunnerTransport = {
+        connect: mockConnect,
+        send: mockSend,
+      }
+
+      const normalized = normalizeModuleRunnerTransport(transport)
+      await normalized.connect!()
+
+      // Simulate disconnection
+      onDisconnectionCallback!()
+
+      // Now send should fail because we're disconnected
+      await expect(normalized.send({ type: 'ping' } as any)).rejects.toThrow(
+        'send was called before connect'
+      )
     })
   })
 })
