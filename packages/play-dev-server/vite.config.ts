@@ -4,6 +4,9 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [vue(), ServiceWorker({ serviceWorkerAllowed: '/' })],
+  define: {
+    'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
+  },
   preview: {
     headers: {
       'Service-Worker-Allowed': '/'
