@@ -31,8 +31,7 @@ export function timeMiddleware(root: string): MiddlewareHandler<ViteEnv> {
     await next()
 
     if (logTime) {
-      const url = c.req.url
-      logTime(`${timeFrom(start)} ${prettifyUrl(url, root)}`)
+      logTime(`${timeFrom(start)} ${prettifyUrl(c.req.url, root)}`)
     }
   }
 }
