@@ -1,7 +1,14 @@
 // TODO: fill in code later ...
 
-import debug from 'obug'
 import type { Debugger } from 'obug'
+
+// TODO: fill in code later ...
+
+import debug from 'obug'
+
+// TODO: fill in code later ...
+
+import { FS_PREFIX } from './constants'
 
 // TODO: fill in code later ...
 
@@ -13,6 +20,13 @@ const filter = import.meta.env.VITE_DEBUG_FILTER
 // NOTE(kazupon): for browser env, we use import.meta.env
 // const DEBUG = process.env.DEBUG
 const DEBUG = import.meta.env.DEBUG
+
+// NOTE(kazupon): for browser env, we use `import.meta.env`
+// Initialize debug logging for Service Worker environment
+// obug cannot access `localStorage` in Service Worker, so we use `import.meta.env.DEBUG`
+if (DEBUG) {
+  debug.enable(DEBUG!)
+}
 
 interface DebuggerOptions {
   onlyWhenFocused?: boolean | string
@@ -54,6 +68,43 @@ export interface Hostname {
   host: string | undefined
   /** resolve to localhost when possible */
   name: string
+}
+
+// TOOD: fill in code later ...
+
+const timestampRE = /\bt=\d{13}&?\b/
+
+// TOOD: fill in code later ...
+
+const trailingSeparatorRE = /[?&]$/
+export function removeTimestampQuery(url: string): string {
+  return url.replace(timestampRE, '').replace(trailingSeparatorRE, '')
+}
+
+/**
+ * Pretty format URL for logging (Service Worker version - no colors)
+ */
+export function prettifyUrl(url: string, root: string): string {
+  url = removeTimestampQuery(url)
+
+  if (url.startsWith(FS_PREFIX)) {
+    return url.slice(FS_PREFIX.length)
+  }
+
+  if (url.startsWith(root)) {
+    return url.slice(root.length)
+  }
+
+  return url
+}
+
+/**
+ * Calculate and format elapsed time (Service Worker version - no colors)
+ */
+export function timeFrom(start: number, subtract = 0): string {
+  const time = performance.now() - start - subtract
+  const timeString = `${time.toFixed(2)}ms`.padEnd(5, ' ')
+  return timeString
 }
 
 // TODO: fill in code later ...

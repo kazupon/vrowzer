@@ -245,7 +245,7 @@ export interface SvcWorkerServer<MessageData = unknown>
 export function createSvcWorkerServer<MessageData = unknown>(
   self: ServiceWorkerGlobalScope,
   options: SvcWorkerServerOptions
-): Readonly<SvcWorkerServer<MessageData>> {
+): SvcWorkerServer<MessageData> {
   const _emitter = Emitter<SvcWorkerServerEventMap<MessageData>>()
   const _svcWorker: SvcWorker = createSvcWorker(self, options)
   const _options = options
@@ -508,7 +508,7 @@ export function createSvcWorkerServer<MessageData = unknown>(
     })
   }
 
-  const instance: SvcWorkerServer<MessageData> = Object.freeze({
+  const instance: SvcWorkerServer<MessageData> = {
     ..._emitter,
     get state(): SvcWorkerServerState {
       // TODO:
@@ -522,7 +522,7 @@ export function createSvcWorkerServer<MessageData = unknown>(
     getConnections,
     [Symbol.dispose]: dispose,
     [Symbol.asyncDispose]: asyncDispose
-  } as SvcWorkerServer<MessageData>)
+  } as SvcWorkerServer<MessageData>
 
   return instance
 }

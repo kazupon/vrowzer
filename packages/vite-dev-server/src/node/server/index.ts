@@ -31,8 +31,15 @@ import type { DevEnvironment } from './environment'
 // ...
 
 import type { HmrOptions } from './hmr'
+import type { MessageChannelServer } from './ws'
 
-// ...
+import { createMessageChannelServer } from './ws'
+
+// TODO: fill in code later ...
+
+import { timeMiddleware } from './middlewares/time'
+
+// TODO: fill in code later ...
 
 import { createSvcWorkerServer } from '@vrowser/service-worker-server'
 import { Hono } from 'hono'
@@ -236,7 +243,8 @@ export interface ViteDevServer {
    * native Node http server instance
    * will be null in middleware mode
    */
-  httpServer: HttpServer | null
+  // httpServer: HttpServer | null
+  httpServer: HttpServer
   /**
    * Promise that resolves when the server is fully initialized.
    *
@@ -265,6 +273,11 @@ export interface ViteDevServer {
    * https://github.com/paulmillr/chokidar/tree/3.6.0#api
    */
   watcher: FSWatcher
+  /**
+   * The MessageChannel server that sends HMR payloads to the client.
+   * This is the Service Worker equivalent of WebSocket server in standard Vite.
+   */
+  ws: MessageChannelServer
   // TODO: fill in later ...
   // ...
   /**
@@ -452,7 +465,7 @@ export function createServer(
   const middlewares = new Hono<ViteEnv, BlankSchema, '/'>().basePath(basePath)
   const httpServer = createSvcWorkerServer(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
-    claimOnActivate: !middlewareMode, // middlewareModeの場合はactivate制御をユーザーに委ねる
+    claimOnActivate: !middlewareMode, // if middlewareMode is enabled, do not claim on activate
     debug: createDebugger('vrowser:svc-worker-server')!,
   })
   const fetchHandler = handle(middlewares)
@@ -475,6 +488,9 @@ export function createServer(
 
   const closeHttpServer = createServerCloseFn(httpServer)
 
+  // Create MessageChannel server for HMR
+  const ws = createMessageChannelServer(httpServer, config)
+
   // const devHtmlTransformFn = createDevHtmlTransformFn(config)
 
   // Ready promise for async initialization
@@ -494,7 +510,7 @@ export function createServer(
 
     await Promise.allSettled([
       // watcher.close(),
-      // ws.close(),
+      ws.close(),
       // Promise.allSettled(
       //   Object.values(server.environments).map((environment) =>
       //     environment.close(),
@@ -512,9 +528,9 @@ export function createServer(
     config,
     middlewares,
     httpServer,
+    ws,
     ready: readyPromise,
     // watcher,
-    // ws,
     // get hot() {
     //   warnFutureDeprecation(config, 'removeServerHot')
     //   return hot
@@ -741,6 +757,10 @@ export function createServer(
 
   // Pre applied internal middlewares ------------------------------------------
 
+  if (import.meta.env.DEBUG) {
+    middlewares.use('*', timeMiddleware(root))
+  }
+
   // TODO: setup internal middlewares
 
   // apply configureServer post hooks ------------------------------------------
@@ -791,6 +811,7 @@ export function createServer(
     originalListen(fetchHandler, ...args)
 
       // Run async initialization in background
+      // oxlint-disable-next-line @typescript-eslint/no-floating-promises
       ; (async () => {
         try {
           await initServer(true)
