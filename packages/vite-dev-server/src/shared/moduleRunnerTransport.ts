@@ -1,4 +1,5 @@
 // TODO: fill in later ...
+
 import type { CustomPayload, HotPayload } from '#types/hmrPayload'
 import { safeMessagePort } from '@kazupon/jts-utils/message/port'
 import { nanoid } from 'nanoid/non-secure'
