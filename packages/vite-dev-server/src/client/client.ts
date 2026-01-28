@@ -335,13 +335,9 @@ async function handleMessage(payload: HotPayload) {
       await hmrClient.notifyListeners(payload.event, payload.data)
       if (payload.event === 'vite:ws:disconnect') {
         if (hasDocument && !willUnload) {
-          console.log(`[vrowser] server connection lost. Polling for restart...`)
+          console.log(`[vrowser] server connection lost. Reloading...`)
           // NOTE(kazupon): for console log for vrowser
-          // console.log(`[vite] server connection lost. Polling for restart...`)
-          const socket = payload.data.webSocket as WebSocket
-          const url = new URL(socket.url)
-          url.search = '' // remove query string including `token`
-          await waitForSuccessfulPing(url.href)
+          // console.log(`[vite] server connection lost. Reloading...`)
           location.reload()
         }
       }
@@ -417,183 +413,189 @@ function hasErrorOverlay() {
   return document.querySelectorAll(overlayId).length
 }
 
-function waitForSuccessfulPing(socketUrl: string) {
-  if (typeof SharedWorker === 'undefined') {
-    const visibilityManager: VisibilityManager = {
-      currentState: document.visibilityState,
-      listeners: new Set(),
-    }
-    const onVisibilityChange = () => {
-      visibilityManager.currentState = document.visibilityState
-      for (const listener of visibilityManager.listeners) {
-        listener(visibilityManager.currentState)
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    return waitForSuccessfulPingInternal(socketUrl, visibilityManager)
-  }
-
-  // needs to be inlined to
-  //   - load the worker after the server is closed
-  //   - make it work with backend integrations
-  const blob = new Blob(
-    [
-      '"use strict";',
-      `const waitForSuccessfulPingInternal = ${waitForSuccessfulPingInternal.toString()};`,
-      `const fn = ${pingWorkerContentMain.toString()};`,
-      `fn(${JSON.stringify(socketUrl)})`,
-    ],
-    { type: 'application/javascript' },
-  )
-  const objURL = URL.createObjectURL(blob)
-  const sharedWorker = new SharedWorker(objURL)
-  return new Promise<void>((resolve, reject) => {
-    const onVisibilityChange = () => {
-      sharedWorker.port.postMessage({ visibility: document.visibilityState })
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-
-    sharedWorker.port.addEventListener('message', (event) => {
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-      sharedWorker.port.close()
-
-      const data: { type: 'success' } | { type: 'error'; error: unknown } =
-        event.data
-      if (data.type === 'error') {
-        reject(data.error)
-        return
-      }
-      resolve()
-    })
-
-    onVisibilityChange()
-    sharedWorker.port.start()
-  })
-}
-
-type VisibilityManager = {
-  currentState: DocumentVisibilityState
-  listeners: Set<(newVisibility: DocumentVisibilityState) => void>
-}
-
-function pingWorkerContentMain(socketUrl: string) {
-  self.addEventListener('connect', (_event) => {
-    const event = _event as MessageEvent
-    // NOTE(kazupon): port[0] is always exist in SharedWorker
-    const port = event.ports[0]!
-
-    if (!socketUrl) {
-      port.postMessage({
-        type: 'error',
-        error: new Error('socketUrl not found'),
-      })
-      return
-    }
-
-    const visibilityManager: VisibilityManager = {
-      currentState: 'visible',
-      listeners: new Set(),
-    }
-    port.addEventListener('message', (event) => {
-      const { visibility } = event.data
-      visibilityManager.currentState = visibility
-      console.debug('[vrowser] new window visibility', visibility)
-      // NOTE(kazupon): for console debug for vite
-      // console.debug('[vite] new window visibility', visibility)
-      for (const listener of visibilityManager.listeners) {
-        listener(visibility)
-      }
-    })
-    port.start()
-
-    console.debug('[vite] connected from window')
-    waitForSuccessfulPingInternal(socketUrl, visibilityManager).then(
-      () => {
-        console.debug('[vrowser] ping successful')
-        // NOTE(kazupon): for console debug for vite
-        // console.debug('[vite] ping successful')
-        try {
-          port.postMessage({ type: 'success' })
-        } catch (error) {
-          port.postMessage({ type: 'error', error })
-        }
-      },
-      (error) => {
-        console.debug('[vrowser] error happened', error)
-        // NOTE(kazupon): for console debug for vite
-        // console.debug('[vite] error happened', error)
-        try {
-          port.postMessage({ type: 'error', error })
-        } catch (error) {
-          port.postMessage({ type: 'error', error })
-        }
-      },
-    )
-  })
-}
-
-async function waitForSuccessfulPingInternal(
-  socketUrl: string,
-  visibilityManager: VisibilityManager,
-  ms = 1000,
-) {
-  function wait(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms))
-  }
-
-  async function ping() {
-    try {
-      const socket = new WebSocket(socketUrl, 'vite-ping')
-      return new Promise<boolean>((resolve) => {
-        function onOpen() {
-          resolve(true)
-          close()
-        }
-        function onError() {
-          resolve(false)
-          close()
-        }
-        function close() {
-          socket.removeEventListener('open', onOpen)
-          socket.removeEventListener('error', onError)
-          socket.close()
-        }
-        socket.addEventListener('open', onOpen)
-        socket.addEventListener('error', onError)
-      })
-    } catch {
-      return false
-    }
-  }
-
-  function waitForWindowShow(visibilityManager: VisibilityManager) {
-    return new Promise<void>((resolve) => {
-      const onChange = (newVisibility: DocumentVisibilityState) => {
-        if (newVisibility === 'visible') {
-          resolve()
-          visibilityManager.listeners.delete(onChange)
-        }
-      }
-      visibilityManager.listeners.add(onChange)
-    })
-  }
-
-  if (await ping()) {
-    return
-  }
-  await wait(ms)
-
-  while (true) {
-    if (visibilityManager.currentState === 'visible') {
-      if (await ping()) {
-        break
-      }
-      await wait(ms)
-    } else {
-      await waitForWindowShow(visibilityManager)
-    }
-  }
-}
+//
+// NOTE(kazupon):
+// Disable original WebSocket ping/reconnect implementation,
+// because commented out codes as a context hint for sync with the original code from the forked source using the AI agent.
+// MessageChannel transport delegates reconnection to the host (Service Worker).
+//
+// function waitForSuccessfulPing(socketUrl: string) {
+//   if (typeof SharedWorker === 'undefined') {
+//     const visibilityManager: VisibilityManager = {
+//       currentState: document.visibilityState,
+//       listeners: new Set(),
+//     }
+//     const onVisibilityChange = () => {
+//       visibilityManager.currentState = document.visibilityState
+//       for (const listener of visibilityManager.listeners) {
+//         listener(visibilityManager.currentState)
+//       }
+//     }
+//     document.addEventListener('visibilitychange', onVisibilityChange)
+//     return waitForSuccessfulPingInternal(socketUrl, visibilityManager)
+//   }
+//
+//   // needs to be inlined to
+//   //   - load the worker after the server is closed
+//   //   - make it work with backend integrations
+//   const blob = new Blob(
+//     [
+//       '"use strict";',
+//       `const waitForSuccessfulPingInternal = ${waitForSuccessfulPingInternal.toString()};`,
+//       `const fn = ${pingWorkerContentMain.toString()};`,
+//       `fn(${JSON.stringify(socketUrl)})`,
+//     ],
+//     { type: 'application/javascript' },
+//   )
+//   const objURL = URL.createObjectURL(blob)
+//   const sharedWorker = new SharedWorker(objURL)
+//   return new Promise<void>((resolve, reject) => {
+//     const onVisibilityChange = () => {
+//       sharedWorker.port.postMessage({ visibility: document.visibilityState })
+//     }
+//     document.addEventListener('visibilitychange', onVisibilityChange)
+//
+//     sharedWorker.port.addEventListener('message', (event) => {
+//       document.removeEventListener('visibilitychange', onVisibilityChange)
+//       sharedWorker.port.close()
+//
+//       const data: { type: 'success' } | { type: 'error'; error: unknown } =
+//         event.data
+//       if (data.type === 'error') {
+//         reject(data.error)
+//         return
+//       }
+//       resolve()
+//     })
+//
+//     onVisibilityChange()
+//     sharedWorker.port.start()
+//   })
+// }
+//
+// type VisibilityManager = {
+//   currentState: DocumentVisibilityState
+//   listeners: Set<(newVisibility: DocumentVisibilityState) => void>
+// }
+//
+// function pingWorkerContentMain(socketUrl: string) {
+//   self.addEventListener('connect', (_event) => {
+//     const event = _event as MessageEvent
+//     // NOTE(kazupon): port[0] is always exist in SharedWorker
+//     const port = event.ports[0]!
+//
+//     if (!socketUrl) {
+//       port.postMessage({
+//         type: 'error',
+//         error: new Error('socketUrl not found'),
+//       })
+//       return
+//     }
+//
+//     const visibilityManager: VisibilityManager = {
+//       currentState: 'visible',
+//       listeners: new Set(),
+//     }
+//     port.addEventListener('message', (event) => {
+//       const { visibility } = event.data
+//       visibilityManager.currentState = visibility
+//       console.debug('[vrowser] new window visibility', visibility)
+//       // NOTE(kazupon): for console debug for vite
+//       // console.debug('[vite] new window visibility', visibility)
+//       for (const listener of visibilityManager.listeners) {
+//         listener(visibility)
+//       }
+//     })
+//     port.start()
+//
+//     console.debug('[vite] connected from window')
+//     waitForSuccessfulPingInternal(socketUrl, visibilityManager).then(
+//       () => {
+//         console.debug('[vrowser] ping successful')
+//         // NOTE(kazupon): for console debug for vite
+//         // console.debug('[vite] ping successful')
+//         try {
+//           port.postMessage({ type: 'success' })
+//         } catch (error) {
+//           port.postMessage({ type: 'error', error })
+//         }
+//       },
+//       (error) => {
+//         console.debug('[vrowser] error happened', error)
+//         // NOTE(kazupon): for console debug for vite
+//         // console.debug('[vite] error happened', error)
+//         try {
+//           port.postMessage({ type: 'error', error })
+//         } catch (error) {
+//           port.postMessage({ type: 'error', error })
+//         }
+//       },
+//     )
+//   })
+// }
+//
+// async function waitForSuccessfulPingInternal(
+//   socketUrl: string,
+//   visibilityManager: VisibilityManager,
+//   ms = 1000,
+// ) {
+//   function wait(ms: number) {
+//     return new Promise((resolve) => setTimeout(resolve, ms))
+//   }
+//
+//   async function ping() {
+//     try {
+//       const socket = new WebSocket(socketUrl, 'vite-ping')
+//       return new Promise<boolean>((resolve) => {
+//         function onOpen() {
+//           resolve(true)
+//           close()
+//         }
+//         function onError() {
+//           resolve(false)
+//           close()
+//         }
+//         function close() {
+//           socket.removeEventListener('open', onOpen)
+//           socket.removeEventListener('error', onError)
+//           socket.close()
+//         }
+//         socket.addEventListener('open', onOpen)
+//         socket.addEventListener('error', onError)
+//       })
+//     } catch {
+//       return false
+//     }
+//   }
+//
+//   function waitForWindowShow(visibilityManager: VisibilityManager) {
+//     return new Promise<void>((resolve) => {
+//       const onChange = (newVisibility: DocumentVisibilityState) => {
+//         if (newVisibility === 'visible') {
+//           resolve()
+//           visibilityManager.listeners.delete(onChange)
+//         }
+//       }
+//       visibilityManager.listeners.add(onChange)
+//     })
+//   }
+//
+//   if (await ping()) {
+//     return
+//   }
+//   await wait(ms)
+//
+//   while (true) {
+//     if (visibilityManager.currentState === 'visible') {
+//       if (await ping()) {
+//         break
+//       }
+//       await wait(ms)
+//     } else {
+//       await waitForWindowShow(visibilityManager)
+//     }
+//   }
+// }
 
 const sheetsMap = new Map<string, HTMLStyleElement>()
 const linkSheetsMap = new Map<string, HTMLLinkElement>()
