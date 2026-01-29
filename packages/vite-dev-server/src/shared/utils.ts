@@ -1,4 +1,4 @@
-// TODO: fill in later ...
+import { NULL_BYTE_PLACEHOLDER, VALID_ID_PREFIX } from './constants'
 
 const _globalThis = globalThis as any
 
@@ -21,7 +21,25 @@ export const isWindows: boolean = (() => {
 // export const isWindows: boolean =
 //   typeof process !== 'undefined' && process.platform === 'win32'
 
-// TODO: fill in code later ...
+/**
+ * Prepend `/@id/` and replace null byte so the id is URL-safe.
+ * This is prepended to resolved ids that are not valid browser
+ * import specifiers by the importAnalysis plugin.
+ */
+export function wrapId(id: string): string {
+  return id.startsWith(VALID_ID_PREFIX)
+    ? id
+    : VALID_ID_PREFIX + id.replace('\0', NULL_BYTE_PLACEHOLDER)
+}
+
+/**
+ * Undo {@link wrapId}'s `/@id/` and null byte replacements.
+ */
+export function unwrapId(id: string): string {
+  return id.startsWith(VALID_ID_PREFIX)
+    ? id.slice(VALID_ID_PREFIX.length).replace(NULL_BYTE_PLACEHOLDER, '\0')
+    : id
+}
 
 const windowsSlashRE = /\\/g
 export function slash(p: string): string {

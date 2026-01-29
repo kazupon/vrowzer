@@ -2,25 +2,39 @@
 
 import type { ServerOptions } from './server'
 
-// ...
+// TODO: fill in later ...
 
 import type { Alias, AliasOptions } from '#dep-types/alias'
 import type { DepOptimizationOptions } from './optimizer'
 
-// ...
+// TODO: fill in later ...
 
 import type {
   BuildEnvironmentOptions,
+  RenderBuiltAssetUrl,
 } from './build'
 
-// ...
+// TODO: fill in later ...
 
+import { createDebugger } from './utils'
+
+// TODO: fill in later ...
+
+import type { Logger } from './logger'
 import {
   type EnvironmentResolveOptions,
   type ResolveOptions,
 } from './plugins/resolve'
 
-// ...
+// TODO: fill in later ...
+
+import type { RequiredExceptFor } from './typeUtils'
+
+// TODO: fill in later ...
+
+const debug = createDebugger('vite:config', { depth: 10 })
+
+// TODO: fill in later ...
 
 export interface DevEnvironmentOptions {
   // TODO: fill in later
@@ -124,7 +138,74 @@ export interface UserConfig extends DefaultEnvironmentOptions {
   // TODO: fill in later
 }
 
-// ...
+export interface HTMLOptions {
+  /**
+   * A nonce value placeholder that will be used when generating script/style tags.
+   *
+   * Make sure that this placeholder will be replaced with a unique value for each request by the server.
+   */
+  cspNonce?: string
+}
+
+export interface FutureOptions {
+  removePluginHookHandleHotUpdate?: 'warn'
+  removePluginHookSsrArgument?: 'warn'
+
+  removeServerModuleGraph?: 'warn'
+  removeServerReloadModule?: 'warn'
+  removeServerPluginContainer?: 'warn'
+  removeServerHot?: 'warn'
+  removeServerTransformRequest?: 'warn'
+  removeServerWarmupRequest?: 'warn'
+
+  removeSsrLoadModule?: 'warn'
+}
+
+export interface ExperimentalOptions {
+  /**
+   * Append fake `&lang.(ext)` when queries are specified, to preserve the file extension for following plugins to process.
+   *
+   * @experimental
+   * @default false
+   */
+  importGlobRestoreExtension?: boolean
+  /**
+   * Allow finegrain control over assets and public files paths
+   *
+   * @experimental
+   */
+  renderBuiltUrl?: RenderBuiltAssetUrl
+  /**
+   * Enables support of HMR partial accept via `import.meta.hot.acceptExports`.
+   *
+   * @experimental
+   * @default false
+   */
+  hmrPartialAccept?: boolean
+  /**
+   * Enable builtin plugin that written by rust, which is faster than js plugin.
+   *
+   * - 'resolver' (deprecated, will be removed in v8 stable): Enable only the native resolver plugin.
+   * - 'v1' (will be deprecated, will be removed in v8 stable): Enable the first stable set of native plugins (including resolver).
+   * - 'v2' (will be deprecated, will be removed in v8 stable): Enable the improved dynamicImportVarsPlugin and importGlobPlugin.
+   * - true: Enable all native plugins (currently an alias of 'v2', it will map to a newer one in the future versions).
+   *
+   * @experimental
+   * @default 'v2'
+   */
+  enableNativePlugin?: boolean | 'resolver' | 'v1' | 'v2'
+  /**
+   * Enable full bundle mode.
+   *
+   * This is highly experimental.
+   *
+   * @experimental
+   * @default false
+   */
+  bundledDev?: boolean
+}
+
+// TOOD: fill in later ...
 
 export interface InlineConfig extends UserConfig {
   configFile?: string | false
@@ -161,6 +242,14 @@ export interface ResolvedConfig extends Readonly<
 
     /** @internal */
     rawBase: string
+
+    // TODO: fill in later
+
+    logger: Logger
+
+    // TODO: fill in later
+
+    experimental: RequiredExceptFor<ExperimentalOptions, 'renderBuiltUrl'>
 
     // TODO: fill in later
   }

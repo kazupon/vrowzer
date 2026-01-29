@@ -39,6 +39,7 @@ import { createMessageChannelServer } from './ws'
 
 import { baseMiddleware } from './middlewares/base'
 import { timeMiddleware } from './middlewares/time'
+import { transformMiddleware } from './middlewares/transform'
 
 // TODO: fill in code later ...
 
@@ -451,12 +452,24 @@ export interface CreateServerOptions {
 
 export function createServer(
   serviceWorkerScope: ServiceWorkerGlobalScope,
-  inlineConfig: InlineConfig | ResolvedConfig = { base: '/' },
+  inlineConfig: InlineConfig | ResolvedConfig = {
+    // TODO(kazupon): resolve in ../config.ts
+    base: '/',
+    publicDir: 'public',
+    experimental: {
+      importGlobRestoreExtension: false,
+      renderBuiltUrl: () => undefined,
+      hmrPartialAccept: false,
+      enableNativePlugin: 'v2',
+      bundledDev: false,
+    }
+  },
   options: CreateServerOptions = {},
 ): ViteDevServer {
   // TOOD: implement for config resolving and etc ...
   // ...
   const config = inlineConfig as ResolvedConfig
+  console.log('[SW] Vite Dev Server config:', config)
 
   // TODO: ...
 
@@ -475,10 +488,10 @@ export function createServer(
   const fetchHandler = handle(middlewares)
 
   // NOTE(kazupon): first implementation for service worker dev server
-  middlewares.get('/hello', (c) => {
-    console.log(`[Hono] Fetch event for ${c.req.url}`)
-    return c.text('Vite Dev Server on Service Worker says hello!')
-  })
+  // middlewares.get('/hello', (c) => {
+  //   console.log(`[Hono] Fetch event for ${c.req.url}`)
+  //   return c.text('Vite Dev Server on Service Worker says hello!')
+  // })
 
   // TODO: ...
 
@@ -763,7 +776,7 @@ export function createServer(
 
   // request timer
   if (import.meta.env.DEBUG) {
-    middlewares.use('*', timeMiddleware(root))
+    middlewares.use(timeMiddleware(root))
   }
 
   // apply configureServer hooks ------------------------------------------------
@@ -772,12 +785,74 @@ export function createServer(
 
   // Internal middlewares ------------------------------------------------------
 
+  // NOTE(kazupon): commented out, until implementing transform middleware
+  // if (!config.experimental.bundledDev) {
+  //   middlewares.use(cachedTransformMiddleware(server))
+  // }
+  //
+  // // proxy
+  // const { proxy } = serverConfig
+  // if (proxy) {
+  //   const middlewareServer =
+  //     (isObject(middlewareMode) ? middlewareMode.server : null) || httpServer
+  //   middlewares.use(proxyMiddleware(middlewareServer, proxy, config))
+  // }
+
   // base
   if (config.base !== '/') {
-    middlewares.use('*', baseMiddleware(config.rawBase, !!middlewareMode))
+    middlewares.use(baseMiddleware(config.rawBase, !!middlewareMode))
   }
 
-  // TODO: setup internal middlewares
+  // NOTE(kazupon): commented out, until implementing other middlewares
+  // // open in editor support
+  // middlewares.use('/__open-in-editor', launchEditorMiddleware())
+  //
+  // // ping request handler
+  // // Keep the named function. The name is visible in debug logs via `DEBUG=connect:dispatcher ...`
+  // middlewares.use(function viteHMRPingMiddleware(req, res, next) {
+  //   if (req.headers['accept'] === 'text/x-vite-ping') {
+  //     res.writeHead(204).end()
+  //   } else {
+  //     next()
+  //   }
+  // })
+  //
+  // // serve static files under /public
+  // // this applies before the transform middleware so that these files are served
+  // // as-is without transforms.
+  // if (publicDir) {
+  //   middlewares.use(servePublicMiddleware(server, publicFiles))
+  // }
+  //
+  // if (config.experimental.bundledDev) {
+  //   middlewares.use(memoryFilesMiddleware(server))
+  // } else {
+  //   // main transform middleware
+  //   middlewares.use(transformMiddleware(server))
+  //
+  //   // serve static files
+  //   middlewares.use(serveRawFsMiddleware(server))
+  //   middlewares.use(serveStaticMiddleware(server))
+  // }
+  //
+  // // html fallback
+  // if (config.appType === 'spa' || config.appType === 'mpa') {
+  //   middlewares.use(
+  //     htmlFallbackMiddleware(
+  //       root,
+  //       config.appType === 'spa',
+  //       server.environments.client,
+  //     ),
+  //   )
+  // }
+
+  if (config.experimental.bundledDev) {
+    // TODO: implement memoryFilesMiddleware later
+  } else {
+    // main transform middleware
+    // middlewares.use('*', transformMiddleware(server))
+    console.log('[SW] transformMiddleware applied', transformMiddleware)
+  }
 
   // apply configureServer post hooks ------------------------------------------
 

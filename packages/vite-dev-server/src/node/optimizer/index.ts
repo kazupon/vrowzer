@@ -1,10 +1,30 @@
-// ...
+// TODO: fill in later
+
+export interface DepsOptimizer {
+  init: () => Promise<void>
+
+  // NOTE(kazupon): disalbe now, enable later
+  // metadata: DepOptimizationMetadata
+  scanProcessing?: Promise<void>
+  // NOTE(kazupon): disalbe now, enable later
+  // registerMissingImport: (id: string, resolved: string) => OptimizedDepInfo
+  run: () => void
+
+  isOptimizedDepFile: (id: string) => boolean
+  isOptimizedDepUrl: (url: string) => boolean
+  // NOTE(kazupon): disalbe now, enable later
+  // getOptimizedDepId: (depInfo: OptimizedDepInfo) => string
+
+  close: () => Promise<void>
+
+  options: DepOptimizationOptions
+}
 
 export interface DepOptimizationConfig {
   // TODO: fill in later
 }
 
-// ...
+// TODO: fill in later
 
 export type DepOptimizationOptions = DepOptimizationConfig & {
   /**

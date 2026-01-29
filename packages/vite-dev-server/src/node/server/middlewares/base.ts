@@ -13,7 +13,8 @@
  * @license MIT
  */
 
-import { cleanUrl, joinUrlSegments, stripBase, withTrailingSlash } from '../../utils'
+import { cleanUrl, withTrailingSlash } from '../../../shared/utils'
+import { joinUrlSegments, stripBase } from '../../utils'
 
 import type { MiddlewareHandler } from 'hono'
 import type { ViteEnv } from '../index'
@@ -33,6 +34,8 @@ export function baseMiddleware(
   middlewareMode: boolean
 ): MiddlewareHandler<ViteEnv> {
   return async function viteBaseMiddleware(c, next) {
+    console.log('[base] viteBaseMiddleware called for:', c.req.url)
+
     const url = c.req.path
     const pathname = cleanUrl(url)
     const base = rawBase

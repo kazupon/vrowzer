@@ -2,8 +2,8 @@
 import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { getController, getServiceWorker } from '../sw/controller.ts'
 
+import type { StateChangeInfo, SvcWorkerController } from '@vrowser/service-worker/controller'
 import type { FileChangeMessage } from '../types.ts'
-import type { SvcWorkerController, StateChangeInfo } from '@vrowser/service-worker/controller'
 
 const props = defineProps<{
   code: string

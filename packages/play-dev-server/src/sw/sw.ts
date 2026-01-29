@@ -2,7 +2,6 @@
 
 import { createServer } from '@vrowser/vite-dev-server'
 
-import type { Context } from 'hono'
 import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
 
 declare const self: ServiceWorkerGlobalScope
@@ -27,24 +26,47 @@ const files = new Map<string, string>()
  */
 const server = createServer(
   self,
-  { root: '/', server: { middlewareMode: true } },
+
+  {
+    root: '/',
+    server: { middlewareMode: true },
+    base: '/',
+    publicDir: 'public',
+    experimental: {
+      importGlobRestoreExtension: false,
+      renderBuiltUrl: () => undefined,
+      hmrPartialAccept: false,
+      enableNativePlugin: 'v2',
+      bundledDev: false
+    }
+  },
   { version: SW_VERSION, basePath: '/__preview__' }
 )
 
+server.middlewares.use(async (c, next) => {
+  console.log(`[custom:hello] for hello: ${c.req.url}`)
+  if (c.req.path.endsWith('/hello')) {
+    return c.text('Vite Dev Server on Service Worker says hello!')
+  } else {
+    await next()
+  }
+})
+
 // Register middleware for virtual files
 // With basePath: '/__preview__', routes are automatically prefixed
-server.middlewares.get('/*', (c: Context) => {
+server.middlewares.use(async c => {
   const path = c.req.path
-  console.log('[SW] Intercepting preview request:', path)
+  console.log('[custom:last] Intercepting preview request:', path)
 
   if (files.has(path)) {
-    console.log('[SW] Serving virtual file:', path)
+    console.log('[custom:last] Serving virtual file:', path)
     return c.body(files.get(path)!, 200, {
       'Content-Type': getContentType(path),
       'Cache-Control': 'no-cache'
     })
   }
 
+  console.log('[custom:last] File not found in virtual FS:', path)
   return c.text('Not Found', 404)
 })
 

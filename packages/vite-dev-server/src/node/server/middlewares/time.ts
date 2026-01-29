@@ -27,6 +27,7 @@ const logTime = createDebugger('vite:time')
 export function timeMiddleware(root: string): MiddlewareHandler<ViteEnv> {
   return async function viteTimeMiddleware(c, next) {
     const start = performance.now()
+    console.log(`[time] Start processing request: ${c.req.url}`)
 
     await next()
 

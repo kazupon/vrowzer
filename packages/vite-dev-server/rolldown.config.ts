@@ -44,7 +44,7 @@ const sharedNodeOptions = defineConfig({
   resolve: {
     alias: {
       'node:path': 'pathe',
-      'path': 'pathe',
+      'path': 'pathe'
     },
   },
   treeshake: {
