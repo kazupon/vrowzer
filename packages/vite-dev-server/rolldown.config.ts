@@ -41,6 +41,12 @@ const clientConfig = defineConfig({
 
 const sharedNodeOptions = defineConfig({
   platform: 'browser',
+  resolve: {
+    alias: {
+      'node:path': 'pathe',
+      'path': 'pathe',
+    },
+  },
   treeshake: {
     moduleSideEffects: [
       {

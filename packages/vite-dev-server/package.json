@@ -74,16 +74,20 @@
     "test:watch": "vitest watch --project vite-dev-server:unit"
   },
   "dependencies": {
+    "rolldown": "catalog:"
+  },
+  "devDependencies": {
     "hono": "^4.7.10",
-    "obug": "^1.0.2",
     "@kazupon/jts-utils": "catalog:",
     "@vrowser/service-worker": "workspace:*",
     "@vrowser/service-worker-server": "workspace:*",
     "nanoid": "^5.1.6",
-    "rolldown": "catalog:"
-  },
-  "devDependencies": {
+    "picocolors": "^1.1.1",
+    "obug": "^1.0.2",
     "premove": "^4.0.0",
+    "@types/convert-source-map": "^2.0.3",
+    "pathe": "^2.0.3",
+    "convert-source-map": "^2.0.0",
     "@babel/parser": "^7.28.6",
     "rolldown-plugin-dts": "^0.20.0",
     "estree-walker": "^3.0.3",
