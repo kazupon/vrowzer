@@ -16,33 +16,6 @@
 [submodule "refers/node"]
 	path = refers/node
 	url = git@github.com:nodejs/node.git
-[submodule "refers/connect"]
-	path = refers/connect
-	url = git@github.com:senchalabs/connect.git
-[submodule "refers/finalhandler"]
-	path = refers/finalhandler
-	url = git@github.com:pillarjs/finalhandler.git
-[submodule "refers/utils-merge"]
-	path = refers/utils-merge
-	url = git@github.com:jaredhanson/utils-merge.git
-[submodule "refers/parseurl"]
-	path = refers/parseurl
-	url = git@github.com:pillarjs/parseurl.git
-[submodule "refers/ee-first"]
-	path = refers/ee-first
-	url = git@github.com:jonathanong/ee-first.git
-[submodule "refers/on-finished"]
-	path = refers/on-finished
-	url = git@github.com:jshttp/on-finished.git
-[submodule "refers/statuses"]
-	path = refers/statuses
-	url = git@github.com:jshttp/statuses.git
-[submodule "refers/escape-html"]
-	path = refers/escape-html
-	url = git@github.com:component/escape-html.git
-[submodule "refers/encodeurl"]
-	path = refers/encodeurl
-	url = git@github.com:pillarjs/encodeurl.git
 [submodule "refers/hono"]
 	path = refers/hono
 	url = git@github.com:honojs/hono.git

@@ -5,7 +5,6 @@
   "packageManager": "pnpm@10.28.0",
   "type": "module",
   "scripts": {
-    "build:connect": "pnpm --filter connect build",
     "build:dev-server": "pnpm --filter play-dev-server build",
     "build:docs": "pnpm -r run build:docs",
     "build:memfs": "pnpm --filter memfs-test build",

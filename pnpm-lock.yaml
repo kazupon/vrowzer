@@ -117,24 +117,6 @@ importers:
         specifier: ^4.0.17
         version: 4.0.17(@types/node@25.0.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/connect:
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 25.0.9
-      publint:
-        specifier: 'catalog:'
-        version: 0.3.16
-      tsdown:
-        specifier: 'catalog:'
-        version: 0.18.4(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(publint@0.3.16)(synckit@0.11.11)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
-      typedoc:
-        specifier: 'catalog:'
-        version: 0.28.16(typescript@5.9.3)
-      typedoc-plugin-markdown:
-        specifier: 'catalog:'
-        version: 4.9.0(typedoc@0.28.16(typescript@5.9.3))
-
   packages/memfs-test:
     dependencies:
       memfs-browser:
