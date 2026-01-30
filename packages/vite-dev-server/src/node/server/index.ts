@@ -22,6 +22,7 @@ import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
 
 import type { RequiredExceptFor } from '../typeUtils'
 import type { ModuleNode } from './mixedModuleGraph'
+import { ModuleGraph } from './mixedModuleGraph'
 
 import type { HmrOptions, NormalizedHotChannel } from './hmr'
 import type { TransformOptions, TransformResult } from './transformRequest'
@@ -303,8 +304,7 @@ export interface ViteDevServer {
    * Module graph that tracks the import relationships, url to file mapping
    * and hmr state.
    */
-  // TODO: enable later ...
-  // moduleGraph: ModuleGraph
+  moduleGraph: ModuleGraph
   /**
    * The resolved urls Vite prints on the CLI (URL-encoded). Returns `null`
    * in middleware mode or if the server is not listening on any port.
@@ -548,10 +548,10 @@ export function createServer(
 
   // Backward compatibility
 
-  // let moduleGraph = new ModuleGraph({
-  //   client: () => environments.client.moduleGraph,
-  //   ssr: () => environments.ssr.moduleGraph,
-  // })
+  let moduleGraph = new ModuleGraph({
+    client: () => environments.client.moduleGraph,
+    ssr: () => environments.ssr.moduleGraph,
+  })
   let pluginContainer = createPluginContainer(environments)
 
   const closeHttpServer = createServerCloseFn(httpServer)
@@ -612,13 +612,13 @@ export function createServer(
     set pluginContainer(p) {
       pluginContainer = p
     },
-    // get moduleGraph() {
-    //   warnFutureDeprecation(config, 'removeServerModuleGraph')
-    //   return moduleGraph
-    // },
-    // set moduleGraph(graph) {
-    //   moduleGraph = graph
-    // },
+    get moduleGraph() {
+      warnFutureDeprecation(config, 'removeServerModuleGraph')
+      return moduleGraph
+    },
+    set moduleGraph(graph) {
+      moduleGraph = graph
+    },
 
     resolvedUrls: null, // will be set on listen
     // ssrTransform(
