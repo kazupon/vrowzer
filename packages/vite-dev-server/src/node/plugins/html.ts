@@ -1,3 +1,10 @@
+import type {
+  OutputBundle,
+  OutputChunk
+} from 'rolldown'
+import type { MinimalPluginContextWithoutEnvironment } from '../plugin'
+import type { ViteDevServer } from '../server'
+
 // TODO: fill in code later ...
 
 const htmlProxyRE =
@@ -23,5 +30,56 @@ const importMapAppendRE = new RegExp(
 )
 
 export const isHTMLProxy = (id: string): boolean => isHtmlProxyRE.test(id)
+
+// TODO: fill in code later ...
+
+export interface HtmlTagDescriptor {
+  tag: string
+  /**
+   * attribute values will be escaped automatically if needed
+   */
+  attrs?: Record<string, string | boolean | undefined>
+  children?: string | HtmlTagDescriptor[]
+  /**
+   * default: 'head-prepend'
+   */
+  injectTo?: 'head' | 'body' | 'head-prepend' | 'body-prepend'
+}
+
+export type IndexHtmlTransformResult =
+  | string
+  | HtmlTagDescriptor[]
+  | {
+    html: string
+    tags: HtmlTagDescriptor[]
+  }
+
+export interface IndexHtmlTransformContext {
+  /**
+   * public path when served
+   */
+  path: string
+  /**
+   * filename on disk
+   */
+  filename: string
+  server?: ViteDevServer
+  bundle?: OutputBundle
+  chunk?: OutputChunk
+  originalUrl?: string
+}
+
+export type IndexHtmlTransformHook = (
+  this: MinimalPluginContextWithoutEnvironment,
+  html: string,
+  ctx: IndexHtmlTransformContext,
+) => IndexHtmlTransformResult | void | Promise<IndexHtmlTransformResult | void>
+
+export type IndexHtmlTransform =
+  | IndexHtmlTransformHook
+  | {
+    order?: 'pre' | 'post' | null
+    handler: IndexHtmlTransformHook
+  }
 
 // TODO: fill in code later ...

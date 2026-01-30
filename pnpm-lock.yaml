@@ -399,15 +399,27 @@ importers:
       '@babel/parser':
         specifier: ^7.28.6
         version: 7.28.6
+      '@jridgewell/remapping':
+        specifier: ^2.3.5
+        version: 2.3.5
+      '@jridgewell/trace-mapping':
+        specifier: ^0.3.31
+        version: 0.3.31
       '@kazupon/jts-utils':
         specifier: 'catalog:'
         version: 0.14.1(@vue/reactivity@3.5.26)
       '@oxc-project/types':
         specifier: 0.108.0
         version: 0.108.0
+      '@rollup/plugin-alias':
+        specifier: ^5.1.1
+        version: 5.1.1(rollup@4.55.1)
       '@types/convert-source-map':
         specifier: ^2.0.3
         version: 2.0.3
+      '@types/picomatch':
+        specifier: ^4.0.2
+        version: 4.0.2
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -441,6 +453,9 @@ importers:
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
+      picomatch:
+        specifier: ^4.0.3
+        version: 4.0.3
       premove:
         specifier: ^4.0.0
         version: 4.0.0
@@ -2259,6 +2274,15 @@ packages:
 
   '@rolldown/pluginutils@1.0.0-rc.1':
     resolution: {integrity: sha512-UTBjtTxVOhodhzFVp/ayITaTETRHPUPYZPXQe0WU0wOgxghMojXxYjOiPOauKIYNWJAWS2fd7gJgGQK8GU8vDA==}
+
+  '@rollup/plugin-alias@5.1.1':
+    resolution: {integrity: sha512-PR9zDb+rOzkRb2VD+EuKB7UC41vU5DIwZ5qqCpk0KJudcWAyi8rvYOhS7+L5aZCspw1stTViLgN5v6FF1p5cgQ==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      rollup: ^1.20.0||^2.0.0||^3.0.0||^4.0.0
+    peerDependenciesMeta:
+      rollup:
+        optional: true
 
   '@rollup/plugin-alias@6.0.0':
     resolution: {integrity: sha512-tPCzJOtS7uuVZd+xPhoy5W4vThe6KWXNmsFCNktaAh5RTqcLiSfT4huPQIXkgJ6YCOjJHvecOAzQxLFhPxKr+g==}
@@ -6854,6 +6878,10 @@ snapshots:
   '@rolldown/pluginutils@1.0.0-beta.58': {}
 
   '@rolldown/pluginutils@1.0.0-rc.1': {}
+
+  '@rollup/plugin-alias@5.1.1(rollup@4.55.1)':
+    optionalDependencies:
+      rollup: 4.55.1
 
   '@rollup/plugin-alias@6.0.0(rollup@4.55.1)':
     optionalDependencies:

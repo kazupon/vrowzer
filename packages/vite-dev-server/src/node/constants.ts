@@ -1,5 +1,43 @@
-
 // TODO: fill in code later ...
+
+import type { RollupPluginHooks } from './typeUtils'
+
+// const { version } = JSON.parse(
+//   readFileSync(new URL('../../package.json', import.meta.url)).toString(),
+// )
+const version = '0.0.0-dev'
+
+export const ROLLUP_HOOKS: RollupPluginHooks[] = [
+  'options',
+  'buildStart',
+  'buildEnd',
+  'renderStart',
+  'renderError',
+  'renderChunk',
+  'writeBundle',
+  'generateBundle',
+  'banner',
+  'footer',
+  'augmentChunkHash',
+  'outputOptions',
+  // 'renderDynamicImport',
+  // 'resolveFileUrl',
+  // 'resolveImportMeta',
+  'intro',
+  'outro',
+  'closeBundle',
+  'closeWatcher',
+  'load',
+  'moduleParsed',
+  'watchChange',
+  'resolveDynamicImport',
+  'resolveId',
+  // 'shouldTransformCachedModule',
+  'transform',
+  'onLog',
+]
+
+export const VERSION = version as string
 
 const DEFAULT_MAIN_FIELDS = [
   'browser',

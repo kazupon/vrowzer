@@ -7,7 +7,9 @@ import type {
 
 // TODO: fill in later ...
 
-import type { InferCustomEventPayload } from '..'
+import type { InferCustomEventPayload, ViteDevServer } from '..'
+import type { ModuleNode } from './mixedModuleGraph'
+import type { EnvironmentModuleNode } from './moduleGraph'
 
 // TODO: fill in later ...
 
@@ -24,6 +26,64 @@ export interface HmrOptions {
   timeout?: number
   overlay?: boolean
   server?: HttpServer
+}
+
+export interface HotUpdateOptions {
+  type: 'create' | 'update' | 'delete'
+  file: string
+  timestamp: number
+  modules: Array<EnvironmentModuleNode>
+  read: () => string | Promise<string>
+  server: ViteDevServer
+}
+
+export interface HmrContext {
+  file: string
+  timestamp: number
+  modules: Array<ModuleNode>
+  read: () => string | Promise<string>
+  server: ViteDevServer
+}
+
+interface PropagationBoundary {
+  boundary: EnvironmentModuleNode & { type: 'js' | 'css' }
+  acceptedVia: EnvironmentModuleNode
+  isWithinCircularImport: boolean
+}
+
+export interface HotChannelClient {
+  send(payload: HotPayload): void
+}
+
+export type HotChannelListener<T extends string = string> = (
+  data: InferCustomEventPayload<T>,
+  client: HotChannelClient,
+) => void
+
+export interface HotChannel<Api = any> {
+  /**
+   * Broadcast events to all clients
+   */
+  send?(payload: HotPayload): void
+  /**
+   * Handle custom event emitted by `import.meta.hot.send`
+   */
+  on?<T extends string>(event: T, listener: HotChannelListener<T>): void
+  on?(event: 'connection', listener: () => void): void
+  /**
+   * Unregister event listener
+   */
+  off?(event: string, listener: Function): void
+  /**
+   * Start listening for messages
+   */
+  listen?(): void
+  /**
+   * Disconnect all clients, called when server is closed or restarted.
+   */
+  close?(): Promise<unknown> | void
+
+  api?: Api
 }
 
 // TODO: fill in later ...

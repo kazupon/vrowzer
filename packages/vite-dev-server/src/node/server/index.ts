@@ -21,18 +21,22 @@ import {
 import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
 
 import type { RequiredExceptFor } from '../typeUtils'
-
 import type { ModuleNode } from './mixedModuleGraph'
 
+import type { HmrOptions, NormalizedHotChannel } from './hmr'
 import type { TransformOptions, TransformResult } from './transformRequest'
 
 import type { DevEnvironment } from './environment'
 
+import { warnFutureDeprecation } from '../deprecations'
 // ...
 
-import type { HmrOptions } from './hmr'
+import type { MinimalPluginContextWithoutEnvironment } from '../plugin'
+import type { PluginContainer } from './pluginContainer'
+import {
+  createPluginContainer
+} from './pluginContainer'
 import type { MessageChannelServer } from './ws'
-
 import { createMessageChannelServer } from './ws'
 
 // TODO: fill in code later ...
@@ -208,11 +212,10 @@ export interface ViteEnv extends Env {
   }
 }
 
-// TODO: enable later ...
-// export type ServerHook = (
-//   this: MinimalPluginContextWithoutEnvironment,
-//   server: ViteDevServer,
-// ) => (() => void) | void | Promise<(() => void) | void>
+export type ServerHook = (
+  this: MinimalPluginContextWithoutEnvironment,
+  server: ViteDevServer,
+) => (() => void) | void | Promise<(() => void) | void>
 
 export type HttpServer = SvcWorkerServer
 
@@ -283,8 +286,15 @@ export interface ViteDevServer {
    * This is the Service Worker equivalent of WebSocket server in standard Vite.
    */
   ws: MessageChannelServer
-  // TODO: fill in later ...
-  // ...
+  /**
+   * An alias to `server.environments.client.hot`.
+   * If you want to interact with all environments, loop over `server.environments`.
+   */
+  hot: NormalizedHotChannel
+  /**
+   * Rollup plugin container that can run plugin hooks on a given file
+   */
+  pluginContainer: PluginContainer
   /**
    * Module execution environments attached to the Vite server.
    */
@@ -480,6 +490,7 @@ export function createServer(
 
   const basePath = options.basePath || '/'
   const middlewares = new Hono<ViteEnv, BlankSchema, '/'>().basePath(basePath)
+
   const httpServer = createSvcWorkerServer(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: !middlewareMode, // if middlewareMode is enabled, do not claim on activate
@@ -487,13 +498,53 @@ export function createServer(
   })
   const fetchHandler = handle(middlewares)
 
-  // NOTE(kazupon): first implementation for service worker dev server
-  // middlewares.get('/hello', (c) => {
-  //   console.log(`[Hono] Fetch event for ${c.req.url}`)
-  //   return c.text('Vite Dev Server on Service Worker says hello!')
-  // })
+  // Create MessageChannel server for HMR
+  const ws = createMessageChannelServer(httpServer, config)
 
-  // TODO: ...
+  // TODO: setup public files
+  // const publicFiles = await initPublicFilesPromise
+  // const { publicDir } = config
+
+  // TODO:
+  // watch configuration in here !
+  // About service worker, we need to FSWatcher which implementented with Window Message Channel and have a same fs.FSWatcher I/F
+  const watchEnabled = serverConfig.watch !== null
+  const watcher: FSWatcher | undefined = undefined
+  // const watcher = watchEnabled
+  //   ? (chokidar.watch(
+  //     // config file dependencies and env file might be outside of root
+  //     [
+  //       ...(config.experimental.bundledDev ? [] : [root]),
+  //       ...config.configFileDependencies,
+  //       ...getEnvFilesForMode(config.mode, config.envDir),
+  //       // Watch the public directory explicitly because it might be outside
+  //       // of the root directory.
+  //       ...(publicDir && publicFiles ? [publicDir] : []),
+  //     ],
+
+  //     resolvedWatchOptions,
+  //   ) as FSWatcher)
+  //   : createNoopWatcher(resolvedWatchOptions)
+
+  const environments: Record<string, DevEnvironment> = {}
+  // await Promise.all(
+  //   Object.entries(config.environments).map(
+  //     async ([name, environmentOptions]) => {
+  //       const environment = await environmentOptions.dev.createEnvironment(
+  //         name,
+  //         config,
+  //         {
+  //           ws,
+  //         },
+  //       )
+  //       environments[name] = environment
+
+  //       const previousInstance =
+  //         options.previousEnvironments?.[environment.name]
+  //       await environment.init({ watcher, previousInstance })
+  //     },
+  //   ),
+  // )
 
   // Backward compatibility
 
@@ -501,12 +552,9 @@ export function createServer(
   //   client: () => environments.client.moduleGraph,
   //   ssr: () => environments.ssr.moduleGraph,
   // })
-  // let pluginContainer = createPluginContainer(environments)
+  let pluginContainer = createPluginContainer(environments)
 
   const closeHttpServer = createServerCloseFn(httpServer)
-
-  // Create MessageChannel server for HMR
-  const ws = createMessageChannelServer(httpServer, config)
 
   // const devHtmlTransformFn = createDevHtmlTransformFn(config)
 
@@ -540,7 +588,7 @@ export function createServer(
     server._ssrCompatModuleRunner = undefined
   }
 
-  // let hot = ws
+  let hot = ws
   let server: ViteDevServer = {
     config,
     middlewares,
@@ -548,22 +596,22 @@ export function createServer(
     ws,
     ready: readyPromise,
     // watcher,
-    // get hot() {
-    //   warnFutureDeprecation(config, 'removeServerHot')
-    //   return hot
-    // },
-    // set hot(h) {
-    //   hot = h
-    // },
+    get hot() {
+      warnFutureDeprecation(config, 'removeServerHot')
+      return hot
+    },
+    set hot(h) {
+      hot = h
+    },
 
-    // environments,
-    // get pluginContainer() {
-    //   warnFutureDeprecation(config, 'removeServerPluginContainer')
-    //   return pluginContainer
-    // },
-    // set pluginContainer(p) {
-    //   pluginContainer = p
-    // },
+    environments,
+    get pluginContainer() {
+      warnFutureDeprecation(config, 'removeServerPluginContainer')
+      return pluginContainer
+    },
+    set pluginContainer(p) {
+      pluginContainer = p
+    },
     // get moduleGraph() {
     //   warnFutureDeprecation(config, 'removeServerModuleGraph')
     //   return moduleGraph
@@ -881,6 +929,27 @@ export function createServer(
       //     Object.values(environments).map((e) => e.listen(server)),
       //   )
       // }
+
+      // setup environments
+      await Promise.all(
+        Object.entries(config.environments).map(
+          async ([name, environmentOptions]) => {
+            const environment = await environmentOptions.dev.createEnvironment(
+              name,
+              config,
+              {
+                ws,
+              },
+            )
+            console.log('setup dev environment:', environment)
+            environments[name] = environment
+
+            const previousInstance =
+              options.previousEnvironments?.[environment.name]
+            await environment.init({ watcher, previousInstance })
+          },
+        ),
+      )
 
       initingServer = undefined
       serverInited = true

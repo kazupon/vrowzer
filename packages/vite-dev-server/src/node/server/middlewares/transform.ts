@@ -19,12 +19,13 @@ import { NULL_BYTE_PLACEHOLDER } from '../../../shared/constants'
 import { cleanUrl, unwrapId, withTrailingSlash } from '../../../shared/utils'
 import { FS_PREFIX } from '../../constants'
 import { isHTMLProxy } from '../../plugins/html'
-import { fsPathFromId, injectQuery, isCSSRequest, isImportRequest, isJSRequest, normalizePath, removeImportQuery, removeTimestampQuery, urlRE } from '../../utils'
+import { fsPathFromId, injectQuery, isCSSRequest, isImportRequest, isJSRequest, normalizePath, removeImportQuery, removeTimestampQuery } from '../../utils'
 import { send } from '../send'
 import { getRequestPath } from './utils'
 
 import type { Context, MiddlewareHandler } from 'hono'
 import type { ViteDevServer } from '..'
+import type { ResolvedConfig } from '../../config'
 import type { ViteEnv } from '../index'
 
 const knownIgnoreList = new Set(['/', '/favicon.ico'])
@@ -38,6 +39,21 @@ const documentFetchDests = new Set([
 function isDocumentFetchDest(c: Context<ViteEnv>) {
   const fetchDest = c.req.header('sec-fetch-dest')
   return fetchDest !== undefined && documentFetchDests.has(fetchDest)
+}
+
+// TODO: consolidate this regex pattern with the url, raw, and inline checks in plugins
+const urlRE = /[?&]url\b/
+const rawRE = /[?&]raw\b/
+const inlineRE = /[?&]inline\b/
+const svgRE = /\.svg\b/
+
+function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
+  if (rawRE.test(id) || urlRE.test(id) || inlineRE.test(id) || svgRE.test(id)) {
+    return false
+    // TODO(kazupon): implement checkLoadingAccess later
+    // return checkLoadingAccess(config, id) !== 'allowed'
+  }
+  return false
 }
 
 export function transformMiddleware(
@@ -136,6 +152,16 @@ export function transformMiddleware(
           // TODO(kazupon): implement later ...
 
         }
+
+        // resolve, load and transform using the plugin container
+        const result = await environment.transformRequest(url, {
+          allowId(id) {
+            return (
+              id[0] === '\0' ||
+              !isServerAccessDeniedForTransform(server.config, id)
+            )
+          },
+        })
       }
     } catch (e) {
       // TODO(kazupon): handle error

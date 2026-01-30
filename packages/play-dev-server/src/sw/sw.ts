@@ -118,6 +118,7 @@ self.addEventListener('activate', _event => {
  * Get content type based on file extension
  */
 function getContentType(pathname: string): string {
+  console.log('[SW] Getting content type for:', pathname)
   if (pathname.endsWith('.js') || pathname.endsWith('.mjs')) {
     return 'application/javascript'
   }

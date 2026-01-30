@@ -4,18 +4,30 @@ import type { ServerOptions } from './server'
 
 // TODO: fill in later ...
 
+import type {
+  HookHandler,
+  Plugin,
+  PluginWithRequiredHook,
+} from './plugin'
+
+// TODO: fill in later ...
+
 import type { Alias, AliasOptions } from '#dep-types/alias'
 import type { DepOptimizationOptions } from './optimizer'
 
 // TODO: fill in later ...
 
+import type { MessageChannelServer } from './server/ws'
+
 import type {
   BuildEnvironmentOptions,
   RenderBuiltAssetUrl,
+  ResolvedBuildEnvironmentOptions,
 } from './build'
 
 // TODO: fill in later ...
 
+import { DevEnvironment } from './server/environment'
 import { createDebugger } from './utils'
 
 // TODO: fill in later ...
@@ -36,11 +48,126 @@ const debug = createDebugger('vite:config', { depth: 10 })
 
 // TODO: fill in later ...
 
-export interface DevEnvironmentOptions {
-  // TODO: fill in later
+export interface ConfigEnv {
+  /**
+   * 'serve': during dev (`vite` command)
+   * 'build': when building for production (`vite build` command)
+   */
+  command: 'build' | 'serve'
+  mode: string
+  isSsrBuild?: boolean
+  isPreview?: boolean
 }
 
-// ...
+/**
+ * spa: include SPA fallback middleware and configure sirv with `single: true` in preview
+ *
+ * mpa: only include non-SPA HTML middlewares
+ *
+ * custom: don't include HTML middlewares
+ */
+export type AppType = 'spa' | 'mpa' | 'custom'
+
+export type UserConfigFnObject = (env: ConfigEnv) => UserConfig
+export type UserConfigFnPromise = (env: ConfigEnv) => Promise<UserConfig>
+export type UserConfigFn = (env: ConfigEnv) => UserConfig | Promise<UserConfig>
+
+export type UserConfigExport =
+  | UserConfig
+  | Promise<UserConfig>
+  | UserConfigFnObject
+  | UserConfigFnPromise
+  | UserConfigFn
+
+/**
+ * Type helper to make it easier to use vite.config.ts
+ * accepts a direct {@link UserConfig} object, or a function that returns it.
+ * The function receives a {@link ConfigEnv} object.
+ */
+export function defineConfig(config: UserConfig): UserConfig
+export function defineConfig(config: Promise<UserConfig>): Promise<UserConfig>
+export function defineConfig(config: UserConfigFnObject): UserConfigFnObject
+export function defineConfig(config: UserConfigFnPromise): UserConfigFnPromise
+export function defineConfig(config: UserConfigFn): UserConfigFn
+export function defineConfig(config: UserConfigExport): UserConfigExport
+export function defineConfig(config: UserConfigExport): UserConfigExport {
+  return config
+}
+
+export interface CreateDevEnvironmentContext {
+  ws: MessageChannelServer
+}
+
+// NOTE(kazupon): comment out because we need to understand the previous implementation as background
+// export interface CreateDevEnvironmentContext {
+//   ws: WebSocketServer
+// }
+
+
+export interface DevEnvironmentOptions {
+  /**
+   * Files to be pre-transformed. Supports glob patterns.
+   */
+  warmup?: string[]
+  /**
+   * Pre-transform known direct imports
+   * defaults to true for the client environment, false for the rest
+   */
+  preTransformRequests?: boolean
+  /**
+   * Enables sourcemaps during dev
+   * @default { js: true }
+   * @experimental
+   */
+  sourcemap?: boolean | { js?: boolean; css?: boolean }
+  /**
+   * Whether or not to ignore-list source files in the dev server sourcemap, used to populate
+   * the [`x_google_ignoreList` source map extension](https://developer.chrome.com/blog/devtools-better-angular-debugging/#the-x_google_ignorelist-source-map-extension).
+   *
+   * By default, it excludes all paths containing `node_modules`. You can pass `false` to
+   * disable this behavior, or, for full control, a function that takes the source path and
+   * sourcemap path and returns whether to ignore the source path.
+   */
+  sourcemapIgnoreList?:
+  | false
+  | ((sourcePath: string, sourcemapPath: string) => boolean)
+
+  /**
+   * create the Dev Environment instance
+   */
+  createEnvironment?: (
+    name: string,
+    config: ResolvedConfig,
+    context: CreateDevEnvironmentContext,
+  ) => Promise<DevEnvironment> | DevEnvironment
+
+  /**
+   * For environments that support a full-reload, like the client, we can short-circuit when
+   * restarting the server throwing early to stop processing current files. We avoided this for
+   * SSR requests. Maybe this is no longer needed.
+   * @experimental
+   */
+  recoverable?: boolean
+
+  /**
+   * For environments associated with a module runner.
+   * By default, it is false for the client environment and true for non-client environments.
+   * This option can also be used instead of the removed config.experimental.skipSsrTransform.
+   */
+  moduleRunnerTransform?: boolean
+}
+
+// TODO: fill in later ...
+
+export type ResolvedDevEnvironmentOptions = Omit<
+  Required<DevEnvironmentOptions>,
+  'sourcemapIgnoreList'
+> & {
+  sourcemapIgnoreList: Exclude<
+    DevEnvironmentOptions['sourcemapIgnoreList'],
+    false | undefined
+  >
+}
 
 type AllResolveOptions = ResolveOptions & {
   alias?: AliasOptions
@@ -85,7 +212,22 @@ export interface EnvironmentOptions extends SharedEnvironmentOptions {
   build?: BuildEnvironmentOptions
 }
 
-// ...
+// TODO: fill in later ...
+
+export type ResolvedEnvironmentOptions = {
+  define?: Record<string, any>
+  // TODO(kazupon): resolve alias type later
+  // resolve: ResolvedResolveOptions
+  consumer: 'client' | 'server'
+  keepProcessEnv?: boolean
+  // TODO(kazupon): resolve optimizeDeps type later
+  // optimizeDeps: DepOptimizationOptions
+  dev: ResolvedDevEnvironmentOptions
+  build: ResolvedBuildEnvironmentOptions
+  plugins: readonly Plugin[]
+  /** @internal */
+  optimizeDepsPluginNames: string[]
+}
 
 export type DefaultEnvironmentOptions = Omit<
   EnvironmentOptions,
@@ -130,11 +272,14 @@ export interface UserConfig extends DefaultEnvironmentOptions {
    * each command, and can be overridden by the command line --mode option.
    */
   mode?: string
+
   // TODO: fill in later
+
   /**
    * Server specific options, e.g. host, port, https...
    */
   server?: ServerOptions
+
   // TODO: fill in later
 }
 
@@ -233,15 +378,30 @@ export interface ResolvedConfig extends Readonly<
     | 'server'
     | 'preview'
   > & {
-    // TODO: fill in later
-
+    configFile: string | undefined
+    configFileDependencies: string[]
+    inlineConfig: InlineConfig
     root: string
     base: string
-
-    // TODO: fill in later
-
+    /** @internal */
+    decodedBase: string
     /** @internal */
     rawBase: string
+    publicDir: string
+    cacheDir: string
+    command: 'build' | 'serve'
+    mode: string
+    /** `true` when build or full-bundle mode dev */
+    isBundled: boolean
+    isWorker: boolean
+    // in nested worker bundle to find the main config
+    /** @internal */
+    mainConfig: ResolvedConfig | null
+    /** @internal list of bundle entry id. used to detect recursive worker bundle. */
+    bundleChain: string[]
+    isProduction: boolean
+    envDir: string | false
+    env: Record<string, any>
 
     // TODO: fill in later
 
@@ -252,11 +412,26 @@ export interface ResolvedConfig extends Readonly<
     experimental: RequiredExceptFor<ExperimentalOptions, 'renderBuiltUrl'>
 
     // TODO: fill in later
+
+    environments: Record<string, ResolvedEnvironmentOptions>
+
+    // TODO: fill in later
   }
 > { }
 
 // export interface ResolvedConfig extends UserConfig {
 //   // TODO: fill in later
 // }
+
+// TODO: fill in later
+
+export interface PluginHookUtils {
+  getSortedPlugins: <K extends keyof Plugin>(
+    hookName: K,
+  ) => PluginWithRequiredHook<K>[]
+  getSortedPluginHooks: <K extends keyof Plugin>(
+    hookName: K,
+  ) => NonNullable<HookHandler<Plugin[K]>>[]
+}
 
 // TODO: fill in later
