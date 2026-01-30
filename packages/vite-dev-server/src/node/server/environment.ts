@@ -1,42 +1,47 @@
-// TODO: fill in later
-
-import { BaseEnvironment } from '../baseEnvironment'
-
+import colors from 'picocolors'
+import type { FetchFunctionOptions, FetchResult } from '../../shared/invokeMethods'
+// NOTE(kazupon): comment out because we need to undserstand the previous implementation as background
+// import type { FetchFunctionOptions, FetchResult } from 'vite/module-runner'
 import type { FSWatcher } from '#dep-types/chokidar'
+import { ERR_OUTDATED_OPTIMIZED_DEP } from '../../shared/constants'
+import { promiseWithResolvers } from '../../shared/utils'
+import { BaseEnvironment } from '../baseEnvironment'
 import type {
   EnvironmentOptions,
   ResolvedConfig,
   ResolvedEnvironmentOptions,
 } from '../config'
-import { mergeConfig } from '../utils'
-
-import { transformRequest } from './transformRequest'
-
-// TODO: fill in later
-
 import type { DepsOptimizer } from '../optimizer'
-
+import { isDepOptimizationDisabled } from '../optimizer'
+import {
+  createDepsOptimizer,
+  createExplicitDepsOptimizer,
+} from '../optimizer/optimizer'
+import type { ViteDevServer } from '../server'
+import { fetchModule } from '../ssr/fetchModule'
+import { mergeConfig, monotonicDateNow } from '../utils'
+import type {
+  HotChannel,
+  NormalizedHotChannel,
+  NormalizedHotChannelClient,
+} from './hmr'
+import { getShortName, normalizeHotChannel, updateModules } from './hmr'
+import { buildErrorMessage } from './middlewares/error'
+import type { EnvironmentModuleNode } from './moduleGraph'
 import { EnvironmentModuleGraph } from './moduleGraph'
-
 import type { EnvironmentPluginContainer } from './pluginContainer'
 import {
-  createEnvironmentPluginContainer
+  ERR_CLOSED_SERVER,
+  createEnvironmentPluginContainer,
 } from './pluginContainer'
-
-// TODO: fill in later ...
-
-import type { HotChannel, NormalizedHotChannel } from './hmr'
-
-// TODO: fill in later
-
 import type {
   TransformOptionsInternal,
   TransformResult,
 } from './transformRequest'
-
-// TODO: fill in later
-
+import { transformRequest } from './transformRequest'
+import { warmupFiles } from './warmup'
 import type { MessageChannelServer } from './ws'
+import { isMessageChannelServer } from './ws'
 
 export interface DevEnvironmentContext {
   hot: boolean
@@ -93,8 +98,7 @@ export class DevEnvironment extends BaseEnvironment {
   /**
    * @internal
    */
-  // NOTE(kazupon): enable later ...
-  //  _crawlEndFinder: CrawlEndFinder
+  _crawlEndFinder: CrawlEndFinder
 
   /**
    * Hot channel for this environment. If not provided or disabled,
@@ -127,7 +131,6 @@ export class DevEnvironment extends BaseEnvironment {
       this.pluginContainer!.resolveId(url, undefined),
     )
 
-    /* NOTE(kazupon): enable later ...
     this._crawlEndFinder = setupOnCrawlEnd()
 
     this._remoteRunnerOptions = context.remoteRunner ?? {}
@@ -179,7 +182,6 @@ export class DevEnvironment extends BaseEnvironment {
         )(this)
       }
     }
-    */
   }
 
   async init(options?: {
@@ -202,13 +204,34 @@ export class DevEnvironment extends BaseEnvironment {
     )
   }
 
-  // TODO: fill in later
+  /**
+    * When the dev server is restarted, the methods are called in the following order:
+    * - new instance `init`
+    * - previous instance `close`
+    * - new instance `listen`
+    */
+  async listen(server: ViteDevServer): Promise<void> {
+    this.hot.listen()
+    await this.depsOptimizer?.init()
+    warmupFiles(server, this)
+  }
 
-  // async reloadModule(module: EnvironmentModuleNode): Promise<void> {
-  //   if (this.config.server.hmr !== false && module.file) {
-  //     updateModules(this, module.file, [module], monotonicDateNow())
-  //   }
-  // }
+  fetchModule(
+    id: string,
+    importer?: string,
+    options?: FetchFunctionOptions,
+  ): Promise<FetchResult> {
+    return fetchModule(this, id, importer, {
+      ...this._remoteRunnerOptions,
+      ...options,
+    })
+  }
+
+  async reloadModule(module: EnvironmentModuleNode): Promise<void> {
+    if (this.config.server.hmr !== false && module.file) {
+      updateModules(this, module.file, [module], monotonicDateNow())
+    }
+  }
 
   transformRequest(
     url: string,
@@ -218,7 +241,175 @@ export class DevEnvironment extends BaseEnvironment {
     return transformRequest(this, url, options)
   }
 
-  // TODO: fill in later
+  async warmupRequest(url: string): Promise<void> {
+    try {
+      await this.transformRequest(url)
+    } catch (e) {
+      if (
+        // @ts-expect-error -- FIXME(kazupon): type error
+        e?.code === ERR_OUTDATED_OPTIMIZED_DEP ||
+        // @ts-expect-error -- FIXME(kazupon): type error
+        e?.code === ERR_CLOSED_SERVER
+      ) {
+        // these are expected errors
+        return
+      }
+      // Unexpected error, log the issue but avoid an unhandled exception
+      this.logger.error(
+        // @ts-expect-error -- FIXME(kazupon): type error
+        buildErrorMessage(e, [`Pre-transform error: ${e.message}`], false),
+        {
+          // @ts-expect-error -- FIXME(kazupon): type error
+          error: e,
+          timestamp: true,
+        },
+      )
+    }
+  }
+
+  protected invalidateModule(
+    m: {
+      path: string
+      message?: string
+      firstInvalidatedBy: string
+    },
+    _client: NormalizedHotChannelClient,
+  ): void {
+    const mod = this.moduleGraph.urlToModuleMap.get(m.path)
+    if (
+      mod &&
+      mod.isSelfAccepting &&
+      mod.lastHMRTimestamp > 0 &&
+      !mod.lastHMRInvalidationReceived
+    ) {
+      mod.lastHMRInvalidationReceived = true
+      this.logger.info(
+        colors.yellow(`hmr invalidate `) +
+        colors.dim(m.path) +
+        (m.message ? ` ${m.message}` : ''),
+        { timestamp: true },
+      )
+      const file = getShortName(mod.file!, this.config.root)
+      updateModules(
+        this,
+        file,
+        [...mod.importers].filter((imp) => imp !== mod), // ignore self-imports
+        mod.lastHMRTimestamp,
+        m.firstInvalidatedBy,
+      )
+    }
+  }
+
+  async close(): Promise<void> {
+    this._closing = true
+
+    this._crawlEndFinder.cancel()
+    await Promise.allSettled([
+      this.pluginContainer.close(),
+      this.depsOptimizer?.close(),
+      // MessageChannelServer is independent of HotChannel and should not be closed on environment close
+      isMessageChannelServer in this.hot ? Promise.resolve() : this.hot.close(),
+      // NOTE(kazupon): comment out, background use MessageChannelServer
+      // // WebSocketServer is independent of HotChannel and should not be closed on environment close
+      // isWebSocketServer in this.hot ? Promise.resolve() : this.hot.close(),
+      (async () => {
+        while (this._pendingRequests.size > 0) {
+          await Promise.allSettled(
+            [...this._pendingRequests.values()].map(
+              (pending) => pending.request,
+            ),
+          )
+        }
+      })(),
+    ])
+  }
+
+  /**
+   * Calling `await environment.waitForRequestsIdle(id)` will wait until all static imports
+   * are processed after the first transformRequest call. If called from a load or transform
+   * plugin hook, the id needs to be passed as a parameter to avoid deadlocks.
+   * Calling this function after the first static imports section of the module graph has been
+   * processed will resolve immediately.
+   * @experimental
+   */
+  waitForRequestsIdle(ignoredId?: string): Promise<void> {
+    return this._crawlEndFinder.waitForRequestsIdle(ignoredId)
+  }
+
+  /**
+   * @internal
+   */
+  _registerRequestProcessing(id: string, done: () => Promise<unknown>): void {
+    this._crawlEndFinder.registerRequestProcessing(id, done)
+  }
 }
 
-// TODO: fill in later
+const callCrawlEndIfIdleAfterMs = 50
+
+interface CrawlEndFinder {
+  registerRequestProcessing: (id: string, done: () => Promise<any>) => void
+  waitForRequestsIdle: (ignoredId?: string) => Promise<void>
+  cancel: () => void
+}
+
+function setupOnCrawlEnd(): CrawlEndFinder {
+  const registeredIds = new Set<string>()
+  const seenIds = new Set<string>()
+  const onCrawlEndPromiseWithResolvers = promiseWithResolvers<void>()
+
+  let timeoutHandle: NodeJS.Timeout | undefined
+
+  let cancelled = false
+  function cancel() {
+    cancelled = true
+  }
+
+  function registerRequestProcessing(
+    id: string,
+    done: () => Promise<any>,
+  ): void {
+    if (!seenIds.has(id)) {
+      seenIds.add(id)
+      registeredIds.add(id)
+      done()
+        .catch(() => { })
+        .finally(() => markIdAsDone(id))
+    }
+  }
+
+  function waitForRequestsIdle(ignoredId?: string): Promise<void> {
+    if (ignoredId) {
+      seenIds.add(ignoredId)
+      markIdAsDone(ignoredId)
+    } else {
+      checkIfCrawlEndAfterTimeout()
+    }
+    return onCrawlEndPromiseWithResolvers.promise
+  }
+
+  function markIdAsDone(id: string): void {
+    registeredIds.delete(id)
+    checkIfCrawlEndAfterTimeout()
+  }
+
+  function checkIfCrawlEndAfterTimeout() {
+    if (cancelled || registeredIds.size > 0) return
+
+    if (timeoutHandle) clearTimeout(timeoutHandle)
+    timeoutHandle = setTimeout(
+      callOnCrawlEndWhenIdle,
+      callCrawlEndIfIdleAfterMs,
+    )
+  }
+  async function callOnCrawlEndWhenIdle() {
+    if (cancelled || registeredIds.size > 0) return
+    onCrawlEndPromiseWithResolvers.resolve()
+  }
+
+  return {
+    registerRequestProcessing,
+    waitForRequestsIdle,
+    cancel,
+  }
+}
+

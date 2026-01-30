@@ -45,4 +45,14 @@ export type DepOptimizationOptions = DepOptimizationConfig & {
   force?: boolean
 }
 
-// ...
+export function isDepOptimizationDisabled(
+  optimizeDeps: DepOptimizationOptions,
+): boolean {
+  return (
+    optimizeDeps.disabled === true ||
+    optimizeDeps.disabled === 'dev' ||
+    (!!optimizeDeps.noDiscovery && !optimizeDeps.include?.length)
+  )
+}
+
+// TOOD: fill in later ...

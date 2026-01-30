@@ -414,6 +414,9 @@ importers:
       '@rollup/plugin-alias':
         specifier: ^5.1.1
         version: 5.1.1(rollup@4.55.1)
+      '@rollup/pluginutils':
+        specifier: ^5.3.0
+        version: 5.3.0(rollup@4.55.1)
       '@types/convert-source-map':
         specifier: ^2.0.3
         version: 2.0.3
@@ -462,6 +465,9 @@ importers:
       rolldown-plugin-dts:
         specifier: ^0.20.0
         version: 0.20.0(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(rolldown@1.0.0-rc.1)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
+      tinyglobby:
+        specifier: ^0.2.15
+        version: 0.2.15
       vite:
         specifier: 'catalog:'
         version: 8.0.0-beta.4(@types/node@25.0.9)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)

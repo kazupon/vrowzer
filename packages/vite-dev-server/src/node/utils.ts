@@ -2,15 +2,20 @@ import type { Alias, AliasOptions } from '#dep-types/alias'
 import type { FSWatcher } from '#dep-types/chokidar'
 import type { DecodedSourceMap, RawSourceMap } from '@jridgewell/remapping'
 import remapping from '@jridgewell/remapping'
+import { createFilter as _createFilter } from '@rollup/pluginutils'
 import type MagicString from 'magic-string'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Debugger } from 'obug'
 import debug from 'obug'
 import type { TransformResult } from 'rolldown'
 import { VALID_ID_PREFIX } from '../shared/constants'
 import { cleanUrl, isWindows, slash, splitFileAndPostfix, withTrailingSlash } from '../shared/utils'
 import type { ResolvedConfig } from './config'
+import type { DepOptimizationOptions } from './optimizer'
+import type { PackageCache } from './packages'
+import { findNearestPackageData } from './packages'
 // import { createIsBuiltin } from '../shared/builtin'
 import {
   // CLIENT_ENTRY,
@@ -18,13 +23,132 @@ import {
   CSS_LANGS_RE,
   ENV_PUBLIC_PATH,
   FS_PREFIX,
+  OPTIMIZABLE_ENTRY_RE,
 } from './constants'
-
-// TODO: fill in code later ...
 
 import type { BuildEnvironmentOptions } from './build'
 
 // TODO: fill in code later ...
+/**
+ * Inlined to keep `@rollup/pluginutils` in devDependencies
+ */
+export type FilterPattern =
+  | ReadonlyArray<string | RegExp>
+  | string
+  | RegExp
+  | null
+export const createFilter = _createFilter as (
+  include?: FilterPattern,
+  exclude?: FilterPattern,
+  options?: { resolve?: string | false | null },
+) => (id: string | unknown) => boolean
+
+// NOTE: `rolldown/filter` was not needed in browser
+// export { withFilter } from 'rolldown/filter'
+
+const replaceSlashOrColonRE = /[/:]/g
+const replaceDotRE = /\./g
+const replaceNestedIdRE = /\s*>\s*/g
+const replaceHashRE = /#/g
+//export const flattenId = (id: string): string => {
+//  const flatId = limitFlattenIdLength(
+//    id
+//      .replace(replaceSlashOrColonRE, '_')
+//      .replace(replaceDotRE, '__')
+//      .replace(replaceNestedIdRE, '___')
+//      .replace(replaceHashRE, '____'),
+//  )
+//  return flatId
+//}
+
+// const FLATTEN_ID_HASH_LENGTH = 8
+// const FLATTEN_ID_MAX_FILE_LENGTH = 170
+//
+// const limitFlattenIdLength = (
+//   id: string,
+//   limit: number = FLATTEN_ID_MAX_FILE_LENGTH,
+// ): string => {
+//   if (id.length <= limit) {
+//     return id
+//   }
+//   return id.slice(0, limit - (FLATTEN_ID_HASH_LENGTH + 1)) + '_' + getHash(id)
+// }
+
+export const normalizeId = (id: string): string =>
+  id.replace(replaceNestedIdRE, ' > ')
+
+// Supported by Node, Deno, Bun
+const NODE_BUILTIN_NAMESPACE = 'node:'
+// Supported by Bun
+const BUN_BUILTIN_NAMESPACE = 'bun:'
+// Some runtimes like Bun injects namespaced modules here, which is not a node builtin
+// TODO(kazupon): We need to find a better way to handle this
+// const nodeBuiltins = builtinModules.filter((id) => !id.includes(':'))
+
+const isBuiltinCache = new WeakMap<
+  (string | RegExp)[],
+  (id: string, importer?: string) => boolean
+>()
+
+export function isBuiltin(builtins: (string | RegExp)[], id: string): boolean {
+  return false
+  // TODO(kazupon): disable now and we need to resolve node module
+  // let isBuiltin = isBuiltinCache.get(builtins)
+  // if (!isBuiltin) {
+  //   isBuiltin = createIsBuiltin(builtins)
+  //   isBuiltinCache.set(builtins, isBuiltin)
+  // }
+  // return isBuiltin(id)
+}
+
+export const nodeLikeBuiltins: (string | RegExp)[] = [
+  // NOTE(kazupon): disable now and we need to resolve node module
+  // ...nodeBuiltins,
+  new RegExp(`^${NODE_BUILTIN_NAMESPACE}`),
+  new RegExp(`^${BUN_BUILTIN_NAMESPACE}`),
+]
+
+export function isNodeLikeBuiltin(id: string): boolean {
+  return isBuiltin(nodeLikeBuiltins, id)
+}
+
+export function isNodeBuiltin(id: string): boolean {
+  // NOTE(kazupon): disable now and we need to resolve node module
+  // if (id.startsWith(NODE_BUILTIN_NAMESPACE)) return true
+  // return nodeBuiltins.includes(id)
+  return false
+}
+
+export function isInNodeModules(id: string): boolean {
+  return id.includes('node_modules')
+}
+
+export function moduleListContains(
+  moduleList: string[] | undefined,
+  id: string,
+): boolean | undefined {
+  return moduleList?.some(
+    (m) => m === id || id.startsWith(withTrailingSlash(m)),
+  )
+}
+
+export function isOptimizable(
+  id: string,
+  optimizeDeps: DepOptimizationOptions,
+): boolean {
+  const { extensions } = optimizeDeps
+  return (
+    OPTIMIZABLE_ENTRY_RE.test(id) ||
+    (extensions?.some((ext) => id.endsWith(ext)) ?? false)
+  )
+}
+
+export const bareImportRE: RegExp = /^(?![a-zA-Z]:)[\w@](?!.*:\/\/)/
+export const deepImportRE: RegExp = /^([^@][^/]*)\/|^(@[^/]+\/[^/]+)\//
+
+export const _dirname: string = path.dirname(
+  fileURLToPath(/** #__KEEP__ */ import.meta.url),
+)
 
 // https://github.com/rolldown/rolldown/blob/62fba31428af244f871f0e119ed43936ee5d01fd/packages/rolldown/src/log/logger.ts#L64
 export const rollupVersion = '4.23.0'
@@ -214,7 +338,35 @@ export function isDefined<T>(value: T | undefined | null): value is T {
   return value != null
 }
 
+export function tryStatSync(file: string): fs.Stats | undefined {
+  try {
+    // The "throwIfNoEntry" is a performance optimization for cases where the file does not exist
+    return fs.statSync(file, { throwIfNoEntry: false })
+  } catch {
+    // Ignore errors
+  }
+}
+
 // TODO: fill in code later ...
+
+export function isFilePathESM(
+  filePath: string,
+  packageCache?: PackageCache,
+): boolean {
+  if (/\.m[jt]s$/.test(filePath)) {
+    return true
+  } else if (/\.c[jt]s$/.test(filePath)) {
+    return false
+  } else {
+    // check package.json for type: "module"
+    try {
+      const pkg = findNearestPackageData(path.dirname(filePath), packageCache)
+      return pkg?.data.type === 'module'
+    } catch {
+      return false
+    }
+  }
+}
 
 export const splitRE: RegExp = /\r?\n/g
 
@@ -345,6 +497,20 @@ export function generateCodeFrame(
   }
   return res.join('\n')
 }
+
+// TODO: fill in code later ...
+
+// @ts-expect-error -- ignore
+export let safeRealpathSync: typeof fs.realpathSync.native = (path: string, ...args): string => '(not supproted)'
+// NOTE(kazupon): browser environment does not need safeRealpathSync
+// // `fs.realpathSync.native` resolves differently in Windows network drive,
+// // causing file read errors. skip for now.
+// // https://github.com/nodejs/node/issues/37737
+// export let safeRealpathSync:
+//   | typeof windowsSafeRealPathSync
+//   | typeof fs.realpathSync.native = isWindows
+//     ? windowsSafeRealPathSync
+//     : fs.realpathSync.native
 
 // TODO: fill in code later ...
 
@@ -479,7 +645,9 @@ export function joinUrlSegments(a: string, b: string): string {
   return a + b
 }
 
-// TODO: fill in code later ...
+export function removeLeadingSlash(str: string): string {
+  return str[0] === '/' ? str.slice(1) : str
+}
 
 export function stripBase(path: string, base: string): string {
   if (path === base) {
@@ -487,6 +655,44 @@ export function stripBase(path: string, base: string): string {
   }
   const devBase = withTrailingSlash(base)
   return path.startsWith(devBase) ? path.slice(devBase.length - 1) : path
+}
+
+export function arrayEqual(a: any[], b: any[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+export function evalValue<T = any>(rawValue: string): T {
+  const fn = new Function(`
+    var console, exports, global, module, process, require
+    return (\n${rawValue}\n)
+  `)
+  return fn()
+}
+
+export function getNpmPackageName(importPath: string): string | null {
+  const parts = importPath.split('/')
+  // @ts-expect-error -- FIXME(kazupon): fix me
+  if (parts[0][0] === '@') {
+    if (!parts[1]) return null
+    return `${parts[0]}/${parts[1]}`
+  } else {
+    // @ts-expect-error -- FIXME(kazupon): fix me
+    return parts[0]
+  }
+}
+
+export function getPkgName(name: string): string | undefined {
+  return name[0] === '@' ? name.split('/')[1] : name
+}
+
+const escapeRegexRE = /[-/\\^$*+?.()|[\]{}]/g
+export function escapeRegex(str: string): string {
+  return str.replace(escapeRegexRE, '\\$&')
 }
 
 // TODO: fill in code later ...

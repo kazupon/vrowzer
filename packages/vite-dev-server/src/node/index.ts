@@ -16,3 +16,15 @@ export type {
 } from '#types/customEvent'
 
 // TODO: fill in later ...
+
+export type {
+  EnvironmentModuleGraph,
+  EnvironmentModuleNode,
+  ResolvedUrl
+} from './server/moduleGraph'
+
+export type {
+  TransformOptions,
+  TransformResult
+} from './server/transformRequest'
+

@@ -120,6 +120,9 @@ export const FS_PREFIX = `/@fs/`
 
 export const CLIENT_PUBLIC_PATH = `/@vite/client`
 export const ENV_PUBLIC_PATH = `/@vite/env`
+
+export const CLIENT_ENTRY: string = 'dist/client/client.mjs'
+export const ENV_ENTRY: string = 'dist/client/env.mjs'
 // NOTE(kazupon): disable for browser env
 // export const VITE_PACKAGE_DIR: string = resolve(
 //   fileURLToPath(import.meta.url),
