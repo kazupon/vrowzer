@@ -102,8 +102,6 @@ import type {
   EnvironmentModuleNode,
 } from './moduleGraph'
 
-// TODO: fill in later ...
-
 // same default value of "moduleInfo.meta" as in Rollup
 const EMPTY_OBJECT = Object.freeze({})
 
@@ -1333,6 +1331,3 @@ export function createPluginContainer(
 }
 
 export type { PluginContainer }
-
-// TODO: fill in later ...
-

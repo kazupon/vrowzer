@@ -123,20 +123,22 @@ export const ENV_PUBLIC_PATH = `/@vite/env`
 
 export const CLIENT_ENTRY: string = 'dist/client/client.mjs'
 export const ENV_ENTRY: string = 'dist/client/env.mjs'
-// NOTE(kazupon): disable for browser env
+// NOTE(kazupon): we need to resolve path for browser
 // export const VITE_PACKAGE_DIR: string = resolve(
 //   fileURLToPath(import.meta.url),
 //   '../../..',
 // )
-//
+// NOTE(kazupon): we need to resolve path for browser
 // export const CLIENT_ENTRY: string = resolve(
 //   VITE_PACKAGE_DIR,
 //   'dist/client/client.mjs',
 // )
+// NOTE(kazupon): we need to resolve path for browser
 // export const ENV_ENTRY: string = resolve(
 //   VITE_PACKAGE_DIR,
 //   'dist/client/env.mjs',
 // )
+// NOTE(kazupon): we need to resolve path for browser
 // export const CLIENT_DIR: string = path.dirname(CLIENT_ENTRY)
 
 // ** READ THIS ** before editing `KNOWN_ASSET_TYPES`.
