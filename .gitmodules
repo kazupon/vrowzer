@@ -19,3 +19,6 @@
 [submodule "refers/hono"]
 	path = refers/hono
 	url = git@github.com:honojs/hono.git
+[submodule "refers/emnapi"]
+	path = refers/emnapi
+	url = git@github.com:toyobayashi/emnapi.git
