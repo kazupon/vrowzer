@@ -80,8 +80,10 @@ export function createLogger(
     console = globalThis.console,
   } = options
   const thresh = LogLevels[level]
-  const canClearScreen =
-    allowClearScreen && process.stdout.isTTY && !process.env.CI
+  const canClearScreen = allowClearScreen && false
+  // NOTE(kazupon): disalbe, because `node:readline` cannot be used in browser env
+  // const canClearScreen =
+  //   allowClearScreen && process.stdout.isTTY && !process.env.CI
   const clear = canClearScreen ? clearScreen : () => { }
 
   function format(type: LogType, msg: string, options: LogErrorOptions = {}) {
