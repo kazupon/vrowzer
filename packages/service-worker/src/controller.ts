@@ -428,7 +428,10 @@ export function createSvcWorkerController(
         _debug?.('createSvcWorkerController: controllerchange, re-establishing session')
         // Create abort controller with timeout for session re-establishment
         const abortController = new AbortController()
-        const timeoutId = setTimeout(() => abortController.abort(), timeout)
+        // Use bind() instead of arrow function to avoid capturing the entire scope in closure,
+        // which can cause memory leaks in long-running sessions.
+        // See: https://x.com/jarredsumner/status/2017825694731145388
+        const timeoutId = setTimeout(abortController.abort.bind(abortController), timeout)
         // Re-establish session with new controller
         // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
         establishSession(controller, abortController.signal).finally(() => clearTimeout(timeoutId))
@@ -496,7 +499,10 @@ export function createSvcWorkerController(
     const skipWaitingPolicy = options?.skipWaitingPolicy ?? 'strict'
 
     const abortController = new AbortController()
-    const timeoutId = setTimeout(() => abortController.abort(), timeout)
+    // Use bind() instead of arrow function to avoid capturing the entire scope in closure,
+    // which can cause memory leaks in long-running sessions.
+    // See: https://x.com/jarredsumner/status/2017825694731145388
+    const timeoutId = setTimeout(abortController.abort.bind(abortController), timeout)
     const signal = abortController.signal
 
     try {
@@ -639,7 +645,13 @@ export function createSvcWorkerController(
 
     if (!signal) {
       const abortController = new AbortController()
-      timeoutId = setTimeout(() => abortController.abort(), DEFAULT_CIRCUIT_BREAKER_TIMEOUT)
+      // Use bind() instead of arrow function to avoid capturing the entire scope in closure,
+      // which can cause memory leaks in long-running sessions.
+      // See: https://x.com/jarredsumner/status/2017825694731145388
+      timeoutId = setTimeout(
+        abortController.abort.bind(abortController),
+        DEFAULT_CIRCUIT_BREAKER_TIMEOUT
+      )
       signal = abortController.signal
     }
 
