@@ -41,13 +41,15 @@ import type {
 } from './plugins/resolve'
 import type { PreviewOptions, ResolvedPreviewOptions } from './preview'
 import type { ResolvedServerOptions, ServerOptions } from './server'
-import { serverConfigDefaults } from './server'
+import { serverConfigDefaults } from './server/options'
+// import { serverConfigDefaults } from './server'
+// NOTE(kazupon): comment out because we need to understand the previous implementation as background
 import { DevEnvironment } from './server/environment'
 import type { MessageChannelServer } from './server/ws'
 import type { ResolvedSSROptions, SSROptions } from './ssr'
 import { ssrConfigDefaults } from './ssr'
 import type { RequiredExceptFor } from './typeUtils'
-import { createDebugger } from './utils'
+import { createDebugger, setupRollupOptionCompat } from './utils'
 
 const debug = createDebugger('vite:config', { depth: 10 })
 // TODO: const promisifiedRealpath = promisify(fs.realpath)
@@ -771,3 +773,52 @@ export type ResolveFn = (
 ) => Promise<string | undefined>
 
 // TODO: fill in later
+
+export function isResolvedConfig(
+  inlineConfig: InlineConfig | ResolvedConfig,
+): inlineConfig is ResolvedConfig {
+  return (
+    SYMBOL_RESOLVED_CONFIG in inlineConfig &&
+    inlineConfig[SYMBOL_RESOLVED_CONFIG]
+  )
+}
+
+export function resolveConfig(
+  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
+  // export async function resolveConfig(
+  inlineConfig: InlineConfig,
+  command: 'build' | 'serve',
+  defaultMode = 'development',
+  defaultNodeEnv = 'development',
+  isPreview = false,
+  /** @internal */
+  patchConfig: ((config: ResolvedConfig) => void) | undefined = undefined,
+  /** @internal */
+  patchPlugins: ((resolvedPlugins: Plugin[]) => void) | undefined = undefined,
+  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
+  // ): Promise<ResolvedConfig> {
+): ResolvedConfig {
+  let config = inlineConfig
+  config.build ??= {}
+  setupRollupOptionCompat(config.build, 'build')
+  config.worker ??= {}
+  setupRollupOptionCompat(config.worker, 'worker')
+  config.optimizeDeps ??= {}
+  setupRollupOptionCompat(config.optimizeDeps, 'optimizeDeps')
+  if (config.ssr) {
+    config.ssr.optimizeDeps ??= {}
+    setupRollupOptionCompat(config.ssr.optimizeDeps, 'ssr.optimizeDeps')
+  }
+
+  let configFileDependencies: string[] = []
+  let mode = inlineConfig.mode || defaultMode
+  const isNodeEnvSet = !!import.meta.env.NODE_ENV
+  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
+  // const isNodeEnvSet = !!process.env.NODE_ENV
+  const packageCache: PackageCache = new Map()
+
+  // TODO: implement config file loading and merging ...
+
+  console.log('resoveConfig - config before defaults applied:', config)
+  return config as unknown as ResolvedConfig
+}

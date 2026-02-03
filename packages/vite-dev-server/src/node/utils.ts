@@ -6,7 +6,7 @@ import { createFilter as _createFilter } from '@rollup/pluginutils'
 import type MagicString from 'magic-string'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+// import { fileURLToPath } from 'node:url'
 import type { Debugger } from 'obug'
 import debug from 'obug'
 import type { TransformResult } from 'rolldown'
@@ -146,9 +146,10 @@ export function isOptimizable(
 export const bareImportRE: RegExp = /^(?![a-zA-Z]:)[\w@](?!.*:\/\/)/
 export const deepImportRE: RegExp = /^([^@][^/]*)\/|^(@[^/]+\/[^/]+)\//
 
-export const _dirname: string = path.dirname(
-  fileURLToPath(/** #__KEEP__ */ import.meta.url),
-)
+// NOTE(kazupon): disable now
+// export const _dirname: string = path.dirname(
+//   fileURLToPath(/** #__KEEP__ */ import.meta.url),
+// )
 
 // https://github.com/rolldown/rolldown/blob/62fba31428af244f871f0e119ed43936ee5d01fd/packages/rolldown/src/log/logger.ts#L64
 export const rollupVersion = '4.23.0'

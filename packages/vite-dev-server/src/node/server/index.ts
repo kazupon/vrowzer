@@ -7,10 +7,12 @@ import type { BlankSchema, Env } from 'hono/types'
 import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
 import type { InlineConfig, ResolvedConfig } from '../config'
-import {
-  DEFAULT_DEV_PORT,
-  defaultAllowedOrigins
-} from '../constants'
+import { isResolvedConfig, resolveConfig } from '../config'
+// NOTE(kazupon): disable now
+// import {
+//   DEFAULT_DEV_PORT,
+//   defaultAllowedOrigins
+// } from '../constants'
 import { warnFutureDeprecation } from '../deprecations'
 import type { CommonServerOptions } from '../http'
 import {
@@ -457,9 +459,11 @@ export function createServer(
   },
   options: CreateServerOptions = {},
 ): ViteDevServer {
-  // TOOD: implement for config resolving and etc ...
-  // ...
-  const config = inlineConfig as ResolvedConfig
+  const config = isResolvedConfig(inlineConfig)
+    ? inlineConfig
+    : resolveConfig(inlineConfig, 'serve')
+  // NOTE(kazupon): commented out, until implementing resolveConfig
+  // : await resolveConfig(inlineConfig, 'serve')
   console.log('[SW] Vite Dev Server config:', config)
 
   // TODO: ...
@@ -1053,35 +1057,37 @@ export function createServerCloseFn(
 
 // TODO: fill in code ...
 
-const _serverConfigDefaults = Object.freeze({
-  port: DEFAULT_DEV_PORT,
-  strictPort: false,
-  host: 'localhost',
-  allowedHosts: [],
-  https: undefined,
-  open: false,
-  proxy: undefined,
-  cors: { origin: defaultAllowedOrigins },
-  headers: {},
-  // hmr
-  // ws
-  warmup: {
-    clientFiles: [],
-    ssrFiles: [],
-  },
-  // watch
-  middlewareMode: false,
-  fs: {
-    strict: true,
-    // allow
-    deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**'],
-  },
-  // origin
-  preTransformRequests: true,
-  // sourcemapIgnoreList
-  perEnvironmentStartEndDuringDev: false,
-  perEnvironmentWatchChangeDuringDev: false,
-  // hotUpdateEnvironments
-} satisfies ServerOptions)
-export const serverConfigDefaults: Readonly<Partial<ServerOptions>> =
-  _serverConfigDefaults
+// NOTE(kazupon): commented out, until implementing default server config
+// const _serverConfigDefaults = Object.freeze({
+//   port: DEFAULT_DEV_PORT,
+//   strictPort: false,
+//   host: 'localhost',
+//   allowedHosts: [],
+//   https: undefined,
+//   open: false,
+//   proxy: undefined,
+//   cors: { origin: defaultAllowedOrigins },
+//   headers: {},
+//   // hmr
+//   // ws
+//   warmup: {
+//     clientFiles: [],
+//     ssrFiles: [],
+//   },
+//   // watch
+//   middlewareMode: false,
+//   fs: {
+//     strict: true,
+//     // allow
+//     deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**'],
+//   },
+//   // origin
+//   preTransformRequests: true,
+//   // sourcemapIgnoreList
+//   perEnvironmentStartEndDuringDev: false,
+//   perEnvironmentWatchChangeDuringDev: false,
+//   // hotUpdateEnvironments
+// } satisfies ServerOptions)
+// export const serverConfigDefaults: Readonly<Partial<ServerOptions>> =
+//   _serverConfigDefaults
+//
