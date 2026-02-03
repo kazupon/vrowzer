@@ -1,59 +1,41 @@
-// ...
-
+import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
+import type { SvcWorkerServer } from '@vrowser/service-worker-server'
+import { createSvcWorkerServer } from '@vrowser/service-worker-server'
+import { Hono } from 'hono'
+import { handle } from 'hono/service-worker'
+import type { BlankSchema, Env } from 'hono/types'
+import type { SourceMap } from 'rolldown'
+import type { ModuleRunner } from 'vite/module-runner'
 import type { InlineConfig, ResolvedConfig } from '../config'
+import {
+  DEFAULT_DEV_PORT,
+  defaultAllowedOrigins
+} from '../constants'
+import { warnFutureDeprecation } from '../deprecations'
+import type { CommonServerOptions } from '../http'
 import {
   httpServerStart,
 } from '../http'
-
-// ..
-
-import type { SourceMap } from 'rolldown'
-import type { ModuleRunner } from 'vite/module-runner'
-
-import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-
-import type { CommonServerOptions } from '../http'
-
+import type { MinimalPluginContextWithoutEnvironment } from '../plugin'
+import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
+import type { RequiredExceptFor } from '../typeUtils'
 import {
   createDebugger
 } from '../utils'
-
-import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
-
-import type { RequiredExceptFor } from '../typeUtils'
+import type { DevEnvironment } from './environment'
+import type { HmrOptions, NormalizedHotChannel } from './hmr'
+import { baseMiddleware } from './middlewares/base'
+import { timeMiddleware } from './middlewares/time'
+import { transformMiddleware } from './middlewares/transform'
 import type { ModuleNode } from './mixedModuleGraph'
 import { ModuleGraph } from './mixedModuleGraph'
-
-import type { HmrOptions, NormalizedHotChannel } from './hmr'
-import type { TransformOptions, TransformResult } from './transformRequest'
-
-import type { DevEnvironment } from './environment'
-
-import { warnFutureDeprecation } from '../deprecations'
-// ...
-
-import type { MinimalPluginContextWithoutEnvironment } from '../plugin'
 import type { PluginContainer } from './pluginContainer'
 import {
   createPluginContainer
 } from './pluginContainer'
+import type { TransformOptions, TransformResult } from './transformRequest'
 import type { MessageChannelServer } from './ws'
 import { createMessageChannelServer } from './ws'
-
-// TODO: fill in code later ...
-
-import { baseMiddleware } from './middlewares/base'
-import { timeMiddleware } from './middlewares/time'
-import { transformMiddleware } from './middlewares/transform'
-
-// TODO: fill in code later ...
-
-import { createSvcWorkerServer } from '@vrowser/service-worker-server'
-import { Hono } from 'hono'
-import { handle } from 'hono/service-worker'
-
-import type { SvcWorkerServer } from '@vrowser/service-worker-server'
-import type { BlankSchema, Env } from 'hono/types'
 
 export interface ServerOptions extends CommonServerOptions {
   /**
@@ -153,8 +135,7 @@ export interface ResolvedServerOptions extends Omit<
     ServerOptions,
     | 'host'
     | 'https'
-    // TODO: enable later if needed
-    // | 'proxy'
+    | 'proxy'
     | 'hmr'
     | 'ws'
     | 'watch'
@@ -1069,3 +1050,38 @@ export function createServerCloseFn(
       }
     })
 }
+
+// TODO: fill in code ...
+
+const _serverConfigDefaults = Object.freeze({
+  port: DEFAULT_DEV_PORT,
+  strictPort: false,
+  host: 'localhost',
+  allowedHosts: [],
+  https: undefined,
+  open: false,
+  proxy: undefined,
+  cors: { origin: defaultAllowedOrigins },
+  headers: {},
+  // hmr
+  // ws
+  warmup: {
+    clientFiles: [],
+    ssrFiles: [],
+  },
+  // watch
+  middlewareMode: false,
+  fs: {
+    strict: true,
+    // allow
+    deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**'],
+  },
+  // origin
+  preTransformRequests: true,
+  // sourcemapIgnoreList
+  perEnvironmentStartEndDuringDev: false,
+  perEnvironmentWatchChangeDuringDev: false,
+  // hotUpdateEnvironments
+} satisfies ServerOptions)
+export const serverConfigDefaults: Readonly<Partial<ServerOptions>> =
+  _serverConfigDefaults

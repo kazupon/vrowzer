@@ -1,33 +1,30 @@
-// TODO: fill in later
-
-import type {
-  RolldownOptions,
-  RolldownOutput,
-  RolldownWatcher
-} from 'rolldown'
-
-import type { MinimalPluginContextWithoutEnvironment } from './plugin'
-
-// TODO: fill in later
-
 import type { RollupCommonJSOptions } from '#dep-types/commonjs'
 import type { RollupDynamicImportVarsOptions } from '#dep-types/dynamicImportVars'
-
-// TODO: fill in later
-
-import {
-  mergeConfig
-} from './utils'
-
-// TODO: fill in later
-
+import type { EsbuildTarget } from '#types/internal/esbuildOptions'
+import type {
+  InputOption,
+  ModuleFormat,
+  RolldownOptions,
+  RolldownOutput,
+  RolldownWatcher,
+  WatcherOptions
+} from 'rolldown'
+import { BaseEnvironment } from './baseEnvironment'
 import type {
   EnvironmentOptions,
   ResolvedConfig,
   ResolvedEnvironmentOptions
 } from './config'
-
-import { BaseEnvironment } from './baseEnvironment'
+import {
+  DEFAULT_ASSETS_INLINE_LIMIT
+} from './constants'
+import type { MinimalPluginContextWithoutEnvironment } from './plugin'
+import type { LicenseOptions } from './plugins/license'
+import type { TerserOptions } from './plugins/terser'
+import {
+  mergeConfig,
+  mergeWithDefaults
+} from './utils'
 
 // TODO: fill in later
 
@@ -48,8 +45,7 @@ export interface BuildEnvironmentOptions {
     * https://esbuild.github.io/content-types/#javascript for more details.
     * @default 'baseline-widely-available'
     */
-  // TODO: enable later ...
-  // target?: 'baseline-widely-available' | EsbuildTarget | false
+  target?: 'baseline-widely-available' | EsbuildTarget | false
   /**
    * whether to inject module preload polyfill.
    * Note: does not apply to library mode.
@@ -62,8 +58,7 @@ export interface BuildEnvironmentOptions {
    * Note: does not apply to library mode.
    * @default true
    */
-  // TODO: enable later ...
-  // modulePreload?: boolean | ModulePreloadOptions
+  modulePreload?: boolean | ModulePreloadOptions
   /**
    * Directory relative from `root` where build output will be placed. If the
    * directory exists, it will be removed before the build.
@@ -103,8 +98,7 @@ export interface BuildEnvironmentOptions {
    * doesn't support the #RGBA syntax.
    * @default target
    */
-  // TODO: enable later ...
-  // cssTarget?: EsbuildTarget | false
+  cssTarget?: EsbuildTarget | false
   /**
    * Override CSS minification specifically instead of defaulting to `build.minify`,
    * so you can configure minification for JS and CSS separately.
@@ -132,8 +126,7 @@ export interface BuildEnvironmentOptions {
    * In addition, you can also pass a `maxWorkers: number` option to specify the
    * max number of workers to spawn. Defaults to the number of CPUs minus 1.
    */
-  // TODO: enable later ...
-  // terserOptions?: TerserOptions
+  terserOptions?: TerserOptions
   /**
    * Alias to `rolldownOptions`
    * @deprecated Use `rolldownOptions` instead.
@@ -173,8 +166,7 @@ export interface BuildEnvironmentOptions {
    * licenses. Pass an object to customize the output file name.
    * @default false
    */
-  // TODO: enable later ...
-  // license?: boolean | LicenseOptions
+  license?: boolean | LicenseOptions
   /**
    * Whether to emit a .vite/manifest.json in the output dir to map hash-less filenames
    * to their hashed versions. Useful when you want to generate your own HTML
@@ -201,8 +193,7 @@ export interface BuildEnvironmentOptions {
    * configurations that are suitable for distributing libraries.
    * @default false
    */
-  // TODO: enable later ...
-  // lib?: LibraryOptions | false
+  lib?: LibraryOptions | false
   /**
    * Produce SSR oriented build. Note this requires specifying SSR entry via
    * `rollupOptions.input`.
@@ -241,22 +232,62 @@ export interface BuildEnvironmentOptions {
    * https://rollupjs.org/configuration-options/#watch
    * @default null
    */
-  // TODO: enable later ...
-  // watch?: WatcherOptions | null
+  watch?: WatcherOptions | null
   /**
    * create the Build Environment instance
    */
-  // TODO: enable later ...
-  // createEnvironment?: (
-  //   name: string,
-  //   config: ResolvedConfig,
-  // ) => Promise<BuildEnvironment> | BuildEnvironment
+  createEnvironment?: (
+    name: string,
+    config: ResolvedConfig,
+  ) => Promise<BuildEnvironment> | BuildEnvironment
 }
 
 export type BuildOptions = BuildEnvironmentOptions
 
-// TODO: fill in later
+export interface LibraryOptions {
+  /**
+   * Path of library entry
+   */
+  entry: InputOption
+  /**
+   * The name of the exposed global variable. Required when the `formats` option includes
+   * `umd` or `iife`
+   */
+  name?: string
+  /**
+   * Output bundle formats
+   * @default ['es', 'umd']
+   */
+  formats?: LibraryFormats[]
+  /**
+   * The name of the package file output. The default file name is the name option
+   * of the project package.json. It can also be defined as a function taking the
+   * format as an argument.
+   */
+  fileName?: string | ((format: ModuleFormat, entryName: string) => string)
+  /**
+   * The name of the CSS file output if the library imports CSS. Defaults to the
+   * same value as `build.lib.fileName` if it's set a string, otherwise it falls
+   * back to the name option of the project package.json.
+   */
+  cssFileName?: string
+}
 
+export type LibraryFormats = 'es' | 'cjs' | 'umd' | 'iife' // | 'system'
+
+export interface ModulePreloadOptions {
+  /**
+   * Whether to inject a module preload polyfill.
+   * Note: does not apply to library mode.
+   * @default true
+   */
+  polyfill?: boolean
+  /**
+   * Resolve the list of dependencies to preload for a given dynamic import
+   * @experimental
+   */
+  resolveDependencies?: ResolveModulePreloadDependenciesFn
+}
 export interface ResolvedModulePreloadOptions {
   polyfill: boolean
   resolveDependencies?: ResolveModulePreloadDependenciesFn
@@ -282,6 +313,49 @@ export interface ResolvedBuildOptions extends Required<
 > {
   modulePreload: false | ResolvedModulePreloadOptions
 }
+
+const _buildEnvironmentOptionsDefaults = Object.freeze({
+  target: 'baseline-widely-available',
+  /** @deprecated */
+  polyfillModulePreload: true,
+  modulePreload: true,
+  outDir: 'dist',
+  assetsDir: 'assets',
+  assetsInlineLimit: DEFAULT_ASSETS_INLINE_LIMIT,
+  // cssCodeSplit
+  // cssTarget
+  // cssMinify
+  sourcemap: false,
+  // minify
+  terserOptions: {},
+  rolldownOptions: {},
+  commonjsOptions: {
+    include: [/node_modules/],
+    extensions: ['.js', '.cjs'],
+  },
+  dynamicImportVarsOptions: {
+    warnOnError: true,
+    exclude: [/node_modules/],
+  },
+  write: true,
+  emptyOutDir: null,
+  copyPublicDir: true,
+  license: false,
+  manifest: false,
+  lib: false,
+  // ssr
+  ssrManifest: false,
+  ssrEmitAssets: false,
+  // emitAssets
+  reportCompressedSize: true,
+  chunkSizeWarningLimit: 500,
+  watch: null,
+  // createEnvironment
+} satisfies BuildEnvironmentOptions)
+export const buildEnvironmentOptionsDefaults: Readonly<
+  Partial<BuildEnvironmentOptions>
+> = _buildEnvironmentOptionsDefaults
+
 
 // TODO: fill in later
 
@@ -338,6 +412,44 @@ export interface ViteBuilder {
     environment: BuildEnvironment,
   ): Promise<RolldownOutput | RolldownOutput[] | RolldownWatcher>
 }
+
+export interface BuilderOptions {
+  /**
+   * Whether to share the config instance among environments to align with the behavior of dev server.
+   *
+   * @default false
+   * @experimental
+   */
+  sharedConfigBuild?: boolean
+  /**
+   * Whether to share the plugin instances among environments to align with the behavior of dev server.
+   *
+   * @default false
+   * @experimental
+   */
+  sharedPlugins?: boolean
+  buildApp?: (builder: ViteBuilder) => Promise<void>
+}
+
+const _builderOptionsDefaults = Object.freeze({
+  sharedConfigBuild: false,
+  sharedPlugins: false,
+  // buildApp
+} satisfies BuilderOptions)
+export const builderOptionsDefaults: Readonly<Partial<BuilderOptions>> =
+  _builderOptionsDefaults
+
+export function resolveBuilderOptions(
+  options: BuilderOptions | undefined,
+): ResolvedBuilderOptions | undefined {
+  if (!options) return
+  return mergeWithDefaults(
+    { ..._builderOptionsDefaults, buildApp: async () => { } },
+    options,
+  )
+}
+
+export type ResolvedBuilderOptions = Required<BuilderOptions>
 
 // TODO: fill in later
 

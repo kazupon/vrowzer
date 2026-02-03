@@ -1,52 +1,57 @@
-// TODO: fill in later
-
-import type { ServerOptions } from './server'
-
-// TODO: fill in later ...
-
+import type { Alias, AliasOptions } from '#dep-types/alias'
+import type { NormalizedOutputOptions, RolldownOptions } from 'rolldown'
+import type { AnymatchFn } from '../types/anymatch'
+import type {
+  BuildEnvironmentOptions,
+  BuilderOptions,
+  RenderBuiltAssetUrl,
+  ResolvedBuildEnvironmentOptions,
+  ResolvedBuildOptions,
+  ResolvedBuilderOptions,
+} from './build'
+import {
+  buildEnvironmentOptionsDefaults,
+  builderOptionsDefaults
+} from './build'
+import {
+  DEFAULT_EXTENSIONS,
+  DEFAULT_EXTERNAL_CONDITIONS,
+  DEFAULT_PREVIEW_PORT
+} from './constants'
+import type { LogLevel, Logger } from './logger'
+import type { DepOptimizationOptions } from './optimizer'
+import type { PackageCache } from './packages'
 import type {
   HookHandler,
   Plugin,
+  PluginOption,
   PluginWithRequiredHook,
 } from './plugin'
-
-// TODO: fill in later ...
-
-import type { Alias, AliasOptions } from '#dep-types/alias'
-import type { DepOptimizationOptions } from './optimizer'
-
-// TODO: fill in later ...
-
-import type { MessageChannelServer } from './server/ws'
-
+import type { CSSOptions, ResolvedCSSOptions } from './plugins/css'
+import {
+  cssConfigDefaults,
+} from './plugins/css'
+import type { ESBuildOptions } from './plugins/esbuild'
+import type { JsonOptions } from './plugins/json'
+import type { OxcOptions } from './plugins/oxc'
 import type {
-  BuildEnvironmentOptions,
-  RenderBuiltAssetUrl,
-  ResolvedBuildEnvironmentOptions,
-} from './build'
-
-// TODO: fill in later ...
-
+  EnvironmentResolveOptions,
+  InternalResolveOptions,
+  ResolveOptions,
+} from './plugins/resolve'
+import type { PreviewOptions, ResolvedPreviewOptions } from './preview'
+import type { ResolvedServerOptions, ServerOptions } from './server'
+import { serverConfigDefaults } from './server'
 import { DevEnvironment } from './server/environment'
+import type { MessageChannelServer } from './server/ws'
+import type { ResolvedSSROptions, SSROptions } from './ssr'
+import { ssrConfigDefaults } from './ssr'
+import type { RequiredExceptFor } from './typeUtils'
 import { createDebugger } from './utils'
 
-// TODO: fill in later ...
-
-import type { Logger } from './logger'
-import {
-  type EnvironmentResolveOptions,
-  type ResolveOptions,
-} from './plugins/resolve'
-
-// TODO: fill in later ...
-
-import type { RequiredExceptFor } from './typeUtils'
-
-// TODO: fill in later ...
-
 const debug = createDebugger('vite:config', { depth: 10 })
-
-// TODO: fill in later ...
+// TODO: const promisifiedRealpath = promisify(fs.realpath)
+const SYMBOL_RESOLVED_CONFIG: unique symbol = Symbol('vite:resolved-config')
 
 export interface ConfigEnv {
   /**
@@ -97,7 +102,6 @@ export function defineConfig(config: UserConfigExport): UserConfigExport {
 export interface CreateDevEnvironmentContext {
   ws: MessageChannelServer
 }
-
 // NOTE(kazupon): comment out because we need to understand the previous implementation as background
 // export interface CreateDevEnvironmentContext {
 //   ws: WebSocketServer
@@ -272,15 +276,146 @@ export interface UserConfig extends DefaultEnvironmentOptions {
    * each command, and can be overridden by the command line --mode option.
    */
   mode?: string
-
-  // TODO: fill in later
-
+  /**
+   * Array of vite plugins to use.
+   */
+  plugins?: PluginOption[]
+  /**
+   * HTML related options
+   */
+  html?: HTMLOptions
+  /**
+   * CSS related options (preprocessors and CSS modules)
+   */
+  css?: CSSOptions
+  /**
+   * JSON loading options
+   */
+  json?: JsonOptions
+  /**
+   * Transform options to pass to esbuild.
+   * Or set to `false` to disable esbuild.
+   *
+   * @deprecated Use `oxc` option instead.
+   */
+  esbuild?: ESBuildOptions | false
+  /**
+   * Transform options to pass to Oxc.
+   * Or set to `false` to disable Oxc.
+   */
+  oxc?: OxcOptions | false
+  /**
+   * Specify additional picomatch patterns to be treated as static assets.
+   */
+  assetsInclude?: string | RegExp | (string | RegExp)[]
+  /**
+   * Builder specific options
+   * @experimental
+   */
+  builder?: BuilderOptions
   /**
    * Server specific options, e.g. host, port, https...
    */
   server?: ServerOptions
-
-  // TODO: fill in later
+  /**
+   * Preview specific options, e.g. host, port, https...
+   */
+  preview?: PreviewOptions
+  /**
+   * Experimental features
+   *
+   * Features under this field could change in the future and might NOT follow semver.
+   * Please be careful and always pin Vite's version when using them.
+   * @experimental
+   */
+  experimental?: ExperimentalOptions
+  /**
+   * Options to opt-in to future behavior
+   */
+  future?: FutureOptions | 'warn'
+  /**
+   * Legacy options
+   *
+   * Features under this field only follow semver for patches, they could be removed in a
+   * future minor version. Please always pin Vite's version to a minor when using them.
+   */
+  legacy?: LegacyOptions
+  /**
+   * Log level.
+   * @default 'info'
+   */
+  logLevel?: LogLevel
+  /**
+   * Custom logger.
+   */
+  customLogger?: Logger
+  /**
+   * @default true
+   */
+  clearScreen?: boolean
+  /**
+   * Environment files directory. Can be an absolute path, or a path relative from
+   * root.
+   * @default root
+   */
+  envDir?: string | false
+  /**
+   * Env variables starts with `envPrefix` will be exposed to your client source code via import.meta.env.
+   * @default 'VITE_'
+   */
+  envPrefix?: string | string[]
+  /**
+   * Worker bundle options
+   */
+  worker?: {
+    /**
+     * Output format for worker bundle
+     * @default 'iife'
+     */
+    format?: 'es' | 'iife'
+    /**
+     * Vite plugins that apply to worker bundle. The plugins returned by this function
+     * should be new instances every time it is called, because they are used for each
+     * rolldown worker bundling process.
+     */
+    plugins?: () => PluginOption[]
+    /**
+     * Alias to `rolldownOptions`.
+     * @deprecated Use `rolldownOptions` instead.
+     */
+    rollupOptions?: Omit<
+      RolldownOptions,
+      'plugins' | 'input' | 'onwarn' | 'preserveEntrySignatures'
+    >
+    /**
+     * Rolldown options to build worker bundle
+     */
+    rolldownOptions?: Omit<
+      RolldownOptions,
+      'plugins' | 'input' | 'onwarn' | 'preserveEntrySignatures'
+    >
+  }
+  /**
+   * Dep optimization options
+   */
+  optimizeDeps?: DepOptimizationOptions
+  /**
+   * SSR specific options
+   * We could make SSROptions be a EnvironmentOptions if we can abstract
+   * external/noExternal for environments in general.
+   */
+  ssr?: SSROptions
+  /**
+   * Environment overrides
+   */
+  environments?: Record<string, EnvironmentOptions>
+  /**
+   * Whether your application is a Single Page Application (SPA),
+   * a Multi-Page Application (MPA), or Custom Application (SSR
+   * and frameworks with custom HTML handling)
+   * @default 'spa'
+   */
+  appType?: AppType
 }
 
 export interface HTMLOptions {
@@ -350,7 +485,41 @@ export interface ExperimentalOptions {
   bundledDev?: boolean
 }
 
-// TOOD: fill in later ...
+export interface LegacyOptions {
+  /**
+   * In Vite 6.0.8 and below, WebSocket server was able to connect from any web pages. However,
+   * that could be exploited by a malicious web page.
+   *
+   * In Vite 6.0.9+, the WebSocket server now requires a token to connect from a web page.
+   * But this may break some plugins and frameworks that connects to the WebSocket server
+   * on their own. Enabling this option will make Vite skip the token check.
+   *
+   * **We do not recommend enabling this option unless you are sure that you are fine with
+   * that security weakness.**
+   */
+  skipWebSocketTokenCheck?: boolean
+  /**
+   * Opt-in to the pre-Vite 8 CJS interop behavior, which was inconsistent.
+   *
+   * In pre-Vite 8 versions, Vite had inconsistent CJS interop behavior. This was due to
+   * the different behavior of esbuild and the Rollup commonjs plugin.
+   * Vite 8+ uses Rolldown for both the dependency optimization in dev and the production build,
+   * which aligns the behavior to esbuild.
+   *
+   * See the Vite 8 migration guide for more details.
+   */
+  inconsistentCjsInterop?: boolean
+}
+
+export interface ResolvedWorkerOptions {
+  format: 'es' | 'iife'
+  plugins: (bundleChain: string[]) => Promise<ResolvedConfig>
+  /**
+   * @deprecated Use `rolldownOptions` instead.
+   */
+  rollupOptions: RolldownOptions
+  rolldownOptions: RolldownOptions
+}
 
 export interface InlineConfig extends UserConfig {
   configFile?: string | false
@@ -402,22 +571,182 @@ export interface ResolvedConfig extends Readonly<
     isProduction: boolean
     envDir: string | false
     env: Record<string, any>
-
-    // TODO: fill in later
-
+    resolve: Required<ResolveOptions> & {
+      alias: Alias[]
+    }
+    plugins: readonly Plugin[]
+    css: ResolvedCSSOptions
+    json: Required<JsonOptions>
+    /** @deprecated Use `oxc` option instead. */
+    esbuild: ESBuildOptions | false
+    oxc: OxcOptions | false
+    server: ResolvedServerOptions
+    dev: ResolvedDevEnvironmentOptions
+    /** @experimental */
+    builder: ResolvedBuilderOptions | undefined
+    build: ResolvedBuildOptions
+    preview: ResolvedPreviewOptions
+    ssr: ResolvedSSROptions
+    assetsInclude: (file: string) => boolean
+    rawAssetsInclude: (string | RegExp)[]
     logger: Logger
-
-    // TODO: fill in later
-
+    /**
+      * Create an internal resolver to be used in special scenarios, e.g.
+      * optimizer & handling css `@imports`.
+      *
+      * This API is deprecated. It only works for the client and ssr
+      * environments. The `aliasOnly` option is also not being used anymore.
+      * Plugins should move to `createIdResolver(environment.config)` instead.
+      *
+      * @deprecated Use `createIdResolver` from `vite` instead.
+      */
+    createResolver: (options?: Partial<InternalResolveOptions>) => ResolveFn
+    optimizeDeps: DepOptimizationOptions
+    /** @internal */
+    packageCache: PackageCache
+    worker: ResolvedWorkerOptions
+    appType: AppType
     experimental: RequiredExceptFor<ExperimentalOptions, 'renderBuiltUrl'>
-
-    // TODO: fill in later
-
+    future: FutureOptions | undefined
     environments: Record<string, ResolvedEnvironmentOptions>
-
-    // TODO: fill in later
-  }
+    /** @internal injected by legacy plugin */
+    isOutputOptionsForLegacyChunks?(
+      outputOptions: NormalizedOutputOptions,
+    ): boolean
+    /**
+     * The token to connect to the WebSocket server from browsers.
+     *
+     * We recommend using `import.meta.hot` rather than connecting
+     * to the WebSocket server directly.
+     * If you have a usecase that requires connecting to the WebSocket
+     * server, please create an issue so that we can discuss.
+     *
+     * @deprecated
+     */
+    webSocketToken: string
+    /** @internal */
+    fsDenyGlob: AnymatchFn
+    /** @internal */
+    safeModulePaths: Set<string>
+    /** @internal */
+    nativePluginEnabledLevel: number
+    /** @internal */
+    [SYMBOL_RESOLVED_CONFIG]: true
+  } & PluginHookUtils
 > { }
+
+// inferred ones are omitted
+const configDefaults = Object.freeze({
+  define: {},
+  dev: {
+    warmup: [],
+    // preTransformRequests
+    /** @experimental */
+    sourcemap: { js: true },
+    sourcemapIgnoreList: undefined,
+    // createEnvironment
+    // recoverable
+    // moduleRunnerTransform
+  },
+  build: buildEnvironmentOptionsDefaults,
+  resolve: {
+    // mainFields
+    // conditions
+    externalConditions: [...DEFAULT_EXTERNAL_CONDITIONS],
+    extensions: DEFAULT_EXTENSIONS,
+    dedupe: [],
+    /** @experimental */
+    noExternal: [],
+    external: [],
+    preserveSymlinks: false,
+    tsconfigPaths: false,
+    alias: [],
+  },
+
+  // root
+  base: '/',
+  publicDir: 'public',
+  // cacheDir
+  // mode
+  plugins: [],
+  html: {
+    cspNonce: undefined,
+  },
+  css: cssConfigDefaults,
+  json: {
+    namedExports: true,
+    stringify: 'auto',
+  },
+  // esbuild
+  assetsInclude: undefined,
+  /** @experimental */
+  builder: builderOptionsDefaults,
+  server: serverConfigDefaults,
+  preview: {
+    port: DEFAULT_PREVIEW_PORT,
+    // strictPort
+    // host
+    // https
+    // open
+    // proxy
+    // cors
+    // headers
+  },
+  /** @experimental */
+  experimental: {
+    importGlobRestoreExtension: false,
+    renderBuiltUrl: undefined,
+    hmrPartialAccept: false,
+    enableNativePlugin: import.meta.env._VITE_TEST_JS_PLUGIN ? false : 'v2',
+    // NOTE(kazupon): comment out, because we need to understand the previous implementation as background
+    // enableNativePlugin: process.env._VITE_TEST_JS_PLUGIN ? false : 'v2',
+    bundledDev: false,
+  },
+  future: {
+    removePluginHookHandleHotUpdate: undefined,
+    removePluginHookSsrArgument: undefined,
+    removeServerModuleGraph: undefined,
+    removeServerHot: undefined,
+    removeServerTransformRequest: undefined,
+    removeServerWarmupRequest: undefined,
+    removeSsrLoadModule: undefined,
+  },
+  legacy: {
+    skipWebSocketTokenCheck: false,
+  },
+  logLevel: 'info',
+  customLogger: undefined,
+  clearScreen: true,
+  envDir: undefined,
+  envPrefix: 'VITE_',
+  worker: {
+    format: 'iife',
+    plugins: (): never[] => [],
+    // rollupOptions
+  },
+  optimizeDeps: {
+    include: [],
+    exclude: [],
+    needsInterop: [],
+    // esbuildOptions
+    rolldownOptions: {},
+    /** @experimental */
+    extensions: [],
+    /** @deprecated @experimental */
+    disabled: 'build',
+    // noDiscovery
+    /** @experimental */
+    holdUntilCrawlEnd: true,
+    // entries
+    /** @experimental */
+    force: false,
+    /** @experimental */
+    ignoreOutdatedRequests: false,
+  },
+  ssr: ssrConfigDefaults,
+  environments: {},
+  appType: 'spa',
+} satisfies UserConfig)
 
 // export interface ResolvedConfig extends UserConfig {
 //   // TODO: fill in later
@@ -433,5 +762,12 @@ export interface PluginHookUtils {
     hookName: K,
   ) => NonNullable<HookHandler<Plugin[K]>>[]
 }
+
+export type ResolveFn = (
+  id: string,
+  importer?: string,
+  aliasOnly?: boolean,
+  ssr?: boolean,
+) => Promise<string | undefined>
 
 // TODO: fill in later

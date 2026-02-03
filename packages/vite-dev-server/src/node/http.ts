@@ -1,10 +1,9 @@
-// TODO: ...
-
 import type { OutgoingHttpHeaders as HttpServerHeaders } from 'node:http'
 import type { ServerOptions as HttpsServerOptions } from 'node:https'
 import type { HttpServer } from './server'
+import type { ProxyOptions } from './server/middlewares/proxy'
 
-// TODO: ...
+// TODO: fill in later ...
 
 export interface CommonServerOptions {
   /**
@@ -65,8 +64,7 @@ export interface CommonServerOptions {
    * }
    * ```
    */
-  // TODO: define ProxyOptions type, later
-  // proxy?: Record<string, string | ProxyOptions>
+  proxy?: Record<string, string | ProxyOptions>
   /**
    * Configure CORS for the dev server.
    * Uses https://github.com/expressjs/cors.
@@ -97,11 +95,11 @@ export interface CorsOptions {
    * `true`** to avoid exposing the source code to untrusted origins.
    */
   origin?:
-    | CorsOrigin
-    | ((
-        origin: string | undefined,
-        cb: (err: Error, origins: CorsOrigin) => void,
-      ) => void)
+  | CorsOrigin
+  | ((
+    origin: string | undefined,
+    cb: (err: Error, origins: CorsOrigin) => void,
+  ) => void)
   methods?: string | string[]
   allowedHeaders?: string | string[]
   exposedHeaders?: string | string[]
