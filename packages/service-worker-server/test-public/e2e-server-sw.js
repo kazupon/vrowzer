@@ -101,8 +101,9 @@ function handleFetch(event) {
   // Default: fall through to network
 }
 
-// Start listening for fetch events
-server.listen(handleFetch)
+// Register fetch handler and start listening
+server.setFetchHandler(handleFetch)
+server.listen()
 
 // Expose server for testing via postMessage
 self.addEventListener('message', event => {
@@ -121,7 +122,7 @@ self.addEventListener('message', event => {
 
   if (event.data?.type === 'DOUBLE_LISTEN') {
     // Attempt to call listen() again (should emit error)
-    server.listen(handleFetch)
+    server.listen()
     event.ports[0]?.postMessage({ type: 'DOUBLE_LISTEN_ATTEMPTED' })
   }
 })

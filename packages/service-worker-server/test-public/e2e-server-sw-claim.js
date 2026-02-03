@@ -18,7 +18,7 @@ server.on('listening', () => {
   console.log('[SW-CLAIM] Server listening with claimOnActivate')
 })
 
-server.listen(event => {
+server.setFetchHandler(event => {
   if (event.request.url.includes('/api/test')) {
     event.respondWith(
       new Response(
@@ -33,3 +33,4 @@ server.listen(event => {
     )
   }
 })
+server.listen()

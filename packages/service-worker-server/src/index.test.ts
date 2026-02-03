@@ -129,18 +129,41 @@ describe('SvcWorkerServer', () => {
     })
   }
 
+  describe('setFetchHandler()', () => {
+    describe('basic behavior', () => {
+      it('registers fetch handler on svcWorker immediately', () => {
+        server = createServer()
+        server.setFetchHandler(() => {})
+        expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith('fetch', expect.any(Function))
+      })
+
+      it('removes previous handler when called multiple times', () => {
+        server = createServer()
+        server.setFetchHandler(() => {})
+        server.setFetchHandler(() => {})
+        expect(mockSvcWorker.removeEventListener).toHaveBeenCalledWith(
+          'fetch',
+          expect.any(Function)
+        )
+        expect(mockSvcWorker.addEventListener).toHaveBeenCalledTimes(2)
+      })
+    })
+
+    describe('error cases', () => {
+      it('throws error when handler is not a function', () => {
+        server = createServer()
+        expect(() => server.setFetchHandler('not a function' as any)).toThrow(SvcWorkerServerError)
+      })
+    })
+  })
+
   describe('listen()', () => {
     describe('basic behavior', () => {
       it('returns this for chaining', () => {
         server = createServer()
-        const result = server.listen(() => {})
+        server.setFetchHandler(() => {})
+        const result = server.listen()
         expect(result).toBe(server)
-      })
-
-      it('registers fetch handler on svcWorker', () => {
-        server = createServer()
-        server.listen(() => {})
-        expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith('fetch', expect.any(Function))
       })
 
       it('emits listening event when already activated', async () => {
@@ -150,7 +173,8 @@ describe('SvcWorkerServer', () => {
           server.on('listening', resolve)
         })
 
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
         await listeningPromise
       })
 
@@ -162,7 +186,8 @@ describe('SvcWorkerServer', () => {
           listeningEmitted = true
         })
 
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
 
         // listening is not emitted yet
         await new Promise(r => setTimeout(r, 0))
@@ -174,11 +199,12 @@ describe('SvcWorkerServer', () => {
         expect(listeningEmitted).toBe(true)
       })
 
-      it('registers fetch handler synchronously but also registers activate handler', () => {
+      it('registers activate handler when not activated', () => {
         server = createServer({ isActivated: false })
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
 
-        // Fetch handler IS registered synchronously (required by Service Worker spec)
+        // Fetch handler IS registered synchronously in setFetchHandler (required by Service Worker spec)
         expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith('fetch', expect.any(Function))
         // Activate listener is also registered to wait for activation
         expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith(
@@ -193,7 +219,8 @@ describe('SvcWorkerServer', () => {
         server.on('listening', () => {
           listeningEmitted = true
         })
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
 
         // Before activation, listening should not be emitted
         await new Promise(r => setTimeout(r, 0))
@@ -216,26 +243,27 @@ describe('SvcWorkerServer', () => {
           server.on('error', resolve)
         })
 
-        server.listen(() => {})
-        server.listen(() => {}) // double listen
+        server.setFetchHandler(() => {})
+        server.listen()
+        server.listen() // double listen
 
         const error = await errorPromise
         expect(error).toBeInstanceOf(SvcWorkerServerError)
         expect(error.message).toContain('already listening')
       })
 
-      it('emits error when fetch is not a function', async () => {
+      it('emits error when fetch handler is not set', async () => {
         server = createServer({ isActivated: true })
 
         const errorPromise = new Promise<Error>(resolve => {
           server.on('error', resolve)
         })
 
-        server.listen('not a function' as any)
+        server.listen() // listen without setFetchHandler
 
         const error = await errorPromise
         expect(error).toBeInstanceOf(SvcWorkerServerError)
-        expect(error.message).toContain('must be a function')
+        expect(error.message).toContain('Fetch handler not set')
       })
 
       it('emits error on activate timeout', async () => {
@@ -247,7 +275,8 @@ describe('SvcWorkerServer', () => {
         })
 
         // Use short timeout for testing
-        server.listen(() => {}, { activateTimeout: 100 })
+        server.setFetchHandler(() => {})
+        server.listen({ activateTimeout: 100 })
 
         // Advance time past the timeout
         vi.advanceTimersByTime(100)
@@ -268,7 +297,8 @@ describe('SvcWorkerServer', () => {
           errorEmitted = true
         })
 
-        server.listen(() => {}, { activateTimeout: 100 })
+        server.setFetchHandler(() => {})
+        server.listen({ activateTimeout: 100 })
 
         // Activate before timeout
         vi.advanceTimersByTime(50)
@@ -294,7 +324,8 @@ describe('SvcWorkerServer', () => {
 
       it('emits close event', async () => {
         server = createServer()
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
 
         const closePromise = new Promise<void>(resolve => {
           server.on('close', resolve)
@@ -306,7 +337,8 @@ describe('SvcWorkerServer', () => {
 
       it('calls callback', async () => {
         server = createServer()
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
 
         const callbackPromise = new Promise<void>(resolve => {
           server.close(() => resolve())
@@ -317,7 +349,8 @@ describe('SvcWorkerServer', () => {
 
       it('removes fetch listener on close', async () => {
         server = createServer()
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
         server.close()
 
         // Wait for async processing
@@ -330,7 +363,8 @@ describe('SvcWorkerServer', () => {
 
       it('removes activate listener if waiting', async () => {
         server = createServer({ isActivated: false })
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
 
         // activate listener should be registered
         expect(mockSvcWorker.addEventListener).toHaveBeenCalledWith(
@@ -371,7 +405,8 @@ describe('SvcWorkerServer', () => {
 
       it('is idempotent - can be called multiple times', async () => {
         server = createServer()
-        server.listen(() => {})
+        server.setFetchHandler(() => {})
+        server.listen()
 
         let closeCount = 0
         server.on('close', () => {
@@ -392,14 +427,16 @@ describe('SvcWorkerServer', () => {
       server = createServer({ isActivated: true })
 
       // First listen
-      server.listen(() => {})
+      server.setFetchHandler(() => {})
+      server.listen()
       await new Promise<void>(resolve => server.close(() => resolve()))
 
-      // Second listen
+      // Second listen (setFetchHandler already called, but need to set it again after close clears it)
+      server.setFetchHandler(() => {})
       const listeningPromise = new Promise<void>(resolve => {
         server.on('listening', resolve)
       })
-      server.listen(() => {})
+      server.listen()
       await listeningPromise
     })
   })
@@ -409,7 +446,8 @@ describe('SvcWorkerServer', () => {
       server = createServer()
 
       const fetchHandler = vi.fn()
-      server.listen(fetchHandler)
+      server.setFetchHandler(fetchHandler)
+      server.listen()
 
       const mockEvent = { request: new Request('https://example.com') }
       mockSvcWorker.__emit('fetch', mockEvent)
@@ -423,7 +461,8 @@ describe('SvcWorkerServer', () => {
       mockSvcWorker.suspended = true
 
       const fetchHandler = vi.fn()
-      server.listen(fetchHandler)
+      server.setFetchHandler(fetchHandler)
+      server.listen()
 
       mockSvcWorker.__emit('fetch', {})
 
@@ -434,8 +473,21 @@ describe('SvcWorkerServer', () => {
       server = createServer()
 
       const fetchHandler = vi.fn()
-      server.listen(fetchHandler)
+      server.setFetchHandler(fetchHandler)
+      server.listen()
       await new Promise<void>(resolve => server.close(() => resolve()))
+
+      mockSvcWorker.__emit('fetch', {})
+
+      expect(fetchHandler).not.toHaveBeenCalled()
+    })
+
+    it('does not call fetch handler before listen', () => {
+      server = createServer()
+
+      const fetchHandler = vi.fn()
+      server.setFetchHandler(fetchHandler)
+      // Note: listen() is NOT called
 
       mockSvcWorker.__emit('fetch', {})
 
@@ -450,9 +502,10 @@ describe('SvcWorkerServer', () => {
         server.on('error', resolve)
       })
 
-      server.listen(() => {
+      server.setFetchHandler(() => {
         throw testError
       })
+      server.listen()
       mockSvcWorker.__emit('fetch', {})
 
       const error = await errorPromise
@@ -474,7 +527,8 @@ describe('SvcWorkerServer', () => {
         closeEmitted = true
       })
 
-      server.listen(() => {})
+      server.setFetchHandler(() => {})
+      server.listen()
 
       // close before activate
       await new Promise<void>(resolve => server.close(() => resolve()))
@@ -496,7 +550,8 @@ describe('SvcWorkerServer', () => {
         server.on('listening', resolve)
       })
 
-      server.listen(() => {})
+      server.setFetchHandler(() => {})
+      server.listen()
 
       // Create mock event with waitUntil
       const waitUntilPromises: Promise<unknown>[] = []
@@ -522,7 +577,8 @@ describe('SvcWorkerServer', () => {
         server.on('listening', resolve)
       })
 
-      server.listen(() => {})
+      server.setFetchHandler(() => {})
+      server.listen()
 
       // Create mock event with waitUntil
       const mockEvent = {
@@ -545,7 +601,8 @@ describe('SvcWorkerServer', () => {
         server.on('listening', resolve)
       })
 
-      server.listen(() => {})
+      server.setFetchHandler(() => {})
+      server.listen()
 
       // Create mock event with waitUntil
       const mockEvent = {
@@ -863,21 +920,24 @@ describe('SvcWorkerServer', () => {
   describe('listen() with enableListenConnections', () => {
     it('calls listenConnections when enableListenConnections is true', () => {
       server = createServer()
-      server.listen(() => {}, { enableListenConnections: true })
+      server.setFetchHandler(() => {})
+      server.listen({ enableListenConnections: true })
 
       expect(mockSelf.addEventListener).toHaveBeenCalledWith('message', expect.any(Function))
     })
 
     it('does not register message handler when enableListenConnections is false', () => {
       server = createServer()
-      server.listen(() => {}, { enableListenConnections: false })
+      server.setFetchHandler(() => {})
+      server.listen({ enableListenConnections: false })
 
       expect(mockSelf.addEventListener).not.toHaveBeenCalledWith('message', expect.any(Function))
     })
 
     it('does not register message handler by default', () => {
       server = createServer()
-      server.listen(() => {})
+      server.setFetchHandler(() => {})
+      server.listen()
 
       expect(mockSelf.addEventListener).not.toHaveBeenCalledWith('message', expect.any(Function))
     })
@@ -987,7 +1047,8 @@ describe('SvcWorkerServer', () => {
   describe('close() with stopConnectionListening', () => {
     it('calls closeConnections when stopConnectionListening is true', async () => {
       server = createServer()
-      server.listen(() => {}, { enableListenConnections: true })
+      server.setFetchHandler(() => {})
+      server.listen({ enableListenConnections: true })
 
       const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
       mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
@@ -1003,7 +1064,8 @@ describe('SvcWorkerServer', () => {
 
     it('does not call closeConnections when stopConnectionListening is false', async () => {
       server = createServer()
-      server.listen(() => {}, { enableListenConnections: true })
+      server.setFetchHandler(() => {})
+      server.listen({ enableListenConnections: true })
 
       const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
       mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
@@ -1018,7 +1080,8 @@ describe('SvcWorkerServer', () => {
 
     it('does not call closeConnections by default', async () => {
       server = createServer()
-      server.listen(() => {}, { enableListenConnections: true })
+      server.setFetchHandler(() => {})
+      server.listen({ enableListenConnections: true })
 
       await new Promise<void>(resolve => server.close(() => resolve()))
 
@@ -1030,7 +1093,8 @@ describe('SvcWorkerServer', () => {
   describe('close() with ports and stopConnectionListening=true', () => {
     it('closes all ports on close() with stopConnectionListening=true', async () => {
       server = createServer()
-      server.listen(() => {}, { enableListenConnections: true })
+      server.setFetchHandler(() => {})
+      server.listen({ enableListenConnections: true })
 
       const mockPort = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
       mockSelf.__emit('message', { data: 'test', source: null, ports: [mockPort] })
@@ -1044,7 +1108,8 @@ describe('SvcWorkerServer', () => {
 
     it('clears ports count after close() with stopConnectionListening=true', async () => {
       server = createServer()
-      server.listen(() => {}, { enableListenConnections: true })
+      server.setFetchHandler(() => {})
+      server.listen({ enableListenConnections: true })
 
       const mockPort1 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort
       const mockPort2 = { postMessage: vi.fn(), close: vi.fn() } as unknown as MessagePort

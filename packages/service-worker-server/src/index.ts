@@ -151,19 +151,22 @@ export interface SvcWorkerServer<MessageData = unknown>
   readonly state: SvcWorkerServerState
 
   /**
+   * Set a fetch event handler
+   * @param handler - A function to handle fetch events
+   */
+  setFetchHandler(handler: (event: FetchEvent) => void): void
+
+  /**
    * Start a server listening for service worker fetch events
    *
    * When the service worker fetch event handler is bound, the 'listening' event will be emitted.
    * If `enableListenConnections` option is set to `true`, server will be started to listen MessageChannel connection too via {@link SvcWorkerServer.listenConnections} internally.
    *
-   * @param handler - A fetch event handler
    * @param options - Options for listening
    * @returns The server instance
+   * @throws {SvcWorkerServerError} When the server is already listening or fetch handler is not set
    */
-  listen(
-    handler: (event: FetchEvent) => void,
-    options?: ListenOptions
-  ): SvcWorkerServer<MessageData>
+  listen(options?: ListenOptions): SvcWorkerServer<MessageData>
 
   /**
    * Start a MessageChannel port connections listening with `message` events from clients.
@@ -306,36 +309,24 @@ export function createSvcWorkerServer<MessageData = unknown>(
     return instance
   }
 
-  function listen(
-    handler: (event: FetchEvent) => void,
-    listenOptions?: ListenOptions
-  ): SvcWorkerServer<MessageData> {
-    // Prevent double listen
-    if (_listening) {
-      queueMicrotask(() =>
-        _emitter.emit('error', new SvcWorkerServerError('Server is already listening'))
-      )
-      return instance
-    }
-
-    // Validate fetch handler
+  function setFetchHandler(handler: (event: FetchEvent) => void): void {
     if (typeof handler !== 'function') {
-      queueMicrotask(() =>
-        _emitter.emit('error', new SvcWorkerServerError('fetch handler must be a function'))
-      )
-      return instance
+      throw new SvcWorkerServerError('fetch handler must be a function')
     }
 
-    // Resolve options
-    const activateTimeout = listenOptions?.activateTimeout ?? DEFAULT_ACTIVATE_TIMEOUT
-    const enableListenConnections = listenOptions?.enableListenConnections ?? false
+    // If already registered, remove previous handler first
+    if (_boundFetchHandler) {
+      _svcWorker.removeEventListener('fetch', _boundFetchHandler)
+    }
 
-    // Store handler
+    // Store user's handler
     _fetchHandler = handler
 
-    // Create wrapper with suspended/closed check
+    // Create wrapper with suspended/listening check
+    // This wrapper is registered immediately but only calls user's handler when listening
     _boundFetchHandler = (event: FetchEvent) => {
-      if (_svcWorker.suspended || !_listening) {
+      // Don't call user's handler if not listening or suspended
+      if (!_listening || _svcWorker.suspended) {
         return // Fall through to network
       }
       try {
@@ -345,13 +336,40 @@ export function createSvcWorkerServer<MessageData = unknown>(
       }
     }
 
-    // Update state
+    // Register fetch handler immediately (required by Service Worker spec)
+    // IMPORTANT: Service Workers require fetch event listeners to be added during
+    // the initial script execution, not asynchronously during event callbacks.
+    _svcWorker.addEventListener('fetch', _boundFetchHandler)
+  }
+
+  function listen(listenOptions?: ListenOptions): SvcWorkerServer<MessageData> {
+    // Prevent double listen
+    if (_listening) {
+      queueMicrotask(() =>
+        _emitter.emit('error', new SvcWorkerServerError('Server is already listening'))
+      )
+      return instance
+    }
+
+    // Validate fetch handler is set
+    if (!_fetchHandler) {
+      queueMicrotask(() =>
+        _emitter.emit(
+          'error',
+          new SvcWorkerServerError('Fetch handler not set. Call setFetchHandler() first.')
+        )
+      )
+      return instance
+    }
+
+    // Resolve options
+    const activateTimeout = listenOptions?.activateTimeout ?? DEFAULT_ACTIVATE_TIMEOUT
+    const enableListenConnections = listenOptions?.enableListenConnections ?? false
+
+    // Update state - this enables the fetch handler wrapper to call user's handler
     _listening = true
 
-    // IMPORTANT: Register fetch handler synchronously during script evaluation.
-    // Service Workers require fetch event listeners to be added during the initial
-    // script execution, not asynchronously during event callbacks.
-    _svcWorker.addEventListener('fetch', _boundFetchHandler)
+    // NOTE: addEventListener('fetch') is already registered in setFetchHandler()
 
     // Register message handler if enableListenConnections is true
     if (enableListenConnections) {
@@ -514,6 +532,7 @@ export function createSvcWorkerServer<MessageData = unknown>(
       // TODO:
       return 'installing'
     },
+    setFetchHandler,
     listen,
     listenConnections,
     close,
