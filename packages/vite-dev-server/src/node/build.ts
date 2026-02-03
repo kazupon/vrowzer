@@ -16,14 +16,18 @@ import type {
   ResolvedEnvironmentOptions
 } from './config'
 import {
-  DEFAULT_ASSETS_INLINE_LIMIT
+  DEFAULT_ASSETS_INLINE_LIMIT,
+  ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET
 } from './constants'
+import type { Logger } from './logger'
 import type { MinimalPluginContextWithoutEnvironment } from './plugin'
 import type { LicenseOptions } from './plugins/license'
 import type { TerserOptions } from './plugins/terser'
 import {
   mergeConfig,
-  mergeWithDefaults
+  mergeWithDefaults,
+  setupRollupOptionCompat,
+  unique
 } from './utils'
 
 // TODO: fill in later
@@ -356,6 +360,87 @@ export const buildEnvironmentOptionsDefaults: Readonly<
   Partial<BuildEnvironmentOptions>
 > = _buildEnvironmentOptionsDefaults
 
+export function resolveBuildEnvironmentOptions(
+  raw: BuildEnvironmentOptions,
+  logger: Logger,
+  consumer: 'client' | 'server' | undefined,
+  isBundledDev: boolean,
+): ResolvedBuildEnvironmentOptions {
+  const deprecatedPolyfillModulePreload = raw.polyfillModulePreload
+  const { polyfillModulePreload, ...rest } = raw
+  raw = rest
+  if (deprecatedPolyfillModulePreload !== undefined) {
+    logger.warn(
+      'polyfillModulePreload is deprecated. Use modulePreload.polyfill instead.',
+    )
+  }
+  if (
+    deprecatedPolyfillModulePreload === false &&
+    raw.modulePreload === undefined
+  ) {
+    raw.modulePreload = { polyfill: false }
+  }
+
+  const merged = mergeWithDefaults(
+    {
+      ..._buildEnvironmentOptionsDefaults,
+      cssCodeSplit: !raw.lib,
+      minify: consumer === 'server' || isBundledDev ? false : 'oxc',
+      rollupOptions: {},
+      rolldownOptions: undefined,
+      ssr: consumer === 'server',
+      emitAssets: consumer === 'client',
+      createEnvironment: (name, config) => new BuildEnvironment(name, config),
+    } satisfies BuildEnvironmentOptions,
+    raw,
+  )
+  setupRollupOptionCompat(merged, 'build')
+  merged.rolldownOptions = {
+    platform: consumer === 'server' ? 'node' : 'browser',
+    ...merged.rolldownOptions,
+  }
+
+  // handle special build targets
+  if (merged.target === 'baseline-widely-available') {
+    merged.target = ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET
+  }
+  // dedupe target
+  if (Array.isArray(merged.target)) {
+    // esbuild allowed duplicate targets but oxc does not
+    merged.target = unique(merged.target)
+  }
+
+  // normalize false string into actual false
+  if ((merged.minify as string) === 'false') {
+    merged.minify = false
+  } else if (merged.minify === true) {
+    merged.minify = 'oxc'
+  }
+
+  const defaultModulePreload = {
+    polyfill: true,
+  }
+
+  const resolved: ResolvedBuildEnvironmentOptions = {
+    ...merged,
+    cssTarget: merged.cssTarget ?? merged.target,
+    cssMinify:
+      merged.cssMinify ??
+      (consumer === 'server' ? 'lightningcss' : !!merged.minify),
+    // Resolve to false | object
+    modulePreload:
+      merged.modulePreload === false
+        ? false
+        : merged.modulePreload === true
+          ? defaultModulePreload
+          : {
+            ...defaultModulePreload,
+            ...merged.modulePreload,
+          },
+  }
+
+  return resolved
+}
 
 // TODO: fill in later
 

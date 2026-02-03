@@ -1,6 +1,7 @@
 /* eslint no-console: 0 */
 
-import readline from 'node:readline'
+// NOTE(kazupon): diesable, because `node:readline` cannot be used in browser env
+// import readline from 'node:readline'
 import colors from 'picocolors'
 import type { RollupError } from 'rolldown'
 import type { ResolvedServerUrls } from './server'
@@ -42,8 +43,9 @@ function clearScreen() {
   const repeatCount = process.stdout.rows - 2
   const blank = repeatCount > 0 ? '\n'.repeat(repeatCount) : ''
   console.log(blank)
-  readline.cursorTo(process.stdout, 0, 0)
-  readline.clearScreenDown(process.stdout)
+  // NOTE(kazupon): disable now, building ...
+  // readline.cursorTo(process.stdout, 0, 0)
+  // readline.clearScreenDown(process.stdout)
 }
 
 export interface LoggerOptions {
