@@ -1,3 +1,4 @@
+import type { ListenOptions } from '@vrowser/service-worker-server'
 import type { OutgoingHttpHeaders as HttpServerHeaders } from 'node:http'
 import type { ServerOptions as HttpsServerOptions } from 'node:https'
 import type { HttpServer } from './server'
@@ -130,7 +131,7 @@ export type CorsOrigin = boolean | string | RegExp | (string | RegExp)[]
 
 export async function httpServerStart(
   httpServer: HttpServer,
-  handler: (event: FetchEvent) => void // NOTE(kazupon): for Service Worker fetch event handling
+  options?: ListenOptions
   // NOTE(kazupon): the below options are not needed in Service Worker server
   // serverOptions: {
   //   port: number
@@ -166,7 +167,8 @@ export async function httpServerStart(
     //   httpServer.removeListener('error', onError)
     //   resolve(port)
     // })
-    httpServer.listen(handler)
+    // NOTE: setFetchHandler() must be called before httpServerStart()
+    httpServer.listen(options)
     httpServer.off('error', onError)
     resolve(0)
   })

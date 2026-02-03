@@ -1,9 +1,9 @@
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-import type { SvcWorkerServer } from '@vrowser/service-worker-server'
+import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
 import { createSvcWorkerServer } from '@vrowser/service-worker-server'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
-import type { BlankSchema, Env } from 'hono/types'
+import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
 import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
 import type { InlineConfig, ResolvedConfig } from '../config'
@@ -204,6 +204,39 @@ export type ServerHook = (
 export type HttpServer = SvcWorkerServer
 
 /**
+ * Vite Dev Server that can be started by calling `listen()`
+ */
+export interface ListenableViteDevServer {
+  /**
+   * Custom middlewares handler.
+   *
+   * - Can be used to attach custom middlewares to the dev server.
+   * - Can also be used as the handler function in Service Worker's fetch event
+   * - Compatible with Web Standard Request/Response API
+   *
+   * @example
+   * ```ts
+   * const listenableServer = createServer(self, { server: { middlewareMode: true } })
+   *
+   * // Add custom middleware before default handlers
+   * listenableServer.middlewares.push('/__preview__/*', (c) => {
+   *   return c.text('Preview content')
+   * })
+   *
+   * // Start listening for fetch events
+   * const server = listenableServer.listen() // get ViteDevServer instance after listening
+   * ```
+   */
+  middlewares: MiddlewareHandler<ViteEnv, string>[]
+  /**
+   * Start the server
+   *
+   * @returns The ViteDevServer instance
+   */
+  listen(): Promise<Omit<ViteDevServer, 'listen'>>
+}
+
+/**
  * Minimal Vite Dev Server interface for Service Worker environment
  */
 export interface ViteDevServer {
@@ -216,19 +249,6 @@ export interface ViteDevServer {
    * - Can be used to attach custom middlewares to the dev server.
    * - Can also be used as the handler function in Service Worker's fetch event
    * - Compatible with Web Standard Request/Response API
-   *
-   * @example Middleware mode usage
-   * ```ts
-   * const server = createServer(self, { server: { middlewareMode: true } })
-   *
-   * // Add custom middleware before default handlers
-   * server.middlewares.get('/__preview__/*', (c) => {
-   *   return c.text('Preview content')
-   * })
-   *
-   * // Start listening for fetch events
-   * server.listen()
-   * ```
    */
   middlewares: Hono<ViteEnv, BlankSchema, '/'>
   /**
@@ -237,28 +257,6 @@ export interface ViteDevServer {
    */
   // httpServer: HttpServer | null
   httpServer: HttpServer
-  /**
-   * Promise that resolves when the server is fully initialized.
-   *
-   * The fetch event handler is registered immediately (synchronously) when
-   * createServer is called with { listen: true }. However, some functionality
-   * like transformRequest, module resolution, and plugin hooks require
-   * waiting for this promise to resolve.
-   *
-   * @example
-   * ```ts
-   * const server = createServer(sw, config, { listen: true })
-   * // fetch event is already registered here
-   *
-   * sw.addEventListener('activate', (event) => {
-   *   event.waitUntil((async () => {
-   *     await server.ready
-   *     await sw.clients.claim()
-   *   })())
-   * })
-   * ```
-   */
-  ready: Promise<void>
   /**
    * Chokidar watcher instance. If `config.server.watch` is set to `null`,
    * it will not watch any files and calling `add` or `unwatch` will have no effect.
@@ -458,536 +456,506 @@ export function createServer(
     }
   },
   options: CreateServerOptions = {},
-): ViteDevServer {
-  const config = isResolvedConfig(inlineConfig)
-    ? inlineConfig
-    : resolveConfig(inlineConfig, 'serve')
-  // NOTE(kazupon): commented out, until implementing resolveConfig
-  // : await resolveConfig(inlineConfig, 'serve')
-  console.log('[SW] Vite Dev Server config:', config)
+): Readonly<ListenableViteDevServer> {
+  const { server: serverConfig } = inlineConfig as InlineConfig | ResolvedConfig
+  const middlewareMode = !!serverConfig?.middlewareMode
 
-  // TODO: ...
-
-  const { root, server: serverConfig } = config
-  const { middlewareMode } = serverConfig
-
-  // TODO: ...
-
-  const basePath = options.basePath || '/'
-  const middlewares = new Hono<ViteEnv, BlankSchema, '/'>().basePath(basePath)
-
+  let middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
+  const customMiddlewares: MiddlewareHandler<ViteEnv, string>[] = []
   const httpServer = createSvcWorkerServer(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
-    claimOnActivate: !middlewareMode, // if middlewareMode is enabled, do not claim on activate
+    claimOnActivate: true,
     debug: createDebugger('vrowser:svc-worker-server')!,
   })
   const fetchHandler = handle(middlewares)
 
-  // Create MessageChannel server for HMR
-  const ws = createMessageChannelServer(httpServer, config)
+  // Register fetch handler immediately (synchronously)
+  // This is critical for Service Workers which require fetch listeners during script evaluation
+  httpServer.setFetchHandler(fetchHandler)
 
-  // TODO: setup public files
-  // const publicFiles = await initPublicFilesPromise
-  // const { publicDir } = config
+  /**
+   * Start the Vite Dev Server
+   */
+  async function listen(): Promise<ViteDevServer> {
+    const config = isResolvedConfig(inlineConfig)
+      ? inlineConfig
+      : await resolveConfig(inlineConfig, 'serve')
+    console.log('[vrowser-vite-dev-server] Vite Dev Server config:', config)
 
-  // TODO:
-  // watch configuration in here !
-  // About service worker, we need to FSWatcher which implementented with Window Message Channel and have a same fs.FSWatcher I/F
-  const watchEnabled = serverConfig.watch !== null
-  const watcher: FSWatcher | undefined = undefined
-  // const watcher = watchEnabled
-  //   ? (chokidar.watch(
-  //     // config file dependencies and env file might be outside of root
-  //     [
-  //       ...(config.experimental.bundledDev ? [] : [root]),
-  //       ...config.configFileDependencies,
-  //       ...getEnvFilesForMode(config.mode, config.envDir),
-  //       // Watch the public directory explicitly because it might be outside
-  //       // of the root directory.
-  //       ...(publicDir && publicFiles ? [publicDir] : []),
-  //     ],
+    // TODO: ...
 
-  //     resolvedWatchOptions,
-  //   ) as FSWatcher)
-  //   : createNoopWatcher(resolvedWatchOptions)
+    const { root, server: serverConfig } = config
+    const basePath = options.basePath || '/'
 
-  const environments: Record<string, DevEnvironment> = {}
-  // await Promise.all(
-  //   Object.entries(config.environments).map(
-  //     async ([name, environmentOptions]) => {
-  //       const environment = await environmentOptions.dev.createEnvironment(
-  //         name,
-  //         config,
-  //         {
-  //           ws,
-  //         },
-  //       )
-  //       environments[name] = environment
+    // Setup base path for hono middlewares
+    if (basePath !== '/') {
+      middlewares = middlewares.basePath(basePath)
+    }
 
-  //       const previousInstance =
-  //         options.previousEnvironments?.[environment.name]
-  //       await environment.init({ watcher, previousInstance })
-  //     },
-  //   ),
-  // )
+    // TODO: ...
 
-  // Backward compatibility
+    // Create MessageChannel server for HMR
+    const ws = createMessageChannelServer(httpServer, config)
 
-  let moduleGraph = new ModuleGraph({
-    client: () => environments.client.moduleGraph,
-    ssr: () => environments.ssr.moduleGraph,
-  })
-  let pluginContainer = createPluginContainer(environments)
+    // TODO: setup public files
+    // const publicFiles = await initPublicFilesPromise
+    // const { publicDir } = config
 
-  const closeHttpServer = createServerCloseFn(httpServer)
+    // TODO:
+    // watch configuration in here !
+    // About service worker, we need to FSWatcher which implementented with Window Message Channel and have a same fs.FSWatcher I/F
+    const watchEnabled = serverConfig.watch !== null
+    const watcher: FSWatcher | undefined = undefined
+    // const watcher = watchEnabled
+    //   ? (chokidar.watch(
+    //     // config file dependencies and env file might be outside of root
+    //     [
+    //       ...(config.experimental.bundledDev ? [] : [root]),
+    //       ...config.configFileDependencies,
+    //       ...getEnvFilesForMode(config.mode, config.envDir),
+    //       // Watch the public directory explicitly because it might be outside
+    //       // of the root directory.
+    //       ...(publicDir && publicFiles ? [publicDir] : []),
+    //     ],
 
-  // const devHtmlTransformFn = createDevHtmlTransformFn(config)
+    //     resolvedWatchOptions,
+    //   ) as FSWatcher)
+    //   : createNoopWatcher(resolvedWatchOptions)
 
-  // Ready promise for async initialization
-  let readyResolve: () => void
-  let readyReject: (err: Error) => void
-  const readyPromise = new Promise<void>((resolve, reject) => {
-    readyResolve = resolve
-    readyReject = reject
-  })
+    const environments: Record<string, DevEnvironment> = {}
+    // TODO(kazupon): create environments
+    // await Promise.all(
+    //   Object.entries(config.environments).map(
+    //     async ([name, environmentOptions]) => {
+    //       const environment = await environmentOptions.dev.createEnvironment(
+    //         name,
+    //         config,
+    //         {
+    //           ws,
+    //         },
+    //       )
+    //       environments[name] = environment
 
-  // Promise used by `server.close()` to ensure `closeServer()` is only called once
-  let closeServerPromise: Promise<void> | undefined
-  const closeServer = async () => {
-    // if (!middlewareMode) {
-    //   teardownSIGTERMListener(closeServerAndExit)
+    //       const previousInstance =
+    //         options.previousEnvironments?.[environment.name]
+    //       await environment.init({ watcher, previousInstance })
+    //     },
+    //   ),
+    // )
+
+    // Backward compatibility
+
+    let moduleGraph = new ModuleGraph({
+      client: () => environments.client.moduleGraph,
+      ssr: () => environments.ssr.moduleGraph,
+    })
+    let pluginContainer = createPluginContainer(environments)
+
+    const closeHttpServer = createServerCloseFn(httpServer)
+
+    // const devHtmlTransformFn = createDevHtmlTransformFn(config)
+
+    // Promise used by `server.close()` to ensure `closeServer()` is only called once
+    let closeServerPromise: Promise<void> | undefined
+    const closeServer = async () => {
+      // if (!middlewareMode) {
+      //   teardownSIGTERMListener(closeServerAndExit)
+      // }
+
+      await Promise.allSettled([
+        // watcher.close(),
+        ws.close(),
+        Promise.allSettled(
+          Object.values(server.environments).map((environment) =>
+            environment.close(),
+          ),
+        ),
+        closeHttpServer(),
+        server._ssrCompatModuleRunner?.close(),
+      ])
+      server.resolvedUrls = null
+      server._ssrCompatModuleRunner = undefined
+    }
+
+    let hot = ws
+    let server: ViteDevServer = {
+      config,
+      middlewares,
+      httpServer,
+      ws,
+      // watcher,
+      get hot() {
+        warnFutureDeprecation(config, 'removeServerHot')
+        return hot
+      },
+      set hot(h) {
+        hot = h
+      },
+
+      environments,
+      get pluginContainer() {
+        warnFutureDeprecation(config, 'removeServerPluginContainer')
+        return pluginContainer
+      },
+      set pluginContainer(p) {
+        pluginContainer = p
+      },
+      get moduleGraph() {
+        warnFutureDeprecation(config, 'removeServerModuleGraph')
+        return moduleGraph
+      },
+      set moduleGraph(graph) {
+        moduleGraph = graph
+      },
+
+      resolvedUrls: null, // will be set on listen
+      // ssrTransform(
+      //   code: string,
+      //   inMap: SourceMap | { mappings: '' } | null,
+      //   url: string,
+      //   originalCode = code,
+      // ) {
+      //   return ssrTransform(code, inMap, url, originalCode, {
+      //     json: {
+      //       stringify:
+      //         config.json.stringify === true && config.json.namedExports !== true,
+      //     },
+      //   })
+      // },
+      // transformRequest(url, options) {
+      //   warnFutureDeprecation(config, 'removeServerTransformRequest')
+      //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
+      //   return environment.transformRequest(url)
+      // },
+      // warmupRequest(url, options) {
+      //   warnFutureDeprecation(config, 'removeServerWarmupRequest')
+      //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
+      //   return environment.warmupRequest(url)
+      // },
+      // transformIndexHtml(url, html, originalUrl) {
+      //   return devHtmlTransformFn(server, url, html, originalUrl)
+      // },
+      // async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
+      //   warnFutureDeprecation(config, 'removeSsrLoadModule')
+      //   return ssrLoadModule(url, server, opts?.fixStacktrace)
+      // },
+      // ssrFixStacktrace(e) {
+      //   warnFutureDeprecation(
+      //     config,
+      //     'removeSsrLoadModule',
+      //     "ssrFixStacktrace doesn't need to be used for Environment Module Runners.",
+      //   )
+      //   ssrFixStacktrace(e, server.environments.ssr.moduleGraph)
+      // },
+      // ssrRewriteStacktrace(stack: string) {
+      //   warnFutureDeprecation(
+      //     config,
+      //     'removeSsrLoadModule',
+      //     "ssrRewriteStacktrace doesn't need to be used for Environment Module Runners.",
+      //   )
+      //   return ssrRewriteStacktrace(stack, server.environments.ssr.moduleGraph)
+      //     .result
+      // },
+      // async reloadModule(module) {
+      //   warnFutureDeprecation(config, 'removeServerReloadModule')
+      //   if (serverConfig.hmr !== false && module.file) {
+      //     // TODO: Should we also update the node moduleGraph for backward compatibility?
+      //     const environmentModule = (module._clientModule ?? module._ssrModule)!
+      //     updateModules(
+      //       environments[environmentModule.environment]!,
+      //       module.file,
+      //       [environmentModule],
+      //       monotonicDateNow(),
+      //     )
+      //   }
+      // },
+      // async listen(port?: number, isRestart?: boolean) {
+      //   const hostname = await resolveHostname(config.server.host)
+      //   if (httpServer) {
+      //     httpServer.prependListener('listening', () => {
+      //       server.resolvedUrls = resolveServerUrls(
+      //         httpServer,
+      //         config.server,
+      //         hostname,
+      //         httpsOptions,
+      //         config,
+      //       )
+      //     })
+      //   }
+      //   await startServer(server, hostname, port)
+      //   if (httpServer) {
+      //     if (!isRestart && config.server.open) server.openBrowser()
+      //   }
+      //   return server
+      // },
+      openBrowser() {
+        console.warn('[@vrowser/vite-dev-server] not supported: server.openBrowser()')
+        // NOTE(kazupon): commented out, because Service Worker server don't need to open browser
+        // const options = server.config.server
+        // const url = getServerUrlByHost(server.resolvedUrls, options.host)
+        // if (url) {
+        //   const path =
+        //     typeof options.open === 'string'
+        //       ? new URL(options.open, url).href
+        //       : url
+
+        //   // We know the url that the browser would be opened to, so we can
+        //   // start the request while we are awaiting the browser. This will
+        //   // start the crawling of static imports ~500ms before.
+        //   // preTransformRequests needs to be enabled for this optimization.
+        //   if (server.config.server.preTransformRequests) {
+        //     setTimeout(() => {
+        //       const getMethod = path.startsWith('https:') ? httpsGet : httpGet
+
+        //       getMethod(
+        //         path,
+        //         {
+        //           headers: {
+        //             // Allow the history middleware to redirect to /index.html
+        //             Accept: 'text/html',
+        //           },
+        //         },
+        //         (res) => {
+        //           res.on('end', () => {
+        //             // Ignore response, scripts discovered while processing the entry
+        //             // will be preprocessed (server.config.server.preTransformRequests)
+        //           })
+        //         },
+        //       )
+        //         .on('error', () => {
+        //           // Ignore errors
+        //         })
+        //         .end()
+        //     }, 0)
+        //   }
+
+        //   _openBrowser(path, true, server.config.logger)
+        // } else {
+        //   server.config.logger.warn('No URL available to open in browser')
+        // }
+      },
+      async close() {
+        if (!closeServerPromise) {
+          closeServerPromise = closeServer()
+        }
+        return closeServerPromise
+      },
+      // printUrls() {
+      //   if (server.resolvedUrls) {
+      //     printServerUrls(
+      //       server.resolvedUrls,
+      //       serverConfig.host,
+      //       config.logger.info,
+      //     )
+      //   } else if (middlewareMode) {
+      //     throw new Error('cannot print server URLs in middleware mode.')
+      //   } else {
+      //     throw new Error(
+      //       'cannot print server URLs before server.listen is called.',
+      //     )
+      //   }
+      // },
+      // bindCLIShortcuts(options) {
+      //   bindCLIShortcuts(server, options)
+      // },
+      // async restart(forceOptimize?: boolean) {
+      //   if (!server._restartPromise) {
+      //     server._forceOptimizeOnRestart = !!forceOptimize
+      //     server._restartPromise = restartServer(server).finally(() => {
+      //       server._restartPromise = null
+      //       server._forceOptimizeOnRestart = false
+      //     })
+      //   }
+      //   return server._restartPromise
+      // },
+
+      // waitForRequestsIdle(ignoredId?: string): Promise<void> {
+      //   return environments.client.waitForRequestsIdle(ignoredId)
+      // },
+
+      _setInternalServer(_server: ViteDevServer) {
+        // Rebind internal the server variable so functions reference the user
+        // server instance after a restart
+        server = _server
+      },
+      _restartPromise: null,
+      _forceOptimizeOnRestart: false,
+      _shortcutsState: options.previousShortcutsState,
+    }
+
+    // maintain consistency with the server instance after restarting.
+    // const reflexServer = new Proxy(server, {
+    //   get: (_, property: keyof ViteDevServer) => {
+    //     return server[property]
+    //   },
+    //   set: (_, property: keyof ViteDevServer, value: never) => {
+    //     server[property] = value
+    //     return true
+    //   },
+    // })
+
+    // TODO: setup for HMR, watchers ...
+    // ...
+
+    if (!middlewareMode) {
+      httpServer.once('listening', () => {
+        // NOTE(kazupon): commented out, because Service Worker server don't need port
+        serverConfig.port = 0
+        // update actual port since this may be different from initial value
+        // serverConfig.port = (httpServer.address() as net.AddressInfo).port
+      })
+    }
+
+    // Pre applied internal middlewares ------------------------------------------
+
+    // request timer
+    if (import.meta.env.DEBUG) {
+      middlewares.use(timeMiddleware(root))
+    }
+
+    // apply configureServer hooks ------------------------------------------------
+
+    // TODO: setup for configureServer hooks
+
+    // Internal middlewares ------------------------------------------------------
+
+    // NOTE(kazupon): commented out, until implementing transform middleware
+    // if (!config.experimental.bundledDev) {
+    //   middlewares.use(cachedTransformMiddleware(server))
+    // }
+    //
+    // // proxy
+    // const { proxy } = serverConfig
+    // if (proxy) {
+    //   const middlewareServer =
+    //     (isObject(middlewareMode) ? middlewareMode.server : null) || httpServer
+    //   middlewares.use(proxyMiddleware(middlewareServer, proxy, config))
     // }
 
-    await Promise.allSettled([
-      // watcher.close(),
-      ws.close(),
-      // Promise.allSettled(
-      //   Object.values(server.environments).map((environment) =>
-      //     environment.close(),
-      //   ),
-      // ),
-      closeHttpServer(),
-      // server._ssrCompatModuleRunner?.close(),
-    ])
-    server.resolvedUrls = null
-    server._ssrCompatModuleRunner = undefined
-  }
+    // base
+    if (config.base !== '/') {
+      middlewares.use(baseMiddleware(config.rawBase, !!middlewareMode))
+    }
 
-  let hot = ws
-  let server: ViteDevServer = {
-    config,
-    middlewares,
-    httpServer,
-    ws,
-    ready: readyPromise,
-    // watcher,
-    get hot() {
-      warnFutureDeprecation(config, 'removeServerHot')
-      return hot
-    },
-    set hot(h) {
-      hot = h
-    },
-
-    environments,
-    get pluginContainer() {
-      warnFutureDeprecation(config, 'removeServerPluginContainer')
-      return pluginContainer
-    },
-    set pluginContainer(p) {
-      pluginContainer = p
-    },
-    get moduleGraph() {
-      warnFutureDeprecation(config, 'removeServerModuleGraph')
-      return moduleGraph
-    },
-    set moduleGraph(graph) {
-      moduleGraph = graph
-    },
-
-    resolvedUrls: null, // will be set on listen
-    // ssrTransform(
-    //   code: string,
-    //   inMap: SourceMap | { mappings: '' } | null,
-    //   url: string,
-    //   originalCode = code,
-    // ) {
-    //   return ssrTransform(code, inMap, url, originalCode, {
-    //     json: {
-    //       stringify:
-    //         config.json.stringify === true && config.json.namedExports !== true,
-    //     },
-    //   })
-    // },
-    // transformRequest(url, options) {
-    //   warnFutureDeprecation(config, 'removeServerTransformRequest')
-    //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
-    //   return environment.transformRequest(url)
-    // },
-    // warmupRequest(url, options) {
-    //   warnFutureDeprecation(config, 'removeServerWarmupRequest')
-    //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
-    //   return environment.warmupRequest(url)
-    // },
-    // transformIndexHtml(url, html, originalUrl) {
-    //   return devHtmlTransformFn(server, url, html, originalUrl)
-    // },
-    // async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
-    //   warnFutureDeprecation(config, 'removeSsrLoadModule')
-    //   return ssrLoadModule(url, server, opts?.fixStacktrace)
-    // },
-    // ssrFixStacktrace(e) {
-    //   warnFutureDeprecation(
-    //     config,
-    //     'removeSsrLoadModule',
-    //     "ssrFixStacktrace doesn't need to be used for Environment Module Runners.",
-    //   )
-    //   ssrFixStacktrace(e, server.environments.ssr.moduleGraph)
-    // },
-    // ssrRewriteStacktrace(stack: string) {
-    //   warnFutureDeprecation(
-    //     config,
-    //     'removeSsrLoadModule',
-    //     "ssrRewriteStacktrace doesn't need to be used for Environment Module Runners.",
-    //   )
-    //   return ssrRewriteStacktrace(stack, server.environments.ssr.moduleGraph)
-    //     .result
-    // },
-    // async reloadModule(module) {
-    //   warnFutureDeprecation(config, 'removeServerReloadModule')
-    //   if (serverConfig.hmr !== false && module.file) {
-    //     // TODO: Should we also update the node moduleGraph for backward compatibility?
-    //     const environmentModule = (module._clientModule ?? module._ssrModule)!
-    //     updateModules(
-    //       environments[environmentModule.environment]!,
-    //       module.file,
-    //       [environmentModule],
-    //       monotonicDateNow(),
-    //     )
-    //   }
-    // },
-    async listen(port: number = -1, isRestart: boolean = false) {
-      // async listen(port?: number, isRestart?: boolean) {
-      // const hostname = await resolveHostname(config.server.host)
-      // if (httpServer) {
-      //   httpServer.prependListener('listening', () => {
-      //     server.resolvedUrls = resolveServerUrls(
-      //       httpServer,
-      //       config.server,
-      //       hostname,
-      //       httpsOptions,
-      //       config,
-      //     )
-      //   })
-      // }
-      // await startServer(server, hostname, port)
-      await startServer(server, fetchHandler, port)
-      if (httpServer) {
-        if (!isRestart && config.server.open) server.openBrowser()
-      }
-      return server
-    },
-    openBrowser() {
-      console.warn('[@vrowser/vite-dev-server] not supported: server.openBrowser()')
-      // NOTE(kazupon): commented out, because Service Worker server don't need to open browser
-      // const options = server.config.server
-      // const url = getServerUrlByHost(server.resolvedUrls, options.host)
-      // if (url) {
-      //   const path =
-      //     typeof options.open === 'string'
-      //       ? new URL(options.open, url).href
-      //       : url
-
-      //   // We know the url that the browser would be opened to, so we can
-      //   // start the request while we are awaiting the browser. This will
-      //   // start the crawling of static imports ~500ms before.
-      //   // preTransformRequests needs to be enabled for this optimization.
-      //   if (server.config.server.preTransformRequests) {
-      //     setTimeout(() => {
-      //       const getMethod = path.startsWith('https:') ? httpsGet : httpGet
-
-      //       getMethod(
-      //         path,
-      //         {
-      //           headers: {
-      //             // Allow the history middleware to redirect to /index.html
-      //             Accept: 'text/html',
-      //           },
-      //         },
-      //         (res) => {
-      //           res.on('end', () => {
-      //             // Ignore response, scripts discovered while processing the entry
-      //             // will be preprocessed (server.config.server.preTransformRequests)
-      //           })
-      //         },
-      //       )
-      //         .on('error', () => {
-      //           // Ignore errors
-      //         })
-      //         .end()
-      //     }, 0)
-      //   }
-
-      //   _openBrowser(path, true, server.config.logger)
-      // } else {
-      //   server.config.logger.warn('No URL available to open in browser')
-      // }
-    },
-    async close() {
-      if (!closeServerPromise) {
-        closeServerPromise = closeServer()
-      }
-      return closeServerPromise
-    },
-    // printUrls() {
-    //   if (server.resolvedUrls) {
-    //     printServerUrls(
-    //       server.resolvedUrls,
-    //       serverConfig.host,
-    //       config.logger.info,
-    //     )
-    //   } else if (middlewareMode) {
-    //     throw new Error('cannot print server URLs in middleware mode.')
+    // NOTE(kazupon): commented out, until implementing other middlewares
+    // // open in editor support
+    // middlewares.use('/__open-in-editor', launchEditorMiddleware())
+    //
+    // // ping request handler
+    // // Keep the named function. The name is visible in debug logs via `DEBUG=connect:dispatcher ...`
+    // middlewares.use(function viteHMRPingMiddleware(req, res, next) {
+    //   if (req.headers['accept'] === 'text/x-vite-ping') {
+    //     res.writeHead(204).end()
     //   } else {
-    //     throw new Error(
-    //       'cannot print server URLs before server.listen is called.',
-    //     )
+    //     next()
     //   }
-    // },
-    // bindCLIShortcuts(options) {
-    //   bindCLIShortcuts(server, options)
-    // },
-    // async restart(forceOptimize?: boolean) {
-    //   if (!server._restartPromise) {
-    //     server._forceOptimizeOnRestart = !!forceOptimize
-    //     server._restartPromise = restartServer(server).finally(() => {
-    //       server._restartPromise = null
-    //       server._forceOptimizeOnRestart = false
-    //     })
-    //   }
-    //   return server._restartPromise
-    // },
+    // })
+    //
+    // // serve static files under /public
+    // // this applies before the transform middleware so that these files are served
+    // // as-is without transforms.
+    // if (publicDir) {
+    //   middlewares.use(servePublicMiddleware(server, publicFiles))
+    // }
+    //
+    // if (config.experimental.bundledDev) {
+    //   middlewares.use(memoryFilesMiddleware(server))
+    // } else {
+    //   // main transform middleware
+    //   middlewares.use(transformMiddleware(server))
+    //
+    //   // serve static files
+    //   middlewares.use(serveRawFsMiddleware(server))
+    //   middlewares.use(serveStaticMiddleware(server))
+    // }
+    //
+    // // html fallback
+    // if (config.appType === 'spa' || config.appType === 'mpa') {
+    //   middlewares.use(
+    //     htmlFallbackMiddleware(
+    //       root,
+    //       config.appType === 'spa',
+    //       server.environments.client,
+    //     ),
+    //   )
+    // }
 
-    // waitForRequestsIdle(ignoredId?: string): Promise<void> {
-    //   return environments.client.waitForRequestsIdle(ignoredId)
-    // },
+    if (config.experimental.bundledDev) {
+      // TODO: implement memoryFilesMiddleware later
+    } else {
+      // main transform middleware
+      // middlewares.use('*', transformMiddleware(server))
+      console.log('[SW] transformMiddleware applied', transformMiddleware)
+    }
 
-    _setInternalServer(_server: ViteDevServer) {
-      // Rebind internal the server variable so functions reference the user
-      // server instance after a restart
-      server = _server
-    },
-    _restartPromise: null,
-    _forceOptimizeOnRestart: false,
-    _shortcutsState: options.previousShortcutsState,
-  }
+    // apply configureServer post hooks ------------------------------------------
 
-  // maintain consistency with the server instance after restarting.
-  // const reflexServer = new Proxy(server, {
-  //   get: (_, property: keyof ViteDevServer) => {
-  //     return server[property]
-  //   },
-  //   set: (_, property: keyof ViteDevServer, value: never) => {
-  //     server[property] = value
-  //     return true
-  //   },
-  // })
+    // TODO: setup for configureServer hooks
 
-  // TODO: setup for HMR, watchers ...
-  // ...
+    // Register custom hono middlewares
+    for (const middleware of customMiddlewares) {
+      middlewares.use(middleware)
+    }
 
-  if (!middlewareMode && httpServer) {
-    httpServer.once('listening', () => {
-      // NOTE(kazupon): commented out, because Service Worker server don't need port
-      serverConfig.port = 0
-      // update actual port since this may be different from initial value
-      // serverConfig.port = (httpServer.address() as net.AddressInfo).port
-    })
-  }
+    // httpServer.listen can be called multiple times
+    // when port when using next port number
+    // this code is to avoid calling buildStart multiple times
+    let initingServer: Promise<void> | undefined
+    let serverInited = false
+    const initServer = async (onListen: boolean) => {
+      if (serverInited) return
+      if (initingServer) return initingServer
 
-  // Pre applied internal middlewares ------------------------------------------
+      initingServer = (async function () {
+        await startServer(
+          server,
+          {
+            enableListenConnections: true,
+            port: onListen ? serverConfig.port : -1
+          }
+        )
+        // if (!config.experimental.bundledDev) {
+        //   // For backward compatibility, we call buildStart for the client
+        //   // environment when initing the server. For other environments
+        //   // buildStart will be called when the first request is transformed
+        //   await environments.client.pluginContainer.buildStart()
+        // }
 
-  // request timer
-  if (import.meta.env.DEBUG) {
-    middlewares.use(timeMiddleware(root))
-  }
-
-  // apply configureServer hooks ------------------------------------------------
-
-  // TODO: setup for configureServer hooks
-
-  // Internal middlewares ------------------------------------------------------
-
-  // NOTE(kazupon): commented out, until implementing transform middleware
-  // if (!config.experimental.bundledDev) {
-  //   middlewares.use(cachedTransformMiddleware(server))
-  // }
-  //
-  // // proxy
-  // const { proxy } = serverConfig
-  // if (proxy) {
-  //   const middlewareServer =
-  //     (isObject(middlewareMode) ? middlewareMode.server : null) || httpServer
-  //   middlewares.use(proxyMiddleware(middlewareServer, proxy, config))
-  // }
-
-  // base
-  if (config.base !== '/') {
-    middlewares.use(baseMiddleware(config.rawBase, !!middlewareMode))
-  }
-
-  // NOTE(kazupon): commented out, until implementing other middlewares
-  // // open in editor support
-  // middlewares.use('/__open-in-editor', launchEditorMiddleware())
-  //
-  // // ping request handler
-  // // Keep the named function. The name is visible in debug logs via `DEBUG=connect:dispatcher ...`
-  // middlewares.use(function viteHMRPingMiddleware(req, res, next) {
-  //   if (req.headers['accept'] === 'text/x-vite-ping') {
-  //     res.writeHead(204).end()
-  //   } else {
-  //     next()
-  //   }
-  // })
-  //
-  // // serve static files under /public
-  // // this applies before the transform middleware so that these files are served
-  // // as-is without transforms.
-  // if (publicDir) {
-  //   middlewares.use(servePublicMiddleware(server, publicFiles))
-  // }
-  //
-  // if (config.experimental.bundledDev) {
-  //   middlewares.use(memoryFilesMiddleware(server))
-  // } else {
-  //   // main transform middleware
-  //   middlewares.use(transformMiddleware(server))
-  //
-  //   // serve static files
-  //   middlewares.use(serveRawFsMiddleware(server))
-  //   middlewares.use(serveStaticMiddleware(server))
-  // }
-  //
-  // // html fallback
-  // if (config.appType === 'spa' || config.appType === 'mpa') {
-  //   middlewares.use(
-  //     htmlFallbackMiddleware(
-  //       root,
-  //       config.appType === 'spa',
-  //       server.environments.client,
-  //     ),
-  //   )
-  // }
-
-  if (config.experimental.bundledDev) {
-    // TODO: implement memoryFilesMiddleware later
-  } else {
-    // main transform middleware
-    // middlewares.use('*', transformMiddleware(server))
-    console.log('[SW] transformMiddleware applied', transformMiddleware)
-  }
-
-  // apply configureServer post hooks ------------------------------------------
-
-  // TODO: setup for configureServer hooks
-
-  // httpServer.listen can be called multiple times
-  // when port when using next port number
-  // this code is to avoid calling buildStart multiple times
-  let initingServer: Promise<void> | undefined
-  let serverInited = false
-  const initServer = async (onListen: boolean) => {
-    if (serverInited) return
-    if (initingServer) return initingServer
-
-    initingServer = (async function () {
-      // if (!config.experimental.bundledDev) {
-      //   // For backward compatibility, we call buildStart for the client
-      //   // environment when initing the server. For other environments
-      //   // buildStart will be called when the first request is transformed
-      //   await environments.client.pluginContainer.buildStart()
-      // }
-
-      // // ensure ws server started
-      // if (onListen || options.listen) {
-      //   await Promise.all(
-      //     Object.values(environments).map((e) => e.listen(server)),
-      //   )
-      // }
-
-      // setup environments
-      await Promise.all(
-        Object.entries(config.environments).map(
-          async ([name, environmentOptions]) => {
-            const environment = await environmentOptions.dev.createEnvironment(
-              name,
-              config,
-              {
-                ws,
-              },
-            )
-            console.log('setup dev environment:', environment)
-            environments[name] = environment
-
-            const previousInstance =
-              options.previousEnvironments?.[environment.name]
-            await environment.init({ watcher, previousInstance })
-          },
-        ),
-      )
-
-      initingServer = undefined
-      serverInited = true
-    })()
-    return initingServer
-  }
-
-  // If `options.listen` is `true`, register fetch event handler immediately (synchronously)
-  // This is critical for Service Workers which require fetch listeners during script evaluation
-  // In `middlewareMode`, user should call `server.listen()` manually to register fetch handler
-  if (options.listen && !middlewareMode) {
-    httpServer.listen(fetchHandler)
-  }
-
-  // overwrite listen to init optimizer before server start
-  const originalListen = httpServer.listen.bind(httpServer)
-  httpServer.listen = ((_port: number, ...args: any[]) => {
-    // Register fetch handler synchronously first for Service Worker compatibility
-    originalListen(fetchHandler, ...args)
-
-      // Run async initialization in background
-      // oxlint-disable-next-line @typescript-eslint/no-floating-promises
-      ; (async () => {
-        try {
-          await initServer(true)
-        } catch (e) {
-          httpServer.emit('error', e as Error)
+        // ensure ws server started
+        if (onListen || options.listen) {
+          await Promise.all(
+            Object.values(environments).map((e) => e.listen(server)),
+          )
         }
+
+        initingServer = undefined
+        serverInited = true
       })()
-  }) as any
+      return initingServer
+    }
 
-    // Run async initialization in background and resolve ready promise when done
-    // oxlint-disable-next-line @typescript-eslint/no-floating-promises
-    ; (async () => {
-      try {
-        await initServer(options.listen ?? false)
-        readyResolve!()
-      } catch (err) {
-        readyReject!(err as Error)
-      }
-    })()
+    try {
+      await initServer(!middlewareMode)
+    } catch (err) {
+      httpServer.emit('error', err as Error)
+    }
 
-  return server
+    return server
+  }
+
+  return Object.freeze({
+    middlewares: customMiddlewares,
+    listen
+  })
 }
 
-// ...
+// TODO: fill in code ...
 
 async function startServer(
   server: ViteDevServer,
-  handler: (event: FetchEvent) => void, // NOTE(kazupon): for Service Worker fetch event handling
+  options?: ListenOptions & { port?: number },
   // NOTE(kazupon): the below options are not needed in Service Worker server
   // hostname: Hostname,
-  inlinePort?: number,
 ): Promise<void> {
   const httpServer = server.httpServer
 
@@ -1002,7 +970,7 @@ async function startServer(
   //     ? server._currentServerPort
   //     : configPort) ?? DEFAULT_DEV_PORT
   // server._configServerPort = configPort
-  server._configServerPort = inlinePort
+  server._configServerPort = options?.port
 
   // NOTE(kazupon): commented out, because Service Worker server need the custom handler
   // const serverPort = await httpServerStart(httpServer, {
@@ -1011,7 +979,8 @@ async function startServer(
   //   host: hostname.host,
   //   logger: server.config.logger,
   // })
-  const serverPort = await httpServerStart(httpServer, handler)
+  // NOTE: setFetchHandler() is already called in createServer()
+  const serverPort = await httpServerStart(httpServer, options)
   server._currentServerPort = serverPort
   server._currentServerPort = serverPort
 }

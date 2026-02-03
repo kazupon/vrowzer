@@ -1276,9 +1276,7 @@ export function isResolvedConfig(
   )
 }
 
-export function resolveConfig(
-  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
-  // export async function resolveConfig(
+export async function resolveConfig(
   inlineConfig: InlineConfig,
   command: 'build' | 'serve',
   defaultMode = 'development',
@@ -1288,9 +1286,7 @@ export function resolveConfig(
   patchConfig: ((config: ResolvedConfig) => void) | undefined = undefined,
   /** @internal */
   patchPlugins: ((resolvedPlugins: Plugin[]) => void) | undefined = undefined,
-  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
-  // ): Promise<ResolvedConfig> {
-): ResolvedConfig {
+): Promise<ResolvedConfig> {
   let config = inlineConfig
   config.build ??= {}
   setupRollupOptionCompat(config.build, 'build')

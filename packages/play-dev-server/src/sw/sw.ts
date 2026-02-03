@@ -24,12 +24,11 @@ const files = new Map<string, string>()
 /**
  * Create Vite Dev Server on Service Worker
  */
-const server = createServer(
+const listenableServer = createServer(
   self,
-
   {
     root: '/',
-    server: { middlewareMode: true },
+    server: { middlewareMode: false },
     base: '/',
     publicDir: 'public',
     experimental: {
@@ -43,7 +42,7 @@ const server = createServer(
   { version: SW_VERSION, basePath: '/__preview__' }
 )
 
-server.middlewares.use(async (c, next) => {
+listenableServer.middlewares.push(async (c, next) => {
   console.log(`[custom:hello] for hello: ${c.req.url}`)
   if (c.req.path.endsWith('/hello')) {
     return c.text('Vite Dev Server on Service Worker says hello!')
@@ -54,7 +53,7 @@ server.middlewares.use(async (c, next) => {
 
 // Register middleware for virtual files
 // With basePath: '/__preview__', routes are automatically prefixed
-server.middlewares.use(async c => {
+listenableServer.middlewares.push(async c => {
   const path = c.req.path
   console.log('[custom:last] Intercepting preview request:', path)
 
@@ -71,7 +70,7 @@ server.middlewares.use(async c => {
 })
 
 // Register fetch event handler synchronously
-server.listen()
+// server.listen()
 
 /**
  * Message Handling from Main Thread
@@ -111,7 +110,17 @@ function handleFileChange(message: FileChangeMessage) {
  */
 self.addEventListener('activate', _event => {
   console.log('[SW] Activating...')
-  // _event.waitUntil(server.ready)
+  _event.waitUntil(
+    new Promise<void>(async (resolve, reject) => {
+      try {
+        await listenableServer.listen()
+        resolve()
+      } catch (e) {
+        console.error('[SW] Failed to start Vite Dev Server:', e)
+        reject(e)
+      }
+    })
+  )
 })
 
 /**
