@@ -18,6 +18,7 @@ Run Vite HMR flavor on the browser
 | [@vrowser/service-worker-server](./packages/service-worker-server)               | Serverized service worker with the Node Server interface                                                                        |
 | [@vrowser/unplugin-service-worker](./packages/unplugin-service-worker)           | unplugin for `@vrowser/service-worker`                                                                                          |
 | [@vrowser/oxlint-plugin-service-worker](./packages/oxlint-plugin-service-worker) | Oxlint plugin for `@vrowser/service-worker`                                                                                     |
+| [@vrowser/fs](./packages/fs)                                                     | Browser-compatible filesystem using memfs for vrowser                                                                           |
 
 ## ©️ License
 
