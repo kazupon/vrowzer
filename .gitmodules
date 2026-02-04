@@ -22,3 +22,9 @@
 [submodule "refers/emnapi"]
 	path = refers/emnapi
 	url = git@github.com:toyobayashi/emnapi.git
+[submodule "refers/memfs-browser"]
+	path = refers/memfs-browser
+	url = git@github.com:toyobayashi/memfs-browser.git
+[submodule "refers/memfs"]
+	path = refers/memfs
+	url = git@github.com:toyobayashi/memfs.git
