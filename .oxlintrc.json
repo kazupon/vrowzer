@@ -56,7 +56,6 @@
     "refers/**",
     "packages/playground/src/**",
     "packages/play-dev-server/**",
-    "packages/memfs-test/src/**",
     "packages/vrowser/src/**"
   ]
 }

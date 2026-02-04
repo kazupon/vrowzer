@@ -175,22 +175,6 @@ importers:
         specifier: ^4.0.17
         version: 4.0.17(@types/node@25.0.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/memfs-test:
-    dependencies:
-      memfs-browser:
-        specifier: 3.5.10302
-        version: 3.5.10302
-    devDependencies:
-      '@types/node':
-        specifier: ^24.10.1
-        version: 24.10.4
-      typescript:
-        specifier: ~5.9.3
-        version: 5.9.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.0-beta.4(@types/node@24.10.4)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
-
   packages/oxlint-plugin-service-worker:
     dependencies:
       oxlint:
@@ -4187,9 +4171,6 @@ packages:
     resolution: {integrity: sha512-yhlQgA6mnOJUKOsRUFsgJdQCvkKhcz8tlZG5HBQfReYZy46OwLcY+Zia0mtdHsOo9y/hP+CxMN0TU9QxoOtG4g==}
     engines: {node: '>=6 <7 || >=8'}
 
-  fs-monkey@1.1.0:
-    resolution: {integrity: sha512-QMUezzXWII9EV5aTFXW1UBVUO77wYPpjqIF8/AviUCThNeSYZykpoTixUeaNNBwmCev0AMDWMAni+f8Hxb1IFw==}
-
   fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -4769,13 +4750,6 @@ packages:
   media-typer@0.3.0:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
     engines: {node: '>= 0.6'}
-
-  memfs-browser@3.5.10302:
-    resolution: {integrity: sha512-JJTc/nh3ig05O0gBBGZjTCPOyydaTxNF0uHYBrcc1gHNnO+KIHIvo0Y1FKCJsaei6FCl8C6xfQomXqu+cuzkIw==}
-
-  memfs@3.5.3:
-    resolution: {integrity: sha512-UERzLsxzllchadvbPs5aolHh65ISpKpM+ccLbOJ8/vvpBKmAWf+la7dXFy7Mr0ySHbdHrFv5kGFCUHHe6GFEmw==}
-    engines: {node: '>= 4.0.0'}
 
   memfs@4.56.10:
     resolution: {integrity: sha512-eLvzyrwqLHnLYalJP7YZ3wBe79MXktMdfQbvMrVD80K+NhrIukCVBvgP30zTJYEEDh9hZ/ep9z0KOdD7FSHo7w==}
@@ -9085,8 +9059,6 @@ snapshots:
       jsonfile: 4.0.0
       universalify: 0.1.2
 
-  fs-monkey@1.1.0: {}
-
   fsevents@2.3.2:
     optional: true
 
@@ -9745,14 +9717,6 @@ snapshots:
   mdurl@2.0.0: {}
 
   media-typer@0.3.0: {}
-
-  memfs-browser@3.5.10302:
-    dependencies:
-      memfs: 3.5.3
-
-  memfs@3.5.3:
-    dependencies:
-      fs-monkey: 1.1.0
 
   memfs@4.56.10(tslib@2.8.1):
     dependencies:
