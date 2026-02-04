@@ -45,7 +45,9 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       // ignores for vite-dev-server package, because it will be forked from `vite` and maintained separately, preventing conflicts.
       'packages/vite-dev-server/**',
       // ignores for service-worker-server package e2e and test-public files
-      'packages/service-worker-server/**'
+      'packages/service-worker-server/**',
+      // ignores for fs package build files
+      'packages/fs/**'
     ]
   }
 )

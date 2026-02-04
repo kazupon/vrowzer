@@ -1,0 +1,78 @@
+{
+  "name": "@vrowser/fs",
+  "description": "Browser-compatible filesystem using memfs for vrowser",
+  "version": "0.0.0",
+  "author": {
+    "name": "kazuya kawaguchi",
+    "email": "kawakazu80@gmail.com"
+  },
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/kazupon",
+  "bugs": {
+    "url": "https://github.com/kazupon/vrowser/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazupon/vrowser.git",
+    "directory": "packages/fs"
+  },
+  "keywords": [
+    "filesystem",
+    "memfs",
+    "vrowser",
+    "browser"
+  ],
+  "homepage": "https://github.com/kazupon/vrowser/packages/fs/README.md",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 20.19.0"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./promises": {
+      "types": "./dist/promises.d.ts",
+      "import": "./dist/promises.js"
+    },
+    "./process": {
+      "types": "./dist/promises.d.ts",
+      "import": "./dist/polyfills/process.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "build:docs": "typedoc --excludeInternal",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@jsonjoy.com/fs-core": "4.56.10",
+    "@jsonjoy.com/fs-node": "4.56.10",
+    "@jsonjoy.com/fs-node-utils": "4.56.10",
+    "memfs": "^4.56.10"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
+    "get-port-please": "catalog:",
+    "path-browserify": "^1.0.1",
+    "premove": "^4.0.0",
+    "process": "^0.11.10",
+    "publint": "catalog:",
+    "readable-stream": "^4.7.0",
+    "typedoc": "catalog:",
+    "typedoc-plugin-markdown": "catalog:",
+    "tsdown": "catalog:",
+    "vite": "catalog:",
+    "vitest": "^4.0.17"
+  }
+}

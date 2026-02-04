@@ -77,6 +77,21 @@ export default defineConfig({
             ]
           }
         }
+      },
+      {
+        extends: './packages/fs/vitest.config.ts',
+        test: {
+          name: 'fs:unit',
+          include: ['./packages/fs/src/**/*.test.ts']
+        }
+      },
+      {
+        test: {
+          name: 'fs:e2e',
+          include: ['./packages/fs/e2e/**/*.e2e-test.ts'],
+          testTimeout: 30000,
+          hookTimeout: 60000
+        }
       }
     ]
   }
