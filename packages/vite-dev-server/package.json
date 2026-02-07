@@ -74,6 +74,7 @@
     "test:watch": "vitest watch --project vite-dev-server:unit"
   },
   "dependencies": {
+    "@vrowser/fs": "workspace:*",
     "rolldown": "catalog:"
   },
   "devDependencies": {
@@ -90,6 +91,7 @@
     "obug": "^1.0.2",
     "premove": "^4.0.0",
     "@types/convert-source-map": "^2.0.3",
+    "esbuild": "^0.27.2",
     "@types/picomatch": "^4.0.2",
     "pathe": "^2.0.3",
     "convert-source-map": "^2.0.0",

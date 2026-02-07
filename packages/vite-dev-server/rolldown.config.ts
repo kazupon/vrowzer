@@ -43,9 +43,21 @@ const sharedNodeOptions = defineConfig({
   platform: 'browser',
   resolve: {
     alias: {
+      // polyfills for Node.js built-in modules
       'node:path': 'pathe',
-      'path': 'pathe'
-    },
+      'path': 'pathe',
+      'node:fs': '@vrowser/fs',
+      'node:fs/promises': '@vrowser/fs/promises',
+      'fs': '@vrowser/fs',
+      'fs/promises': '@vrowser/fs/promises',
+      'node:url': '@kazupon/jts-utils/url',
+      'url': '@kazupon/jts-utils/url',
+    }
+  },
+  transform: {
+    define: {
+      'process.platform': JSON.stringify('browser') // for `tinyglobby` polyfill
+    }
   },
   treeshake: {
     moduleSideEffects: [

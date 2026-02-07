@@ -808,6 +808,7 @@ export function resolveDevEnvironmentOptions(
       preTransformRequests: preTransformRequest ?? consumer === 'client',
       createEnvironment:
         environmentName === 'client'
+          // TODO: HERE
           ? defaultCreateClientDevEnvironment
           // NOTE(kazupon): disable : defaultCreateDevEnvironment,
           : () => ({} as DevEnvironment),
@@ -1506,7 +1507,6 @@ export async function resolveConfig(
 
   const resolvedDefaultResolve = resolveResolveOptions(config.resolve, logger)
 
-  /*
   const resolvedEnvironments: Record<string, ResolvedEnvironmentOptions> = {}
   for (const environmentName of Object.keys(config.environments)) {
     resolvedEnvironments[environmentName] = resolveEnvironmentOptions(
@@ -1521,6 +1521,7 @@ export async function resolveConfig(
       config.server?.preTransformRequests,
     )
   }
+  /*
 
   // Backward compatibility: merge environments.client.optimizeDeps back into optimizeDeps
   // The same object is assigned back for backward compatibility. The ecosystem is modifying

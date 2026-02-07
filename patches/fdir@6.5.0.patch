@@ -1,0 +1,27 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 5c37e092b507dccc97d1b5a815cecceb94445698..ba7a78b153797ddf37b06887c0b12f41ac75843d 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1,11 +1,7 @@
+-import { createRequire } from "module";
+ import { basename, dirname, normalize, relative, resolve, sep } from "path";
+ import * as nativeFs from "fs";
++import picomatch from "picomatch";
+ 
+-//#region rolldown:runtime
+-var __require = /* @__PURE__ */ createRequire(import.meta.url);
+-
+-//#endregion
+ //#region src/utils.ts
+ function cleanPath(path) {
+ 	let normalized = normalize(path);
+@@ -440,8 +436,7 @@ var APIBuilder = class {
+ let pm = null;
+ /* c8 ignore next 6 */
+ try {
+-	__require.resolve("picomatch");
+-	pm = __require("picomatch");
++	pm = picomatch;
+ } catch {}
+ var Builder = class {
+ 	globCache = {};

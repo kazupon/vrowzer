@@ -2,19 +2,19 @@ packages:
   - packages/*
 
 catalog:
+  '@kazupon/jts-utils': ^0.15.1
+  '@playwright/test': 1.57.0
   '@types/node': ^25.0.9
+  get-port-please: ^3.2.0
+  magic-string: ^0.30.21
+  oxlint: ^1.39.0
+  playwright: 1.57.0
   publint: ^0.3.16
+  rolldown: ^1.0.0-rc.1
   tsdown: 0.18.4
   typedoc: ^0.28.16
   typedoc-plugin-markdown: ^4.9.0
-  '@playwright/test': 1.57.0
-  playwright: 1.57.0
-  get-port-please: ^3.2.0
-  vite: 8.0.0-beta.4
-  rolldown: ^1.0.0-rc.1
-  magic-string: ^0.30.21
-  oxlint: ^1.39.0
-  '@kazupon/jts-utils': ^0.14.1
+  vite: 8.0.0-beta.12
 
 minimumReleaseAge: 1440
 
@@ -31,3 +31,6 @@ onlyBuiltDependencies:
   - core-js
   - deno
   - esbuild
+
+patchedDependencies:
+  fdir@6.5.0: patches/fdir@6.5.0.patch

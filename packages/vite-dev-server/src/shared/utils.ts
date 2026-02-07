@@ -87,6 +87,9 @@ export function promiseWithResolvers<T>(): PromiseWithResolvers<T> {
 
 // TODO: fill in later ...
 
+// NOTE(kazupon):
+// The following codes are browser-compatible implementations
+
 /**
  * Convert a file URL to a file path (browser compatible)
  * Polyfill for Node.js `url.fileURLToPath`
