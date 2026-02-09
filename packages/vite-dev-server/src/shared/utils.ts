@@ -134,3 +134,59 @@ export function pathToFileURL(path: string): URL {
 
   return new URL('file://' + encodeURI(resolved))
 }
+
+// ------------------------------------------------------------------------------------------------
+// @vrowser/vite-dev-server original code below
+// ------------------------------------------------------------------------------------------------
+
+/**
+ * below code is forked from unjs/mlly
+ * repo: https://github.com/unjs/mlly
+ * loc: https://github.com/unjs/mlly/blob/main/src/syntax.ts#L20-L43
+ * license: MIT
+ */
+
+/**
+ * Options for detecting syntax within a code string.
+ */
+export type DetectSyntaxOptions = {
+  /**
+   * Indicates whether comments should be stripped from the code before syntax checking.
+   * @default false
+   */
+  stripComments?: boolean;
+};
+
+const ESM_RE = /(?:[\s;]|^)(?:import[\s\w*,{}]*from|import\s*["'*{]|export\b\s*(?:[*{]|default|class|type|function|const|var|let|async function)|import\.meta\b)/m;
+const COMMENT_RE = /\/\*.+?\*\/|\/\/.*(?=[nr])/g;
+
+/**
+ * Determines if a given code string contains ECMAScript module syntax.
+ *
+ * @param {string} code - The source code to analyse.
+ * @param {DetectSyntaxOptions} opts - See {@link DetectSyntaxOptions}.
+ * @returns {boolean} `true` if the code contains ESM syntax, otherwise `false`.
+ */
+export function hasESMSyntax(code: string, opts: DetectSyntaxOptions = {}) {
+  if (opts.stripComments) {
+    code = code.replace(COMMENT_RE, "");
+  }
+  return ESM_RE.test(code);
+}
+
+/**
+ * Convert a Node.js-style callback function to a promise-returning function.
+ * The callback must follow the `(err, result)` convention.
+ */
+export function promisify<TArgs extends unknown[], TResult>(
+  fn: (...args: [...TArgs, (err: unknown, result: TResult) => void]) => void,
+): (...args: TArgs) => Promise<TResult> {
+  return (...args: TArgs) =>
+    new Promise<TResult>((resolve, reject) => {
+      ;(fn as Function)(...args, (err: unknown, result: TResult) => {
+        if (err) reject(err)
+        else resolve(result)
+      })
+    })
+}
+

@@ -59,13 +59,17 @@ export default defineConfig({
         }
       },
       {
+        test: {
+          name: 'vite-dev-server:unit:node',
+          environment: 'node',
+          include: ['./packages/vite-dev-server/src/**/*.test.ts']
+        }
+      },
+      {
         extends: './packages/vite-dev-server/vitest.config.ts',
         test: {
-          name: 'vite-dev-server:unit',
-          include: [
-            './packages/vite-dev-server/src/**/*.browser-test.ts',
-            './packages/vite-dev-server/src/**/*.test.ts'
-          ],
+          name: 'vite-dev-server:unit:browser',
+          include: ['./packages/vite-dev-server/src/**/*.browser-test.ts'],
           browser: {
             enabled: true,
             headless: true,

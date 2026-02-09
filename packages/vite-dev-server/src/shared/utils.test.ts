@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fileURLToPath, pathToFileURL, isWindows } from './utils'
+import { fileURLToPath, pathToFileURL, isWindows, promisify } from './utils'
 
 describe('fileURLToPath', () => {
   it('should convert file URL string to path', () => {
@@ -141,5 +141,42 @@ describe('fileURLToPath and pathToFileURL roundtrip', () => {
     const url = pathToFileURL(originalPath)
     const result = fileURLToPath(url)
     expect(result).toBe(originalPath)
+  })
+})
+
+describe('promisify', () => {
+  it('should resolve with the result on success', async () => {
+    const fn = (a: number, b: number, cb: (err: unknown, result: number) => void) => {
+      cb(null, a + b)
+    }
+    const promisified = promisify(fn)
+    const result = await promisified(1, 2)
+    expect(result).toBe(3)
+  })
+
+  it('should reject with the error on failure', async () => {
+    const fn = (_a: string, cb: (err: unknown, result: string) => void) => {
+      cb(new Error('fail'), '' as never)
+    }
+    const promisified = promisify(fn)
+    await expect(promisified('test')).rejects.toThrow('fail')
+  })
+
+  it('should work with no extra arguments', async () => {
+    const fn = (cb: (err: unknown, result: string) => void) => {
+      cb(null, 'hello')
+    }
+    const promisified = promisify(fn)
+    const result = await promisified()
+    expect(result).toBe('hello')
+  })
+
+  it('should handle async callback', async () => {
+    const fn = (value: string, cb: (err: unknown, result: string) => void) => {
+      setTimeout(() => cb(null, value.toUpperCase()), 10)
+    }
+    const promisified = promisify(fn)
+    const result = await promisified('test')
+    expect(result).toBe('TEST')
   })
 })
