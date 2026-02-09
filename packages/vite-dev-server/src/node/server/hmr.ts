@@ -1,4 +1,6 @@
 import type { CustomPayload, HotPayload, Update } from '#types/hmrPayload'
+import type { Emittable } from '@kazupon/jts-utils/event'
+import { Emitter } from '@kazupon/jts-utils/event'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import colors from 'picocolors'
@@ -11,6 +13,7 @@ import type {
   InvokeSendData,
 } from '../../shared/invokeMethods'
 import { withTrailingSlash, wrapId } from '../../shared/utils'
+import { isExplicitImportRequired } from '../plugins/importAnalysis'
 import { createDebugger, monotonicDateNow } from '../utils'
 import type { DevEnvironment } from './environment'
 import type { ModuleNode } from './mixedModuleGraph'
@@ -367,6 +370,7 @@ export function updateModules(
     }
 
     updates.push(
+      // @ts-expect-error -- TODO(kazupon): fix type error later ...
       ...boundaries.map(
         ({ boundary, acceptedVia, isWithinCircularImport }) => ({
           type: `${boundary.type}-update` as const,
@@ -799,7 +803,51 @@ async function readModifiedFile(file: string): Promise<string> {
   }
 }
 
-/* NOTE: disalbe for now ... we need to port EventEmitter
+type InnerEmitterEvents = {
+  connection: undefined
+  [key: string]: unknown // for dynamic events
+}
+type OutsideEmitterEvents = {
+  send: HotPayload
+}
+
+export type ServerHotChannelApi = {
+  innerEmitter: Emittable<InnerEmitterEvents> & Disposable
+  outsideEmitter: Emittable<OutsideEmitterEvents> & Disposable
+}
+
+export type ServerHotChannel = HotChannel<ServerHotChannelApi>
+export type NormalizedServerHotChannel =
+  NormalizedHotChannel<ServerHotChannelApi>
+
+export function createServerHotChannel(): ServerHotChannel {
+  const innerEmitter = Emitter<InnerEmitterEvents>()
+  const outsideEmitter = Emitter<OutsideEmitterEvents>()
+
+  return {
+    send(payload: HotPayload) {
+      outsideEmitter.emit('send', payload)
+    },
+    off(event, listener: () => void) {
+      innerEmitter.off(event, listener)
+    },
+    on: ((event: string, listener: () => unknown) => {
+      innerEmitter.on(event, listener)
+    }) as NonNullable<ServerHotChannel['on']>,
+    close() {
+      innerEmitter.dispose()
+      outsideEmitter.dispose()
+    },
+    listen() {
+      innerEmitter.emit('connection')
+    },
+    api: {
+      innerEmitter,
+      outsideEmitter,
+    },
+  }
+}
+/* NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
 export type ServerHotChannelApi = {
   innerEmitter: EventEmitter
   outsideEmitter: EventEmitter

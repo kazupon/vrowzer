@@ -44,7 +44,9 @@
     "test:unit:server": "vitest run --project service-worker-server:unit",
     "test:unit:svc": "vitest run --project service-worker:unit",
     "test:unit:unplugin": "vitest run --project unplugin-service-worker:unit",
-    "test:unit:vite": "vitest run --project vite-dev-server:unit",
+    "test:unit:vite": "pnpm run --color \"/^test:unit:vite:/\"",
+    "test:unit:vite:browser": "vitest run --project vite-dev-server:unit:browser",
+    "test:unit:vite:node": "vitest run --project vite-dev-server:unit:node",
     "typecheck": "tsgo --noEmit --diagnostics --project ./tsconfig.typecheck.json"
   },
   "devDependencies": {

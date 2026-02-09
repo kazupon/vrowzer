@@ -1,8 +1,14 @@
 import type {
-  EsbuildTransformOptions
+  EsbuildTransformOptions,
+  EsbuildTransformResult as RawEsbuildTransformResult
 } from '#types/internal/esbuildOptions'
+import type { SourceMap } from 'rolldown'
+import type { ResolvedConfig } from '../config'
+import {
+  createDebugger
+} from '../utils'
 
-// TODO: fill in code ...
+const debug = createDebugger('vite:esbuild')
 
 // IIFE content looks like `var MyLib = function() {`.
 // Spaces are removed and parameters are mangled when minified
@@ -31,4 +37,40 @@ export interface ESBuildOptions extends EsbuildTransformOptions {
   minify?: never
 }
 
+export type ESBuildTransformResult = Omit<RawEsbuildTransformResult, 'map'> & {
+  map: SourceMap
+}
+
+type TSConfigJSON = {
+  extends?: string
+  compilerOptions?: {
+    alwaysStrict?: boolean
+    experimentalDecorators?: boolean
+    importsNotUsedAsValues?: 'remove' | 'preserve' | 'error'
+    jsx?: 'preserve' | 'react' | 'react-jsx' | 'react-jsxdev'
+    jsxFactory?: string
+    jsxFragmentFactory?: string
+    jsxImportSource?: string
+    preserveValueImports?: boolean
+    target?: string
+    useDefineForClassFields?: boolean
+    emitDecoratorMetadata?: boolean
+    verbatimModuleSyntax?: boolean
+  }
+  [key: string]: any
+}
+export type TSCompilerOptions = NonNullable<TSConfigJSON['compilerOptions']>
+
 // TODO: fill in code ...
+
+export async function loadTsconfigJsonForFile(
+  filename: string,
+  config?: ResolvedConfig,
+): Promise<{ tsconfigFile: string; tsconfig: TSConfigJSON }> {
+  // TODO(kazupon): disable tsconfig loading, because 'tsconfck' package seem hard to resolve in browser environment
+  // const { tsconfig, tsconfigFile } = await parse(filename, {
+  //   cache: getTSConfckCache(config),
+  //   ignoreNodeModules: true,
+  // })
+  return { tsconfigFile: '', tsconfig: {} }
+}

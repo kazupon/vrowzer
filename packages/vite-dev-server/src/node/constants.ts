@@ -1,5 +1,6 @@
 // TODO: fill in code later ...
 
+import path from 'node:path'
 import type { RollupPluginHooks } from './typeUtils'
 
 // const { version } = JSON.parse(
@@ -123,6 +124,7 @@ export const ENV_PUBLIC_PATH = `/@vite/env`
 
 export const CLIENT_ENTRY: string = 'dist/client/client.mjs'
 export const ENV_ENTRY: string = 'dist/client/env.mjs'
+export const CLIENT_DIR: string = path.dirname(CLIENT_ENTRY)
 // NOTE(kazupon): we need to resolve path for browser
 // export const VITE_PACKAGE_DIR: string = resolve(
 //   fileURLToPath(import.meta.url),

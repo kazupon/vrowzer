@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@kazupon/jts-utils':
-      specifier: ^0.15.1
-      version: 0.15.1
+      specifier: ^0.16.0
+      version: 0.16.0
     '@playwright/test':
       specifier: 1.57.0
       version: 1.57.0
@@ -195,6 +195,9 @@ importers:
 
   packages/play-dev-server:
     dependencies:
+      '@vrowser/fs':
+        specifier: workspace:*
+        version: link:../fs
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -328,7 +331,7 @@ importers:
     devDependencies:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.15.1(@vue/reactivity@3.5.26)
+        version: 0.16.0(@vue/reactivity@3.5.26)
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.57.0
@@ -358,7 +361,7 @@ importers:
     dependencies:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.15.1(@vue/reactivity@3.5.26)
+        version: 0.16.0(@vue/reactivity@3.5.26)
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -457,13 +460,19 @@ importers:
         version: 0.3.31
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.15.1(@vue/reactivity@3.5.26)
+        version: 0.16.0(@vue/reactivity@3.5.26)
+      '@noble/hashes':
+        specifier: ^2.0.1
+        version: 2.0.1
       '@oxc-parser/binding-wasm32-wasi':
         specifier: 0.111.0
         version: 0.111.0
       '@oxc-project/types':
         specifier: 0.108.0
         version: 0.108.0
+      '@rolldown/pluginutils':
+        specifier: 1.0.0-beta.60
+        version: 1.0.0-beta.60
       '@rollup/plugin-alias':
         specifier: ^5.1.1
         version: 5.1.1(rollup@4.55.1)
@@ -473,6 +482,9 @@ importers:
       '@types/convert-source-map':
         specifier: ^2.0.3
         version: 2.0.3
+      '@types/estree':
+        specifier: ^1.0.8
+        version: 1.0.8
       '@types/picomatch':
         specifier: ^4.0.2
         version: 4.0.2
@@ -488,6 +500,15 @@ importers:
       convert-source-map:
         specifier: ^2.0.0
         version: 2.0.0
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.4
+      dotenv-expand:
+        specifier: ^12.0.3
+        version: 12.0.3
+      es-module-lexer:
+        specifier: ^1.7.0
+        version: 1.7.0
       esbuild:
         specifier: ^0.27.2
         version: 0.27.2
@@ -500,12 +521,15 @@ importers:
       magic-string:
         specifier: 'catalog:'
         version: 0.30.21
+      mlly:
+        specifier: ^1.8.0
+        version: 1.8.0
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
       obug:
-        specifier: ^1.0.2
-        version: 1.0.2(ms@2.1.3)
+        specifier: ^2.1.1
+        version: 2.1.1
       oxc-parser:
         specifier: 0.111.0
         version: 0.111.0
@@ -524,12 +548,24 @@ importers:
       premove:
         specifier: ^4.0.0
         version: 4.0.0
+      resolve.exports:
+        specifier: ^2.0.3
+        version: 2.0.3
       rolldown-plugin-dts:
         specifier: ^0.20.0
         version: 0.20.0(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(rolldown@1.0.0-rc.2)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
+      strip-literal:
+        specifier: ^3.1.0
+        version: 3.1.0
       tinyglobby:
         specifier: ^0.2.15
         version: 0.2.15
+      tsconfck:
+        specifier: ^3.1.6
+        version: 3.1.6(typescript@5.9.3)
+      ufo:
+        specifier: ^1.6.2
+        version: 1.6.3
       vite:
         specifier: 'catalog:'
         version: 8.0.0-beta.12(@types/node@25.0.9)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -1220,8 +1256,8 @@ packages:
     peerDependencies:
       eslint: ^9.0.0
 
-  '@kazupon/jts-utils@0.15.1':
-    resolution: {integrity: sha512-s08/4RtjhteAH95QCfPZVnCp/3GFW6HV7GSJV16KDgQrFpzYmpu6MZnbcis8ONEugjRpe791rjlnUoqZ2/DA2Q==}
+  '@kazupon/jts-utils@0.16.0':
+    resolution: {integrity: sha512-TK73ZbNHrunaxOUHS61orUZyqh8qFMTjsArPqOsTitVSP6AYWGtZ7sOAYWzUYDRlcP7l39jS7VG4r1vuAFAc0Q==}
     engines: {node: '>= 20'}
     peerDependencies:
       '@vue/reactivity': ^3.4
@@ -1281,6 +1317,10 @@ packages:
 
   '@napi-rs/wasm-runtime@1.1.1':
     resolution: {integrity: sha512-p64ah1M1ld8xjWv3qbvFwHiFVWrq1yFvV4f7w+mzaqiR4IlSgkqhcRdHwsGgomwzBH51sRY4NEowLxnaBjcW/A==}
+
+  '@noble/hashes@2.0.1':
+    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -2431,6 +2471,9 @@ packages:
   '@rolldown/pluginutils@1.0.0-beta.58':
     resolution: {integrity: sha512-qWhDs6yFGR5xDfdrwiSa3CWGIHxD597uGE/A9xGqytBjANvh4rLCTTkq7szhMV4+Ygh+PMS90KVJ8xWG/TkX4w==}
 
+  '@rolldown/pluginutils@1.0.0-beta.60':
+    resolution: {integrity: sha512-Jz4aqXRPVtqkH1E3jRDzLO5cgN5JwW+WG0wXGE4NiJd25nougv/AHzxmKCzmVQUYnxLmTM0M4wrZp+LlC2FKLg==}
+
   '@rolldown/pluginutils@1.0.0-rc.2':
     resolution: {integrity: sha512-izyXV/v+cHiRfozX62W9htOAvwMo4/bXKDrQ+vom1L1qRuexPock/7VZDAhnpHCLNejd3NJ6hiab+tO0D44Rgw==}
 
@@ -3500,8 +3543,16 @@ packages:
     resolution: {integrity: sha512-zIHwmZPRshsCdpMDyVsqGmgyP0yT8GAgXUnkdAoJisxvf33k7yO6OuoKmcTGuXPWSsm8Oh88nZicRLA9Y0rUeA==}
     engines: {node: '>=12'}
 
+  dotenv-expand@12.0.3:
+    resolution: {integrity: sha512-uc47g4b+4k/M/SeaW1y4OApx+mtLWl92l5LMPP0GNXctZqELk+YGgOPIIC5elYmUH4OuoK3JLhuRUYegeySiFA==}
+    engines: {node: '>=12'}
+
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+    engines: {node: '>=12'}
+
+  dotenv@17.2.4:
+    resolution: {integrity: sha512-mudtfb4zRB4bVvdj0xRo+e6duH1csJRM8IukBqfTRvHotn9+LBXB8ynAidP9zHqoRC/fsllXgk4kCKlR21fIhw==}
     engines: {node: '>=12'}
 
   dts-resolver@2.1.3:
@@ -4804,14 +4855,6 @@ packages:
     resolution: {integrity: sha512-YJjNZrlXJFM42wTBn6zgOJVar9KFJvzx6sTWDte8sWZF//cnjl0BxHNpfZx+ZffXX63A9q0b1zsFiBX4g4X5KA==}
     engines: {node: '>= 10.12.0'}
 
-  obug@1.0.2:
-    resolution: {integrity: sha512-Q3KPMFHLmJ4KENpj3HNkzU7nngmrgXrr7h19DHx/8+hNAD2St6zzb8Mamfj3VzrVTbjnIyu94WwPBO5yAB+kCQ==}
-    peerDependencies:
-      ms: ^2.0.0
-    peerDependenciesMeta:
-      ms:
-        optional: true
-
   obug@2.1.1:
     resolution: {integrity: sha512-uTqF9MuPraAQ+IsnPf366RG4cP9RtUi7MLO1N3KEc+wb0a6yKpeL0lmk2IB1jY5KHPAlTc6T/JRdC/YqxHNwkQ==}
 
@@ -5107,6 +5150,10 @@ packages:
 
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
+
+  resolve.exports@2.0.3:
+    resolution: {integrity: sha512-OcXjMsGdhL4XnbShKpAcSqPMzQoYkYyhbEaeSko47MjRP9NfEQMhZkXL1DoFlt9LWQn4YttrdnV6X2OiyzBi+A==}
+    engines: {node: '>=10'}
 
   resolve@1.22.11:
     resolution: {integrity: sha512-RfqAvLnMl313r7c9oclB1HhUEAezcpLjz95wFH4LVuhk9JF/r22qmVP9AMmOU4vMX7Q8pN8jwNg/CSpdFnMjTQ==}
@@ -5453,6 +5500,16 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
+  tsconfck@3.1.6:
+    resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
+    peerDependencies:
+      typescript: ^5.0.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   tsdown@0.15.12:
     resolution: {integrity: sha512-c8VLlQm8/lFrOAg5VMVeN4NAbejZyVQkzd+ErjuaQgJFI/9MhR9ivr0H/CM7UlOF1+ELlF6YaI7sU/4itgGQ8w==}
     engines: {node: '>=20.19.0'}
@@ -5555,8 +5612,8 @@ packages:
   uc.micro@2.1.0:
     resolution: {integrity: sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A==}
 
-  ufo@1.6.1:
-    resolution: {integrity: sha512-9a4/uxlTWJ4+a5i0ooc1rU7C7YOw3wT+UGqdeNNHWnOF9qcMBgLRS+4IYUqbczewFx4mLEig6gawh7X6mFlEkA==}
+  ufo@1.6.3:
+    resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
 
   unconfig-core@7.4.2:
     resolution: {integrity: sha512-VgPCvLWugINbXvMQDf8Jh0mlbvNjNC6eSUziHsBCMpxR05OPrNrvDnyatdMjRgcHaaNsCqz+wjNXxNw1kRLHUg==}
@@ -6489,7 +6546,7 @@ snapshots:
       '@eslint/core': 0.17.0
       eslint: 9.39.2(jiti@2.6.1)
 
-  '@kazupon/jts-utils@0.15.1(@vue/reactivity@3.5.26)':
+  '@kazupon/jts-utils@0.16.0(@vue/reactivity@3.5.26)':
     optionalDependencies:
       '@vue/reactivity': 3.5.26
 
@@ -6579,6 +6636,8 @@ snapshots:
       '@emnapi/core': 1.8.0
       '@emnapi/runtime': 1.8.0
       '@tybys/wasm-util': 0.10.1
+
+  '@noble/hashes@2.0.1': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -7189,6 +7248,8 @@ snapshots:
   '@rolldown/pluginutils@1.0.0-beta.57': {}
 
   '@rolldown/pluginutils@1.0.0-beta.58': {}
+
+  '@rolldown/pluginutils@1.0.0-beta.60': {}
 
   '@rolldown/pluginutils@1.0.0-rc.2': {}
 
@@ -8256,7 +8317,13 @@ snapshots:
     dependencies:
       dotenv: 16.6.1
 
+  dotenv-expand@12.0.3:
+    dependencies:
+      dotenv: 16.6.1
+
   dotenv@16.6.1: {}
+
+  dotenv@17.2.4: {}
 
   dts-resolver@2.1.3(oxc-resolver@11.16.2):
     optionalDependencies:
@@ -9707,7 +9774,7 @@ snapshots:
       acorn: 8.15.0
       pathe: 2.0.3
       pkg-types: 1.3.1
-      ufo: 1.6.1
+      ufo: 1.6.3
 
   mri@1.2.0: {}
 
@@ -9755,10 +9822,6 @@ snapshots:
   object-deep-merge@2.0.0: {}
 
   object-path@0.11.8: {}
-
-  obug@1.0.2(ms@2.1.3):
-    optionalDependencies:
-      ms: 2.1.3
 
   obug@2.1.1: {}
 
@@ -10132,6 +10195,8 @@ snapshots:
       path-is-absolute: 1.0.1
 
   resolve-pkg-maps@1.0.0: {}
+
+  resolve.exports@2.0.3: {}
 
   resolve@1.22.11:
     dependencies:
@@ -10543,6 +10608,10 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  tsconfck@3.1.6(typescript@5.9.3):
+    optionalDependencies:
+      typescript: 5.9.3
+
   tsdown@0.15.12(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(publint@0.3.16)(typescript@5.9.3)(unrun@0.2.22(synckit@0.11.11)):
     dependencies:
       ansis: 4.2.0
@@ -10648,7 +10717,7 @@ snapshots:
 
   uc.micro@2.1.0: {}
 
-  ufo@1.6.1: {}
+  ufo@1.6.3: {}
 
   unconfig-core@7.4.2:
     dependencies:

@@ -1,6 +1,6 @@
 import type { ResolverFunction } from '@rollup/plugin-alias'
 import type { ObjectHook } from 'rolldown'
-import type { PluginHookUtils } from '../config'
+import type { PluginHookUtils, ResolvedConfig } from '../config'
 import type {
   HookHandler,
   Plugin,
@@ -12,7 +12,15 @@ import {
   createIdFilter,
 } from './pluginFilter'
 
-// TODO: fill in later ...
+export async function resolvePlugins(
+  config: ResolvedConfig,
+  prePlugins: Plugin[],
+  normalPlugins: Plugin[],
+  postPlugins: Plugin[],
+): Promise<Plugin[]> {
+  // TODO(kazupon): fill in later ...
+  return []
+}
 
 export function createPluginHookUtils(
   plugins: readonly Plugin[],

@@ -57,7 +57,8 @@ import type {
   PluginContextMeta,
   ResolvedId,
   RollupError,
-  RolldownFsModule as RollupFsModule,
+  // NOTE(kazupon): RollupFsModule will be bundled rolldown code...
+  // RolldownFsModule as RollupFsModule,
   RollupLog,
   MinimalPluginContext as RollupMinimalPluginContext,
   PluginContext as RollupPluginContext,
@@ -727,13 +728,14 @@ class MinimalPluginContext<T extends Environment = Environment>
   }
 }
 
-const fsModule: RollupFsModule = {
+// const fsModule: RollupFsModule = {
+const fsModule: any = {
   appendFile: fsp.appendFile,
   copyFile: fsp.copyFile,
-  mkdir: fsp.mkdir as RollupFsModule['mkdir'],
+  mkdir: fsp.mkdir, //  as RollupFsModule['mkdir'],
   mkdtemp: fsp.mkdtemp,
   readdir: fsp.readdir,
-  readFile: fsp.readFile as RollupFsModule['readFile'],
+  readFile: fsp.readFile, // as RollupFsModule['readFile'],
   realpath: fsp.realpath,
   rename: fsp.rename,
   rmdir: fsp.rmdir,
@@ -764,7 +766,8 @@ class PluginContext
     super(_container.minimalContext.meta, _container.environment)
   }
 
-  fs: RollupFsModule = fsModule
+  fs: any = fsModule
+  // fs: RollupFsModule = fsModule
 
   // TODO(kazupon): need to parser via web-worker or oxc-praser sync
   parse(code: string, opts: any): Program {

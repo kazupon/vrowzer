@@ -1,8 +1,10 @@
 import type { Alias, AliasOptions } from '#dep-types/alias'
 import path from 'node:path'
 import colors from 'picocolors'
+import picomatch from 'picomatch'
 import type { NormalizedOutputOptions, PluginContextMeta, RolldownOptions } from 'rolldown'
 import type { AnymatchFn } from '../types/anymatch'
+import { PartialEnvironment } from './baseEnvironment'
 import type {
   BuildEnvironmentOptions,
   BuilderOptions,
@@ -14,10 +16,12 @@ import type {
 import {
   buildEnvironmentOptionsDefaults,
   builderOptionsDefaults,
-  resolveBuildEnvironmentOptions
+  resolveBuildEnvironmentOptions,
+  resolveBuilderOptions
 } from './build'
 import {
   CLIENT_ENTRY,
+  DEFAULT_ASSETS_RE,
   DEFAULT_CLIENT_CONDITIONS,
   DEFAULT_CLIENT_MAIN_FIELDS,
   DEFAULT_EXTENSIONS,
@@ -28,34 +32,45 @@ import {
   ENV_ENTRY,
   FS_PREFIX,
 } from './constants'
+import { createIdResolver } from './idResolver'
 import type { LogLevel, Logger } from './logger'
 import type { DepOptimizationOptions } from './optimizer'
 import { convertEsbuildPluginToRolldownPlugin } from './optimizer/pluginConverter'
 import type { PackageCache } from './packages'
+import { findNearestPackageData } from './packages'
 import type {
   FalsyPlugin, HookHandler,
   Plugin,
   PluginOption,
   PluginWithRequiredHook
 } from './plugin'
+import { resolveEnvironmentPlugins } from './plugin'
 import {
+  createPluginHookUtils,
   getHookHandler,
-  getSortedPluginsByHook
+  getSortedPluginsByHook,
+  resolvePlugins,
 } from './plugins'
 import type { CSSOptions, ResolvedCSSOptions } from './plugins/css'
 import {
   cssConfigDefaults,
+  resolveCSSOptions,
 } from './plugins/css'
 import type { ESBuildOptions } from './plugins/esbuild'
 import type { JsonOptions } from './plugins/json'
 import type { OxcOptions } from './plugins/oxc'
+import { convertEsbuildConfigToOxcConfig } from './plugins/oxc'
 import type {
   EnvironmentResolveOptions,
   InternalResolveOptions,
   ResolveOptions,
 } from './plugins/resolve'
 import type { PreviewOptions, ResolvedPreviewOptions } from './preview'
+import { resolvePreviewOptions } from './preview'
 import type { ResolvedServerOptions, ServerOptions } from './server'
+import { resolveServerOptions } from './server'
+import { getAdditionalAllowedHosts } from './server/middlewares/hostCheck'
+import { resolveSSROptions, ssrConfigDefaults } from './ssr'
 // NOTE(kazupon): disable, because vrowser will not need full bundle dev environment
 // import { FullBundleDevEnvironment } from './server/environments/fullBundleEnvironment'
 import { createLogger } from './logger'
@@ -63,6 +78,7 @@ import { DevEnvironment } from './server/environment'
 import { createRunnableDevEnvironment } from './server/environments/runnableEnvironment'
 // NOTE(kazupon): comment out because we need to understand the previous implementation as background
 // import { serverConfigDefaults } from './server'
+import { withTrailingSlash } from '../shared/utils'
 import { serverConfigDefaults } from './server/options'
 import {
   BasicMinimalPluginContext,
@@ -70,9 +86,8 @@ import {
 } from './server/pluginContainer'
 import type { MessageChannelServer } from './server/ws'
 import type { ResolvedSSROptions, SSROptions } from './ssr'
-import { ssrConfigDefaults } from './ssr'
 import type { RequiredExceptFor } from './typeUtils'
-import { asyncFlatten, createDebugger, hasBothRollupOptionsAndRolldownOptions, isInNodeModules, mergeAlias, mergeConfig, mergeWithDefaults, nodeLikeBuiltins, normalizeAlias, normalizePath, setupRollupOptionCompat } from './utils'
+import { arraify, asyncFlatten, createDebugger, createFilter, hasBothRollupOptionsAndRolldownOptions, isExternalUrl, isInNodeModules, mergeAlias, mergeConfig, mergeWithDefaults, nodeLikeBuiltins, normalizeAlias, normalizePath, setupRollupOptionCompat } from './utils'
 
 const debug = createDebugger('vite:config', { depth: 10 })
 // TODO: const promisifiedRealpath = promisify(fs.realpath)
@@ -808,10 +823,9 @@ export function resolveDevEnvironmentOptions(
       preTransformRequests: preTransformRequest ?? consumer === 'client',
       createEnvironment:
         environmentName === 'client'
-          // TODO: HERE
           ? defaultCreateClientDevEnvironment
-          // NOTE(kazupon): disable : defaultCreateDevEnvironment,
-          : () => ({} as DevEnvironment),
+          : defaultCreateDevEnvironment,
+      // : () => ({} as DevEnvironment),
       recoverable: consumer === 'client',
       moduleRunnerTransform: consumer === 'server',
     },
@@ -1357,19 +1371,17 @@ export async function resolveConfig(
   }
 
   // resolve plugins
-  // NOTE(kazupon): disable now, building ...
-  // const rawPlugins = (await asyncFlatten(config.plugins || [])).filter(
-  //   filterPlugin,
-  // )
+  const rawPlugins = (await asyncFlatten(config.plugins || [])).filter(
+    filterPlugin,
+  )
 
-  // const [prePlugins, normalPlugins, postPlugins] = sortUserPlugins(rawPlugins)
+  const [prePlugins, normalPlugins, postPlugins] = sortUserPlugins(rawPlugins)
 
   const isBuild = command === 'build'
 
   // run config hooks
-  // NOTE(kazupon): disable now, building ...
-  // const userPlugins = [...prePlugins, ...normalPlugins, ...postPlugins]
-  // config = await runConfigHook(config, userPlugins, configEnv)
+  const userPlugins = [...prePlugins, ...normalPlugins, ...postPlugins]
+  config = await runConfigHook(config, userPlugins, configEnv)
 
   // Ensure default client and ssr environments
   // If there are present, ensure order { client, ssr, ...custom }
@@ -1489,14 +1501,13 @@ export async function resolveConfig(
     )
   }
 
-  // NOTE(kazupon): disable now, building ...
-  // await runConfigEnvironmentHook(
-  //   config.environments,
-  //   userPlugins,
-  //   logger,
-  //   configEnv,
-  //   config.ssr?.target === 'webworker',
-  // )
+  await runConfigEnvironmentHook(
+    config.environments,
+    userPlugins,
+    logger,
+    configEnv,
+    config.ssr?.target === 'webworker',
+  )
 
   const isBundledDev = command === 'serve' && !!config.experimental?.bundledDev
 
@@ -1521,7 +1532,6 @@ export async function resolveConfig(
       config.server?.preTransformRequests,
     )
   }
-  /*
 
   // Backward compatibility: merge environments.client.optimizeDeps back into optimizeDeps
   // The same object is assigned back for backward compatibility. The ecosystem is modifying
@@ -1529,19 +1539,485 @@ export async function resolveConfig(
   // client environment.
   const backwardCompatibleOptimizeDeps =
     resolvedEnvironments.client.optimizeDeps
-  console.log('resolveConfig - backwardCompatibleOptimizeDeps:', backwardCompatibleOptimizeDeps)
+
   const resolvedDevEnvironmentOptions = resolveDevEnvironmentOptions(
     config.dev,
     // default environment options
     undefined,
     undefined,
   )
-    */
+
+  const resolvedBuildOptions = resolveBuildEnvironmentOptions(
+    config.build ?? {},
+    logger,
+    undefined,
+    isBundledDev,
+  )
+
+  // Backward compatibility: merge config.environments.ssr back into config.ssr
+  // so ecosystem SSR plugins continue to work if only environments.ssr is configured
+  const patchedConfigSsr = {
+    ...config.ssr,
+    external: resolvedEnvironments.ssr?.resolve.external,
+    noExternal: resolvedEnvironments.ssr?.resolve.noExternal,
+    optimizeDeps: resolvedEnvironments.ssr?.optimizeDeps,
+    resolve: {
+      ...config.ssr?.resolve,
+      conditions: resolvedEnvironments.ssr?.resolve.conditions,
+      externalConditions: resolvedEnvironments.ssr?.resolve.externalConditions,
+    },
+  }
+  const ssr = resolveSSROptions(
+    patchedConfigSsr,
+    resolvedDefaultResolve.preserveSymlinks,
+  )
+
+  // load .env files
+  // Backward compatibility: set envDir to false when envFile is false
+  let envDir = config.envFile === false ? false : config.envDir
+  if (envDir !== false) {
+    envDir = config.envDir
+      ? normalizePath(path.resolve(resolvedRoot, config.envDir))
+      : resolvedRoot
+  }
+
+  const userEnv = {} as Record<string, string>
+  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
+  // const userEnv = loadEnv(mode, envDir, resolveEnvPrefix(config))
+
+  // Note it is possible for user to have a custom mode, e.g. `staging` where
+  // development-like behavior is expected. This is indicated by NODE_ENV=development
+  // loaded from `.staging.env` and set by us as VITE_USER_NODE_ENV
+  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
+  // const userNodeEnv = process.env.VITE_USER_NODE_ENV
+  const userNodeEnv = import.meta.env.VITE_USER_NODE_ENV
+  if (!isNodeEnvSet && userNodeEnv) {
+    if (userNodeEnv === 'development') {
+      process.env.NODE_ENV = 'development'
+    } else {
+      // NODE_ENV=production is not supported as it could break HMR in dev for frameworks like Vue
+      logger.warn(
+        `NODE_ENV=${userNodeEnv} is not supported in the .env file. ` +
+        `Only NODE_ENV=development is supported to create a development build of your project. ` +
+        `If you need to set process.env.NODE_ENV, you can set it in the Vite config instead.`,
+      )
+    }
+  }
+
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  // resolve public base url
+  const relativeBaseShortcut = config.base === '' || config.base === './'
+
+  // During dev, we ignore relative base and fallback to '/'
+  // For the SSR build, relative base isn't possible by means
+  // of import.meta.url.
+  const resolvedBase = relativeBaseShortcut
+    ? !isBuild || config.build?.ssr
+      ? '/'
+      : './'
+    : resolveBaseUrl(config.base, isBuild, logger)
+
+  // resolve cache directory
+  const pkgDir = findNearestPackageData(resolvedRoot, packageCache)?.dir
+  const cacheDir = normalizePath(
+    config.cacheDir
+      ? path.resolve(resolvedRoot, config.cacheDir)
+      : pkgDir
+        ? path.join(pkgDir, `node_modules/.vite`)
+        : path.join(resolvedRoot, `.vite`),
+  )
+
+  const assetsFilter =
+    config.assetsInclude &&
+      (!Array.isArray(config.assetsInclude) || config.assetsInclude.length)
+      ? createFilter(config.assetsInclude)
+      : () => false
+
+  const { publicDir } = config
+  const resolvedPublicDir =
+    publicDir !== false && publicDir !== ''
+      ? normalizePath(
+        path.resolve(
+          resolvedRoot,
+          typeof publicDir === 'string'
+            ? publicDir
+            : configDefaults.publicDir,
+        ),
+      )
+      : ''
+
+  const server = resolveServerOptions(resolvedRoot, config.server, logger)
+
+  const builder = resolveBuilderOptions(config.builder)
+
+  const BASE_URL = resolvedBase
+
+  const resolvedConfigContext = new BasicMinimalPluginContext(
+    {
+      ...basePluginContextMeta,
+      watchMode:
+        (command === 'serve' && !isPreview) ||
+        (command === 'build' && !!resolvedBuildOptions.watch),
+    } satisfies PluginContextMeta,
+    logger,
+  )
+
+  let resolved: ResolvedConfig
+
+  let createUserWorkerPlugins = config.worker?.plugins
+  if (Array.isArray(createUserWorkerPlugins)) {
+    // @ts-expect-error backward compatibility
+    createUserWorkerPlugins = () => config.worker?.plugins
+
+    logger.warn(
+      colors.yellow(
+        `worker.plugins is now a function that returns an array of plugins. ` +
+        `Please update your Vite config accordingly.\n`,
+      ),
+    )
+  }
+
+  const createWorkerPlugins = async function (bundleChain: string[]) {
+    // Some plugins that aren't intended to work in the bundling of workers (doing post-processing at build time for example).
+    // And Plugins may also have cached that could be corrupted by being used in these extra rollup calls.
+    // So we need to separate the worker plugin from the plugin that vite needs to run.
+    const rawWorkerUserPlugins = (
+      await asyncFlatten(createUserWorkerPlugins?.() || [])
+    ).filter(filterPlugin)
+
+    // resolve worker
+    let workerConfig = mergeConfig({}, config)
+    const [workerPrePlugins, workerNormalPlugins, workerPostPlugins] =
+      sortUserPlugins(rawWorkerUserPlugins)
+
+    // run config hooks
+    const workerUserPlugins = [
+      ...workerPrePlugins,
+      ...workerNormalPlugins,
+      ...workerPostPlugins,
+    ]
+    workerConfig = await runConfigHook(
+      workerConfig,
+      workerUserPlugins,
+      configEnv,
+    )
+
+    const workerResolved: ResolvedConfig = {
+      ...workerConfig,
+      ...resolved,
+      isWorker: true,
+      mainConfig: resolved,
+      bundleChain,
+    }
+
+      // Plugins resolution needs the resolved config (minus plugins) so we need to mutate here
+      ; (workerResolved.plugins as Plugin[]) = await resolvePlugins(
+        workerResolved,
+        workerPrePlugins,
+        workerNormalPlugins,
+        workerPostPlugins,
+      )
+
+    // run configResolved hooks
+    await Promise.all(
+      createPluginHookUtils(workerResolved.plugins)
+        .getSortedPluginHooks('configResolved')
+        .map((hook) => hook.call(resolvedConfigContext, workerResolved)),
+    )
+
+      // Resolve environment plugins after configResolved because there are
+      // downstream projects modifying the plugins in it. This may change
+      // once the ecosystem is ready.
+      // During Build the client environment is used to bundle the worker
+      // Avoid overriding the mainConfig (resolved.environments.client)
+      ; (workerResolved.environments as Record<
+        string,
+        ResolvedEnvironmentOptions
+      >) = {
+        ...workerResolved.environments,
+        client: {
+          ...workerResolved.environments.client,
+          plugins: await resolveEnvironmentPlugins(
+            new PartialEnvironment('client', workerResolved),
+          ),
+        },
+      }
+
+    return workerResolved
+  }
+
+  const resolvedWorkerOptions: Omit<
+    ResolvedWorkerOptions,
+    'rolldownOptions'
+  > & {
+    rolldownOptions: ResolvedWorkerOptions['rolldownOptions'] | undefined
+  } = {
+    format: config.worker?.format || 'iife',
+    plugins: createWorkerPlugins,
+    rollupOptions: config.worker?.rollupOptions || {},
+    rolldownOptions: config.worker?.rolldownOptions, // will be set by setupRollupOptionCompat if undefined
+  }
+  setupRollupOptionCompat(resolvedWorkerOptions, 'worker')
+
+  const base = withTrailingSlash(resolvedBase)
+
+  const preview = resolvePreviewOptions(config.preview, server)
+
+  const additionalAllowedHosts = getAdditionalAllowedHosts(server, preview)
+  if (Array.isArray(server.allowedHosts)) {
+    server.allowedHosts.push(...additionalAllowedHosts)
+  }
+  if (Array.isArray(preview.allowedHosts)) {
+    preview.allowedHosts.push(...additionalAllowedHosts)
+  }
+
+  let oxc: OxcOptions | false | undefined = config.oxc
+  if (config.esbuild) {
+    if (config.oxc) {
+      logger.warn(
+        colors.yellow(
+          `Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored.`,
+        ) +
+        ` The following esbuild options were set: \`${JSON.stringify(config.esbuild)}\``,
+        // NOTE(kazupon): disalbe 'inspect' output for now because of, this env is service worker environment
+        // ` The following esbuild options were set: \`${inspect(config.esbuild)}\``,
+      )
+    } else {
+      oxc = convertEsbuildConfigToOxcConfig(config.esbuild, logger)
+    }
+  } else if (config.esbuild === false && config.oxc !== false) {
+    logger.warn(
+      colors.yellow(
+        `\`esbuild\` option is set to false, but \`oxc\` option was not set to false. ` +
+        `\`esbuild: false\` does not have effect any more. ` +
+        `If you want to disable the default transformation, which is now handled by Oxc, please set \`oxc: false\` instead.`,
+      ),
+    )
+  }
+
+  const experimental = mergeWithDefaults(
+    configDefaults.experimental,
+    config.experimental ?? {},
+  )
+  if (command === 'serve' && experimental.bundledDev) {
+    // full bundle mode does not support experimental.renderBuiltUrl
+    experimental.renderBuiltUrl = undefined
+  }
+
+  resolved = {
+    configFile: configFile ? normalizePath(configFile) : undefined,
+    configFileDependencies: configFileDependencies.map((name) =>
+      normalizePath(path.resolve(name)),
+    ),
+    inlineConfig,
+    root: resolvedRoot,
+    base,
+    decodedBase: decodeBase(base),
+    rawBase: resolvedBase,
+    publicDir: resolvedPublicDir,
+    cacheDir,
+    command,
+    mode,
+    isBundled: config.experimental?.bundledDev || isBuild,
+    isWorker: false,
+    mainConfig: null,
+    bundleChain: [],
+    isProduction,
+    plugins: userPlugins, // placeholder to be replaced
+    css: resolveCSSOptions(config.css),
+    json: mergeWithDefaults(configDefaults.json, config.json ?? {}),
+    // preserve esbuild for buildEsbuildPlugin
+    esbuild:
+      config.esbuild === false
+        ? false
+        : {
+          jsxDev: !isProduction,
+          // change defaults that fit better for vite
+          charset: 'utf8',
+          legalComments: 'none',
+          ...config.esbuild,
+        },
+    oxc:
+      oxc === false
+        ? false
+        : {
+          ...oxc,
+          jsx:
+            typeof oxc?.jsx === 'string'
+              ? oxc.jsx
+              : {
+                development: oxc?.jsx?.development ?? !isProduction,
+                ...oxc?.jsx,
+              },
+        },
+    server,
+    builder,
+    preview,
+    envDir,
+    env: {
+      ...userEnv,
+      BASE_URL,
+      MODE: mode,
+      DEV: !isProduction,
+      PROD: isProduction,
+    },
+    assetsInclude(file: string) {
+      return DEFAULT_ASSETS_RE.test(file) || assetsFilter(file)
+    },
+    rawAssetsInclude: config.assetsInclude ? arraify(config.assetsInclude) : [],
+    logger,
+    packageCache,
+    worker: resolvedWorkerOptions,
+    appType: config.appType ?? 'spa',
+    experimental,
+    future:
+      config.future === 'warn'
+        ? ({
+          removePluginHookHandleHotUpdate: 'warn',
+          removePluginHookSsrArgument: 'warn',
+          removeServerModuleGraph: 'warn',
+          removeServerReloadModule: 'warn',
+          removeServerPluginContainer: 'warn',
+          removeServerHot: 'warn',
+          removeServerTransformRequest: 'warn',
+          removeServerWarmupRequest: 'warn',
+          removeSsrLoadModule: 'warn',
+        } satisfies Required<FutureOptions>)
+        : config.future,
+
+    ssr,
+
+    optimizeDeps: backwardCompatibleOptimizeDeps,
+    resolve: resolvedDefaultResolve,
+    dev: resolvedDevEnvironmentOptions,
+    build: resolvedBuildOptions,
+
+    environments: resolvedEnvironments,
+
+    // random 72 bits (12 base64 chars)
+    // at least 64bits is recommended
+    // https://owasp.org/www-community/vulnerabilities/Insufficient_Session-ID_Length
+    webSocketToken: 'abcdefghijkl',
+    // TODO(kazupon): need to swtich to use web standard crypto in the browser environment
+    // webSocketToken: Buffer.from(
+    //   crypto.getRandomValues(new Uint8Array(9)),
+    // ).toString('base64url'),
+
+    getSortedPlugins: undefined!,
+    getSortedPluginHooks: undefined!,
+
+    createResolver(options) {
+      // TODO(kazupon): resolve `createResolver` context
+      const resolve = createIdResolver(this, options)
+      const clientEnvironment = new PartialEnvironment('client', this)
+      let ssrEnvironment: PartialEnvironment | undefined
+      return async (id, importer, aliasOnly, ssr) => {
+        if (ssr) {
+          ssrEnvironment ??= new PartialEnvironment('ssr', this)
+        }
+        return await resolve(
+          ssr ? ssrEnvironment! : clientEnvironment,
+          id,
+          importer,
+          aliasOnly,
+        )
+      }
+    },
+    fsDenyGlob: picomatch(
+      // matchBase: true does not work as it's documented
+      // https://github.com/micromatch/picomatch/issues/89
+      // convert patterns without `/` on our side for now
+      server.fs.deny.map((pattern) =>
+        pattern.includes('/') ? pattern : `**/${pattern}`,
+      ),
+      {
+        matchBase: false,
+        nocase: true,
+        dot: true,
+      },
+    ),
+    safeModulePaths: new Set<string>(),
+    nativePluginEnabledLevel: resolveNativePluginEnabledLevel(
+      experimental.enableNativePlugin,
+    ),
+    [SYMBOL_RESOLVED_CONFIG]: true,
+  }
+  resolved = {
+    ...config,
+    ...resolved,
+  }
 
   // TODO: implement config file loading and merging ...
 
   console.log('resoveConfig - config before defaults applied:', config)
   return config as unknown as ResolvedConfig
+}
+
+function resolveNativePluginEnabledLevel(
+  enableNativePlugin: Exclude<
+    ExperimentalOptions['enableNativePlugin'],
+    undefined
+  >,
+) {
+  switch (enableNativePlugin) {
+    case 'resolver':
+      return 0
+    case 'v1':
+      return 1
+    case 'v2':
+    case true:
+      return 2
+    case false:
+      return -1
+    default:
+      enableNativePlugin satisfies never
+      return -1
+  }
+}
+
+/**
+ * Resolve base url. Note that some users use Vite to build for non-web targets like
+ * electron or expects to deploy
+ */
+export function resolveBaseUrl(
+  base: UserConfig['base'] = configDefaults.base,
+  isBuild: boolean,
+  logger: Logger,
+): string {
+  if (base[0] === '.') {
+    logger.warn(
+      colors.yellow(
+        colors.bold(
+          `(!) invalid "base" option: "${base}". The value can only be an absolute ` +
+          `URL, "./", or an empty string.`,
+        ),
+      ),
+    )
+    return '/'
+  }
+
+  // external URL flag
+  const isExternal = isExternalUrl(base)
+  // no leading slash warn
+  if (!isExternal && base[0] !== '/') {
+    logger.warn(
+      colors.yellow(
+        colors.bold(`(!) "base" option should start with a slash.`),
+      ),
+    )
+  }
+
+  // parse base when command is serve or base is not External URL
+  if (!isBuild || !isExternal) {
+    base = new URL(base, 'http://vite.dev').pathname
+    // ensure leading slash
+    if (base[0] !== '/') {
+      base = '/' + base
+    }
+  }
+
+  return base
 }
 
 function decodeBase(base: string): string {

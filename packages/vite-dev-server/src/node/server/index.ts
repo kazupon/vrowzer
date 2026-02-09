@@ -4,25 +4,36 @@ import { createSvcWorkerServer } from '@vrowser/service-worker-server'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
 import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
+import path from 'node:path'
+import colors from 'picocolors'
 import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
 import type { InlineConfig, ResolvedConfig } from '../config'
 import { isResolvedConfig, resolveConfig } from '../config'
+import { searchForWorkspaceRoot } from './searchRoot'
 // NOTE(kazupon): disable now
 // import {
 //   DEFAULT_DEV_PORT,
 //   defaultAllowedOrigins
 // } from '../constants'
+import {
+  CLIENT_DIR
+} from '../constants'
 import { warnFutureDeprecation } from '../deprecations'
 import type { CommonServerOptions } from '../http'
 import {
   httpServerStart,
 } from '../http'
+import type { Logger } from '../logger'
 import type { MinimalPluginContextWithoutEnvironment } from '../plugin'
 import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
 import type { RequiredExceptFor } from '../typeUtils'
 import {
-  createDebugger
+  createDebugger,
+  isInNodeModules,
+  isParentDirectory,
+  mergeWithDefaults,
+  normalizePath
 } from '../utils'
 import type { DevEnvironment } from './environment'
 import type { HmrOptions, NormalizedHotChannel } from './hmr'
@@ -31,6 +42,8 @@ import { timeMiddleware } from './middlewares/time'
 import { transformMiddleware } from './middlewares/transform'
 import type { ModuleNode } from './mixedModuleGraph'
 import { ModuleGraph } from './mixedModuleGraph'
+// NOTE(kazupon): `./options` importing for avoid circular dependency
+import { serverConfigDefaults as _serverConfigDefaults } from './options'
 import type { PluginContainer } from './pluginContainer'
 import {
   createPluginContainer
@@ -1026,6 +1039,10 @@ export function createServerCloseFn(
 
 // TODO: fill in code ...
 
+function resolvedAllowDir(root: string, dir: string): string {
+  return normalizePath(path.resolve(root, dir))
+}
+
 // NOTE(kazupon): commented out, until implementing default server config
 // const _serverConfigDefaults = Object.freeze({
 //   port: DEFAULT_DEV_PORT,
@@ -1060,3 +1077,89 @@ export function createServerCloseFn(
 // export const serverConfigDefaults: Readonly<Partial<ServerOptions>> =
 //   _serverConfigDefaults
 //
+
+export function resolveServerOptions(
+  root: string,
+  raw: ServerOptions | undefined,
+  logger: Logger,
+): ResolvedServerOptions {
+  const _server = mergeWithDefaults(
+    {
+      ..._serverConfigDefaults,
+      host: undefined, // do not set here to detect whether host is set or not
+      sourcemapIgnoreList: isInNodeModules,
+    },
+    raw ?? {},
+  )
+
+  const server: ResolvedServerOptions = {
+    ..._server,
+    fs: {
+      ..._server.fs,
+      // run searchForWorkspaceRoot only if needed
+      allow: raw?.fs?.allow ?? [searchForWorkspaceRoot(root)],
+    },
+    sourcemapIgnoreList:
+      _server.sourcemapIgnoreList === false
+        ? () => false
+        : _server.sourcemapIgnoreList,
+  }
+
+  let allowDirs = server.fs.allow
+
+  // NOTE(kazupon): disable, because Yarn PnP is not supported in Service Worker server
+  // if (process.versions.pnp) {
+  //   // running a command fails if cwd doesn't exist and root may not exist
+  //   // search for package root to find a path that exists
+  //   const cwd = searchForPackageRoot(root)
+  //   try {
+  //     const enableGlobalCache =
+  //       execSync('yarn config get enableGlobalCache', { cwd })
+  //         .toString()
+  //         .trim() === 'true'
+  //     const yarnCacheDir = execSync(
+  //       `yarn config get ${enableGlobalCache ? 'globalFolder' : 'cacheFolder'}`,
+  //       { cwd },
+  //     )
+  //       .toString()
+  //       .trim()
+  //     allowDirs.push(yarnCacheDir)
+  //   } catch (e) {
+  //     logger.warn(`Get yarn cache dir error: ${e.message}`, {
+  //       timestamp: true,
+  //     })
+  //   }
+  // }
+
+  allowDirs = allowDirs.map((i) => resolvedAllowDir(root, i))
+
+  // only push client dir when vite itself is outside-of-root
+  const resolvedClientDir = resolvedAllowDir(root, CLIENT_DIR)
+  if (!allowDirs.some((dir) => isParentDirectory(dir, resolvedClientDir))) {
+    allowDirs.push(resolvedClientDir)
+  }
+
+  server.fs.allow = allowDirs
+
+  if (server.origin?.endsWith('/')) {
+    server.origin = server.origin.slice(0, -1)
+    logger.warn(
+      colors.yellow(
+        `${colors.bold('(!)')} server.origin should not end with "/". Using "${server.origin
+        }" instead.`,
+      ),
+    )
+  }
+
+  if (
+    import.meta.env.__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS &&
+    // NOTE(kazupon): use 'import.meta.env' directly, because process.env is not available in SW
+    // process.env.__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS &&
+    Array.isArray(server.allowedHosts)
+  ) {
+    const additionalHost = process.env.__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+    server.allowedHosts = [...server.allowedHosts, additionalHost]
+  }
+
+  return server
+}

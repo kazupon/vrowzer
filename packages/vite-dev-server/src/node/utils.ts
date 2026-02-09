@@ -2,13 +2,16 @@ import type { Alias, AliasOptions } from '#dep-types/alias'
 import type { FSWatcher } from '#dep-types/chokidar'
 import type { DecodedSourceMap, RawSourceMap } from '@jridgewell/remapping'
 import remapping from '@jridgewell/remapping'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { createFilter as _createFilter } from '@rollup/pluginutils'
 import type MagicString from 'magic-string'
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import path from 'node:path'
 // import { fileURLToPath } from 'node:url'
 import type { Debugger } from 'obug'
-import debug from 'obug'
+import { createDebug as debug, enable as debugEnable } from 'obug'
 import type { TransformResult } from 'rolldown'
 import { VALID_ID_PREFIX } from '../shared/constants'
 import { cleanUrl, isWindows, slash, splitFileAndPostfix, withTrailingSlash } from '../shared/utils'
@@ -17,8 +20,9 @@ import type { DepOptimizationOptions } from './optimizer'
 import type { PackageCache } from './packages'
 import { findNearestPackageData } from './packages'
 // import { createIsBuiltin } from '../shared/builtin'
+import type { BuildEnvironmentOptions } from './build'
 import {
-  // CLIENT_ENTRY,
+  CLIENT_ENTRY,
   CLIENT_PUBLIC_PATH,
   CSS_LANGS_RE,
   ENV_PUBLIC_PATH,
@@ -26,9 +30,6 @@ import {
   OPTIMIZABLE_ENTRY_RE,
 } from './constants'
 
-import type { BuildEnvironmentOptions } from './build'
-
-// TODO: fill in code later ...
 /**
  * Inlined to keep `@rollup/pluginutils` in devDependencies
  */
@@ -50,29 +51,29 @@ const replaceSlashOrColonRE = /[/:]/g
 const replaceDotRE = /\./g
 const replaceNestedIdRE = /\s*>\s*/g
 const replaceHashRE = /#/g
-//export const flattenId = (id: string): string => {
-//  const flatId = limitFlattenIdLength(
-//    id
-//      .replace(replaceSlashOrColonRE, '_')
-//      .replace(replaceDotRE, '__')
-//      .replace(replaceNestedIdRE, '___')
-//      .replace(replaceHashRE, '____'),
-//  )
-//  return flatId
-//}
+export const flattenId = (id: string): string => {
+  const flatId = limitFlattenIdLength(
+    id
+      .replace(replaceSlashOrColonRE, '_')
+      .replace(replaceDotRE, '__')
+      .replace(replaceNestedIdRE, '___')
+      .replace(replaceHashRE, '____'),
+  )
+  return flatId
+}
 
-// const FLATTEN_ID_HASH_LENGTH = 8
-// const FLATTEN_ID_MAX_FILE_LENGTH = 170
-//
-// const limitFlattenIdLength = (
-//   id: string,
-//   limit: number = FLATTEN_ID_MAX_FILE_LENGTH,
-// ): string => {
-//   if (id.length <= limit) {
-//     return id
-//   }
-//   return id.slice(0, limit - (FLATTEN_ID_HASH_LENGTH + 1)) + '_' + getHash(id)
-// }
+const FLATTEN_ID_HASH_LENGTH = 8
+const FLATTEN_ID_MAX_FILE_LENGTH = 170
+
+const limitFlattenIdLength = (
+  id: string,
+  limit: number = FLATTEN_ID_MAX_FILE_LENGTH,
+): string => {
+  if (id.length <= limit) {
+    return id
+  }
+  return id.slice(0, limit - (FLATTEN_ID_HASH_LENGTH + 1)) + '_' + getHash(id)
+}
 
 export const normalizeId = (id: string): string =>
   id.replace(replaceNestedIdRE, ' > ')
@@ -169,7 +170,7 @@ const DEBUG = import.meta.env.DEBUG
 // Initialize debug logging for Service Worker environment
 // obug cannot access `localStorage` in Service Worker, so we use `import.meta.env.DEBUG`
 if (DEBUG) {
-  debug.enable(DEBUG!)
+  debugEnable(DEBUG!)
 }
 
 interface DebuggerOptions {
@@ -216,6 +217,25 @@ export interface Hostname {
 
 // TODO: fill in code later ...
 
+function testCaseInsensitiveFS() {
+  if (!CLIENT_ENTRY.endsWith('client.mjs')) {
+    throw new Error(
+      `cannot test case insensitive FS, CLIENT_ENTRY const doesn't contain client.mjs`,
+    )
+  }
+  if (!fs.existsSync(CLIENT_ENTRY)) {
+    throw new Error(
+      'cannot test case insensitive FS, CLIENT_ENTRY does not point to an existing file: ' +
+      CLIENT_ENTRY,
+    )
+  }
+  return fs.existsSync(CLIENT_ENTRY.replace('client.mjs', 'cLiEnT.mjs'))
+}
+
+export const isCaseInsensitiveFS: boolean = false
+// NOTE(kazupon): default false, because testing case insensitive FS may cause performance issue on some environment
+// export const isCaseInsensitiveFS: boolean = testCaseInsensitiveFS()
+
 const VOLUME_RE = /^[A-Z]:/i
 
 export function normalizePath(id: string): string {
@@ -233,7 +253,38 @@ export function fsPathFromUrl(url: string): string {
   return fsPathFromId(cleanUrl(url))
 }
 
-// TOOD: fill in code later ...
+/**
+ * Check if dir is a parent of file
+ *
+ * Warning: parameters are not validated, only works with normalized absolute paths
+ *
+ * @param dir - normalized absolute path
+ * @param file - normalized absolute path
+ * @returns true if dir is a parent of file
+ */
+export function isParentDirectory(dir: string, file: string): boolean {
+  dir = withTrailingSlash(dir)
+  return (
+    file.startsWith(dir) ||
+    (isCaseInsensitiveFS && file.toLowerCase().startsWith(dir.toLowerCase()))
+  )
+}
+
+/**
+ * Check if 2 file name are identical
+ *
+ * Warning: parameters are not validated, only works with normalized absolute paths
+ *
+ * @param file1 - normalized absolute path
+ * @param file2 - normalized absolute path
+ * @returns true if both files url are identical
+ */
+export function isSameFilePath(file1: string, file2: string): boolean {
+  return (
+    file1 === file2 ||
+    (isCaseInsensitiveFS && file1.toLowerCase() === file2.toLowerCase())
+  )
+}
 
 export const externalRE: RegExp = /^([a-z]+:)?\/\//
 export const isExternalUrl = (url: string): boolean => externalRE.test(url)
@@ -348,7 +399,21 @@ export function tryStatSync(file: string): fs.Stats | undefined {
   }
 }
 
-// TODO: fill in code later ...
+export function lookupFile(
+  dir: string,
+  fileNames: string[],
+): string | undefined {
+  while (dir) {
+    for (const fileName of fileNames) {
+      const fullPath = path.join(dir, fileName)
+      if (tryStatSync(fullPath)?.isFile()) return fullPath
+    }
+    const parentDir = path.dirname(dir)
+    if (parentDir === dir) return
+
+    dir = parentDir
+  }
+}
 
 export function isFilePathESM(
   filePath: string,
@@ -499,7 +564,118 @@ export function generateCodeFrame(
   return res.join('\n')
 }
 
-// TODO: fill in code later ...
+export function isFileReadable(filename: string): boolean {
+  if (!tryStatSync(filename)) {
+    return false
+  }
+
+  try {
+    // Check if current process has read permission to the file
+    fs.accessSync(filename, fs.constants.R_OK)
+
+    return true
+  } catch {
+    return false
+  }
+}
+
+const splitFirstDirRE = /(.+?)[\\/](.+)/
+
+/**
+ * Delete every file and subdirectory. **The given directory must exist.**
+ * Pass an optional `skip` array to preserve files under the root directory.
+ */
+export function emptyDir(dir: string, skip?: string[]): void {
+  const skipInDir: string[] = []
+  let nested: Map<string, string[]> | null = null
+  if (skip?.length) {
+    for (const file of skip) {
+      if (path.dirname(file) !== '.') {
+        const matched = splitFirstDirRE.exec(file)
+        if (matched) {
+          nested ??= new Map()
+          const [, nestedDir, skipPath] = matched
+          //@ts-expect-error -- NOTE(kazupon): fix me
+          let nestedSkip = nested.get(nestedDir)
+          if (!nestedSkip) {
+            nestedSkip = []
+            //@ts-expect-error -- NOTE(kazupon): fix me
+            nested.set(nestedDir, nestedSkip)
+          }
+          //@ts-expect-error -- NOTE(kazupon): fix me
+          if (!nestedSkip.includes(skipPath)) {
+            //@ts-expect-error -- NOTE(kazupon): fix me
+            nestedSkip.push(skipPath)
+          }
+        }
+      } else {
+        skipInDir.push(file)
+      }
+    }
+  }
+  for (const file of fs.readdirSync(dir)) {
+    if (skipInDir.includes(file)) {
+      continue
+    }
+    if (nested?.has(file)) {
+      emptyDir(path.resolve(dir, file), nested.get(file))
+    } else {
+      fs.rmSync(path.resolve(dir, file), { recursive: true, force: true })
+    }
+  }
+}
+
+// NOTE: we cannot use `fs.cpSync` because of a bug in Node.js (https://github.com/nodejs/node/issues/58768, https://github.com/nodejs/node/issues/59168)
+//       also note that we should set `dereference: true` when we use `fs.cpSync`
+export function copyDir(srcDir: string, destDir: string): void {
+  fs.mkdirSync(destDir, { recursive: true })
+  for (const file of fs.readdirSync(srcDir)) {
+    const srcFile = path.resolve(srcDir, file)
+    if (srcFile === destDir) {
+      continue
+    }
+    const destFile = path.resolve(destDir, file)
+    const stat = fs.statSync(srcFile)
+    if (stat.isDirectory()) {
+      copyDir(srcFile, destFile)
+    } else {
+      fs.copyFileSync(srcFile, destFile)
+    }
+  }
+}
+
+export const ERR_SYMLINK_IN_RECURSIVE_READDIR =
+  'ERR_SYMLINK_IN_RECURSIVE_READDIR'
+export async function recursiveReaddir(dir: string): Promise<string[]> {
+  if (!fs.existsSync(dir)) {
+    return []
+  }
+  let dirents: fs.Dirent[]
+  try {
+    dirents = await fsp.readdir(dir, { withFileTypes: true })
+  } catch (e) {
+    //@ts-expect-error -- NOTE(kazupon): fix me
+    if (e.code === 'EACCES') {
+      // Ignore permission errors
+      return []
+    }
+    throw e
+  }
+  if (dirents.some((dirent) => dirent.isSymbolicLink())) {
+    const err: any = new Error(
+      'Symbolic links are not supported in recursiveReaddir',
+    )
+    err.code = ERR_SYMLINK_IN_RECURSIVE_READDIR
+    throw err
+  }
+  const files = await Promise.all(
+    dirents.map((dirent) => {
+      const res = path.resolve(dir, dirent.name)
+      return dirent.isDirectory() ? recursiveReaddir(res) : normalizePath(res)
+    }),
+  )
+  return files.flat(1)
+}
 
 // @ts-expect-error -- ignore
 export let safeRealpathSync: typeof fs.realpathSync.native = (path: string, ...args): string => '(not supproted)'
@@ -513,7 +689,59 @@ export let safeRealpathSync: typeof fs.realpathSync.native = (path: string, ...a
 //     ? windowsSafeRealPathSync
 //     : fs.realpathSync.native
 
-// TODO: fill in code later ...
+// Based on https://github.com/larrybahr/windows-network-drive
+// MIT License, Copyright (c) 2017 Larry Bahr
+const windowsNetworkMap = new Map()
+function windowsMappedRealpathSync(path: string) {
+  const realPath = fs.realpathSync.native(path)
+  if (realPath.startsWith('\\\\')) {
+    for (const [network, volume] of windowsNetworkMap) {
+      if (realPath.startsWith(network)) return realPath.replace(network, volume)
+    }
+  }
+  return realPath
+}
+const parseNetUseRE = /^\w* +(\w:) +([^ ]+)\s/
+let firstSafeRealPathSyncRun = false
+
+// NOTE(kazupon): disale, because browser environment does not need safeRealpathSync
+// function windowsSafeRealPathSync(path: string): string {
+//   if (!firstSafeRealPathSyncRun) {
+//     optimizeSafeRealPathSync()
+//     firstSafeRealPathSyncRun = true
+//   }
+//   return fs.realpathSync(path)
+// }
+//
+// function optimizeSafeRealPathSync() {
+//   // Check the availability `fs.realpathSync.native`
+//   // in Windows virtual and RAM disks that bypass the Volume Mount Manager, in programs such as imDisk
+//   // get the error EISDIR: illegal operation on a directory
+//   try {
+//     fs.realpathSync.native(path.resolve('./'))
+//   } catch (error) {
+//     if (error.message.includes('EISDIR: illegal operation on a directory')) {
+//       safeRealpathSync = fs.realpathSync
+//       return
+//     }
+//   }
+//   exec('net use', (error, stdout) => {
+//     if (error) return
+//     const lines = stdout.split('\n')
+//     // OK           Y:        \\NETWORKA\Foo         Microsoft Windows Network
+//     // OK           Z:        \\NETWORKA\Bar         Microsoft Windows Network
+//     for (const line of lines) {
+//       const m = parseNetUseRE.exec(line)
+//       if (m) windowsNetworkMap.set(m[2], m[1])
+//     }
+//     if (windowsNetworkMap.size === 0) {
+//       safeRealpathSync = fs.realpathSync.native
+//     } else {
+//       safeRealpathSync = windowsMappedRealpathSync
+//     }
+//   })
+// }
+
 
 export function ensureWatchedFile(
   watcher: FSWatcher,
@@ -710,7 +938,13 @@ export const requestQueryMaybeEscapedSplitRE: RegExp = /\\?\?(?!.*[/|}])/
 
 export const blankReplacer = (match: string): string => ' '.repeat(match.length)
 
-// NOTE(kazupon): disable now, because we need to define for brwoser env later
+export function getHash(text: Buffer | string, length = 8): string {
+  const data = typeof text === 'string' ? utf8ToBytes(text) : new Uint8Array(text)
+  const h = bytesToHex(sha256(data)).substring(0, length)
+  if (length <= 64) return h
+  return h.padEnd(length, '_')
+}
+// NOTE(kazupon): comment out, because we need to keep the maintainance from vite original code
 // export function getHash(text: Buffer | string, length = 8): string {
 //   const h = crypto.hash('sha256', text, 'hex').substring(0, length)
 //   if (length <= 64) return h
@@ -1090,6 +1324,17 @@ export function stripBomTag(content: string): string {
   }
 
   return content
+}
+
+const windowsDrivePathPrefixRE = /^[A-Za-z]:[/\\]/
+
+/**
+ * path.isAbsolute also returns true for drive relative paths on windows (e.g. /something)
+ * this function returns false for them but true for absolute paths (e.g. C:/something)
+ */
+export const isNonDriveRelativeAbsolutePath = (p: string): boolean => {
+  if (!isWindows) return p[0] === '/'
+  return windowsDrivePathPrefixRE.test(p)
 }
 
 // TODO: fill in code later ...

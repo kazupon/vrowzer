@@ -11,7 +11,8 @@ import type {
 } from 'rolldown'
 import type { PartialEnvironment } from '../baseEnvironment'
 import {
-  CSS_LANGS_RE
+  CSS_LANGS_RE,
+  ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET
 } from '../constants'
 import type { ResolveIdFn } from '../idResolver'
 import {

@@ -3,6 +3,15 @@ export * from './server'
 // TODO: fill in later ...
 
 export type {
+  PreviewOptions,
+  PreviewServer,
+  PreviewServerHook,
+  ResolvedPreviewOptions
+} from './preview'
+
+export type { Environment } from './environment'
+
+export type {
   ConnectedPayload, CustomPayload, ErrorPayload, FullReloadPayload, HMRPayload,
   HotPayload, PrunePayload, Update, UpdatePayload
 } from '#types/hmrPayload'

@@ -2,7 +2,7 @@ packages:
   - packages/*
 
 catalog:
-  '@kazupon/jts-utils': ^0.15.1
+  '@kazupon/jts-utils': ^0.16.0
   '@playwright/test': 1.57.0
   '@types/node': ^25.0.9
   get-port-please: ^3.2.0
