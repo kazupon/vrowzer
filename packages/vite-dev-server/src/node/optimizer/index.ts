@@ -1251,7 +1251,9 @@ const lockfileFormats = [
     manager: 'bun',
   },
 ].sort((_, { manager }) => {
-  return process.env.npm_config_user_agent?.startsWith(manager) ? 1 : -1
+  return import.meta.env.npm_config_user_agent?.startsWith(manager) ? 1 : -1
+  // NOTE(kazupon): commented out, because we need to keep the maintain from vite original behavior.
+  // return process.env.npm_config_user_agent?.startsWith(manager) ? 1 : -1
 })
 const lockfilePaths = lockfileFormats.map((l) => l.path)
 
@@ -1263,7 +1265,9 @@ function getConfigHash(environment: Environment): string {
   const content = JSON.stringify(
     {
       define: !config.keepProcessEnv
-        ? process.env.NODE_ENV || config.mode
+        ? import.meta.env.NODE_ENV || config.mode
+        // NOTE(kazupon): commented out, because we need to keep the maintain from vite original behavior.
+        // ? process.env.NODE_ENV || config.mode
         : null,
       root: config.root,
       resolve: config.resolve,
