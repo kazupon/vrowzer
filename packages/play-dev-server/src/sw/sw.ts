@@ -1,10 +1,26 @@
 /// <reference lib="webworker" />
 
+import { chdir, cwd, readFileSync, vol } from '@vrowser/fs'
 import { createServer } from '@vrowser/vite-dev-server'
 
 import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
 
 declare const self: ServiceWorkerGlobalScope
+
+console.log('[SW] Initializing virtual file system...', vol)
+// Initialize filesystem from JSON
+vol.fromJSON({
+  '/src/index.ts': 'export const hello = "world"',
+  '/src/utils.ts': 'export function add(a, b) { return a + b }'
+})
+
+// Change working directory
+chdir('/src')
+console.log('cwd()', cwd()) // '/src'
+
+// Read file with relative path
+const content = readFileSync('./index.ts', 'utf8')
+console.log('./index.ts', content) // 'export const hello = "world"'
 
 const SW_VERSION = 'play-dev-server-v1'
 
