@@ -9,6 +9,8 @@ import type MagicString from 'magic-string'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import type { PreviewServer } from './preview'
+import type { ViteDevServer } from './server'
 // import { fileURLToPath } from 'node:url'
 import type { Debugger } from 'obug'
 import { createDebug as debug, enable as debugEnable } from 'obug'
@@ -861,71 +863,6 @@ export function unique<T>(arr: T[]): T[] {
 
 // TODO: fill in code later ...
 
-export function joinUrlSegments(a: string, b: string): string {
-  if (!a || !b) {
-    return a || b || ''
-  }
-  if (a.endsWith('/')) {
-    a = a.substring(0, a.length - 1)
-  }
-  if (b[0] !== '/') {
-    b = '/' + b
-  }
-  return a + b
-}
-
-export function removeLeadingSlash(str: string): string {
-  return str[0] === '/' ? str.slice(1) : str
-}
-
-export function stripBase(path: string, base: string): string {
-  if (path === base) {
-    return '/'
-  }
-  const devBase = withTrailingSlash(base)
-  return path.startsWith(devBase) ? path.slice(devBase.length - 1) : path
-}
-
-export function arrayEqual(a: any[], b: any[]): boolean {
-  if (a === b) return true
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false
-  }
-  return true
-}
-
-export function evalValue<T = any>(rawValue: string): T {
-  const fn = new Function(`
-    var console, exports, global, module, process, require
-    return (\n${rawValue}\n)
-  `)
-  return fn()
-}
-
-export function getNpmPackageName(importPath: string): string | null {
-  const parts = importPath.split('/')
-  // @ts-expect-error -- FIXME(kazupon): fix me
-  if (parts[0][0] === '@') {
-    if (!parts[1]) return null
-    return `${parts[0]}/${parts[1]}`
-  } else {
-    // @ts-expect-error -- FIXME(kazupon): fix me
-    return parts[0]
-  }
-}
-
-export function getPkgName(name: string): string | undefined {
-  return name[0] === '@' ? name.split('/')[1] : name
-}
-
-const escapeRegexRE = /[-/\\^$*+?.()|[\]{}]/g
-export function escapeRegex(str: string): string {
-  return str.replace(escapeRegexRE, '\\$&')
-}
-
-// TODO: fill in code later ...
-
 export function arraify<T>(target: T | T[]): T[] {
   return Array.isArray(target) ? target : [target]
 }
@@ -1335,6 +1272,213 @@ const windowsDrivePathPrefixRE = /^[A-Za-z]:[/\\]/
 export const isNonDriveRelativeAbsolutePath = (p: string): boolean => {
   if (!isWindows) return p[0] === '/'
   return windowsDrivePathPrefixRE.test(p)
+}
+
+/**
+ * Determine if a file is being requested with the correct case, to ensure
+ * consistent behavior between dev and prod and across operating systems.
+ */
+export function shouldServeFile(filePath: string, root: string): boolean {
+  // can skip case check on Linux
+  if (!isCaseInsensitiveFS) return true
+
+  return hasCorrectCase(filePath, root)
+}
+
+/**
+ * Note that we can't use realpath here, because we don't want to follow
+ * symlinks.
+ */
+function hasCorrectCase(file: string, assets: string): boolean {
+  if (file === assets) return true
+
+  const parent = path.dirname(file)
+
+  if (fs.readdirSync(parent).includes(path.basename(file))) {
+    return hasCorrectCase(parent, assets)
+  }
+
+  return false
+}
+
+export function joinUrlSegments(a: string, b: string): string {
+  if (!a || !b) {
+    return a || b || ''
+  }
+  if (a.endsWith('/')) {
+    a = a.substring(0, a.length - 1)
+  }
+  if (b[0] !== '/') {
+    b = '/' + b
+  }
+  return a + b
+}
+
+export function removeLeadingSlash(str: string): string {
+  return str[0] === '/' ? str.slice(1) : str
+}
+
+export function stripBase(path: string, base: string): string {
+  if (path === base) {
+    return '/'
+  }
+  const devBase = withTrailingSlash(base)
+  return path.startsWith(devBase) ? path.slice(devBase.length - 1) : path
+}
+
+export function arrayEqual(a: any[], b: any[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+export function evalValue<T = any>(rawValue: string): T {
+  const fn = new Function(`
+    var console, exports, global, module, process, require
+    return (\n${rawValue}\n)
+  `)
+  return fn()
+}
+
+export function getNpmPackageName(importPath: string): string | null {
+  const parts = importPath.split('/')
+  if (parts[0][0] === '@') {
+    if (!parts[1]) return null
+    return `${parts[0]}/${parts[1]}`
+  } else {
+    return parts[0]
+  }
+}
+
+export function getPkgName(name: string): string | undefined {
+  return name[0] === '@' ? name.split('/')[1] : name
+}
+
+const escapeRegexRE = /[-/\\^$*+?.()|[\]{}]/g
+export function escapeRegex(str: string): string {
+  return str.replace(escapeRegexRE, '\\$&')
+}
+
+type CommandType = 'install' | 'uninstall' | 'update'
+export function getPackageManagerCommand(
+  type: CommandType = 'install',
+): string {
+  const packageManager =
+    import.meta.env.npm_config_user_agent?.split(' ')[0].split('/')[0] || 'npm'
+  // NOTE(kazupon): comment out for code maintenance with vite original code syncing
+  // process.env.npm_config_user_agent?.split(' ')[0].split('/')[0] || 'npm'
+  switch (type) {
+    case 'install':
+      return packageManager === 'npm' ? 'npm install' : `${packageManager} add`
+    case 'uninstall':
+      return packageManager === 'npm'
+        ? 'npm uninstall'
+        : `${packageManager} remove`
+    case 'update':
+      return packageManager === 'yarn'
+        ? 'yarn upgrade'
+        : `${packageManager} update`
+    default:
+      throw new TypeError(`Unknown command type: ${type}`)
+  }
+}
+
+export function isDevServer(
+  server: ViteDevServer | PreviewServer,
+): server is ViteDevServer {
+  return 'pluginContainer' in server
+}
+
+export function createSerialPromiseQueue<T>(): {
+  run(f: () => Promise<T>): Promise<T>
+} {
+  let previousTask: Promise<[unknown, Awaited<T>]> | undefined
+
+  return {
+    async run(f) {
+      const thisTask = f()
+      // wait for both the previous task and this task
+      // so that this function resolves in the order this function is called
+      const depTasks = Promise.all([previousTask, thisTask])
+      previousTask = depTasks
+
+      const [, result] = await depTasks
+
+      // this task was the last one, clear `previousTask` to free up memory
+      if (previousTask === depTasks) {
+        previousTask = undefined
+      }
+
+      return result
+    },
+  }
+}
+
+export function sortObjectKeys<T extends Record<string, any>>(obj: T): T {
+  const sorted: Record<string, any> = {}
+  for (const key of Object.keys(obj).sort()) {
+    sorted[key] = obj[key]
+  }
+  return sorted as T
+}
+
+export function displayTime(time: number): string {
+  // display: {X}ms
+  if (time < 1000) {
+    return `${time}ms`
+  }
+
+  time = time / 1000
+
+  // display: {X}s
+  if (time < 60) {
+    return `${time.toFixed(2)}s`
+  }
+
+  // Calculate total minutes and remaining seconds
+  const mins = Math.floor(time / 60)
+  const seconds = Math.round(time % 60)
+
+  // Handle case where seconds rounds to 60
+  if (seconds === 60) {
+    return `${mins + 1}m`
+  }
+
+  // display: {X}m {Y}s
+  return `${mins}m${seconds < 1 ? '' : ` ${seconds}s`}`
+}
+
+/**
+ * Encodes the URI path portion (ignores part after ? or #)
+ */
+export function encodeURIPath(uri: string): string {
+  if (uri.startsWith('data:')) return uri
+  const filePath = cleanUrl(uri)
+  const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
+  return encodeURI(filePath) + postfix
+}
+
+/**
+ * Like `encodeURIPath`, but only replacing `%` as `%25`. This is useful for environments
+ * that can handle un-encoded URIs, where `%` is the only ambiguous character.
+ */
+export function partialEncodeURIPath(uri: string): string {
+  if (uri.startsWith('data:')) return uri
+  const filePath = cleanUrl(uri)
+  const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
+  return filePath.replaceAll('%', '%25') + postfix
+}
+
+export function decodeURIIfPossible(input: string): string | undefined {
+  try {
+    return decodeURI(input)
+  } catch {
+    // url is malformed, probably a interpolate syntax of template engines
+    return
+  }
 }
 
 // TODO: fill in code later ...

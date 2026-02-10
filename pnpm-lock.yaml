@@ -195,6 +195,9 @@ importers:
 
   packages/play-dev-server:
     dependencies:
+      '@kazupon/jts-utils':
+        specifier: 'catalog:'
+        version: 0.16.0(@vue/reactivity@3.5.26)
       '@vrowser/fs':
         specifier: workspace:*
         version: link:../fs
@@ -223,6 +226,9 @@ importers:
       '@vue/tsconfig':
         specifier: ^0.8.1
         version: 0.8.1(typescript@5.9.3)(vue@3.5.26(typescript@5.9.3))
+      pathe:
+        specifier: ^2.0.3
+        version: 2.0.3
       vite:
         specifier: 'catalog:'
         version: 8.0.0-beta.12(@types/node@25.0.9)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -482,6 +488,9 @@ importers:
       '@types/convert-source-map':
         specifier: ^2.0.3
         version: 2.0.3
+      '@types/escape-html':
+        specifier: ^1.0.4
+        version: 1.0.4
       '@types/estree':
         specifier: ^1.0.8
         version: 1.0.8
@@ -512,6 +521,9 @@ importers:
       esbuild:
         specifier: ^0.27.2
         version: 0.27.2
+      escape-html:
+        specifier: ^1.0.3
+        version: 1.0.3
       estree-walker:
         specifier: ^3.0.3
         version: 3.0.3
