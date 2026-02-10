@@ -10,6 +10,12 @@ import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
 import type { InlineConfig, ResolvedConfig } from '../config'
 import { isResolvedConfig, resolveConfig } from '../config'
+import {
+  createNoopWatcher,
+  getResolvedOutDirs,
+  resolveChokidarOptions,
+  resolveEmptyOutDir,
+} from '../watch'
 import { searchForWorkspaceRoot } from './searchRoot'
 // NOTE(kazupon): disable now
 // import {
@@ -445,6 +451,10 @@ export interface CreateServerOptions {
    */
   basePath?: string
   /**
+   * FSWawtcher factory function to create a custom FSWatcher instance.
+   */
+  watcherFactory?: (targets: string[], options: WatchOptions) => FSWatcher
+  /**
    * @internal
    */
   previousEnvironments?: Record<string, DevEnvironment>
@@ -495,8 +505,6 @@ export function createServer(
       : await resolveConfig(inlineConfig, 'serve')
     console.log('[vrowser-vite-dev-server] Vite Dev Server config:', config)
 
-    // TODO: ...
-
     const { root, server: serverConfig } = config
     const basePath = options.basePath || '/'
 
@@ -505,7 +513,25 @@ export function createServer(
       middlewares = middlewares.basePath(basePath)
     }
 
-    // TODO: ...
+    const resolvedOutDirs = getResolvedOutDirs(
+      config.root,
+      config.build.outDir,
+      config.build.rollupOptions.output,
+    )
+    const emptyOutDir = resolveEmptyOutDir(
+      config.build.emptyOutDir,
+      config.root,
+      resolvedOutDirs,
+    )
+    const resolvedWatchOptions = resolveChokidarOptions(
+      {
+        disableGlobbing: true,
+        ...serverConfig.watch,
+      },
+      resolvedOutDirs,
+      emptyOutDir,
+      config.cacheDir,
+    )
 
     // Create MessageChannel server for HMR
     const ws = createMessageChannelServer(httpServer, config)
@@ -514,47 +540,38 @@ export function createServer(
     // const publicFiles = await initPublicFilesPromise
     // const { publicDir } = config
 
-    // TODO:
-    // watch configuration in here !
-    // About service worker, we need to FSWatcher which implementented with Window Message Channel and have a same fs.FSWatcher I/F
     const watchEnabled = serverConfig.watch !== null
-    const watcher: FSWatcher | undefined = undefined
-    // const watcher = watchEnabled
-    //   ? (chokidar.watch(
-    //     // config file dependencies and env file might be outside of root
-    //     [
-    //       ...(config.experimental.bundledDev ? [] : [root]),
-    //       ...config.configFileDependencies,
-    //       ...getEnvFilesForMode(config.mode, config.envDir),
-    //       // Watch the public directory explicitly because it might be outside
-    //       // of the root directory.
-    //       ...(publicDir && publicFiles ? [publicDir] : []),
-    //     ],
-
-    //     resolvedWatchOptions,
-    //   ) as FSWatcher)
-    //   : createNoopWatcher(resolvedWatchOptions)
+    const watcher = watchEnabled && options.watcherFactory
+      ? options.watcherFactory([
+        ...(config.experimental.bundledDev ? [] : [root]),
+        ...config.configFileDependencies,
+        // ...getEnvFilesForMode(config.mode, config.envDir),
+        // Watch the public directory explicitly because it might be outside
+        // of the root directory.
+        // ...(publicDir && publicFiles ? [publicDir] : []),
+      ], resolvedWatchOptions)
+      : createNoopWatcher(resolvedWatchOptions)
 
     const environments: Record<string, DevEnvironment> = {}
-    // TODO(kazupon): create environments
-    // await Promise.all(
-    //   Object.entries(config.environments).map(
-    //     async ([name, environmentOptions]) => {
-    //       const environment = await environmentOptions.dev.createEnvironment(
-    //         name,
-    //         config,
-    //         {
-    //           ws,
-    //         },
-    //       )
-    //       environments[name] = environment
+    await Promise.all(
+      Object.entries(config.environments).map(
+        async ([name, environmentOptions]) => {
+          const environment = await environmentOptions.dev.createEnvironment(
+            name,
+            config,
+            {
+              ws,
+            },
+          )
+          environments[name] = environment
 
-    //       const previousInstance =
-    //         options.previousEnvironments?.[environment.name]
-    //       await environment.init({ watcher, previousInstance })
-    //     },
-    //   ),
-    // )
+          const previousInstance =
+            options.previousEnvironments?.[environment.name]
+          await environment.init({ watcher, previousInstance })
+        },
+      ),
+    )
+    console.log('[vrowser-vite-dev-server] Created environments:', environments)
 
     // Backward compatibility
 

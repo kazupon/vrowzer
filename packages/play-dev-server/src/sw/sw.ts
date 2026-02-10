@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { chdir, cwd, readFileSync, vol } from '@vrowser/fs'
+import { chdir, cwd, readFileSync, vol, watch } from '@vrowser/fs'
 import { createServer } from '@vrowser/vite-dev-server'
 
 import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
@@ -20,7 +20,7 @@ console.log('cwd()', cwd()) // '/src'
 
 // Read file with relative path
 const content = readFileSync('./index.ts', 'utf8')
-console.log('./index.ts', content) // 'export const hello = "world"'
+console.log('/index.ts', content) // 'export const hello = "world"'
 
 const SW_VERSION = 'play-dev-server-v1'
 
@@ -37,6 +37,7 @@ const files = new Map<string, string>()
 //   event.waitUntil(self.skipWaiting())
 // })
 
+const previewBase = '/__preview__'
 /**
  * Create Vite Dev Server on Service Worker
  */
@@ -45,7 +46,7 @@ const listenableServer = createServer(
   {
     root: '/',
     server: { middlewareMode: false },
-    base: '/',
+    base: previewBase,
     publicDir: 'public',
     experimental: {
       importGlobRestoreExtension: false,
@@ -55,11 +56,28 @@ const listenableServer = createServer(
       bundledDev: false
     }
   },
-  { version: SW_VERSION, basePath: '/__preview__' }
+  {
+    version: SW_VERSION,
+    basePath: previewBase,
+    watcherFactory: (targets: string[], options) => {
+      console.log('[SW] Creating FSWatcher :', targets, options)
+      const first = targets.pop()
+      if (!first) {
+        throw new Error('No watch targets specified')
+      }
+      const watcher = watch(first, options)
+      console.log('[SW] FSWatcher created.', watcher)
+      for (const target of targets) {
+        // TODO:
+      }
+      return watcher
+    }
+  }
 )
 
 listenableServer.middlewares.push(async (c, next) => {
   console.log(`[custom:hello] for hello: ${c.req.url}`)
+  console.log(`[custom:hello] req:`, c.req)
   if (c.req.path.endsWith('/hello')) {
     return c.text('Vite Dev Server on Service Worker says hello!')
   } else {

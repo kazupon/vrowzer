@@ -3,96 +3,120 @@
 // https://github.com/paulmillr/chokidar/blob/3.6.0/types/index.d.ts
 // MIT Licensed https://github.com/paulmillr/chokidar/blob/3.6.0/LICENSE
 
-/// <reference types="node" />
-
-import type * as fs from 'node:fs'
-import { EventEmitter } from 'node:events'
+// NOTE(kazupon): Remove node:fs, node:events dependencies for browser env (Service Worker)
 import type { Matcher } from './anymatch'
 
-export class FSWatcher extends EventEmitter implements fs.FSWatcher {
+export class FSWatcher {
   options: WatchOptions
 
-  /**
-   * Constructs a new FSWatcher instance with optional WatchOptions parameter.
-   */
   constructor(options?: WatchOptions)
 
-  /**
-   * When called, requests that the Node.js event loop not exit so long as the fs.FSWatcher is active.
-   * Calling watcher.ref() multiple times will have no effect.
-   */
   ref(): this
-
-  /**
-   * When called, the active fs.FSWatcher object will not require the Node.js event loop to remain active.
-   * If there is no other activity keeping the event loop running, the process may exit before the fs.FSWatcher object's callback is invoked.
-   * Calling watcher.unref() multiple times will have no effect.
-   */
   unref(): this
-
-  /**
-   * Add files, directories, or glob patterns for tracking. Takes an array of strings or just one
-   * string.
-   */
   add(paths: string | ReadonlyArray<string>): this
-
-  /**
-   * Stop watching files, directories, or glob patterns. Takes an array of strings or just one
-   * string.
-   */
   unwatch(paths: string | ReadonlyArray<string>): this
-
-  /**
-   * Returns an object representing all the paths on the file system being watched by this
-   * `FSWatcher` instance. The object's keys are all the directories (using absolute paths unless
-   * the `cwd` option was used), and the values are arrays of the names of the items contained in
-   * each directory.
-   */
-  getWatched(): {
-    [directory: string]: string[]
-  }
-
-  /**
-   * Removes all listeners from watched files.
-   */
+  getWatched(): { [directory: string]: string[] }
   close(): Promise<void>
 
-  on(
-    event: 'add' | 'addDir' | 'change',
-    listener: (path: string, stats?: fs.Stats) => void,
-  ): this
-
-  on(
-    event: 'all',
-    listener: (
-      eventName: 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir',
-      path: string,
-      stats?: fs.Stats,
-    ) => void,
-  ): this
-
-  /**
-   * Error occurred
-   */
+  on(event: 'add' | 'addDir' | 'change', listener: (path: string, stats?: any) => void): this
+  on(event: 'all', listener: (eventName: 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir', path: string, stats?: any) => void): this
   on(event: 'error', listener: (error: Error) => void): this
-
-  /**
-   * Exposes the native Node `fs.FSWatcher events`
-   */
-  on(
-    event: 'raw',
-    listener: (eventName: string, path: string, details: any) => void,
-  ): this
-
-  /**
-   * Fires when the initial scan is complete
-   */
+  on(event: 'raw', listener: (eventName: string, path: string, details: any) => void): this
   on(event: 'ready', listener: () => void): this
-
   on(event: 'unlink' | 'unlinkDir', listener: (path: string) => void): this
-
   on(event: string, listener: (...args: any[]) => void): this
 }
+// NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
+// /// <reference types="node" />
+//
+// import type * as fs from 'node:fs'
+// import { EventEmitter } from 'node:events'
+// import type { Matcher } from './anymatch'
+//
+// export class FSWatcher extends EventEmitter implements fs.FSWatcher {
+//   options: WatchOptions
+//
+//   /**
+//    * Constructs a new FSWatcher instance with optional WatchOptions parameter.
+//    */
+//   constructor(options?: WatchOptions)
+//
+//   /**
+//    * When called, requests that the Node.js event loop not exit so long as the fs.FSWatcher is active.
+//    * Calling watcher.ref() multiple times will have no effect.
+//    */
+//   ref(): this
+//
+//   /**
+//    * When called, the active fs.FSWatcher object will not require the Node.js event loop to remain active.
+//    * If there is no other activity keeping the event loop running, the process may exit before the fs.FSWatcher object's callback is invoked.
+//    * Calling watcher.unref() multiple times will have no effect.
+//    */
+//   unref(): this
+//
+//   /**
+//    * Add files, directories, or glob patterns for tracking. Takes an array of strings or just one
+//    * string.
+//    */
+//   add(paths: string | ReadonlyArray<string>): this
+//
+//   /**
+//    * Stop watching files, directories, or glob patterns. Takes an array of strings or just one
+//    * string.
+//    */
+//   unwatch(paths: string | ReadonlyArray<string>): this
+//
+//   /**
+//    * Returns an object representing all the paths on the file system being watched by this
+//    * `FSWatcher` instance. The object's keys are all the directories (using absolute paths unless
+//    * the `cwd` option was used), and the values are arrays of the names of the items contained in
+//    * each directory.
+//    */
+//   getWatched(): {
+//     [directory: string]: string[]
+//   }
+//
+//   /**
+//    * Removes all listeners from watched files.
+//    */
+//   close(): Promise<void>
+//
+//   on(
+//     event: 'add' | 'addDir' | 'change',
+//     listener: (path: string, stats?: fs.Stats) => void,
+//   ): this
+//
+//   on(
+//     event: 'all',
+//     listener: (
+//       eventName: 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir',
+//       path: string,
+//       stats?: fs.Stats,
+//     ) => void,
+//   ): this
+//
+//   /**
+//    * Error occurred
+//    */
+//   on(event: 'error', listener: (error: Error) => void): this
+//
+//   /**
+//    * Exposes the native Node `fs.FSWatcher events`
+//    */
+//   on(
+//     event: 'raw',
+//     listener: (eventName: string, path: string, details: any) => void,
+//   ): this
+//
+//   /**
+//    * Fires when the initial scan is complete
+//    */
+//   on(event: 'ready', listener: () => void): this
+//
+//   on(event: 'unlink' | 'unlinkDir', listener: (path: string) => void): this
+//
+//   on(event: string, listener: (...args: any[]) => void): this
+// }
 
 export interface WatchOptions {
   /**

@@ -1922,7 +1922,7 @@ export async function resolveConfig(
     webSocketToken: btoa(
       String.fromCharCode(...crypto.getRandomValues(new Uint8Array(9)))
     ).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
-    // TODO(kazupon): need to swtich to use web standard crypto in the browser environment
+    // NOTE(kazupon): need to swtich to use web standard crypto in the browser environment
     // webSocketToken: Buffer.from(
     //   crypto.getRandomValues(new Uint8Array(9)),
     // ).toString('base64url'),
@@ -1931,7 +1931,6 @@ export async function resolveConfig(
     getSortedPluginHooks: undefined!,
 
     createResolver(options) {
-      // TODO(kazupon): resolve `createResolver` context
       const resolve = createIdResolver(this, options)
       const clientEnvironment = new PartialEnvironment('client', this)
       let ssrEnvironment: PartialEnvironment | undefined
