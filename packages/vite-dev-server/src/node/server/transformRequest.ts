@@ -1,19 +1,17 @@
-// TODO: fill in later ...
-
 import type {
   SourceMap,
 } from 'rolldown'
-
 import {
   createDebugger,
   monotonicDateNow,
   removeTimestampQuery,
 } from '../utils'
-
-// TODO: fill in later ...
-
 import type { DevEnvironment } from './environment'
 import { throwClosedServerError } from './pluginContainer'
+
+export const ERR_LOAD_URL = 'ERR_LOAD_URL'
+export const ERR_LOAD_PUBLIC_URL = 'ERR_LOAD_PUBLIC_URL'
+export const ERR_DENIED_ID = 'ERR_DENIED_ID'
 
 const debugLoad = createDebugger('vite:load')
 const debugTransform = createDebugger('vite:transform')

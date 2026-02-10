@@ -82,8 +82,8 @@ const alias: Record<string, string | undefined> = {
 }
 
 export interface SendOptions {
-  etag?: string
-  cacheControl?: string
+  etag?: string | undefined
+  cacheControl?: string | undefined
   headers?: Record<string, string> | undefined
   map?: SourceMap | { mappings: '' } | null | undefined
 }

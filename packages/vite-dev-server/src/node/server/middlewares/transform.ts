@@ -15,18 +15,24 @@
 
 import path from 'node:path'
 import colors from 'picocolors'
-import { NULL_BYTE_PLACEHOLDER } from '../../../shared/constants'
+import { ERR_OUTDATED_OPTIMIZED_DEP, NULL_BYTE_PLACEHOLDER } from '../../../shared/constants'
 import { cleanUrl, unwrapId, withTrailingSlash } from '../../../shared/utils'
-import { FS_PREFIX } from '../../constants'
+import { DEP_VERSION_RE, ERR_FILE_NOT_FOUND_IN_OPTIMIZED_DEP_DIR, ERR_OPTIMIZE_DEPS_PROCESSING_ERROR, FS_PREFIX } from '../../constants'
+import { isDirectCSSRequest } from '../../plugins/css'
 import { isHTMLProxy } from '../../plugins/html'
-import { fsPathFromId, injectQuery, isCSSRequest, isImportRequest, isJSRequest, normalizePath, removeImportQuery, removeTimestampQuery } from '../../utils'
+import { createDebugger, fsPathFromId, injectQuery, isCSSRequest, isImportRequest, isJSRequest, normalizePath, removeImportQuery, removeTimestampQuery } from '../../utils'
+import { ERR_CLOSED_SERVER } from '../pluginContainer'
 import { send } from '../send'
+import { ERR_DENIED_ID, ERR_LOAD_URL } from '../transformRequest'
+import { checkLoadingAccess, respondWithAccessDenied } from './static'
 import { getRequestPath } from './utils'
 
 import type { Context, MiddlewareHandler } from 'hono'
 import type { ViteDevServer } from '..'
 import type { ResolvedConfig } from '../../config'
 import type { ViteEnv } from '../index'
+
+const debugCache = createDebugger('vite:cache')
 
 const knownIgnoreList = new Set(['/', '/favicon.ico'])
 
@@ -49,12 +55,12 @@ const svgRE = /\.svg\b/
 
 function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
   if (rawRE.test(id) || urlRE.test(id) || inlineRE.test(id) || svgRE.test(id)) {
-    return false
-    // TODO(kazupon): implement checkLoadingAccess later
-    // return checkLoadingAccess(config, id) !== 'allowed'
+    return checkLoadingAccess(config, id) !== 'allowed'
   }
   return false
 }
+
+// TODO: fill in later ...
 
 export function transformMiddleware(
   server: ViteDevServer,
@@ -63,14 +69,12 @@ export function transformMiddleware(
 
   // check if public dir is inside root dir
   const { root, publicDir } = server.config
-  // NOTE(kazupon): for future use
-  // const publicDirInRoot = publicDir.startsWith(withTrailingSlash(root))
-  // const publicPath = `${publicDir.slice(root.length)}/`
-  const publicDirInRoot = (publicDir as string).startsWith(withTrailingSlash(root))
-  const publicPath = `${(publicDir as string).slice(root.length)}/`
+  const publicDirInRoot = publicDir.startsWith(withTrailingSlash(root))
+  const publicPath = `${publicDir.slice(root.length)}/`
 
   return async function viteTransformMiddleware(c, next) {
     console.log('[transform] viteTransformMiddleware called for:', c.req.url)
+
     const environment = server.environments.client
 
     if (
@@ -115,11 +119,9 @@ export function transformMiddleware(
           // TODO(kazupon): implement later ...
         } else {
           const originalUrl = url.replace(/\.map($|\?)/, '$1')
-          const map = {}
-          // TODO(kazupon): implement later ...
-          // const map = (
-          //   await environment.moduleGraph.getModuleByUrl(originalUrl)
-          // )?.transformResult?.map
+          const map = (
+            await environment.moduleGraph.getModuleByUrl(originalUrl)
+          )?.transformResult?.map
           if (map) {
             return send(c, JSON.stringify(map), 'json', {
               // TODO(kazupon): fix type definition for ResolvedConfig.server
@@ -162,9 +164,144 @@ export function transformMiddleware(
             )
           },
         })
+        if (result) {
+          const depsOptimizer = environment.depsOptimizer
+          const type = isDirectCSSRequest(url) ? 'css' : 'js'
+          const isDep =
+            DEP_VERSION_RE.test(url) || depsOptimizer?.isOptimizedDepUrl(url)
+          return send(c, result.code, type, {
+            etag: result.etag,
+            // allow browser to cache npm deps!
+            cacheControl: isDep ? 'max-age=31536000,immutable' : 'no-cache',
+            headers: (server.config.server.headers as Record<string, string> | undefined),
+            map: result.map,
+          })
+          // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
+          // return send(req, res, result.code, type, {
+          //   etag: result.etag,
+          //   // allow browser to cache npm deps!
+          //   cacheControl: isDep ? 'max-age=31536000,immutable' : 'no-cache',
+          //   headers: server.config.server.headers,
+          //   map: result.map,
+          // })
+        }
       }
     } catch (e) {
-      // TODO(kazupon): handle error
+      if (e?.code === ERR_OPTIMIZE_DEPS_PROCESSING_ERROR) {
+        // This timeout is unexpected
+        server.config.logger.error(e.message)
+        return c.body(null, 504)
+      }
+      if (e?.code === ERR_OUTDATED_OPTIMIZED_DEP) {
+        // We don't need to log an error in this case, the request
+        // is outdated because new dependencies were discovered and
+        // the new pre-bundle dependencies have changed.
+        // A full-page reload has been issued, and these old requests
+        // can't be properly fulfilled. This isn't an unexpected
+        // error but a normal part of the missing deps discovery flow
+        return c.body(null, 504)
+      }
+      if (e?.code === ERR_CLOSED_SERVER) {
+        // We don't need to log an error in this case, the request
+        // is outdated because new dependencies were discovered and
+        // the new pre-bundle dependencies have changed.
+        // A full-page reload has been issued, and these old requests
+        // can't be properly fulfilled. This isn't an unexpected
+        // error but a normal part of the missing deps discovery flow
+        return c.body(null, 504)
+      }
+      if (e?.code === ERR_FILE_NOT_FOUND_IN_OPTIMIZED_DEP_DIR) {
+        server.config.logger.warn(colors.yellow(e.message))
+        return c.body(null, 404)
+      }
+      if (e?.code === ERR_LOAD_URL) {
+        // Let other middleware handle if we can't load the url via transformRequest
+        return next()
+      }
+      if (e?.code === ERR_DENIED_ID) {
+        const id: string = e.id
+        const servingAccessResult = checkLoadingAccess(server.config, id)
+        if (servingAccessResult === 'denied') {
+          return respondWithAccessDenied(id, server, c)
+        }
+        if (servingAccessResult === 'fallback') {
+          return next()
+        }
+        servingAccessResult satisfies 'allowed'
+        throw new Error(`Unexpected access result for id ${id}`)
+      }
+      throw e
+
+      // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
+      // if (e?.code === ERR_OPTIMIZE_DEPS_PROCESSING_ERROR) {
+      //   // Skip if response has already been sent
+      //   if (!res.writableEnded) {
+      //     res.statusCode = 504 // status code request timeout
+      //     res.statusMessage = 'Optimize Deps Processing Error'
+      //     res.end()
+      //   }
+      //   // This timeout is unexpected
+      //   server.config.logger.error(e.message)
+      //   return
+      // }
+      // if (e?.code === ERR_OUTDATED_OPTIMIZED_DEP) {
+      //   // Skip if response has already been sent
+      //   if (!res.writableEnded) {
+      //     res.statusCode = 504 // status code request timeout
+      //     res.statusMessage = 'Outdated Optimize Dep'
+      //     res.end()
+      //   }
+      //   // We don't need to log an error in this case, the request
+      //   // is outdated because new dependencies were discovered and
+      //   // the new pre-bundle dependencies have changed.
+      //   // A full-page reload has been issued, and these old requests
+      //   // can't be properly fulfilled. This isn't an unexpected
+      //   // error but a normal part of the missing deps discovery flow
+      //   return
+      // }
+      // if (e?.code === ERR_CLOSED_SERVER) {
+      //   // Skip if response has already been sent
+      //   if (!res.writableEnded) {
+      //     res.statusCode = 504 // status code request timeout
+      //     res.statusMessage = 'Outdated Request'
+      //     res.end()
+      //   }
+      //   // We don't need to log an error in this case, the request
+      //   // is outdated because new dependencies were discovered and
+      //   // the new pre-bundle dependencies have changed.
+      //   // A full-page reload has been issued, and these old requests
+      //   // can't be properly fulfilled. This isn't an unexpected
+      //   // error but a normal part of the missing deps discovery flow
+      //   return
+      // }
+      // if (e?.code === ERR_FILE_NOT_FOUND_IN_OPTIMIZED_DEP_DIR) {
+      //   // Skip if response has already been sent
+      //   if (!res.writableEnded) {
+      //     res.statusCode = 404
+      //     res.end()
+      //   }
+      //   server.config.logger.warn(colors.yellow(e.message))
+      //   return
+      // }
+      // if (e?.code === ERR_LOAD_URL) {
+      //   // Let other middleware handle if we can't load the url via transformRequest
+      //   return next()
+      // }
+      // if (e?.code === ERR_DENIED_ID) {
+      //   const id: string = e.id
+      //   const servingAccessResult = checkLoadingAccess(server.config, id)
+      //   if (servingAccessResult === 'denied') {
+      //     respondWithAccessDenied(id, server, res)
+      //     return true
+      //   }
+      //   if (servingAccessResult === 'fallback') {
+      //     next()
+      //     return true
+      //   }
+      //   servingAccessResult satisfies 'allowed'
+      //   throw new Error(`Unexpected access result for id ${id}`)
+      // }
+      // return next(e)
     }
 
     await next()

@@ -10,6 +10,7 @@ import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
 import type { InlineConfig, ResolvedConfig } from '../config'
 import { isResolvedConfig, resolveConfig } from '../config'
+import { initPublicFiles } from '../publicDir'
 import {
   createNoopWatcher,
   getResolvedOutDirs,
@@ -505,6 +506,8 @@ export function createServer(
       : await resolveConfig(inlineConfig, 'serve')
     console.log('[vrowser-vite-dev-server] Vite Dev Server config:', config)
 
+    const initPublicFilesPromise = initPublicFiles(config)
+
     const { root, server: serverConfig } = config
     const basePath = options.basePath || '/'
 
@@ -536,9 +539,9 @@ export function createServer(
     // Create MessageChannel server for HMR
     const ws = createMessageChannelServer(httpServer, config)
 
-    // TODO: setup public files
-    // const publicFiles = await initPublicFilesPromise
-    // const { publicDir } = config
+    const publicFiles = await initPublicFilesPromise
+    const { publicDir } = config
+    console.log('[vrowser-vite-dev-server] publicDir:', publicDir, 'publicFiles:', publicFiles)
 
     const watchEnabled = serverConfig.watch !== null
     const watcher = watchEnabled && options.watcherFactory
@@ -548,7 +551,7 @@ export function createServer(
         // ...getEnvFilesForMode(config.mode, config.envDir),
         // Watch the public directory explicitly because it might be outside
         // of the root directory.
-        // ...(publicDir && publicFiles ? [publicDir] : []),
+        ...(publicDir && publicFiles ? [publicDir] : []),
       ], resolvedWatchOptions)
       : createNoopWatcher(resolvedWatchOptions)
 
