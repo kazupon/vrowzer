@@ -185,7 +185,7 @@ export type ViteDebugScope = `vite:${string}` | `vrowser:${string}`
 export function createDebugger(
   namespace: ViteDebugScope,
   options: DebuggerOptions = {},
-): Debugger['log'] | undefined {
+): ((...args: [string, ...any[]]) => void) | undefined {
   const log = debug(namespace)
   const { onlyWhenFocused, depth } = options
 
