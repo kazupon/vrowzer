@@ -1,3 +1,18 @@
+/**
+ * Static file serving Hono middlewares
+ * This middleware is ported from vite's static middleware.
+ */
+
+/**
+ * Forked from Vite
+ * - repository: https://github.com/vitejs/vite
+ * - file: packages/vite/src/node/server/middlewares/static.ts
+ * - origninal license: MIT
+ *
+ * @author kazuya kawaguchi (a.k.a. kazupon)
+ * @license MIT
+ */
+
 import escapeHtml from 'escape-html'
 import type { Context } from 'hono'
 import { serveStatic } from 'hono/serve-static'
