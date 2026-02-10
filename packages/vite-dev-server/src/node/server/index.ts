@@ -53,7 +53,9 @@ import { ModuleGraph } from './mixedModuleGraph'
 import { serverConfigDefaults as _serverConfigDefaults } from './options'
 import type { PluginContainer } from './pluginContainer'
 import {
-  createPluginContainer
+  BasicMinimalPluginContext,
+  basePluginContextMeta,
+  createPluginContainer,
 } from './pluginContainer'
 import type { TransformOptions, TransformResult } from './transformRequest'
 import type { MessageChannelServer } from './ws'
@@ -817,15 +819,15 @@ export function createServer(
     }
 
     // maintain consistency with the server instance after restarting.
-    // const reflexServer = new Proxy(server, {
-    //   get: (_, property: keyof ViteDevServer) => {
-    //     return server[property]
-    //   },
-    //   set: (_, property: keyof ViteDevServer, value: never) => {
-    //     server[property] = value
-    //     return true
-    //   },
-    // })
+    const reflexServer = new Proxy(server, {
+      get: (_, property: keyof ViteDevServer) => {
+        return server[property]
+      },
+      set: (_, property: keyof ViteDevServer, value: never) => {
+        server[property] = value
+        return true
+      },
+    })
 
     // TODO: setup for HMR, watchers ...
     // ...
@@ -846,9 +848,33 @@ export function createServer(
       middlewares.use(timeMiddleware(root))
     }
 
+    // TODO(kazupon): disable middlewares, after implementing them
+    // middlewares.use(rejectInvalidRequestMiddleware())
+    // middlewares.use(rejectNoCorsRequestMiddleware())
+
+    // // cors
+    // const { cors } = serverConfig
+    // if (cors !== false) {
+    //   middlewares.use(corsMiddleware(typeof cors === 'boolean' ? {} : cors))
+    // }
+
+    // // host check (to prevent DNS rebinding attacks)
+    // const { allowedHosts } = serverConfig
+    // // no need to check for HTTPS as HTTPS is not vulnerable to DNS rebinding attacks
+    // if (allowedHosts !== true && !serverConfig.https) {
+    //   middlewares.use(hostValidationMiddleware(allowedHosts, false))
+    // }
+
     // apply configureServer hooks ------------------------------------------------
 
-    // TODO: setup for configureServer hooks
+    const configureServerContext = new BasicMinimalPluginContext(
+      { ...basePluginContextMeta, watchMode: true },
+      config.logger,
+    )
+    const postHooks: ((() => void) | void)[] = []
+    for (const hook of config.getSortedPluginHooks('configureServer')) {
+      postHooks.push(await hook.call(configureServerContext, reflexServer))
+    }
 
     // Internal middlewares ------------------------------------------------------
 
@@ -891,16 +917,19 @@ export function createServer(
     //   middlewares.use(servePublicMiddleware(server, publicFiles))
     // }
     //
-    // if (config.experimental.bundledDev) {
-    //   middlewares.use(memoryFilesMiddleware(server))
-    // } else {
-    //   // main transform middleware
-    //   middlewares.use(transformMiddleware(server))
-    //
-    //   // serve static files
-    //   middlewares.use(serveRawFsMiddleware(server))
-    //   middlewares.use(serveStaticMiddleware(server))
-    // }
+    if (config.experimental.bundledDev) {
+      // TODO: implement memoryFilesMiddleware later
+      // middlewares.use(memoryFilesMiddleware(server))
+    } else {
+      // main transform middleware
+      // middlewares.use('*', transformMiddleware(server))
+      console.log('[SW] transformMiddleware applied', transformMiddleware)
+
+      // serve static files
+      // TODO: implement later ...
+      // middlewares.use(serveRawFsMiddleware(server))
+      // middlewares.use(serveStaticMiddleware(server))
+    }
     //
     // // html fallback
     // if (config.appType === 'spa' || config.appType === 'mpa') {
@@ -912,14 +941,6 @@ export function createServer(
     //     ),
     //   )
     // }
-
-    if (config.experimental.bundledDev) {
-      // TODO: implement memoryFilesMiddleware later
-    } else {
-      // main transform middleware
-      // middlewares.use('*', transformMiddleware(server))
-      console.log('[SW] transformMiddleware applied', transformMiddleware)
-    }
 
     // apply configureServer post hooks ------------------------------------------
 

@@ -1,5 +1,5 @@
 /**
- * Transform middleware for Hono
+ * Transform Hono middleware
  * This middleware is ported from vite's transform middleware.
  */
 

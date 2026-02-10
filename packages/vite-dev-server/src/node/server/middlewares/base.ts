@@ -1,5 +1,5 @@
 /**
- * Base URL middleware for Hono
+ * Base URL Hono middleware
  * This middleware is ported from vite's base middleware.
  */
 

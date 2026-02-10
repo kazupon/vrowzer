@@ -1,5 +1,5 @@
 /**
- * Time measurement middleware for Hono
+ * Time measurement Hono middleware
  * This middleware is ported from vite's time middleware.
  */
 
