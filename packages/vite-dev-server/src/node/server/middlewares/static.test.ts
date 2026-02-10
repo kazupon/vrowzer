@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { MiddlewareHandler } from 'hono/types'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 // Mock fs modules
@@ -64,7 +65,7 @@ function createMockServer(options: {
   } as unknown as ViteDevServer
 }
 
-function createApp(middleware: Parameters<Hono<ViteEnv>['use']>[0]) {
+function createApp(middleware: MiddlewareHandler<ViteEnv>) {
   const app = new Hono<ViteEnv>()
   app.use('*', middleware)
   app.all('*', (c) => c.text('fallthrough'))
@@ -340,7 +341,7 @@ describe('serveStaticMiddleware', () => {
     test('should return 403 for denied files', async () => {
       // Make file readable so checkLoadingAccess returns 'denied'
       vi.mocked(fs.statSync).mockReturnValue({ isFile: () => true } as any)
-      vi.mocked(fs.accessSync).mockImplementation(() => {})
+      vi.mocked(fs.accessSync).mockImplementation(() => { })
 
       const server = createMockServer({
         root: '/project',
@@ -444,7 +445,7 @@ describe('serveRawFsMiddleware', () => {
     test('should return 403 for denied files', async () => {
       // Make file readable so checkLoadingAccess returns 'denied'
       vi.mocked(fs.statSync).mockReturnValue({ isFile: () => true } as any)
-      vi.mocked(fs.accessSync).mockImplementation(() => {})
+      vi.mocked(fs.accessSync).mockImplementation(() => { })
 
       const server = createMockServer({
         fsStrict: true,
