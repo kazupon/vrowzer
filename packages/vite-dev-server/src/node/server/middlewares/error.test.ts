@@ -49,6 +49,7 @@ describe('prepareError', () => {
 
   test('should handle error without stack', () => {
     const err = new Error('no stack')
+    // @ts-expect-error -- simulate error without stack
     err.stack = undefined
     const result = prepareError(err)
 
