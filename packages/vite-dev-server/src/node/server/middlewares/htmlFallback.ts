@@ -48,6 +48,7 @@ export function htmlFallbackMiddleware(
 
   // Keep the named function. The name is visible in debug logs via `DEBUG=connect:dispatcher ...`
   return async function viteHtmlFallbackMiddleware(c, next) {
+    console.log('[fallback-html] viteHtmlFallbackMiddleware called for:', c.req.url)
     const method = c.req.method
     const requestPath = getRequestPath(c)
 

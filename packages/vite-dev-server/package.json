@@ -105,6 +105,7 @@
     "hono": "^4.7.10",
     "magic-string": "catalog:",
     "mlly": "^1.8.0",
+    "parse5": "^8.0.0",
     "nanoid": "^5.1.6",
     "obug": "^2.1.1",
     "oxc-parser": "0.111.0",

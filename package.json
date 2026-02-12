@@ -13,6 +13,7 @@
     "build:svc": "pnpm --filter service-worker build",
     "build:unplugin": "pnpm --filter unplugin-service-worker build",
     "build:vite": "pnpm --filter vite-dev-server build",
+    "build:vite:type": "pnpm --filter vite-dev-server build-types-roll",
     "build:vrowser": "pnpm --filter vrowser build",
     "dev": "pnpm --filter playground dev",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",

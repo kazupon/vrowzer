@@ -183,10 +183,56 @@ export function promisify<TArgs extends unknown[], TResult>(
 ): (...args: TArgs) => Promise<TResult> {
   return (...args: TArgs) =>
     new Promise<TResult>((resolve, reject) => {
-      ;(fn as Function)(...args, (err: unknown, result: TResult) => {
+      ; (fn as Function)(...args, (err: unknown, result: TResult) => {
         if (err) reject(err)
         else resolve(result)
       })
     })
+}
+
+/**
+ * FNV-1a hash implementation (browser compatible)
+ * Based on: https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+ */
+function fnv1aHash(data: Uint8Array): string {
+  const FNV_PRIME = 0x01000193
+  const FNV_OFFSET_BASIS = 0x811c9dc5
+
+  let hash = FNV_OFFSET_BASIS
+  for (let i = 0; i < data.length; i++) {
+    hash ^= data[i]!
+    hash = Math.imul(hash, FNV_PRIME)
+  }
+
+  // Convert to unsigned 32-bit and then to base36 for compact representation
+  return (hash >>> 0).toString(36)
+}
+
+/**
+ * Generate an entity tag (browser compatible)
+ * Similar to the 'etag' npm package but without Node.js dependencies
+ */
+export function generateEtag(
+  entity: string | Uint8Array,
+  options?: { weak?: boolean },
+): string {
+  const weak = options?.weak ?? true
+
+  // Convert to Uint8Array for consistent processing
+  const bytes = typeof entity === 'string'
+    ? new TextEncoder().encode(entity)
+    : entity
+
+  if (bytes.length === 0) {
+    // Fast-path empty content
+    return weak ? 'W/"0-0"' : '"0-0"'
+  }
+
+  // Compute hash
+  const hash = fnv1aHash(bytes)
+  const len = bytes.length.toString(16)
+  const tag = `"${len}-${hash}"`
+
+  return weak ? `W/${tag}` : tag
 }
 

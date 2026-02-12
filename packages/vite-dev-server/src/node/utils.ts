@@ -9,10 +9,11 @@ import type MagicString from 'magic-string'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+// NOTE(kazupon): commented out, because we need to resolve node module
+// import { promises as dns } from 'node:dns'
 import type { PreviewServer } from './preview'
 import type { ViteDevServer } from './server'
 // import { fileURLToPath } from 'node:url'
-import type { Debugger } from 'obug'
 import { createDebug as debug, enable as debugEnable } from 'obug'
 import type { TransformResult } from 'rolldown'
 import { VALID_ID_PREFIX } from '../shared/constants'
@@ -30,6 +31,7 @@ import {
   ENV_PUBLIC_PATH,
   FS_PREFIX,
   OPTIMIZABLE_ENTRY_RE,
+  wildcardHosts,
 } from './constants'
 
 /**
@@ -206,15 +208,6 @@ export function createDebugger(
       }
     }
   }
-}
-
-// TODO: fill in code later ...
-
-export interface Hostname {
-  /** undefined sets the default behaviour of server.listen */
-  host: string | undefined
-  /** resolve to localhost when possible */
-  name: string
 }
 
 // TODO: fill in code later ...
@@ -763,7 +756,71 @@ export function ensureWatchedFile(
   }
 }
 
-// TODO: fill in code later ...
+interface ImageCandidate {
+  url: string
+  descriptor: string
+}
+
+function joinSrcset(ret: ImageCandidate[]) {
+  return ret
+    .map(({ url, descriptor }) => url + (descriptor ? ` ${descriptor}` : ''))
+    .join(', ')
+}
+
+/**
+ This regex represents a loose rule of an “image candidate string” and "image set options".
+
+ @see https://html.spec.whatwg.org/multipage/images.html#srcset-attribute
+ @see https://drafts.csswg.org/css-images-4/#image-set-notation
+
+  The Regex has named capturing groups `url` and `descriptor`.
+  The `url` group can be:
+  * any CSS function
+  * CSS string (single or double-quoted)
+  * URL string (unquoted)
+  The `descriptor` is anything after the space and before the comma.
+ */
+const imageCandidateRegex =
+  /(?:^|\s|(?<=,))(?<url>[\w-]+\([^)]*\)|"[^"]*"|'[^']*'|[^,]\S*[^,])\s*(?:\s(?<descriptor>\w[^,]+))?(?:,|$)/g
+const escapedSpaceCharacters = /(?: |\\t|\\n|\\f|\\r)+/g
+
+export function parseSrcset(string: string): ImageCandidate[] {
+  const matches = string
+    .trim()
+    .replace(escapedSpaceCharacters, ' ')
+    .replace(/\r?\n/, '')
+    .replace(/,\s+/, ', ')
+    .replaceAll(/\s+/g, ' ')
+    .matchAll(imageCandidateRegex)
+  return Array.from(matches, ({ groups }) => ({
+    url: groups?.url?.trim() ?? '',
+    descriptor: groups?.descriptor?.trim() ?? '',
+  })).filter(({ url }) => !!url)
+}
+
+export function processSrcSet(
+  srcs: string,
+  replacer: (arg: ImageCandidate) => Promise<string>,
+): Promise<string> {
+  return Promise.all(
+    parseSrcset(srcs).map(async ({ url, descriptor }) => ({
+      url: await replacer({ url, descriptor }),
+      descriptor,
+    })),
+  ).then(joinSrcset)
+}
+
+export function processSrcSetSync(
+  srcs: string,
+  replacer: (arg: ImageCandidate) => string,
+): string {
+  return joinSrcset(
+    parseSrcset(srcs).map(({ url, descriptor }) => ({
+      url: replacer({ url, descriptor }),
+      descriptor,
+    })),
+  )
+}
 
 const windowsDriveRE = /^[A-Z]:/
 const replaceWindowsDriveRE = /^([A-Z]):\//
@@ -859,6 +916,77 @@ export function combineSourcemaps(
 
 export function unique<T>(arr: T[]): T[] {
   return Array.from(new Set(arr))
+}
+
+/**
+ * Returns resolved localhost address when `dns.lookup` result differs from DNS
+ *
+ * `dns.lookup` result is same when defaultResultOrder is `verbatim`.
+ * Even if defaultResultOrder is `ipv4first`, `dns.lookup` result maybe same.
+ * For example, when IPv6 is not supported on that machine/network.
+ */
+export async function getLocalhostAddressIfDiffersFromDNS(): Promise<
+  string | undefined
+> {
+  const [nodeResult, dnsResult] = await Promise.all([
+    { family: 4, address: '127.0.0.1' },
+    { family: 4, address: '127.0.0.1' },
+    // NOTE(kazupon): disable now, because dns.lookup is not supported in browser env
+    // dns.lookup('localhost'),
+    // dns.lookup('localhost', { verbatim: true }),
+  ])
+  const isSame =
+    nodeResult.family === dnsResult.family &&
+    nodeResult.address === dnsResult.address
+  return isSame ? undefined : nodeResult.address
+}
+
+export function diffDnsOrderChange(
+  oldUrls: ViteDevServer['resolvedUrls'],
+  newUrls: ViteDevServer['resolvedUrls'],
+): boolean {
+  return !(
+    oldUrls === newUrls ||
+    (oldUrls &&
+      newUrls &&
+      arrayEqual(oldUrls.local, newUrls.local) &&
+      arrayEqual(oldUrls.network, newUrls.network))
+  )
+}
+
+export interface Hostname {
+  /** undefined sets the default behaviour of server.listen */
+  host: string | undefined
+  /** resolve to localhost when possible */
+  name: string
+}
+
+export async function resolveHostname(
+  optionsHost: string | boolean | undefined,
+): Promise<Hostname> {
+  let host: string | undefined
+  if (optionsHost === undefined || optionsHost === false) {
+    // Use a secure default
+    host = 'localhost'
+  } else if (optionsHost === true) {
+    // If passed --host in the CLI without arguments
+    host = undefined // undefined typically means 0.0.0.0 or :: (listen on all IPs)
+  } else {
+    host = optionsHost
+  }
+
+  // Set host name to localhost when possible
+  let name = host === undefined || wildcardHosts.has(host) ? 'localhost' : host
+
+  if (host === 'localhost') {
+    // See #8647 for more details.
+    const localhostAddr = await getLocalhostAddressIfDiffersFromDNS()
+    if (localhostAddr) {
+      name = localhostAddr
+    }
+  }
+
+  return { host, name }
 }
 
 // TODO: fill in code later ...

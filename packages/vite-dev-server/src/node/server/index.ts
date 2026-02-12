@@ -45,6 +45,14 @@ import {
 import type { DevEnvironment } from './environment'
 import type { HmrOptions, NormalizedHotChannel } from './hmr'
 import { baseMiddleware } from './middlewares/base'
+import { errorMiddleware } from './middlewares/error'
+import { htmlFallbackMiddleware } from './middlewares/htmlFallback'
+import {
+  createDevHtmlTransformFn,
+  indexHtmlMiddleware
+} from './middlewares/indexHtml'
+import { notFoundMiddleware } from './middlewares/notFound'
+import { servePublicMiddleware, serveRawFsMiddleware, serveStaticMiddleware } from './middlewares/static'
 import { timeMiddleware } from './middlewares/time'
 import { transformMiddleware } from './middlewares/transform'
 import type { ModuleNode } from './mixedModuleGraph'
@@ -60,6 +68,8 @@ import {
 import type { TransformOptions, TransformResult } from './transformRequest'
 import type { MessageChannelServer } from './ws'
 import { createMessageChannelServer } from './ws'
+
+export * from './middlewares/utils'
 
 export interface ServerOptions extends CommonServerOptions {
   /**
@@ -588,7 +598,7 @@ export function createServer(
 
     const closeHttpServer = createServerCloseFn(httpServer)
 
-    // const devHtmlTransformFn = createDevHtmlTransformFn(config)
+    const devHtmlTransformFn = createDevHtmlTransformFn(config)
 
     // Promise used by `server.close()` to ensure `closeServer()` is only called once
     let closeServerPromise: Promise<void> | undefined
@@ -662,14 +672,14 @@ export function createServer(
       //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
       //   return environment.transformRequest(url)
       // },
-      // warmupRequest(url, options) {
-      //   warnFutureDeprecation(config, 'removeServerWarmupRequest')
-      //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
-      //   return environment.warmupRequest(url)
-      // },
-      // transformIndexHtml(url, html, originalUrl) {
-      //   return devHtmlTransformFn(server, url, html, originalUrl)
-      // },
+      warmupRequest(url, options) {
+        warnFutureDeprecation(config, 'removeServerWarmupRequest')
+        const environment = server.environments[options?.ssr ? 'ssr' : 'client']
+        return environment.warmupRequest(url)
+      },
+      transformIndexHtml(url, html, originalUrl) {
+        return devHtmlTransformFn(server, url, html, originalUrl)
+      },
       // async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
       //   warnFutureDeprecation(config, 'removeSsrLoadModule')
       //   return ssrLoadModule(url, server, opts?.fixStacktrace)
@@ -909,14 +919,14 @@ export function createServer(
     //     next()
     //   }
     // })
-    //
-    // // serve static files under /public
-    // // this applies before the transform middleware so that these files are served
-    // // as-is without transforms.
-    // if (publicDir) {
-    //   middlewares.use(servePublicMiddleware(server, publicFiles))
-    // }
-    //
+
+    // serve static files under /public
+    // this applies before the transform middleware so that these files are served
+    // as-is without transforms.
+    if (publicDir) {
+      middlewares.use(servePublicMiddleware(server, publicFiles))
+    }
+
     if (config.experimental.bundledDev) {
       // TODO: implement memoryFilesMiddleware later
       // middlewares.use(memoryFilesMiddleware(server))
@@ -926,30 +936,43 @@ export function createServer(
       console.log('[SW] transformMiddleware applied', transformMiddleware)
 
       // serve static files
-      // TODO: implement later ...
-      // middlewares.use(serveRawFsMiddleware(server))
-      // middlewares.use(serveStaticMiddleware(server))
+      middlewares.use(serveRawFsMiddleware(server))
+      middlewares.use(serveStaticMiddleware(server))
     }
-    //
-    // // html fallback
-    // if (config.appType === 'spa' || config.appType === 'mpa') {
-    //   middlewares.use(
-    //     htmlFallbackMiddleware(
-    //       root,
-    //       config.appType === 'spa',
-    //       server.environments.client,
-    //     ),
-    //   )
-    // }
-
-    // apply configureServer post hooks ------------------------------------------
-
-    // TODO: setup for configureServer hooks
 
     // Register custom hono middlewares
     for (const middleware of customMiddlewares) {
       middlewares.use(middleware)
     }
+
+    // html fallback
+    if (config.appType === 'spa' || config.appType === 'mpa') {
+      middlewares.use(
+        htmlFallbackMiddleware(
+          root,
+          config.appType === 'spa',
+          server.environments.client,
+        ),
+      )
+    }
+
+    // apply configureServer post hooks ------------------------------------------
+
+    // This is applied before the html middleware so that user middleware can
+    // serve custom content instead of index.html.
+    postHooks.forEach((fn) => fn && fn())
+
+    if (config.appType === 'spa' || config.appType === 'mpa') {
+      // transform index.html
+      middlewares.use(indexHtmlMiddleware(root, server))
+
+      // handle 404s
+      middlewares.use(notFoundMiddleware())
+    }
+
+    // error handler
+    middlewares.onError(errorMiddleware(server, false))
+    // middlewares.use(errorMiddleware(server, !!middlewareMode))
 
     // httpServer.listen can be called multiple times
     // when port when using next port number

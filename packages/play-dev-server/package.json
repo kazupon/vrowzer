@@ -13,10 +13,12 @@
     "@vrowser/vite-dev-server": "workspace:*",
     "@vrowser/service-worker": "workspace:*",
     "@vrowser/fs": "workspace:*",
+    "@kazupon/jts-utils": "catalog:",
     "hono": "^4.7.10"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "pathe": "^2.0.3",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.8.1",
     "@vrowser/unplugin-service-worker": "workspace:*",

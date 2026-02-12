@@ -545,6 +545,9 @@ importers:
       oxc-parser:
         specifier: 0.111.0
         version: 0.111.0
+      parse5:
+        specifier: ^8.0.0
+        version: 8.0.0
       pathe:
         specifier: ^2.0.3
         version: 2.0.3

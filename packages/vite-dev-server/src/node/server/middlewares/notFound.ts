@@ -19,6 +19,7 @@ import type { ViteEnv } from '../index'
 
 export function notFoundMiddleware(): MiddlewareHandler<ViteEnv> {
   return async function vite404Middleware(c) {
+    console.log('[not-found] vite404Middleware called for:', c.req.url)
     return c.body(null, 404)
   }
 }

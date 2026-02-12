@@ -15,4 +15,15 @@ export interface JsonOptions {
   stringify?: boolean | 'auto'
 }
 
+// Custom json filter for vite
+const jsonExtRE = /\.json(?:$|\?)(?!commonjs-(?:proxy|external))/
+
+const jsonObjRE = /^\s*\{/
+
+const jsonLangs = `\\.(?:json|json5)(?:$|\\?)`
+const jsonLangRE = new RegExp(jsonLangs)
+export const isJSONRequest = (request: string): boolean =>
+  jsonLangRE.test(request)
+
+
 // TODO: fill in code ...

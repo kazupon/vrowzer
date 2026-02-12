@@ -14,7 +14,7 @@ const isServiceWorkerReady = ref(false)
 const isPreviewReady = ref(false)
 const error = ref<string | null>(null)
 
-const PREVIEW_URL = '/preview/index.html'
+const PREVIEW_URL = '/__preview__/'
 
 // Event handler references for cleanup
 let stateChangeHandler: ((info: StateChangeInfo) => void) | null = null
@@ -77,7 +77,7 @@ function loadIframe(code?: string) {
     if (serviceWorker) {
       const message: FileChangeMessage = {
         type: 'file-change',
-        path: '/__preview__/main.js',
+        path: '/main.js',
         content: code
       }
       console.log('[Preview] Sending initial code to Service Worker')
@@ -106,7 +106,7 @@ function sendCodeChange(code: string) {
 
   const message: FileChangeMessage = {
     type: 'file-change',
-    path: '/__preview__/main.js',
+    path: '/main.js',
     content: code
   }
 

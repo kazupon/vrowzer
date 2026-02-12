@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
-import { chdir, cwd, readFileSync, vol, watch } from '@vrowser/fs'
-import { createServer } from '@vrowser/vite-dev-server'
+import { fs, vol, watch } from '@vrowser/fs'
+import { createServer, getRequestPath } from '@vrowser/vite-dev-server'
 
 import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
 
@@ -14,20 +14,40 @@ vol.fromJSON({
   '/src/utils.ts': 'export function add(a, b) { return a + b }'
 })
 
-// Change working directory
-chdir('/src')
-console.log('cwd()', cwd()) // '/src'
+fs.mkdirSync('/public', { recursive: true })
+fs.writeFileSync('/public/.gitkeep', 'f', { encoding: 'utf8' })
+fs.writeFileSync(
+  '/index.html',
+  `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"><p>Loading...</p></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+  { encoding: 'utf8' }
+)
+console.log('[SW] Virtual file system initialized.', fs.readdirSync('/'), fs.existsSync('/public'))
 
-// Read file with relative path
-const content = readFileSync('./index.ts', 'utf8')
-console.log('/index.ts', content) // 'export const hello = "world"'
+// Change working directory
+// chdir('/src')
+// console.log('cwd()', cwd()) // '/src'
 
 const SW_VERSION = 'play-dev-server-v1'
 
 console.log('[SW] Service Worker loaded, version:', SW_VERSION)
-
-// Virtual file system
-const files = new Map<string, string>()
 
 // /**
 //  * Service Worker Install Event - Skip waiting to activate immediately
@@ -37,7 +57,7 @@ const files = new Map<string, string>()
 //   event.waitUntil(self.skipWaiting())
 // })
 
-const previewBase = '/__preview__'
+const previewBase = '/__preview__/'
 /**
  * Create Vite Dev Server on Service Worker
  */
@@ -76,31 +96,37 @@ const listenableServer = createServer(
 )
 
 listenableServer.middlewares.push(async (c, next) => {
-  console.log(`[custom:hello] for hello: ${c.req.url}`)
-  console.log(`[custom:hello] req:`, c.req)
-  if (c.req.path.endsWith('/hello')) {
+  const path = getRequestPath(c)
+  console.log('[SW] Received request for /hello', c.req.url, path)
+  if (path.endsWith('/hello')) {
     return c.text('Vite Dev Server on Service Worker says hello!')
-  } else {
-    await next()
   }
+  await next()
 })
 
-// Register middleware for virtual files
-// With basePath: '/__preview__', routes are automatically prefixed
-listenableServer.middlewares.push(async c => {
-  const path = c.req.path
-  console.log('[custom:last] Intercepting preview request:', path)
+// Serve files from @vrowser/fs (memfs).
+// Runs before htmlFallbackMiddleware, so getRequestPath returns the
+// base-stripped path (e.g. /main.js), not the SPA-fallback /index.html.
+// Skips .html files and directories — they are handled by
+// htmlFallbackMiddleware and indexHtmlMiddleware downstream.
+listenableServer.middlewares.push(async (c, next) => {
+  const path = getRequestPath(c)
 
-  if (files.has(path)) {
-    console.log('[custom:last] Serving virtual file:', path)
-    return c.body(files.get(path)!, 200, {
+  // Let indexHtmlMiddleware handle HTML; let htmlFallbackMiddleware handle dirs
+  if (path.endsWith('.html') || path.endsWith('/')) {
+    await next()
+    return
+  }
+
+  if (fs.existsSync(path) && fs.statSync(path).isFile()) {
+    const content = fs.readFileSync(path, 'utf8') as string
+    return c.body(content, 200, {
       'Content-Type': getContentType(path),
       'Cache-Control': 'no-cache'
     })
   }
 
-  console.log('[custom:last] File not found in virtual FS:', path)
-  return c.text('Not Found', 404)
+  await next()
 })
 
 // Register fetch event handler synchronously
@@ -134,9 +160,7 @@ self.addEventListener('message', event => {
 function handleFileChange(message: FileChangeMessage) {
   const { path, content } = message
   console.log('[SW] File changed:', path)
-
-  // Update virtual file system
-  files.set(path, content)
+  fs.writeFileSync(path, content, { encoding: 'utf8' })
 }
 
 /**
