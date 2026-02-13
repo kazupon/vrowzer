@@ -97,8 +97,6 @@ function setupVolume(vol: typeof import('@vrowser/fs').vol) {
     '/dist/client/client.mjs': client,
     '/dist/client/env.mjs': env
   })
-  console.log('client', client)
-  console.log('env', env)
 
   fs.mkdirSync('/public', { recursive: true })
   fs.writeFileSync('/public/.gitkeep', 'f', { encoding: 'utf8' })

@@ -73,7 +73,7 @@ export function transformMiddleware(
   const publicPath = `${publicDir.slice(root.length)}/`
 
   return async function viteTransformMiddleware(c, next) {
-    console.log('[transform] viteTransformMiddleware called for:', c.req.url)
+    console.log('[transform] viteTransformMiddleware called for:', c.req.url, getRequestPath(c))
 
     const environment = server.environments.client
 

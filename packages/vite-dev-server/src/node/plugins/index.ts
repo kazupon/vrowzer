@@ -13,6 +13,7 @@ import {
   createIdFilter,
 } from './pluginFilter'
 import { preAliasPlugin } from './preAlias'
+import { resolvePlugin } from './resolve'
 
 export async function resolvePlugins(
   config: ResolvedConfig,
@@ -58,7 +59,7 @@ export async function resolvePlugins(
     //     customResolver: viteAliasCustomResolver,
     //   }),
 
-    // ...prePlugins,
+    ...prePlugins,
 
     {
       name: 'vite:placeholder-plugin',
@@ -74,6 +75,18 @@ export async function resolvePlugins(
     // modulePreload !== false && modulePreload.polyfill
     //   ? modulePreloadPolyfillPlugin(config)
     //   : null,
+    ...[
+      resolvePlugin({
+        root: config.root,
+        isProduction: config.isProduction,
+        isBuild,
+        packageCache: config.packageCache,
+        asSrc: true,
+        optimizeDeps: true,
+        externalize: true,
+      }),
+    ],
+    // TODO(kazupon): implement oxcResolvePlugin later ...
     // ...(enableNativePlugin
     //   ? oxcResolvePlugin(
     //     {
@@ -110,7 +123,7 @@ export async function resolvePlugins(
     // webWorkerPlugin(config),
     // assetPlugin(config),
 
-    // ...normalPlugins,
+    ...normalPlugins,
 
     // wasmFallbackPlugin(config),
     // definePlugin(config),
@@ -122,9 +135,9 @@ export async function resolvePlugins(
     // dynamicImportVarsPlugin(config),
     // importGlobPlugin(config),
 
-    // ...postPlugins,
+    ...postPlugins,
 
-    // ...buildPlugins.post,
+    ...buildPlugins.post,
 
     // internal server-only plugins are always applied after everything else
     // ...(isBundled
