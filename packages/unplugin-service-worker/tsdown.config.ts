@@ -13,6 +13,7 @@ export default defineConfig({
     'src/rollup.ts',
     'src/rolldown.ts'
   ],
+  external: ['vite'],
   clean: true,
   publint: true,
   dts: true

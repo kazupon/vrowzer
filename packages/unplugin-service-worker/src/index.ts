@@ -15,6 +15,7 @@ import {
   SW_FILE_ID,
   SW_QUERY
 } from './core/constants.ts'
+import { injectEnvironmentToHooks } from './core/environment-hooks.ts'
 import { resolveOptions } from './core/options.ts'
 import { detectAndResolveServiceWorkers, needsTransform } from './transform/utils.ts'
 
@@ -31,6 +32,26 @@ import type { Compiler as WebpackCompiler } from 'webpack'
 import type { ServiceWorkerCache } from './core/cache.ts'
 import type { Options, OptionsResolved } from './core/options.ts'
 import type { ResolvedServiceWorker } from './transform/utils.ts'
+
+/**
+ * Service Worker bundler configuration extracted from parent bundler
+ */
+interface ServiceWorkerBundlerConfig {
+  define?: Record<string, string> | undefined
+  alias?: Record<string, string> | undefined
+  plugins?: import('rolldown').Plugin[] | undefined
+}
+
+/**
+ * Options for bundleServiceWorkerWithRolldown
+ */
+interface BundleServiceWorkerOptions {
+  minify?: boolean | undefined
+  sourcemap?: boolean | 'inline' | undefined
+  define?: Record<string, string> | undefined
+  alias?: Record<string, string> | undefined
+  plugins?: import('rolldown').Plugin[] | undefined
+}
 
 /**
  * Service Worker plugin context
@@ -60,6 +81,10 @@ interface PluginContext {
    * Webpack/Rspack: Service Workers detected during transform
    */
   pendingServiceWorkers: Map<string, ResolvedServiceWorker>
+  /**
+   * Bundler configuration extracted from parent bundler
+   */
+  bundlerConfig: ServiceWorkerBundlerConfig
 }
 
 /**
@@ -106,6 +131,101 @@ function generateContentHash(content: string): string {
     hash = hash & hash
   }
   return Math.abs(hash).toString(36).slice(0, 8)
+}
+
+/**
+ * Sanitize define values to ensure they are all strings
+ */
+function sanitizeDefine(
+  define: Record<string, unknown> | undefined
+): Record<string, string> | undefined {
+  if (!define) return undefined
+  return Object.fromEntries(
+    Object.entries(define).map(([key, value]) => [
+      key,
+      typeof value === 'string' ? value : JSON.stringify(value)
+    ])
+  )
+}
+
+/**
+ * Normalize alias configuration to Record<string, string>
+ * Handles both Vite's array format and object format
+ */
+function normalizeAlias(alias: unknown): Record<string, string> | undefined {
+  if (!alias) return undefined
+
+  if (Array.isArray(alias)) {
+    const result: Record<string, string> = {}
+    for (const item of alias) {
+      if (item && typeof item === 'object' && 'find' in item && 'replacement' in item) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- ignore
+        const find = typeof item.find === 'string' ? item.find : item.find.toString()
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- ignore
+        result[find] = item.replacement as string
+      }
+    }
+    return Object.keys(result).length > 0 ? result : undefined
+  }
+
+  if (typeof alias === 'object') {
+    return alias as Record<string, string>
+  }
+
+  return undefined
+}
+
+/**
+ * Filter plugins suitable for Service Worker bundling.
+ *
+ * Uses an allowlist approach for Vite/native internal plugins (prefixed with `vite:` or `native:`).
+ * Many Vite internal plugins depend on APIs not available in standalone rolldown
+ * (e.g., moduleGraph, viteMetadata, dev server state), so we only forward plugins
+ * known to work correctly with the environment injection adapter.
+ *
+ * Non-Vite plugins (user plugins, third-party plugins) are passed through by default.
+ */
+function filterServiceWorkerPlugins(
+  plugins: unknown[] | undefined
+): import('rolldown').Plugin[] | undefined {
+  if (!plugins || plugins.length === 0) return undefined
+
+  // Vite internal plugins known to work safely in standalone rolldown
+  // with environment injection. Based on Vite's own worker bundling pipeline.
+  const allowedVitePlugins = new Set([
+    'vite:asset', // handles ?raw, ?url, ?inline imports
+    'vite:define', // define replacements
+    'vite:json', // JSON imports
+    'native:json', // native JSON plugin variant
+    'vite:wasm-helper', // WASM support
+    'vite:wasm-fallback', // WASM fallback
+    'native:wasm-fallback' // native WASM fallback variant
+  ])
+
+  return plugins.filter(p => {
+    if (!p || typeof p !== 'object') return false
+    const name = (p as { name?: string }).name
+    if (!name) return true
+    // For Vite/native internal plugins, only allow known-safe ones
+    if (name.startsWith('vite:') || name.startsWith('native:')) {
+      return allowedVitePlugins.has(name)
+    }
+    // Exclude self to avoid recursion
+    if (name === 'unplugin-service-worker') return false
+    // Pass through all other plugins (user plugins, third-party plugins)
+    return true
+  }) as import('rolldown').Plugin[]
+}
+
+/**
+ * Merge user-provided plugins with plugins extracted from the parent bundler.
+ * User plugins take precedence (listed first).
+ */
+function resolveServiceWorkerPlugins(
+  userPlugins: import('rolldown').Plugin[] | undefined,
+  bundlerPlugins: import('rolldown').Plugin[] | undefined
+): import('rolldown').Plugin[] {
+  return [...(userPlugins ?? []), ...(bundlerPlugins ?? [])]
 }
 
 /**
@@ -167,15 +287,158 @@ function buildOutputFilename(
 }
 
 /**
+ * Regex matching Vite query parameters: ?raw, ?url, ?inline
+ */
+const VITE_QUERY_RE = /[?&](raw|url|inline)\b/
+const RAW_QUERY_RE = /[?&]raw\b/
+
+/**
+ * Remove all query parameters and hash from a URL/path
+ */
+function cleanUrl(url: string): string {
+  return url.replace(/[?#].*$/, '')
+}
+
+/**
+ * Create a built-in plugin for the SW bundler that handles Vite-specific
+ * query parameters (?raw, ?url, ?inline) in import specifiers.
+ *
+ * In Vite's normal pipeline, `vite:resolve` strips queries before resolution
+ * and `vite:asset` handles the loading. Since we don't forward `vite:resolve`
+ * (it depends heavily on Vite internals), this plugin provides equivalent
+ * functionality for the SW bundler context.
+ *
+ * This plugin is always included in `bundleServiceWorkerWithRolldown`,
+ * so it covers all parent bundlers (Vite, Rolldown, Rollup, esbuild, Farm).
+ * For webpack/rspack, SW bundling uses child compilers, not rolldown.
+ */
+function createViteQueryPlugin(): import('rolldown').Plugin {
+  return {
+    name: 'unplugin-service-worker:vite-query',
+    resolveId: {
+      filter: { id: VITE_QUERY_RE },
+      async handler(id, importer, options) {
+        // Strip Vite query parameters before resolution
+        const cleanId = cleanUrl(id)
+
+        // Try to resolve without the query
+        const resolved = await this.resolve(cleanId, importer, {
+          ...options,
+          skipSelf: true
+        })
+
+        if (resolved && !resolved.external) {
+          // Re-append the original query to the resolved path
+          const queryMatch = id.match(/(\?[^#]*)/)
+          const query = queryMatch ? queryMatch[1] : ''
+          return { id: resolved.id + query, external: false }
+        }
+
+        // If standard resolution fails (e.g. package exports don't include the subpath),
+        // try to find the package root and resolve the file directly.
+        // This handles monorepo packages whose exports don't cover all files.
+        if (!resolved && cleanId.includes('/')) {
+          const directPath = await resolvePackageFileDirect(cleanId, importer)
+          if (directPath) {
+            const queryMatch = id.match(/(\?[^#]*)/)
+            const query = queryMatch ? queryMatch[1] : ''
+            return { id: directPath + query, external: false }
+          }
+        }
+
+        return null
+      }
+    },
+    load: {
+      filter: { id: RAW_QUERY_RE },
+      async handler(id) {
+        // Handle ?raw imports: read the file and return as string export
+        const filePath = cleanUrl(id)
+        const fs = await import('node:fs/promises')
+        try {
+          const content = await fs.readFile(filePath, 'utf-8')
+          return {
+            code: `export default ${JSON.stringify(content)}`,
+            moduleType: 'js'
+          }
+        } catch {
+          return null
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Try to resolve a package subpath directly by finding the package root
+ * and looking for the file. This handles cases where package.json exports
+ * don't include the subpath but the file exists on disk.
+ */
+async function resolvePackageFileDirect(
+  id: string,
+  importer: string | undefined
+): Promise<string | null> {
+  const fs = await import('node:fs/promises')
+
+  // Parse package name from import specifier (handles @scope/pkg and pkg)
+  const parts = id.split('/')
+  const packageName = id.startsWith('@') && parts.length >= 2 ? `${parts[0]}/${parts[1]}` : parts[0]
+
+  if (!packageName) return null
+
+  // Get the subpath within the package
+  const packageNameParts = packageName.split('/').length
+  const subpath = parts.slice(packageNameParts).join('/')
+  if (!subpath) return null
+
+  // Find the package root by walking up from the importer
+  const startDir = importer ? path.dirname(importer) : process.cwd()
+  let currentDir = startDir
+
+  while (true) {
+    const nodeModulesDir = path.join(currentDir, 'node_modules', packageName)
+    try {
+      await fs.access(nodeModulesDir)
+      // Found the package, try to resolve the file
+      const extensions = ['.ts', '.mts', '.js', '.mjs', '.tsx', '.jsx', '']
+      for (const ext of extensions) {
+        const candidate = path.join(nodeModulesDir, subpath + ext)
+        try {
+          const stat = await fs.stat(candidate)
+          if (stat.isFile()) return candidate
+        } catch {
+          continue
+        }
+      }
+
+      // Also try src/ directory (common in monorepos with source access)
+      for (const ext of extensions) {
+        const candidate = path.join(nodeModulesDir, 'src', subpath + ext)
+        try {
+          const stat = await fs.stat(candidate)
+          if (stat.isFile()) return candidate
+        } catch {
+          continue
+        }
+      }
+    } catch {
+      // Package not found in this node_modules
+    }
+
+    const parentDir = path.dirname(currentDir)
+    if (parentDir === currentDir) break
+    currentDir = parentDir
+  }
+
+  return null
+}
+
+/**
  * Bundle Service Worker using rolldown
  */
 async function bundleServiceWorkerWithRolldown(
   entryPath: string,
-  options: {
-    minify?: boolean
-    sourcemap?: boolean | 'inline'
-    define?: Record<string, string>
-  } = {}
+  options: BundleServiceWorkerOptions = {}
 ): Promise<{ code: string } | null> {
   const { rolldown } = await import('rolldown')
 
@@ -186,12 +449,21 @@ async function bundleServiceWorkerWithRolldown(
     ...options.define
   }
 
+  // Always include the Vite query plugin for ?raw/?url/?inline support.
+  // This runs first so it can resolve queries before other plugins process them.
+  const allPlugins: import('rolldown').Plugin[] = [
+    createViteQueryPlugin(),
+    ...(options.plugins && options.plugins.length > 0 ? options.plugins : [])
+  ]
+
   const bundle = await rolldown({
     input: entryPath,
     platform: 'browser',
     resolve: {
-      conditionNames: ['browser', 'import', 'module', 'default']
+      conditionNames: ['browser', 'import', 'module', 'default'],
+      ...(options.alias && { alias: options.alias })
     },
+    plugins: allPlugins,
     transform: { define: mergedDefines }
   })
 
@@ -421,11 +693,36 @@ function setupWebpackLikeCompiler(
  * Create Vite configResolved hook handler
  */
 function createViteConfigResolved(ctx: PluginContext) {
-  return (config: unknown) => {
+  return async (config: unknown) => {
     const viteConfig = config as ViteResolvedConfig
     ctx.viteConfig = viteConfig
     ctx.isBuild = viteConfig.command === 'build'
     ctx.isTest = viteConfig.mode === 'test'
+
+    // Extract and adapt Vite plugins for Service Worker bundling.
+    // Vite plugins expect `this.environment` in hook contexts, which is not available
+    // in standalone rolldown. We create a BuildEnvironment and wrap all plugin hooks
+    // with environment injection so they work correctly inside the SW bundler.
+    const workerPlugins = filterServiceWorkerPlugins(viteConfig.plugins as unknown[])
+
+    let adaptedPlugins: import('rolldown').Plugin[] | undefined
+    if (workerPlugins && workerPlugins.length > 0) {
+      try {
+        const { BuildEnvironment } = await import('vite')
+        const swEnvironment = new BuildEnvironment('client', viteConfig)
+        await swEnvironment.init()
+        adaptedPlugins = workerPlugins.map(p => injectEnvironmentToHooks(swEnvironment, p))
+      } catch {
+        // If BuildEnvironment is not available (older Vite), fall back to no plugins
+        adaptedPlugins = undefined
+      }
+    }
+
+    ctx.bundlerConfig = {
+      define: sanitizeDefine(viteConfig.define),
+      alias: normalizeAlias(viteConfig.resolve?.alias),
+      plugins: adaptedPlugins
+    }
   }
 }
 
@@ -504,21 +801,14 @@ function createViteConfigureServer(ctx: PluginContext, options: OptionsResolved)
 
       try {
         // Bundle the Service Worker with rolldown
-        // Pass Vite's define config for import.meta and other globals
-        // Sanitize define values to ensure they are all strings (rolldown requirement)
-        const rawDefine = ctx.viteConfig?.define as Record<string, unknown> | undefined
-        const define = rawDefine
-          ? Object.fromEntries(
-              Object.entries(rawDefine).map(([key, value]) => [
-                key,
-                typeof value === 'string' ? value : JSON.stringify(value)
-              ])
-            )
-          : undefined
+        // Pass bundler config extracted from Vite (define, alias, plugins)
         const result = await bundleServiceWorkerWithRolldown(filePath, {
           minify: false,
           sourcemap: 'inline',
-          define
+          define: ctx.bundlerConfig.define,
+          alias: ctx.bundlerConfig.alias,
+
+          plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
         })
 
         if (!result) {
@@ -548,7 +838,11 @@ function createViteConfigureServer(ctx: PluginContext, options: OptionsResolved)
 /**
  * Create Vite renderChunk hook handler
  */
-function createViteRenderChunk(ctx: PluginContext, cache: ServiceWorkerCache) {
+function createViteRenderChunk(
+  ctx: PluginContext,
+  cache: ServiceWorkerCache,
+  options: OptionsResolved
+) {
   return {
     order: 'post' as const,
     async handler(code: string, _chunk: unknown) {
@@ -572,9 +866,14 @@ function createViteRenderChunk(ctx: PluginContext, cache: ServiceWorkerCache) {
         }
 
         // Bundle Service Worker with rolldown
+        // Pass bundler config extracted from Vite (define, alias, plugins)
         const result = await bundleServiceWorkerWithRolldown(swPath, {
           minify: ctx.viteConfig.build.minify !== false,
-          sourcemap: ctx.viteConfig.build.sourcemap ? 'inline' : false
+          sourcemap: ctx.viteConfig.build.sourcemap ? 'inline' : false,
+          define: ctx.bundlerConfig.define,
+          alias: ctx.bundlerConfig.alias,
+
+          plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
         })
 
         if (result) {
@@ -627,7 +926,11 @@ function createViteRenderChunk(ctx: PluginContext, cache: ServiceWorkerCache) {
 /**
  * Create Vite generateBundle hook handler
  */
-function createViteGenerateBundle(ctx: PluginContext, cache: ServiceWorkerCache) {
+function createViteGenerateBundle(
+  ctx: PluginContext,
+  cache: ServiceWorkerCache,
+  options: OptionsResolved
+) {
   return async function (
     this: {
       emitFile: (file: { type: 'asset'; fileName: string; source: string | Uint8Array }) => string
@@ -649,9 +952,14 @@ function createViteGenerateBundle(ctx: PluginContext, cache: ServiceWorkerCache)
       }
 
       // Bundle Service Worker with rolldown
+      // Pass bundler config extracted from Vite (define, alias, plugins)
       const result = await bundleServiceWorkerWithRolldown(swPath, {
         minify: ctx.viteConfig.build.minify !== false,
-        sourcemap: ctx.viteConfig.build.sourcemap ? 'inline' : false
+        sourcemap: ctx.viteConfig.build.sourcemap ? 'inline' : false,
+        define: ctx.bundlerConfig.define,
+        alias: ctx.bundlerConfig.alias,
+
+        plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
       })
 
       if (result) {
@@ -718,9 +1026,15 @@ function createViteGenerateBundle(ctx: PluginContext, cache: ServiceWorkerCache)
 /**
  * Setup esbuild hooks for Service Worker bundling
  */
-function setupEsbuildHooks(build: EsbuildPluginBuild): void {
+function setupEsbuildHooks(build: EsbuildPluginBuild, options: OptionsResolved): void {
   const pendingServiceWorkers = new Map<string, ResolvedServiceWorker>()
   const processedFiles = new Map<string, string>() // swPath -> outputFileName
+
+  // Extract bundler config from esbuild
+  const bundlerConfig: ServiceWorkerBundlerConfig = {
+    define: sanitizeDefine(build.initialOptions.define),
+    alias: normalizeAlias(build.initialOptions.alias)
+  }
 
   // Transform files to detect Service Worker references
   build.onLoad({ filter: /\.[cm]?[jt]sx?$/ }, async args => {
@@ -787,9 +1101,14 @@ function setupEsbuildHooks(build: EsbuildPluginBuild): void {
             : sourcemapOption
 
       // Bundle Service Worker
+      // Pass bundler config extracted from esbuild (define, alias) and user plugins
       const bundleResult = await bundleServiceWorkerWithRolldown(swPath, {
         minify: build.initialOptions.minify ?? false,
-        sourcemap: normalizedSourcemap ?? false
+        sourcemap: normalizedSourcemap ?? false,
+        define: bundlerConfig.define,
+        alias: bundlerConfig.alias,
+
+        plugins: resolveServiceWorkerPlugins(options.plugins, bundlerConfig.plugins)
       })
 
       if (!bundleResult) {
@@ -876,7 +1195,12 @@ function setupEsbuildHooks(build: EsbuildPluginBuild): void {
 /**
  * Create Farm finish hook executor
  */
-function createFarmFinishExecutor(ctx: PluginContext, cache: ServiceWorkerCache, isFarm: boolean) {
+function createFarmFinishExecutor(
+  ctx: PluginContext,
+  cache: ServiceWorkerCache,
+  isFarm: boolean,
+  options: OptionsResolved
+) {
   return async function () {
     if (!isFarm || !ctx.isBuild) {
       return
@@ -932,9 +1256,14 @@ function createFarmFinishExecutor(ctx: PluginContext, cache: ServiceWorkerCache,
       }
 
       // Bundle Service Worker with rolldown
+      // Pass bundler config extracted from Farm (define, alias) and user plugins
       const result = await bundleServiceWorkerWithRolldown(swPath, {
         minify: false,
-        sourcemap: false
+        sourcemap: false,
+        define: ctx.bundlerConfig.define,
+        alias: ctx.bundlerConfig.alias,
+
+        plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
       })
 
       if (result) {
@@ -1000,7 +1329,8 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
       isTest: false,
       cache,
       rollupReferenceIds: new Map(),
-      pendingServiceWorkers: new Map()
+      pendingServiceWorkers: new Map(),
+      bundlerConfig: {}
     }
 
     const name = 'unplugin-service-worker'
@@ -1104,6 +1434,12 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
 
       // Rollup-specific hooks
       rollup: {
+        options(inputOptions) {
+          // Extract bundler config from Rollup
+          ctx.bundlerConfig = {
+            plugins: filterServiceWorkerPlugins(inputOptions.plugins as unknown[])
+          }
+        },
         transform: {
           filter: {
             id: options.include,
@@ -1118,6 +1454,16 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
       // Rolldown-specific hooks
       // NOTE: Avoiding `satisfies` to prevent type conflicts between rolldown versions
       rolldown: {
+        options(inputOptions) {
+          // Extract bundler config from Rolldown
+          ctx.bundlerConfig = {
+            define: sanitizeDefine(
+              (inputOptions.transform as { define?: Record<string, unknown> } | undefined)?.define
+            ),
+            alias: normalizeAlias((inputOptions.resolve as { alias?: unknown } | undefined)?.alias),
+            plugins: filterServiceWorkerPlugins(inputOptions.plugins as unknown[])
+          }
+        },
         transform: {
           filter: {
             id: options.include,
@@ -1134,8 +1480,8 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
       vite: {
         configResolved: createViteConfigResolved(ctx),
         configureServer: createViteConfigureServer(ctx, options),
-        renderChunk: createViteRenderChunk(ctx, cache),
-        generateBundle: createViteGenerateBundle(ctx, cache)
+        renderChunk: createViteRenderChunk(ctx, cache, options),
+        generateBundle: createViteGenerateBundle(ctx, cache, options)
       },
 
       // Webpack-specific hook
@@ -1151,14 +1497,25 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
       // esbuild-specific hooks
       esbuild: {
         setup(build) {
-          setupEsbuildHooks(build)
+          setupEsbuildHooks(build, options)
         }
       },
 
       // Farm-specific hooks
       farm: {
+        configResolved(config) {
+          // Extract bundler config from Farm
+          ctx.bundlerConfig = {
+            define: sanitizeDefine(
+              (config.compilation as { define?: Record<string, unknown> } | undefined)?.define
+            ),
+            alias: normalizeAlias(
+              (config.compilation as { resolve?: { alias?: unknown } } | undefined)?.resolve?.alias
+            )
+          }
+        },
         finish: {
-          executor: createFarmFinishExecutor(ctx, cache, isFarm)
+          executor: createFarmFinishExecutor(ctx, cache, isFarm, options)
         }
       }
     }
@@ -1168,3 +1525,8 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
 // Re-export for convenience
 export { type ServiceWorkerCache } from './core/cache.ts'
 export { type Options } from './core/options.ts'
+
+/**
+ * @internal Exported for testing purposes only.
+ */
+export { createViteQueryPlugin, filterServiceWorkerPlugins, resolveServiceWorkerPlugins }

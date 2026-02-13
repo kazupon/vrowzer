@@ -1,5 +1,5 @@
-import path from 'node:path'
 import MagicString from 'magic-string'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   detectAndResolveServiceWorkers,

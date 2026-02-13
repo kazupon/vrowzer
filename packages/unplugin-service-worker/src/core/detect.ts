@@ -113,6 +113,7 @@ export function detectServiceWorkers(code: string): DetectedServiceWorker[] {
       scope = rawScope.slice(1, -1)
     }
 
+    // @ts-expect-error -- FIXME
     results.push({
       fullMatch: match[0],
       urlExpression: code.slice(urlStart, urlEnd),

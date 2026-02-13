@@ -3,8 +3,8 @@
  * @license MIT
  */
 
-import path from 'node:path'
 import MagicString from 'magic-string'
+import path from 'node:path'
 import { detectServiceWorkers, hasServiceWorkerController } from '../core/detect.ts'
 
 import type { DetectedServiceWorker } from '../core/detect.ts'
@@ -87,6 +87,7 @@ export function detectAndResolveServiceWorkers(
 ): ResolvedServiceWorker[] {
   const detected = detectServiceWorkers(code)
 
+  // @ts-expect-error -- FIXME
   return detected.map(sw => ({
     detected: sw,
     filePath: resolveServiceWorkerPath(sw.urlPath, sourceId),

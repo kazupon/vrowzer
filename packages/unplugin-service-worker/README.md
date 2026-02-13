@@ -269,7 +269,11 @@ ServiceWorker({
 
   // Set Service-Worker-Allowed header in Vite dev server
   // Default: undefined
-  serviceWorkerAllowed: '/'
+  serviceWorkerAllowed: '/',
+
+  // Additional rolldown plugins for the Service Worker bundler
+  // Default: undefined
+  plugins: [myRolldownPlugin()]
 })
 ```
 
@@ -279,6 +283,30 @@ ServiceWorker({
 | `exclude`              | `FilterPattern`                | `[/node_modules/]`                           | Files to exclude from processing                                                                                                                                                |
 | `enforce`              | `'pre' \| 'post' \| undefined` | `'pre'`                                      | Plugin enforcement phase                                                                                                                                                        |
 | `serviceWorkerAllowed` | `string \| undefined`          | `undefined`                                  | Set `Service-Worker-Allowed` header in Vite dev server. Allows registering a Service Worker with a scope broader than the script location. Only takes effect during `vite dev`. |
+| `plugins`              | `Plugin[] \| undefined`        | `undefined`                                  | Additional rolldown plugins for the Service Worker bundler. Merged with plugins from the parent bundler.                                                                        |
+
+### Plugin Support in Service Worker Bundling
+
+The Service Worker bundler can use plugins from the parent bundler:
+
+| Parent Bundler | Plugin Forwarding | Notes                                            |
+| -------------- | ----------------- | ------------------------------------------------ |
+| Vite           | Automatic         | Plugins adapted via environment injection        |
+| Rolldown       | Automatic         | Plugins forwarded directly (filtered)            |
+| Rollup         | Automatic         | Plugins forwarded directly (filtered)            |
+| webpack        | Automatic         | Child compiler inherits parent plugins           |
+| rspack         | Automatic         | Child compiler inherits parent plugins           |
+| esbuild        | Manual            | Use `plugins` option to provide rolldown plugins |
+| Farm           | Manual            | Use `plugins` option to provide rolldown plugins |
+
+For esbuild and Farm, the parent bundler's plugin API is incompatible with
+rolldown. Use the `plugins` option to provide rolldown-compatible plugins:
+
+```ts
+ServiceWorker({
+  plugins: [myRolldownPlugin()]
+})
+```
 
 ## 🤝 Sponsors
 

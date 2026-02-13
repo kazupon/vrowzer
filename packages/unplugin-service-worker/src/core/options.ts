@@ -37,14 +37,25 @@ export interface Options {
    *
    * @example '/' - allows the SW to control the entire origin
    */
-  serviceWorkerAllowed?: string
+  serviceWorkerAllowed?: string | undefined
+  /**
+   * Additional rolldown plugins for the Service Worker bundler.
+   * These are merged with plugins extracted from the parent bundler.
+   *
+   * For Vite/Rolldown/Rollup: parent bundler plugins are automatically forwarded.
+   * For esbuild/Farm: parent plugins cannot be forwarded (different API),
+   * so use this option to provide rolldown-compatible plugins manually.
+   *
+   * @default undefined
+   */
+  plugins?: import('rolldown').Plugin[] | undefined
 }
 
 type Overwrite<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U
 
 export type OptionsResolved = Overwrite<
   Required<Options>,
-  Pick<Options, 'enforce' | 'serviceWorkerAllowed'>
+  Pick<Options, 'enforce' | 'serviceWorkerAllowed' | 'plugins'>
 >
 
 export function resolveOptions(options: Options): OptionsResolved {
@@ -53,6 +64,7 @@ export function resolveOptions(options: Options): OptionsResolved {
     include: options.include || [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/],
     exclude: options.exclude || [/node_modules/],
     enforce: 'enforce' in options ? options.enforce : 'pre',
-    serviceWorkerAllowed: options.serviceWorkerAllowed
+    serviceWorkerAllowed: options.serviceWorkerAllowed,
+    plugins: options.plugins
   }
 }
