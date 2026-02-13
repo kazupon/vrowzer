@@ -442,6 +442,45 @@ export function resolveBuildEnvironmentOptions(
   return resolved
 }
 
+export async function resolveBuildPlugins(config: ResolvedConfig): Promise<{
+  pre: Plugin[]
+  post: Plugin[]
+}> {
+  const isBuild = config.command === 'build'
+  return {
+    pre: [
+      // TODO(kazupon): implement later ...
+      // ...(isBuild && !config.isWorker ? [prepareOutDirPlugin()] : []),
+      // perEnvironmentPlugin(
+      //   'vite:rollup-options-plugins',
+      //   async (environment) =>
+      //     (
+      //       await asyncFlatten(
+      //         arraify(environment.config.build.rollupOptions.plugins),
+      //       )
+      //     ).filter(Boolean) as Plugin[],
+      // ),
+      // ...(config.isWorker ? [webWorkerPostPlugin(config)] : []),
+    ],
+    post: [
+      // TODO(kazupon): implement later ...
+      // ...(isBuild ? buildImportAnalysisPlugin(config) : []),
+      // ...(config.nativePluginEnabledLevel >= 1 ? [] : [buildOxcPlugin()]),
+      // ...(config.build.minify === 'esbuild' ? [buildEsbuildPlugin()] : []),
+      // ...(isBuild ? [terserPlugin(config)] : []),
+      // ...(isBuild && !config.isWorker
+      //   ? [
+      //     licensePlugin(),
+      //     manifestPlugin(config),
+      //     ssrManifestPlugin(),
+      //     buildReporterPlugin(config),
+      //   ]
+      //   : []),
+      // nativeLoadFallbackPlugin(),
+    ],
+  }
+}
+
 // TODO: fill in later
 
 export type RenderBuiltAssetUrl = (

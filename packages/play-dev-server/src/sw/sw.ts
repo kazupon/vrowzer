@@ -29,6 +29,10 @@ const listenableServer = createServer(
     server: { middlewareMode: false },
     base: previewBase,
     publicDir: 'public',
+    // NOTE(kazupon): disable optimizeDeps for sw dev server, because vite optimizer is not working well on service worker environment.
+    optimizeDeps: {
+      disabled: true
+    },
     experimental: {
       importGlobRestoreExtension: false,
       renderBuiltUrl: () => undefined,

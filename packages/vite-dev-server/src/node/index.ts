@@ -9,6 +9,11 @@ export {
   sortUserPlugins
 } from './config'
 
+export type {
+  DevEnvironment,
+  DevEnvironmentContext
+} from './server/environment'
+
 // additional types
 export type {
   AppType,
@@ -23,6 +28,10 @@ export type {
   UserConfigFnPromise
 } from './config'
 
+export type {
+  DepOptimizationConfig, DepOptimizationMetadata,
+  DepOptimizationOptions, ExportsData, OptimizedDepInfo
+} from './optimizer'
 export type {
   PreviewOptions,
   PreviewServer,
@@ -58,3 +67,15 @@ export type {
   TransformResult
 } from './server/transformRequest'
 
+
+// dep types
+export type {
+  Alias, AliasOptions,
+  MapToFunction,
+  ResolverFunction,
+  ResolverObject
+} from '#dep-types/alias'
+export type { Hono } from 'hono'
+
+// Backward compatibility
+export type { ModuleGraph, ModuleNode } from './server/mixedModuleGraph'

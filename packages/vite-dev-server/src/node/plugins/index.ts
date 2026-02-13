@@ -1,4 +1,5 @@
 import type { ResolverFunction } from '@rollup/plugin-alias'
+import aliasPlugin from '@rollup/plugin-alias'
 import type { ObjectHook } from 'rolldown'
 import type { PluginHookUtils, ResolvedConfig } from '../config'
 import type {
@@ -11,6 +12,7 @@ import {
   createFilterForTransform,
   createIdFilter,
 } from './pluginFilter'
+import { preAliasPlugin } from './preAlias'
 
 export async function resolvePlugins(
   config: ResolvedConfig,
@@ -18,17 +20,121 @@ export async function resolvePlugins(
   normalPlugins: Plugin[],
   postPlugins: Plugin[],
 ): Promise<Plugin[]> {
+  const isBuild = config.command === 'build'
+  const isBundled = config.isBundled
+  const isWorker = config.isWorker
+  const buildPlugins = isBundled
+    ? await (await import('../build')).resolveBuildPlugins(config)
+    : { pre: [], post: [] }
+  const { modulePreload } = config.build
+  const enableNativePlugin = config.nativePluginEnabledLevel >= 0
+  const enableNativePluginV1 = config.nativePluginEnabledLevel >= 1
+
   // TODO(kazupon): fill in later ...
-  return [{
-    name: 'vite:placeholder-plugin',
-    transform(code: string, id: string) {
-      console.log(`[placeholder-plugin] transforming ${id}`, code)
-      return {
-        code,
-        map: null,
+  return [
+    // !isBundled ? optimizedDepsPlugin() : null,
+    // !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
+    !isBundled ? preAliasPlugin(config) : null,
+    aliasPlugin({
+      // @ts-expect-error aliasPlugin receives rollup types
+      entries: config.resolve.alias,
+      customResolver: viteAliasCustomResolver,
+    }),
+    // NOTE(kazupon): commented out, we need to implement native plugin system later.
+    // isBundled &&
+    //   enableNativePluginV1 &&
+    //   !config.resolve.alias.some((v) => v.customResolver)
+    //   ? nativeAliasPlugin({
+    //     entries: config.resolve.alias.map((item) => {
+    //       return {
+    //         find: item.find,
+    //         replacement: item.replacement,
+    //       }
+    //     }),
+    //   })
+    //   : aliasPlugin({
+    //     // @ts-expect-error aliasPlugin receives rollup types
+    //     entries: config.resolve.alias,
+    //     customResolver: viteAliasCustomResolver,
+    //   }),
+
+    // ...prePlugins,
+
+    {
+      name: 'vite:placeholder-plugin',
+      transform(code: string, id: string) {
+        console.log(`[placeholder-plugin] transforming ${id}`, code)
+        return {
+          code,
+          map: null,
+        }
       }
-    }
-  }]
+    },
+
+    // modulePreload !== false && modulePreload.polyfill
+    //   ? modulePreloadPolyfillPlugin(config)
+    //   : null,
+    // ...(enableNativePlugin
+    //   ? oxcResolvePlugin(
+    //     {
+    //       root: config.root,
+    //       isProduction: config.isProduction,
+    //       isBuild,
+    //       packageCache: config.packageCache,
+    //       asSrc: true,
+    //       optimizeDeps: true,
+    //       externalize: true,
+    //       legacyInconsistentCjsInterop: config.legacy?.inconsistentCjsInterop,
+    //     },
+    //     isWorker
+    //       ? { ...config, consumer: 'client', optimizeDepsPluginNames: [] }
+    //       : undefined,
+    //   )
+    //   : [
+    //     resolvePlugin({
+    //       root: config.root,
+    //       isProduction: config.isProduction,
+    //       isBuild,
+    //       packageCache: config.packageCache,
+    //       asSrc: true,
+    //       optimizeDeps: true,
+    //       externalize: true,
+    //     }),
+    //   ]),
+    // htmlInlineProxyPlugin(config),
+    // cssPlugin(config),
+    // esbuildBannerFooterCompatPlugin(config),
+    // config.oxc !== false ? oxcPlugin(config) : null,
+    // jsonPlugin(config.json, isBuild, enableNativePluginV1),
+    // wasmHelperPlugin(config),
+    // webWorkerPlugin(config),
+    // assetPlugin(config),
+
+    // ...normalPlugins,
+
+    // wasmFallbackPlugin(config),
+    // definePlugin(config),
+    // cssPostPlugin(config),
+    // isBundled && buildHtmlPlugin(config),
+    // workerImportMetaUrlPlugin(config),
+    // assetImportMetaUrlPlugin(config),
+    // ...buildPlugins.pre,
+    // dynamicImportVarsPlugin(config),
+    // importGlobPlugin(config),
+
+    // ...postPlugins,
+
+    // ...buildPlugins.post,
+
+    // internal server-only plugins are always applied after everything else
+    // ...(isBundled
+    //   ? []
+    //   : [
+    //     clientInjectionsPlugin(config),
+    //     cssAnalysisPlugin(config),
+    //     importAnalysisPlugin(config),
+    //   ]),
+  ].filter(Boolean) as Plugin[]
 }
 
 export function createPluginHookUtils(
