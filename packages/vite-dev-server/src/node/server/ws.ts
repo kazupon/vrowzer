@@ -267,6 +267,7 @@ export function createMessageChannelServer(
 
     // Set up message handler using safeMessagePort's on method
     safePort.on('message', (msgEvent: MessageEvent) => {
+      console.debug('[vrowser] HMR server Received message:', msgEvent.data)
       const data = msgEvent.data as HotPayload
 
       // Ignore ping messages (used for keep-alive)

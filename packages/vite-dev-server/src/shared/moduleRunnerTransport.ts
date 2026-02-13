@@ -266,17 +266,15 @@ const WS_CONNECT_EVENT = 'vite:ws:connect'
 const WS_DISCONNECT_EVENT = 'vite:ws:disconnect'
 
 export const createMessageChannelModuleRunnerTransport = (
-  postMessage: Window['postMessage'],
+  postMessage: ServiceWorker['postMessage'],
   options: {
     pingInterval?: number
     timeout?: number
-    targetOrigin?: string
   } = {}
 ): Required<
   Pick<ModuleRunnerTransport, 'connect' | 'disconnect' | 'send'>
 > => {
   const pingInterval = options.pingInterval ?? 30000
-  const targetOrigin = options.targetOrigin ?? '*'
   const timeout = options.timeout ?? 10000
 
   let sourcePort: ReturnType<typeof safeMessagePort> | undefined
@@ -291,7 +289,6 @@ export const createMessageChannelModuleRunnerTransport = (
       // Transfer `port2` to host via `postMessage`
       postMessage(
         { type: MC_INIT_EVENT },
-        targetOrigin,
         [channel.port2]
       )
 

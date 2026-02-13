@@ -74,7 +74,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('creates MessageChannel and transfers port2 via postMessage', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })
@@ -91,7 +90,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
 
       expect(mockPostMessage).toHaveBeenCalledWith(
         { type: 'vite:mc:init' },
-        '*',
         [mockPort2]
       )
     })
@@ -99,7 +97,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('waits for connect confirmation message and resolves', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 500,
         pingInterval: 0,
       })
@@ -124,7 +121,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('rejects on timeout', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 50,
         pingInterval: 0,
       })
@@ -141,7 +137,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       const mockPostMessage = vi.fn()
       const onMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })
@@ -166,7 +161,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       const onMessage = vi.fn()
       const onDisconnection = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })
@@ -195,7 +189,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       const mockPostMessage = vi.fn()
       const onMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })
@@ -216,36 +209,12 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       )
     })
 
-    it('uses custom targetOrigin when provided', async () => {
-      const mockPostMessage = vi.fn()
-      const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
-        timeout: 100,
-        targetOrigin: 'https://example.com',
-        pingInterval: 0,
-      })
-
-      const connectPromise = transport.connect({
-        onMessage: vi.fn(),
-        onDisconnection: vi.fn(),
-      })
-
-      simulateMessage({ type: 'vite:mc:init' })
-      await connectPromise
-
-      expect(mockPostMessage).toHaveBeenCalledWith(
-        { type: 'vite:mc:init' },
-        'https://example.com',
-        [mockPort2]
-      )
-    })
   })
 
   describe('disconnect()', () => {
     it('closes the port', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })
@@ -267,7 +236,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       vi.useFakeTimers()
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 1000,
       })
@@ -300,7 +268,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('posts message to the port', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })
@@ -322,7 +289,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     it('does nothing if port is undefined (before connect)', () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })
@@ -339,7 +305,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       vi.useFakeTimers()
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 1000,
       })
@@ -368,7 +333,6 @@ describe('createMessageChannelModuleRunnerTransport', () => {
       vi.useFakeTimers()
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
-
         timeout: 100,
         pingInterval: 0,
       })

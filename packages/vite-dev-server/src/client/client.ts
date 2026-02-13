@@ -37,17 +37,17 @@ const __HMR_HOSTNAME__: string | null = null
 const __HMR_PORT__: number | null = null
 const __HMR_DIRECT_TARGET__: string = ''
 const __HMR_BASE__: string = ''
-const __HMR_TIMEOUT__: number = 0
+const __HMR_TIMEOUT__: number = 1000
 const __HMR_ENABLE_OVERLAY__: boolean = false
 const __WS_TOKEN__: string = ''
 const __BUNDLED_DEV__: boolean = false
 
 
-console.debug('[vrowser] connecting...')
 // NOTE(kazupon): for console debug for vite
 // console.debug('[vite] connecting...')
 
 const importMetaUrl = new URL(import.meta.url)
+console.debug('[vrowser] connecting... ', importMetaUrl.href)
 
 // use server configuration, then fallback to inference
 const serverHost = __SERVER_HOST__
@@ -64,14 +64,18 @@ const isBundleMode = __BUNDLED_DEV__
 
 const transport = normalizeModuleRunnerTransport(
   (() => {
-    let wsTransport = createMessageChannelModuleRunnerTransport(window.parent.postMessage, {
+    if (navigator.serviceWorker.controller == null) {
+      throw new Error('No active Service Worker controller found for HMR transport')
+    }
+
+    let transport = createMessageChannelModuleRunnerTransport(navigator.serviceWorker.controller.postMessage.bind(navigator.serviceWorker.controller), {
       pingInterval: hmrTimeout,
     })
 
     return {
       async connect(handlers) {
         try {
-          await wsTransport.connect(handlers)
+          await transport.connect(handlers)
         } catch (e) {
           const currentScriptHostURL = new URL(import.meta.url)
           const currentScriptHost =
@@ -86,10 +90,10 @@ const transport = normalizeModuleRunnerTransport(
         }
       },
       async disconnect() {
-        await wsTransport.disconnect()
+        await transport.disconnect()
       },
       send(data) {
-        wsTransport.send(data)
+        transport.send(data)
       },
     }
   })(),
