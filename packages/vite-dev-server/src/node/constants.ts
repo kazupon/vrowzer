@@ -1,12 +1,12 @@
-// TODO: fill in code later ...
-
 import path from 'node:path'
+import pkg from '../../package.json' with { type: 'json' }
 import type { RollupPluginHooks } from './typeUtils'
 
+const version = pkg.version
+// NOTE(kazupon): resolve version from package.json of `@vrowser/vite-dev-server`
 // const { version } = JSON.parse(
 //   readFileSync(new URL('../../package.json', import.meta.url)).toString(),
 // )
-const version = '0.0.0-dev'
 
 export const ROLLUP_HOOKS: RollupPluginHooks[] = [
   'options',
@@ -122,8 +122,9 @@ export const FS_PREFIX = `/@fs/`
 export const CLIENT_PUBLIC_PATH = `/@vite/client`
 export const ENV_PUBLIC_PATH = `/@vite/env`
 
-export const CLIENT_ENTRY: string = 'dist/client/client.mjs'
-export const ENV_ENTRY: string = 'dist/client/env.mjs'
+export const VITE_PACKAGE_DIR: string = './'
+export const CLIENT_ENTRY: string = path.resolve(VITE_PACKAGE_DIR, 'dist/client/client.mjs')
+export const ENV_ENTRY: string = path.resolve(VITE_PACKAGE_DIR, 'dist/client/env.mjs')
 export const CLIENT_DIR: string = path.dirname(CLIENT_ENTRY)
 // NOTE(kazupon): we need to resolve path for browser
 // export const VITE_PACKAGE_DIR: string = resolve(

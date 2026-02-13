@@ -2,65 +2,26 @@
 
 import { fs, vol, watch } from '@vrowser/fs'
 import { createServer, getRequestPath } from '@vrowser/vite-dev-server'
+import client from '@vrowser/vite-dev-server/dist/client/client.mjs?raw'
+import env from '@vrowser/vite-dev-server/dist/client/env.mjs?raw'
 
 import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
 
 declare const self: ServiceWorkerGlobalScope
 
-console.log('[SW] Initializing virtual file system...', vol)
-// Initialize filesystem from JSON
-vol.fromJSON({
-  '/src/index.ts': 'export const hello = "world"',
-  '/src/utils.ts': 'export function add(a, b) { return a + b }'
-})
-
-fs.mkdirSync('/public', { recursive: true })
-fs.writeFileSync('/public/.gitkeep', 'f', { encoding: 'utf8' })
-fs.writeFileSync(
-  '/index.html',
-  `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Preview</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        padding: 20px;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="app"><p>Loading...</p></div>
-    <script type="module" src="/main.js"></script>
-  </body>
-</html>`,
-  { encoding: 'utf8' }
-)
-console.log('[SW] Virtual file system initialized.', fs.readdirSync('/'), fs.existsSync('/public'))
-
-// Change working directory
-// chdir('/src')
-// console.log('cwd()', cwd()) // '/src'
-
 const SW_VERSION = 'play-dev-server-v1'
-
 console.log('[SW] Service Worker loaded, version:', SW_VERSION)
 
-// /**
-//  * Service Worker Install Event - Skip waiting to activate immediately
-//  */
+setupVolume(vol)
+
 // self.addEventListener('install', event => {
 //   console.log('[SW] Installing...')
 //   event.waitUntil(self.skipWaiting())
 // })
 
 const previewBase = '/__preview__/'
-/**
- * Create Vite Dev Server on Service Worker
- */
+
+// Create Vite Dev Server on Service Worker
 const listenableServer = createServer(
   self,
   {
@@ -104,33 +65,72 @@ listenableServer.middlewares.push(async (c, next) => {
   await next()
 })
 
-// Serve files from @vrowser/fs (memfs).
-// Runs before htmlFallbackMiddleware, so getRequestPath returns the
-// base-stripped path (e.g. /main.js), not the SPA-fallback /index.html.
-// Skips .html files and directories — they are handled by
-// htmlFallbackMiddleware and indexHtmlMiddleware downstream.
 listenableServer.middlewares.push(async (c, next) => {
   const path = getRequestPath(c)
+  console.log('[SW] Received request for /fs', c.req.url, path)
 
   // Let indexHtmlMiddleware handle HTML; let htmlFallbackMiddleware handle dirs
-  if (path.endsWith('.html') || path.endsWith('/')) {
-    await next()
-    return
-  }
+  // if (path.endsWith('.html') || path.endsWith('/')) {
+  //   await next()
+  //   return
+  // }
 
-  if (fs.existsSync(path) && fs.statSync(path).isFile()) {
-    const content = fs.readFileSync(path, 'utf8') as string
-    return c.body(content, 200, {
-      'Content-Type': getContentType(path),
-      'Cache-Control': 'no-cache'
-    })
-  }
+  // if (fs.existsSync(path) && fs.statSync(path).isFile()) {
+  //   const content = fs.readFileSync(path, 'utf8') as string
+  //   return c.body(content, 200, {
+  //     'Content-Type': getContentType(path),
+  //     'Cache-Control': 'no-cache'
+  //   })
+  // }
 
   await next()
 })
 
-// Register fetch event handler synchronously
-// server.listen()
+function setupVolume(vol: typeof import('@vrowser/fs').vol) {
+  vol.fromJSON({
+    '/src/index.ts': 'export const hello = "world"',
+    '/src/utils.ts': 'export function add(a, b) { return a + b }',
+    '/dist/client/client.mjs': client,
+    '/dist/client/env.mjs': env
+  })
+  console.log('client', client)
+  console.log('env', env)
+
+  fs.mkdirSync('/public', { recursive: true })
+  fs.writeFileSync('/public/.gitkeep', 'f', { encoding: 'utf8' })
+  fs.writeFileSync(
+    '/index.html',
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"><p>Loading...</p></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+    { encoding: 'utf8' }
+  )
+  console.log(
+    '[SW] Virtual file system initialized.',
+    fs.readdirSync('/'),
+    fs.existsSync('/public')
+  )
+
+  // Change working directory
+  // chdir('/src')
+  // console.log('cwd()', cwd()) // '/src'
+}
 
 /**
  * Message Handling from Main Thread

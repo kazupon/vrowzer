@@ -932,8 +932,8 @@ export function createServer(
       // middlewares.use(memoryFilesMiddleware(server))
     } else {
       // main transform middleware
-      // middlewares.use('*', transformMiddleware(server))
-      console.log('[SW] transformMiddleware applied', transformMiddleware)
+      middlewares.use('*', transformMiddleware(server))
+      // console.log('[SW] transformMiddleware applied', transformMiddleware)
 
       // serve static files
       middlewares.use(serveRawFsMiddleware(server))
@@ -972,7 +972,6 @@ export function createServer(
 
     // error handler
     middlewares.onError(errorMiddleware(server, false))
-    // middlewares.use(errorMiddleware(server, !!middlewareMode))
 
     // httpServer.listen can be called multiple times
     // when port when using next port number

@@ -124,8 +124,7 @@ export function transformMiddleware(
           )?.transformResult?.map
           if (map) {
             return send(c, JSON.stringify(map), 'json', {
-              // TODO(kazupon): fix type definition for ResolvedConfig.server
-              headers: (server.config as { server?: { headers?: Record<string, string> } }).server?.headers,
+              headers: server.config.server.headers as Record<string, string>,
             })
           } else {
             return next()
@@ -167,13 +166,15 @@ export function transformMiddleware(
         if (result) {
           const depsOptimizer = environment.depsOptimizer
           const type = isDirectCSSRequest(url) ? 'css' : 'js'
-          const isDep =
-            DEP_VERSION_RE.test(url) || depsOptimizer?.isOptimizedDepUrl(url)
+          const isDep = DEP_VERSION_RE.test(url)
+          // TODO(kazupon): disable optimizer, because we don't still implement it.
+          // const isDep =
+          //   DEP_VERSION_RE.test(url) || depsOptimizer?.isOptimizedDepUrl(url)
           return send(c, result.code, type, {
             etag: result.etag,
             // allow browser to cache npm deps!
             cacheControl: isDep ? 'max-age=31536000,immutable' : 'no-cache',
-            headers: (server.config.server.headers as Record<string, string> | undefined),
+            headers: server.config.server.headers as Record<string, string>,
             map: result.map,
           })
           // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.

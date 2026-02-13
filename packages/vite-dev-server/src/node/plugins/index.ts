@@ -19,7 +19,16 @@ export async function resolvePlugins(
   postPlugins: Plugin[],
 ): Promise<Plugin[]> {
   // TODO(kazupon): fill in later ...
-  return []
+  return [{
+    name: 'vite:placeholder-plugin',
+    transform(code: string, id: string) {
+      console.log(`[placeholder-plugin] transforming ${id}`, code)
+      return {
+        code,
+        map: null,
+      }
+    }
+  }]
 }
 
 export function createPluginHookUtils(
