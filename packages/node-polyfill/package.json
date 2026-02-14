@@ -47,6 +47,14 @@
       "types": "./dist/os.d.ts",
       "import": "./dist/os.js"
     },
+    "./dns": {
+      "types": "./dist/dns.d.ts",
+      "import": "./dist/dns.js"
+    },
+    "./dns/promises": {
+      "types": "./dist/dns_promises.d.ts",
+      "import": "./dist/dns_promises.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
