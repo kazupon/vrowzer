@@ -39,6 +39,10 @@
       "types": "./dist/events.d.ts",
       "import": "./dist/events.js"
     },
+    "./perf_hooks": {
+      "types": "./dist/perf_hooks.d.ts",
+      "import": "./dist/perf_hooks.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
