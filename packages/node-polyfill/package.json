@@ -35,6 +35,10 @@
       "types": "./dist/util.d.ts",
       "import": "./dist/util.js"
     },
+    "./events": {
+      "types": "./dist/events.d.ts",
+      "import": "./dist/events.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
