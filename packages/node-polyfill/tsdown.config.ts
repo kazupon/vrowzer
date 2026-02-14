@@ -8,7 +8,8 @@ export default defineConfig({
     './src/perf_hooks.ts',
     './src/os.ts',
     './src/dns.ts',
-    './src/dns_promises.ts'
+    './src/dns_promises.ts',
+    './src/process.ts'
   ],
   platform: 'browser',
   clean: true,

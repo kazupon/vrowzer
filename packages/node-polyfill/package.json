@@ -55,6 +55,10 @@
       "types": "./dist/dns_promises.d.ts",
       "import": "./dist/dns_promises.js"
     },
+    "./process": {
+      "types": "./dist/process.d.ts",
+      "import": "./dist/process.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
