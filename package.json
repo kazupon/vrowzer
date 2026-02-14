@@ -9,6 +9,7 @@
     "build:docs": "pnpm -r run build:docs",
     "build:fs": "pnpm --filter fs build",
     "build:oxlint": "pnpm --filter oxlint-plugin-service-worker build",
+    "build:polyfill": "pnpm --filter node-polyfill build",
     "build:server": "pnpm --filter service-worker-server build",
     "build:svc": "pnpm --filter service-worker build",
     "build:unplugin": "pnpm --filter unplugin-service-worker build",

@@ -31,6 +31,10 @@
       "types": "./dist/url.d.ts",
       "import": "./dist/url.js"
     },
+    "./util": {
+      "types": "./dist/util.d.ts",
+      "import": "./dist/util.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
