@@ -43,6 +43,10 @@
       "types": "./dist/perf_hooks.d.ts",
       "import": "./dist/perf_hooks.js"
     },
+    "./os": {
+      "types": "./dist/os.d.ts",
+      "import": "./dist/os.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
