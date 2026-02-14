@@ -42,6 +42,7 @@
     "test:e2e:unplugin": "vitest run --project unplugin-service-worker:e2e",
     "test:unit": "vitest run --project *:unit",
     "test:unit:fs": "vitest run --project fs:unit",
+    "test:unit:polyfill": "vitest run --project node-polyfill:unit",
     "test:unit:server": "vitest run --project service-worker-server:unit",
     "test:unit:svc": "vitest run --project service-worker:unit",
     "test:unit:unplugin": "vitest run --project unplugin-service-worker:unit",

@@ -96,6 +96,22 @@ export default defineConfig({
           testTimeout: 30000,
           hookTimeout: 60000
         }
+      },
+      {
+        test: {
+          name: 'node-polyfill:unit',
+          include: ['./packages/node-polyfill/src/**/*.browser-test.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright(),
+            instances: [
+              {
+                browser: 'chromium'
+              }
+            ]
+          }
+        }
       }
     ]
   }
