@@ -397,7 +397,9 @@ export class EventEmitter {
     if (type === undefined) {
       const keys = Reflect.ownKeys(events)
       for (const key of keys) {
-        if (key === 'removeListener') continue
+        if (key === 'removeListener') {
+          continue
+        }
         this.removeAllListeners(key)
       }
       this.removeAllListeners('removeListener')

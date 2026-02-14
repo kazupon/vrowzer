@@ -68,10 +68,6 @@ function createNoopHistogram(): Histogram {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Stubs for Node.js-specific APIs
-// ---------------------------------------------------------------------------
-
 /**
  * Stub for `monitorEventLoopDelay`.
  * Returns a no-op histogram object with `enable()`, `disable()`, etc.
