@@ -1,7 +1,7 @@
 /**
  * perf_hooks browser tests
  *
- * Based on Node.js test files in refers/node/test/parallel/:
+ * Based on Node.js test files in https://github.com/nodejs/node/tree/main/test/parallel
  * - test-performance-global.js
  * - test-perf-hooks-usertiming.js
  * - test-performance-measure.js
@@ -26,10 +26,6 @@ import {
   performance,
   timerify
 } from './perf_hooks.ts'
-
-// ---------------------------------------------------------------------------
-// re-exports
-// ---------------------------------------------------------------------------
 
 describe('re-exports', () => {
   it('performance should be globalThis.performance', () => {
@@ -77,10 +73,6 @@ describe('performance.now()', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// performance.mark / measure
-// ---------------------------------------------------------------------------
-
 describe('performance.mark / measure', () => {
   it('should create a mark', () => {
     const mark = performance.mark('test-mark')
@@ -108,10 +100,6 @@ describe('performance.mark / measure', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// PerformanceObserver
-// ---------------------------------------------------------------------------
-
 describe('PerformanceObserver', () => {
   it('should be constructable', () => {
     const observer = new PerformanceObserver(() => {})
@@ -138,10 +126,6 @@ describe('PerformanceObserver', () => {
     performance.clearMarks('observed-mark')
   })
 })
-
-// ---------------------------------------------------------------------------
-// monitorEventLoopDelay stub
-// ---------------------------------------------------------------------------
 
 describe('monitorEventLoopDelay stub', () => {
   it('should return a histogram-like object', () => {
@@ -185,10 +169,6 @@ describe('monitorEventLoopDelay stub', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// createHistogram stub
-// ---------------------------------------------------------------------------
-
 describe('createHistogram stub', () => {
   it('should return a histogram-like object', () => {
     const h = createHistogram()
@@ -216,10 +196,6 @@ describe('createHistogram stub', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// eventLoopUtilization stub
-// ---------------------------------------------------------------------------
-
 describe('eventLoopUtilization stub', () => {
   it('should return an object with idle, active, utilization', () => {
     const elu = eventLoopUtilization()
@@ -234,10 +210,6 @@ describe('eventLoopUtilization stub', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// timerify stub
-// ---------------------------------------------------------------------------
-
 describe('timerify stub', () => {
   it('should return the same function', () => {
     const fn = () => 42
@@ -251,10 +223,6 @@ describe('timerify stub', () => {
     expect(wrapped(1, 2)).toBe(3)
   })
 })
-
-// ---------------------------------------------------------------------------
-// constants stub
-// ---------------------------------------------------------------------------
 
 describe('constants stub', () => {
   it('should be a frozen object', () => {

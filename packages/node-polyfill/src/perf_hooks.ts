@@ -3,7 +3,7 @@
  *
  * Browser-native Performance APIs are re-exported directly.
  * Node.js-specific APIs (monitorEventLoopDelay, createHistogram,
- * eventLoopUtilization, timerify) are provided as no-op stubs.
+ * eventLoopUtilization, timerify) are provided as noop stubs.
  *
  * @module perf_hooks
  */

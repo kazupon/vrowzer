@@ -1,7 +1,7 @@
 /**
  * `node:events` compatible entry point
  *
- * Based on npm `events@3.3.0` polyfill, enhanced with Node.js v23+ features:
+ * Based on npm `events@3.3.0` polyfill with class, enhanced with Node.js v23+ features:
  * - captureRejections / errorMonitor
  * - listenerCount with listener argument
  * - static setMaxListeners for multiple targets
