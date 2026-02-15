@@ -28,3 +28,6 @@
 [submodule "refers/memfs"]
 	path = refers/memfs
 	url = git@github.com:toyobayashi/memfs.git
+[submodule "refers/readable-stream"]
+	path = refers/readable-stream
+	url = git@github.com:nodejs/readable-stream.git
