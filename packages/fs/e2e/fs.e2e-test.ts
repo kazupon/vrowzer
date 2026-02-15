@@ -194,26 +194,6 @@ describe('@vrowser/fs E2E', () => {
     expect(result).toBe('async content')
   })
 
-  it('cwd/chdir works in browser', async () => {
-    await page.goto(`${BASE_URL}/e2e/test.html`)
-
-    await page.waitForFunction(() => document.getElementById('status')?.textContent === 'ready', {
-      timeout: 15000
-    })
-
-    const result = await page.evaluate(() => {
-      const { cwd, chdir, resetCwd } = window.fs
-      resetCwd()
-      const initial = cwd()
-      chdir('/src')
-      const after = cwd()
-      return { initial, after }
-    })
-
-    expect(result.initial).toBe('/')
-    expect(result.after).toBe('/src')
-  })
-
   it('glob works in browser', async () => {
     await page.goto(`${BASE_URL}/e2e/test.html`)
 

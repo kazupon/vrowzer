@@ -1,12 +1,10 @@
 import { vol } from 'memfs'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { resetCwd } from './polyfills/process.ts'
 import promises, { constants, mkdir, readFile, stat, writeFile } from './promises.ts'
 
 describe('@vrowser/fs promises entry', () => {
   beforeEach(() => {
     vol.reset()
-    resetCwd()
   })
 
   describe('exports', () => {

@@ -29,47 +29,47 @@
   "exports": {
     "./url": {
       "types": "./dist/url.d.ts",
-      "import": "./dist/url.js"
+      "default": "./dist/url.js"
     },
     "./util": {
       "types": "./dist/util.d.ts",
-      "import": "./dist/util.js"
+      "default": "./dist/util.js"
     },
     "./events": {
       "types": "./dist/events.d.ts",
-      "import": "./dist/events.js"
+      "default": "./dist/events.js"
     },
     "./perf_hooks": {
       "types": "./dist/perf_hooks.d.ts",
-      "import": "./dist/perf_hooks.js"
+      "default": "./dist/perf_hooks.js"
     },
     "./os": {
       "types": "./dist/os.d.ts",
-      "import": "./dist/os.js"
+      "default": "./dist/os.js"
     },
     "./dns": {
       "types": "./dist/dns.d.ts",
-      "import": "./dist/dns.js"
+      "default": "./dist/dns.js"
     },
     "./dns/promises": {
       "types": "./dist/dns_promises.d.ts",
-      "import": "./dist/dns_promises.js"
+      "default": "./dist/dns_promises.js"
     },
     "./process": {
       "types": "./dist/process.d.ts",
-      "import": "./dist/process.js"
+      "default": "./dist/process.js"
     },
     "./readline": {
       "types": "./dist/readline.d.ts",
-      "import": "./dist/readline.js"
+      "default": "./dist/readline.js"
     },
     "./timers": {
       "types": "./dist/timers.d.ts",
-      "import": "./dist/timers.js"
+      "default": "./dist/timers.js"
     },
     "./timers/promises": {
       "types": "./dist/timers_promises.d.ts",
-      "import": "./dist/timers_promises.js"
+      "default": "./dist/timers_promises.js"
     },
     "./package.json": "./package.json"
   },

@@ -42,9 +42,13 @@
       "types": "./dist/promises.d.ts",
       "import": "./dist/promises.js"
     },
-    "./process": {
-      "types": "./dist/promises.d.ts",
-      "import": "./dist/polyfills/process.js"
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "import": "./dist/browser/index.js"
+    },
+    "./browser/promises": {
+      "types": "./dist/browser/promises.d.ts",
+      "import": "./dist/browser/promises.js"
     },
     "./package.json": "./package.json"
   },
@@ -61,10 +65,10 @@
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
+    "pathe": "^2.0.3",
+    "@vrowser/node-polyfill": "workspace:*",
     "buffer": "^6.0.3",
-    "events": "^3.3.0",
     "get-port-please": "catalog:",
-    "path-browserify": "^1.0.1",
     "premove": "^4.0.0",
     "process": "^0.11.10",
     "publint": "catalog:",

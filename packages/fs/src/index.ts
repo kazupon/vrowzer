@@ -118,8 +118,5 @@ export const unwatchFile = fs.unwatchFile
 // Re-export promises API
 export const promises = fs.promises
 
-// Re-export custom process utilities
-export { chdir, cwd, process, resetCwd, setCwd } from './polyfills/process'
-
 // Default export
 export default fs

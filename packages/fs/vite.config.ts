@@ -1,8 +1,4 @@
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   server: {
@@ -12,17 +8,15 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      'node:events': 'events',
-      'node:path': 'path-browserify',
+      'node:events': '@vrowser/node-polyfill/events',
+      'node:path': 'pathe',
       'node:stream': 'readable-stream',
       'node:buffer': 'buffer',
       buffer: 'buffer',
-      events: 'events',
-      path: 'path-browserify',
+      events: '@vrowser/node-polyfill/events',
+      path: 'pathe',
       stream: 'readable-stream',
-      'native-process': 'process',
-      process: path.resolve(__dirname, 'src/polyfills/process.ts'),
-      'node:process': path.resolve(__dirname, 'src/polyfills/process.ts')
+      'native-process': '@vrowser/node-polyfill/process'
     }
   },
   define: {
@@ -30,6 +24,13 @@ export default defineConfig({
     'process.env.NODE_DEBUG': 'false'
   },
   optimizeDeps: {
-    include: ['memfs', 'buffer', 'events', 'path-browserify', 'readable-stream', 'process']
+    include: [
+      'memfs',
+      'buffer',
+      '@vrowser/node-polyfill/events',
+      'pathe',
+      'readable-stream',
+      '@vrowser/node-polyfill/process'
+    ]
   }
 })

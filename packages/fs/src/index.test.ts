@@ -1,15 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  chdir,
   createFsFromVolume,
-  cwd,
   existsSync,
   fs,
   memfs,
   mkdirSync,
   promises,
   readFileSync,
-  resetCwd,
   vol,
   Volume,
   writeFileSync
@@ -18,7 +15,6 @@ import {
 describe('@vrowser/fs main entry', () => {
   beforeEach(() => {
     vol.reset()
-    resetCwd()
   })
 
   describe('memfs re-exports', () => {
@@ -65,14 +61,6 @@ describe('@vrowser/fs main entry', () => {
     it('exports promises', () => {
       expect(promises).toBeDefined()
       expect(promises.readFile).toBeDefined()
-    })
-  })
-
-  describe('process integration', () => {
-    it('exports cwd and chdir', () => {
-      expect(cwd()).toBe('/')
-      chdir('/src')
-      expect(cwd()).toBe('/src')
     })
   })
 })
