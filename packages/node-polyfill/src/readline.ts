@@ -33,7 +33,9 @@ export function clearLine(
   cb?: () => void
 ): boolean {
   if (stream == null) {
-    if (typeof cb === 'function') queueMicrotask(cb)
+    if (typeof cb === 'function') {
+      queueMicrotask(cb)
+    }
     return true
   }
   const code = dir < 0 ? kClearToLineBeginning : dir > 0 ? kClearToLineEnd : kClearLine
@@ -45,7 +47,9 @@ export function clearScreenDown(
   cb?: () => void
 ): boolean {
   if (stream == null) {
-    if (typeof cb === 'function') queueMicrotask(cb)
+    if (typeof cb === 'function') {
+      queueMicrotask(cb)
+    }
     return true
   }
   return stream.write(kClearScreenDown, cb)
@@ -62,7 +66,9 @@ export function cursorTo(
     y = undefined
   }
   if (stream == null || (typeof x !== 'number' && typeof y !== 'number')) {
-    if (typeof cb === 'function') queueMicrotask(cb)
+    if (typeof cb === 'function') {
+      queueMicrotask(cb)
+    }
     return true
   }
   const data = typeof y !== 'number' ? `${kEscape}[${x + 1}G` : `${kEscape}[${y + 1};${x + 1}H`
@@ -76,14 +82,22 @@ export function moveCursor(
   cb?: () => void
 ): boolean {
   if (stream == null || !(dx || dy)) {
-    if (typeof cb === 'function') queueMicrotask(cb)
+    if (typeof cb === 'function') {
+      queueMicrotask(cb)
+    }
     return true
   }
   let data = ''
-  if (dx < 0) data += `${kEscape}[${-dx}D`
-  else if (dx > 0) data += `${kEscape}[${dx}C`
-  if (dy < 0) data += `${kEscape}[${-dy}A`
-  else if (dy > 0) data += `${kEscape}[${dy}B`
+  if (dx < 0) {
+    data += `${kEscape}[${-dx}D`
+  } else if (dx > 0) {
+    data += `${kEscape}[${dx}C`
+  }
+  if (dy < 0) {
+    data += `${kEscape}[${-dy}A`
+  } else if (dy > 0) {
+    data += `${kEscape}[${dy}B`
+  }
   return stream.write(data, cb)
 }
 
@@ -112,7 +126,7 @@ export class Interface extends EventEmitter {
   #paused = false
   #line = ''
 
-  constructor(inputOrOptions?: InterfaceOptions | unknown, output?: WritableStream | null) {
+  constructor(inputOrOptions?: InterfaceOptions, output?: WritableStream | null) {
     super()
     const opts = (
       typeof inputOrOptions === 'object' &&
@@ -151,8 +165,12 @@ export class Interface extends EventEmitter {
   }
 
   prompt(_preserveCursor?: boolean): void {
-    if (this.#closed) return
-    if (this.output) this.output.write(this.#prompt)
+    if (this.#closed) {
+      return
+    }
+    if (this.output) {
+      this.output.write(this.#prompt)
+    }
   }
 
   question(query: string, optionsOrCb?: { signal?: AbortSignal } | Function, cb?: Function): void {
@@ -163,10 +181,15 @@ export class Interface extends EventEmitter {
       throw new Error('readline was closed')
     }
 
-    if (this.output) this.output.write(query)
+    if (this.output) {
+      this.output.write(query)
+    }
 
     const handler = (line: string) => {
-      if (typeof callback === 'function') callback(line)
+      if (typeof callback === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- callback is validated as function above
+        callback(line)
+      }
     }
     this.once('line', handler)
 
@@ -182,7 +205,9 @@ export class Interface extends EventEmitter {
     data: string | null,
     _key?: { ctrl?: boolean; meta?: boolean; shift?: boolean; name?: string }
   ): void {
-    if (this.#closed) return
+    if (this.#closed) {
+      return
+    }
     if (data != null) {
       this.#line += data
     }
@@ -205,7 +230,9 @@ export class Interface extends EventEmitter {
   }
 
   close(): void {
-    if (this.#closed) return
+    if (this.#closed) {
+      return
+    }
     this.#closed = true
     this.emit('close')
   }
@@ -254,14 +281,16 @@ export class Interface extends EventEmitter {
 }
 
 export function createInterface(
-  inputOrOptions?: InterfaceOptions | unknown,
+  inputOrOptions?: InterfaceOptions,
   output?: WritableStream | null
 ): Interface {
   return new Interface(inputOrOptions, output)
 }
 
 class PromiseInterface extends Interface {
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- intentionally returns Promise
   question(query: string, options?: { signal?: AbortSignal }): Promise<string>
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- intentionally returns Promise
   question(
     query: string,
     optionsOrCb?: { signal?: AbortSignal } | Function,
@@ -301,11 +330,19 @@ class Readline {
 
   moveCursor(dx: number, dy: number): this {
     let code = ''
-    if (dx < 0) code += `${kEscape}[${-dx}D`
-    else if (dx > 0) code += `${kEscape}[${dx}C`
-    if (dy < 0) code += `${kEscape}[${-dy}A`
-    else if (dy > 0) code += `${kEscape}[${dy}B`
-    if (code) this.#pending.push(code)
+    if (dx < 0) {
+      code += `${kEscape}[${-dx}D`
+    } else if (dx > 0) {
+      code += `${kEscape}[${dx}C`
+    }
+    if (dy < 0) {
+      code += `${kEscape}[${-dy}A`
+    } else if (dy > 0) {
+      code += `${kEscape}[${dy}B`
+    }
+    if (code) {
+      this.#pending.push(code)
+    }
     return this
   }
 
@@ -335,7 +372,7 @@ class Readline {
 
 export const promises = {
   createInterface(
-    inputOrOptions?: InterfaceOptions | unknown,
+    inputOrOptions?: InterfaceOptions,
     output?: WritableStream | null
   ): PromiseInterface {
     return new PromiseInterface(inputOrOptions, output)
