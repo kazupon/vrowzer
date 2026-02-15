@@ -67,9 +67,6 @@
       "import": "./dist/process.js",
       "default": "./dist/process.js"
     },
-    "./process/": {
-      "default": "./dist/process.js"
-    },
     "./readline": {
       "types": "./dist/readline.d.ts",
       "import": "./dist/readline.js",
