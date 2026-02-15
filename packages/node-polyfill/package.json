@@ -63,6 +63,14 @@
       "types": "./dist/readline.d.ts",
       "import": "./dist/readline.js"
     },
+    "./timers": {
+      "types": "./dist/timers.d.ts",
+      "import": "./dist/timers.js"
+    },
+    "./timers/promises": {
+      "types": "./dist/timers_promises.d.ts",
+      "import": "./dist/timers_promises.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

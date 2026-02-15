@@ -10,7 +10,9 @@ export default defineConfig({
     './src/dns.ts',
     './src/dns_promises.ts',
     './src/process.ts',
-    './src/readline.ts'
+    './src/readline.ts',
+    './src/timers.ts',
+    './src/timers_promises.ts'
   ],
   platform: 'browser',
   clean: true,
