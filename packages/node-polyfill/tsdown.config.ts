@@ -9,7 +9,8 @@ export default defineConfig({
     './src/os.ts',
     './src/dns.ts',
     './src/dns_promises.ts',
-    './src/process.ts'
+    './src/process.ts',
+    './src/readline.ts'
   ],
   platform: 'browser',
   clean: true,

@@ -59,6 +59,10 @@
       "types": "./dist/process.d.ts",
       "import": "./dist/process.js"
     },
+    "./readline": {
+      "types": "./dist/readline.d.ts",
+      "import": "./dist/readline.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

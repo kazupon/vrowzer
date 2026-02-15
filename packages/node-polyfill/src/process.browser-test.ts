@@ -224,7 +224,9 @@ describe('resourceUsage', () => {
 
 describe('emitWarning', () => {
   it('should not throw', () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     expect(() => emitWarning('test warning')).not.toThrow()
+    spy.mockRestore()
   })
 
   it('should call console.warn', () => {
