@@ -76,7 +76,6 @@
     "typedoc": "catalog:",
     "typedoc-plugin-markdown": "catalog:",
     "tsdown": "catalog:",
-    "vite": "catalog:",
-    "vitest": "^4.0.17"
+    "vite": "catalog:"
   }
 }
