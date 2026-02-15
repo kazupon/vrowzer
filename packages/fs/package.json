@@ -35,20 +35,24 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
     },
     "./promises": {
-      "types": "./dist/promises.d.ts",
-      "import": "./dist/promises.js"
+      "types": "./dist/promises.d.mts",
+      "import": "./dist/promises.mjs",
+      "default": "./dist/promises.mjs"
     },
     "./browser": {
       "types": "./dist/browser/index.d.ts",
-      "import": "./dist/browser/index.js"
+      "import": "./dist/browser/index.js",
+      "default": "./dist/browser/index.js"
     },
     "./browser/promises": {
       "types": "./dist/browser/promises.d.ts",
-      "import": "./dist/browser/promises.js"
+      "import": "./dist/browser/promises.js",
+      "default": "./dist/browser/promises.js"
     },
     "./package.json": "./package.json"
   },
@@ -65,14 +69,13 @@
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
-    "pathe": "^2.0.3",
+    "pathe": "catalog:",
     "@vrowser/node-polyfill": "workspace:*",
-    "buffer": "^6.0.3",
+    "buffer": "catalog:",
     "get-port-please": "catalog:",
     "premove": "^4.0.0",
-    "process": "^0.11.10",
     "publint": "catalog:",
-    "readable-stream": "^4.7.0",
+    "readable-stream": "catalog:",
     "typedoc": "catalog:",
     "typedoc-plugin-markdown": "catalog:",
     "tsdown": "catalog:",

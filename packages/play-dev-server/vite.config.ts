@@ -9,14 +9,24 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      'node:events': '@vrowser/node-polyfill/events',
       'node:path': 'pathe',
+      'node:stream': 'readable-stream/lib/stream',
+      'node:buffer': 'buffer',
+      buffer: 'buffer',
+      events: '@vrowser/node-polyfill/events',
       path: 'pathe',
+      stream: 'readable-stream/lib/stream',
+      // NOTE(kazupon):
+      // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
+      'process/': '@vrowser/node-polyfill/process',
+      process: '@vrowser/node-polyfill/process',
       'node:fs': '@vrowser/fs',
       'node:fs/promises': '@vrowser/fs/promises',
       fs: '@vrowser/fs',
       'fs/promises': '@vrowser/fs/promises',
-      'node:url': '@kazupon/jts-utils/url',
-      url: '@kazupon/jts-utils/url'
+      'node:url': '@vrowser/node-polyfill/url',
+      url: '@vrowser/node-polyfill/url'
     }
   },
   preview: {

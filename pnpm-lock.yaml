@@ -15,6 +15,9 @@ catalogs:
     '@types/node':
       specifier: ^25.0.9
       version: 25.0.9
+    buffer:
+      specifier: ^6.0.3
+      version: 6.0.3
     get-port-please:
       specifier: ^3.2.0
       version: 3.2.0
@@ -24,9 +27,15 @@ catalogs:
     oxlint:
       specifier: ^1.39.0
       version: 1.39.0
+    pathe:
+      specifier: ^2.0.3
+      version: 2.0.3
     publint:
       specifier: ^0.3.16
       version: 0.3.16
+    readable-stream:
+      specifier: ^4.7.0
+      version: 4.7.0
     rolldown:
       specifier: ^1.0.0-rc.1
       version: 1.0.0-rc.2
@@ -147,25 +156,22 @@ importers:
         specifier: workspace:*
         version: link:../node-polyfill
       buffer:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
       get-port-please:
         specifier: 'catalog:'
         version: 3.2.0
       pathe:
-        specifier: ^2.0.3
+        specifier: 'catalog:'
         version: 2.0.3
       premove:
         specifier: ^4.0.0
         version: 4.0.0
-      process:
-        specifier: ^0.11.10
-        version: 0.11.10
       publint:
         specifier: 'catalog:'
         version: 0.3.16
       readable-stream:
-        specifier: ^4.7.0
+        specifier: 'catalog:'
         version: 4.7.0
       tsdown:
         specifier: 'catalog:'
@@ -192,7 +198,7 @@ importers:
         specifier: 'catalog:'
         version: 0.3.16
       readable-stream:
-        specifier: ^4.7.0
+        specifier: 'catalog:'
         version: 4.7.0
       tsdown:
         specifier: 'catalog:'
@@ -216,9 +222,6 @@ importers:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
         version: 0.16.0(@vue/reactivity@3.5.26)
-      '@vrowser/fs':
-        specifier: workspace:*
-        version: link:../fs
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -238,15 +241,27 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
         version: 6.0.3(vite@8.0.0-beta.12(@types/node@25.0.9)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
+      '@vrowser/fs':
+        specifier: workspace:*
+        version: link:../fs
+      '@vrowser/node-polyfill':
+        specifier: workspace:*
+        version: link:../node-polyfill
       '@vrowser/unplugin-service-worker':
         specifier: workspace:*
         version: link:../unplugin-service-worker
       '@vue/tsconfig':
         specifier: ^0.8.1
         version: 0.8.1(typescript@5.9.3)(vue@3.5.26(typescript@5.9.3))
+      buffer:
+        specifier: 'catalog:'
+        version: 6.0.3
       pathe:
-        specifier: ^2.0.3
+        specifier: 'catalog:'
         version: 2.0.3
+      readable-stream:
+        specifier: 'catalog:'
+        version: 4.7.0
       vite:
         specifier: 'catalog:'
         version: 8.0.0-beta.12(@types/node@25.0.9)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -466,9 +481,6 @@ importers:
 
   packages/vite-dev-server:
     dependencies:
-      '@vrowser/fs':
-        specifier: workspace:*
-        version: link:../fs
       rolldown:
         specifier: 'catalog:'
         version: 1.0.0-rc.2
@@ -515,6 +527,12 @@ importers:
       '@types/picomatch':
         specifier: ^4.0.2
         version: 4.0.2
+      '@vrowser/fs':
+        specifier: workspace:*
+        version: link:../fs
+      '@vrowser/node-polyfill':
+        specifier: workspace:*
+        version: link:../node-polyfill
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
