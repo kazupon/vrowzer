@@ -47,7 +47,9 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       // ignores for service-worker-server package e2e and test-public files
       'packages/service-worker-server/**',
       // ignores for fs package build files
-      'packages/fs/**'
+      'packages/fs/**',
+      // ignores for node-polyfill integration test files
+      'packages/node-polyfill/test/**'
     ]
   }
 )

@@ -112,6 +112,18 @@ export default defineConfig({
             ]
           }
         }
+      },
+      {
+        resolve: {
+          alias: {
+            events: '@vrowser/node-polyfill/events'
+          }
+        },
+        test: {
+          name: 'node-polyfill:integration',
+          environment: 'node',
+          include: ['./packages/node-polyfill/integration/**/*.test.ts']
+        }
       }
     ]
   }

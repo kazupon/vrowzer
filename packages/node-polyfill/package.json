@@ -66,8 +66,10 @@
     "prepack": "pnpm build"
   },
   "devDependencies": {
+    "@types/readable-stream": "^4.0.23",
     "premove": "^4.0.0",
     "publint": "catalog:",
+    "readable-stream": "^4.7.0",
     "tsdown": "catalog:",
     "vitest": "^4.0.17"
   }

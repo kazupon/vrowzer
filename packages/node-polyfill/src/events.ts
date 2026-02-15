@@ -139,6 +139,12 @@ export class EventEmitter {
   static captureRejectionSymbol = kRejection
   static errorMonitor = kErrorMonitor
 
+  static once = once
+  static on = on
+  static getEventListeners = getEventListeners
+  static getMaxListeners = getMaxListeners
+  static addAbortListener = addAbortListener
+
   static get defaultMaxListeners(): number {
     return defaultMaxListeners
   }
@@ -816,3 +822,5 @@ export function addAbortListener(
     }
   }
 }
+
+export default EventEmitter
