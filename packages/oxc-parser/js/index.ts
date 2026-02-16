@@ -22,14 +22,14 @@ import type { ParseResult, ParserOptions, WasmParseResult } from './types.ts'
 let wasmInitialized = false
 let wasmInitPromise: Promise<void> | null = null
 
-async function ensureInit(): Promise<void> {
+async function ensureInit(wasmUrl?: string | URL): Promise<void> {
   if (wasmInitialized) {
     return
   }
   if (wasmInitPromise) {
     return wasmInitPromise
   }
-  wasmInitPromise = initWasm().then(() => {
+  wasmInitPromise = initWasm(wasmUrl).then(() => {
     wasmInitialized = true
   })
   return wasmInitPromise
