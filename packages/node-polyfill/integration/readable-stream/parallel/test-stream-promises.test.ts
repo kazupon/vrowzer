@@ -1,16 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { mustCall } from '../common/index.ts'
-// @ts-ignore - promises exists at runtime but not in types
-import {
-  Readable,
-  Writable,
-  promises,
-  pipeline as _pipeline,
-  finished as _finished
-} from 'readable-stream'
+import * as stream from 'readable-stream'
 import { promisify } from 'util'
 
-const { finished, pipeline } = promises as { finished: Function; pipeline: Function }
+const { Readable, Writable, pipeline: _pipeline, finished: _finished } = stream
+
+const { finished, pipeline } = (
+  stream as unknown as { promises: { finished: Function; pipeline: Function } }
+).promises
 
 describe('test-stream-promises', () => {
   it('promises.pipeline and promises.finished exist', () => {

@@ -155,9 +155,12 @@ describe('test-stream-filter', () => {
         } as unknown as object),
       'ERR_OUT_OF_RANGE'
     )
-    // @ts-ignore - testing invalid argument
     assertThrowsCode(
-      () => Readable.from([1]).filter((x: unknown) => x, 1 as unknown as object),
+      () =>
+        Readable.from([1]).filter(
+          ((x: unknown) => x) as (data: unknown) => boolean,
+          1 as unknown as object
+        ),
       'ERR_INVALID_ARG_TYPE'
     )
   })

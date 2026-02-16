@@ -176,7 +176,7 @@ describe('test-stream2-writable', () => {
   it('should verify write callbacks', () =>
     new Promise<void>(resolve => {
       const callbacks = chunks
-        .map(function (chunk: string, i: number) {
+        .map(function (chunk: string, i: number): [number, () => void] {
           return [
             i,
             function () {
@@ -184,7 +184,6 @@ describe('test-stream2-writable', () => {
             }
           ]
         })
-        // @ts-ignore - reduce type mismatch
         .reduce(
           function (set: Record<string, () => void>, x: [number, () => void]) {
             set[`callback-${x[0]}`] = x[1]
