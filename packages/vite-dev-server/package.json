@@ -79,6 +79,7 @@
   "devDependencies": {
     "@vrowser/node-polyfill": "workspace:*",
     "@vrowser/fs": "workspace:*",
+    "@vrowser/oxc-parser": "workspace:*",
     "@babel/parser": "^7.28.6",
     "@jridgewell/remapping": "^2.3.5",
     "@jridgewell/trace-mapping": "^0.3.31",

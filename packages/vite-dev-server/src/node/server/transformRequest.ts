@@ -2,8 +2,7 @@ import { init, parse as parseImports } from 'es-module-lexer'
 import MagicString from 'magic-string'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
-// NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
-// import { performance } from 'node:perf_hooks'
+import { performance } from 'node:perf_hooks'
 import colors from 'picocolors'
 import type {
   ModuleType,

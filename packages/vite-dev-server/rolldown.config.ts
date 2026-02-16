@@ -1,4 +1,5 @@
 // import { readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 // import MagicString from 'magic-string'
@@ -80,6 +81,17 @@ const sharedNodeOptions = defineConfig({
     format: 'esm',
     externalLiveBindings: false
   },
+  plugins: [
+    {
+      name: 'copy-oxc-parser-wasm',
+      writeBundle() {
+        copyFileSync(
+          path.resolve(__dirname, './node_modules/@vrowser/oxc-parser/dist/vrowser_oxc_parser_bg.wasm'),
+          path.resolve(__dirname, './dist/node/vrowser_oxc_parser_bg.wasm')
+        )
+      }
+    }
+  ],
   onwarn(warning, warn) {
     if (warning.message.includes('Circular dependency')) {
       return

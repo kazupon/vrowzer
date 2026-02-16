@@ -33,6 +33,7 @@ import type { FSWatcher } from '#dep-types/chokidar'
 import type { RawSourceMap } from '@jridgewell/remapping'
 import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
 import type { Program } from '@oxc-project/types'
+import { parseSync } from '@vrowser/oxc-parser'
 import MagicString from 'magic-string'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
@@ -769,9 +770,9 @@ class PluginContext
   fs: any = fsModule
   // fs: RollupFsModule = fsModule
 
-  // TODO(kazupon): need to parser via web-worker or oxc-praser sync
   parse(code: string, opts: any): Program {
-    return {} as Program
+    return parseSync(code, opts).program
+    // NOTE(kazupon): commented out for maintaining sync from original repo codes as background context
     // return rolldownParseAst(code, opts)
   }
 
