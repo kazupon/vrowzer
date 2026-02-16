@@ -124,6 +124,30 @@ export default defineConfig({
           environment: 'node',
           include: ['./packages/node-polyfill/integration/**/*.test.ts']
         }
+      },
+      {
+        test: {
+          name: 'oxc-parser:unit',
+          include: ['./packages/oxc-parser/js/**/*.browser-test.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright(),
+            instances: [
+              {
+                browser: 'chromium'
+              }
+            ]
+          }
+        }
+      },
+      {
+        test: {
+          name: 'oxc-parser:e2e',
+          include: ['./packages/oxc-parser/e2e/**/*.e2e-test.ts'],
+          testTimeout: 30000,
+          hookTimeout: 60000
+        }
       }
     ]
   }

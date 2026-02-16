@@ -1,0 +1,39 @@
+{
+  "name": "@vrowser/oxc-parser",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "pnpm run build:wasm && pnpm run build:js",
+    "build:dev": "pnpm run build:wasm:dev && pnpm run build:js",
+    "build:js": "tsdown",
+    "build:wasm": "wasm-pack build --target web --release --out-dir pkg",
+    "build:wasm:dev": "wasm-pack build --target web --dev --out-dir pkg",
+    "lint:clippy": "cargo clippy --target wasm32-unknown-unknown -- -D warnings",
+    "clean": "rm -rf dist pkg target"
+  },
+  "dependencies": {
+    "@oxc-project/types": "^0.113.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "get-port-please": "catalog:",
+    "tsdown": "catalog:",
+    "vite": "catalog:",
+    "wasm-pack": "^0.13.1"
+  }
+}

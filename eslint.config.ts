@@ -49,7 +49,8 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       // ignores for fs package build files
       'packages/fs/**',
       // ignores for node-polyfill integration test files
-      'packages/node-polyfill/integration/**'
+      'packages/node-polyfill/integration/**',
+      'packages/oxc-parser/**'
     ]
   }
 )
