@@ -31,3 +31,6 @@
 [submodule "refers/readable-stream"]
 	path = refers/readable-stream
 	url = git@github.com:nodejs/readable-stream.git
+[submodule "refers/chokidar"]
+	path = refers/chokidar
+	url = git@github.com:paulmillr/chokidar.git
