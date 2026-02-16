@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import EditorPanel from './components/EditorPanel.vue'
-import PreviewPanel from './components/PreviewPanel.vue'
+import EditorPanel from './components/EditorPanel.vue';
+import PreviewPanel from './components/PreviewPanel.vue';
+import { getServiceWorker } from './sw/controller.ts';
 
-const currentCode = ref('')
+import type { FileChangeMessage } from './types.ts';
 
-function handleCodeUpdate(code: string) {
-  currentCode.value = code
+function handleFileChange({ path, content }: { path: string; content: string }) {
+  const serviceWorker = getServiceWorker()
+  const message: FileChangeMessage = {
+    type: 'file-change',
+    path,
+    content
+  }
+  serviceWorker?.postMessage(message)
 }
 </script>
 
@@ -17,8 +23,8 @@ function handleCodeUpdate(code: string) {
       <span class="subtitle">@vrowser/vite-dev-server playground</span>
     </header>
     <main class="app-main">
-      <EditorPanel @update="handleCodeUpdate" />
-      <PreviewPanel :code="currentCode" />
+      <EditorPanel @file-change="handleFileChange" />
+      <PreviewPanel />
     </main>
   </div>
 </template>

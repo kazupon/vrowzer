@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
-import { getController, getServiceWorker } from '../sw/controller.ts'
+import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
+import { getController } from '../sw/controller.ts'
 
 import type { StateChangeInfo, SvcWorkerController } from '@vrowser/service-worker/controller'
-import type { FileChangeMessage } from '../types.ts'
-
-const props = defineProps<{
-  code: string
-}>()
 
 const iframeRef = useTemplateRef('iframeRef')
 const isServiceWorkerReady = ref(false)
@@ -16,17 +11,11 @@ const error = ref<string | null>(null)
 
 const PREVIEW_URL = '/__preview__/'
 
-// Event handler references for cleanup
 let stateChangeHandler: ((info: StateChangeInfo) => void) | null = null
 let controllerRef: SvcWorkerController | null = null
 
 onMounted(() => {
-  console.log('[Preview] Mounting...')
-
   const controller = getController()
-  console.log('[Preview] Controller:', controller)
-  console.log('[Preview] Controller state:', controller?.state)
-
   if (!controller) {
     error.value = 'Service Worker Controller not available'
     return
@@ -34,27 +23,18 @@ onMounted(() => {
 
   controllerRef = controller
 
-  // Check if already activated
   if (controller.state === 'activated') {
-    console.log('[Preview] Service Worker already activated')
     isServiceWorkerReady.value = true
     error.value = null
-
-    // Load iframe (send initial code if available)
-    loadIframe(props.code)
+    loadIframe()
     return
   }
 
-  // Listen for state changes via controller event
   stateChangeHandler = (info: StateChangeInfo) => {
-    console.log('[Preview] Controller state changed:', info.state)
     if (info.state === 'activated') {
-      console.log('[Preview] Service Worker is ready')
       isServiceWorkerReady.value = true
       error.value = null
-
-      // Load iframe (send initial code if available)
-      loadIframe(props.code)
+      loadIframe()
     }
   }
 
@@ -67,85 +47,24 @@ onUnmounted(() => {
   }
 })
 
-/**
- * Load iframe and optionally send initial code to Service Worker
- */
-function loadIframe(code?: string) {
-  // Send initial code if available
-  if (code) {
-    const serviceWorker = getServiceWorker()
-    if (serviceWorker) {
-      const message: FileChangeMessage = {
-        type: 'file-change',
-        path: '/main.js',
-        content: code
-      }
-      console.log('[Preview] Sending initial code to Service Worker')
-      serviceWorker.postMessage(message)
-    }
-  }
-
-  // Load iframe
+function loadIframe() {
   const iframe = iframeRef.value
   if (iframe) {
-    console.log('[Preview] Loading iframe')
     iframe.src = PREVIEW_URL
     isPreviewReady.value = true
   }
 }
 
-/**
- * Send code change to Service Worker
- */
-function sendCodeChange(code: string) {
-  const serviceWorker = getServiceWorker()
-  if (!serviceWorker) {
-    console.warn('[Preview] No active Service Worker')
-    return
-  }
-
-  const message: FileChangeMessage = {
-    type: 'file-change',
-    path: '/main.js',
-    content: code
-  }
-
-  console.log('[Preview] Sending file change to Service Worker')
-  serviceWorker.postMessage(message)
-
-  // Reload iframe to apply changes
-  reloadIframe()
-}
-
-/**
- * Reload iframe
- */
-function reloadIframe() {
+function reload() {
   const iframe = iframeRef.value
-  if (iframe) {
-    // Small delay to ensure SW has processed the file
+  if (iframe && isServiceWorkerReady.value) {
     setTimeout(() => {
       iframe.src = iframe.src
     }, 100)
   }
 }
 
-/**
- * Handle iframe load event
- */
-function onIframeLoad() {
-  console.log('[Preview] iframe loaded')
-}
-
-// Watch for code changes
-watch(
-  () => props.code,
-  newCode => {
-    if (isServiceWorkerReady.value) {
-      sendCodeChange(newCode)
-    }
-  }
-)
+defineExpose({ reload })
 </script>
 
 <template>
@@ -153,6 +72,12 @@ watch(
     <div class="preview-header">
       <span>Preview</span>
       <div class="status-container">
+        <button
+          v-if="isServiceWorkerReady"
+          class="reload-btn"
+          title="Reload preview"
+          @click="reload"
+        >Reload</button>
         <span
           :class="['status-dot', { ready: isServiceWorkerReady }]"
           title="Service Worker"
@@ -173,7 +98,6 @@ watch(
         ref="iframeRef"
         class="preview-iframe"
         sandbox="allow-scripts allow-same-origin"
-        @load="onIframeLoad"
       ></iframe>
     </div>
   </div>
@@ -216,6 +140,25 @@ watch(
 .status-dot.ready {
   background: #41d1ff;
   box-shadow: 0 0 8px #41d1ff88;
+}
+
+.reload-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #646cff44;
+  background: #646cff22;
+  color: #646cff;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+
+.reload-btn:hover {
+  background: #646cff44;
+  border-color: #646cff;
 }
 
 .status {

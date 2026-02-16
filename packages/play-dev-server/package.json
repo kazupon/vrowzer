@@ -9,23 +9,24 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.5.24",
-    "@vrowser/vite-dev-server": "workspace:*",
-    "@vrowser/service-worker": "workspace:*",
     "@kazupon/jts-utils": "catalog:",
-    "hono": "^4.7.10"
+    "@vrowser/service-worker": "workspace:*",
+    "@vrowser/vite-dev-server": "workspace:*",
+    "hono": "^4.7.10",
+    "monaco-editor": "^0.55.1",
+    "vue": "^3.5.24"
   },
   "devDependencies": {
+    "@rollup/plugin-inject": "^5.0.5",
     "@types/node": "catalog:",
+    "@vitejs/plugin-vue": "^6.0.1",
     "@vrowser/fs": "workspace:*",
     "@vrowser/node-polyfill": "workspace:*",
-    "@rollup/plugin-inject": "^5.0.5",
-    "pathe": "catalog:",
-    "buffer": "catalog:",
-    "readable-stream": "catalog:",
-    "@vitejs/plugin-vue": "^6.0.1",
-    "@vue/tsconfig": "^0.8.1",
     "@vrowser/unplugin-service-worker": "workspace:*",
+    "@vue/tsconfig": "^0.8.1",
+    "buffer": "catalog:",
+    "pathe": "catalog:",
+    "readable-stream": "catalog:",
     "vite": "catalog:",
     "vue-tsc": "^3.1.4"
   }
