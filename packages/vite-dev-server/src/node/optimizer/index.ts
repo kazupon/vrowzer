@@ -2,12 +2,12 @@ import type { DepsOptimizerEsbuildOptions } from '#types/internal/esbuildOptions
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import colors from 'picocolors'
 import type {
   RolldownOptions,
   OutputOptions as RolldownOutputOptions
 } from 'rolldown'
-import { promisify } from '../../shared/utils'
 import type { ResolvedConfig } from '../config'
 import {
   METADATA_FILENAME

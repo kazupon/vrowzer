@@ -1,7 +1,6 @@
 /* eslint no-console: 0 */
 
-// NOTE(kazupon): diesable, because `node:readline` cannot be used in browser env
-// import readline from 'node:readline'
+import readline from 'node:readline'
 import colors from 'picocolors'
 import type { RollupError } from 'rolldown'
 import type { ResolvedServerUrls } from './server'
@@ -43,9 +42,8 @@ function clearScreen() {
   const repeatCount = process.stdout.rows - 2
   const blank = repeatCount > 0 ? '\n'.repeat(repeatCount) : ''
   console.log(blank)
-  // NOTE(kazupon): disable now, building ...
-  // readline.cursorTo(process.stdout, 0, 0)
-  // readline.clearScreenDown(process.stdout)
+  readline.cursorTo(process.stdout, 0, 0)
+  readline.clearScreenDown(process.stdout)
 }
 
 export interface LoggerOptions {
@@ -82,10 +80,8 @@ export function createLogger(
     console = globalThis.console,
   } = options
   const thresh = LogLevels[level]
-  const canClearScreen = allowClearScreen && false
-  // NOTE(kazupon): disalbe, because `node:readline` cannot be used in browser env
-  // const canClearScreen =
-  //   allowClearScreen && process.stdout.isTTY && !process.env.CI
+  const canClearScreen =
+    allowClearScreen && process.stdout.isTTY && !process.env.CI
   const clear = canClearScreen ? clearScreen : () => { }
 
   function format(type: LogType, msg: string, options: LogErrorOptions = {}) {

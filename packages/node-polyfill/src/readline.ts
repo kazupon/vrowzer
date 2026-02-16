@@ -370,6 +370,19 @@ class Readline {
   }
 }
 
+const readline = {
+  clearLine,
+  clearScreenDown,
+  cursorTo,
+  moveCursor,
+  emitKeypressEvents,
+  Interface,
+  createInterface,
+  promises: null as unknown // set below
+}
+
+export default readline
+
 export const promises = {
   createInterface(
     inputOrOptions?: InterfaceOptions,
@@ -380,3 +393,5 @@ export const promises = {
   Readline,
   Interface: PromiseInterface
 }
+
+readline.promises = promises

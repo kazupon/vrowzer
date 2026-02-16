@@ -6,11 +6,10 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { createFilter as _createFilter } from '@rollup/pluginutils'
 import type MagicString from 'magic-string'
+import { promises as dns } from 'node:dns'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
-// NOTE(kazupon): commented out, because we need to resolve node module
-// import { promises as dns } from 'node:dns'
 import type { PreviewServer } from './preview'
 import type { ViteDevServer } from './server'
 // import { fileURLToPath } from 'node:url'
@@ -929,11 +928,8 @@ export async function getLocalhostAddressIfDiffersFromDNS(): Promise<
   string | undefined
 > {
   const [nodeResult, dnsResult] = await Promise.all([
-    { family: 4, address: '127.0.0.1' },
-    { family: 4, address: '127.0.0.1' },
-    // NOTE(kazupon): disable now, because dns.lookup is not supported in browser env
-    // dns.lookup('localhost'),
-    // dns.lookup('localhost', { verbatim: true }),
+    dns.lookup('localhost'),
+    dns.lookup('localhost', { verbatim: true }),
   ])
   const isSame =
     nodeResult.family === dnsResult.family &&

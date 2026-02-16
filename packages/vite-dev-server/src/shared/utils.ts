@@ -87,54 +87,6 @@ export function promiseWithResolvers<T>(): PromiseWithResolvers<T> {
 
 // TODO: fill in later ...
 
-// NOTE(kazupon):
-// The following codes are browser-compatible implementations
-
-/**
- * Convert a file URL to a file path (browser compatible)
- * Polyfill for Node.js `url.fileURLToPath`
- */
-export function fileURLToPath(url: string | URL): string {
-  const urlObj = typeof url === 'string' ? new URL(url) : url
-
-  if (urlObj.protocol !== 'file:') {
-    throw new TypeError('The URL must be of scheme file')
-  }
-
-  let pathname = decodeURIComponent(urlObj.pathname)
-
-  // Handle Windows paths (e.g., file:///C:/path/to/file)
-  if (isWindows && pathname.startsWith('/') && /^\/[a-zA-Z]:/.test(pathname)) {
-    pathname = pathname.slice(1)
-  }
-
-  return pathname
-}
-
-/**
- * Convert a file path to a file URL (browser compatible)
- * Polyfill for Node.js `url.pathToFileURL`
- */
-export function pathToFileURL(path: string): URL {
-  let resolved = path
-
-  // Handle Windows paths
-  if (isWindows) {
-    resolved = resolved.replace(/\\/g, '/')
-    // Add leading slash for Windows absolute paths (C:/path -> /C:/path)
-    if (/^[a-zA-Z]:/.test(resolved)) {
-      resolved = '/' + resolved
-    }
-  }
-
-  // Ensure leading slash for absolute paths
-  if (!resolved.startsWith('/')) {
-    resolved = '/' + resolved
-  }
-
-  return new URL('file://' + encodeURI(resolved))
-}
-
 // ------------------------------------------------------------------------------------------------
 // @vrowser/vite-dev-server original code below
 // ------------------------------------------------------------------------------------------------
@@ -172,22 +124,6 @@ export function hasESMSyntax(code: string, opts: DetectSyntaxOptions = {}) {
     code = code.replace(COMMENT_RE, "");
   }
   return ESM_RE.test(code);
-}
-
-/**
- * Convert a Node.js-style callback function to a promise-returning function.
- * The callback must follow the `(err, result)` convention.
- */
-export function promisify<TArgs extends unknown[], TResult>(
-  fn: (...args: [...TArgs, (err: unknown, result: TResult) => void]) => void,
-): (...args: TArgs) => Promise<TResult> {
-  return (...args: TArgs) =>
-    new Promise<TResult>((resolve, reject) => {
-      ; (fn as Function)(...args, (err: unknown, result: TResult) => {
-        if (err) reject(err)
-        else resolve(result)
-      })
-    })
 }
 
 /**

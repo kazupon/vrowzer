@@ -8,15 +8,14 @@ import path from 'node:path'
 // import { nodeResolveWithVite } from './nodeResolve'
 // import { createImportMetaResolver, importMetaResolveWithCustomHookString } from '../module-runner/importMetaResolver'
 // import { findNearestNodeModules } from './packages'
-// import { inspect, promisify } from 'node:util'
 // NOTE(kazupon): disalbe because vrowser will not need full bundle dev environment
 // import { rolldown } from 'rolldown'
 // NOTE(kazupon): disable, because vrowser will not need full bundle dev environment
 // import { FullBundleDevEnvironment } from './server/environments/fullBundleEnvironment'
+import { inspect, promisify } from 'node:util'
 import colors from 'picocolors'
 import picomatch from 'picomatch'
 import type { NormalizedOutputOptions, PluginContextMeta, RolldownOptions } from 'rolldown'
-import { promisify } from '../shared/utils'
 import type { AnymatchFn } from '../types/anymatch'
 import { PartialEnvironment } from './baseEnvironment'
 import type {
@@ -1800,9 +1799,7 @@ export async function resolveConfig(
         colors.yellow(
           `Both esbuild and oxc options were set. oxc options will be used and esbuild options will be ignored.`,
         ) +
-        ` The following esbuild options were set: \`${JSON.stringify(config.esbuild)}\``,
-        // NOTE(kazupon): disalbe 'inspect' output for now because of, this env is service worker environment
-        // ` The following esbuild options were set: \`${inspect(config.esbuild)}\``,
+        ` The following esbuild options were set: \`${inspect(config.esbuild)}\``,
       )
     } else {
       oxc = convertEsbuildConfigToOxcConfig(config.esbuild, logger)
