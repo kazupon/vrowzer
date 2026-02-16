@@ -561,6 +561,9 @@ importers:
       '@vrowser/node-polyfill':
         specifier: workspace:*
         version: link:../node-polyfill
+      '@vrowser/oxc-parser':
+        specifier: workspace:*
+        version: link:../oxc-parser
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker

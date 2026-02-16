@@ -23,8 +23,12 @@ let wasmInitialized = false
 let wasmInitPromise: Promise<void> | null = null
 
 async function ensureInit(): Promise<void> {
-  if (wasmInitialized) return
-  if (wasmInitPromise) return wasmInitPromise
+  if (wasmInitialized) {
+    return
+  }
+  if (wasmInitPromise) {
+    return wasmInitPromise
+  }
   wasmInitPromise = initWasm().then(() => {
     wasmInitialized = true
   })

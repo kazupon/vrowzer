@@ -2,7 +2,7 @@
 
 Browser-compatible filesystem using memfs for vrowser.
 
-## Features
+## ✨ Features
 
 - Full Node.js `fs` API compatibility via memfs
 - Browser/Service Worker ready
