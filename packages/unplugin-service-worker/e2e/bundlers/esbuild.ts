@@ -29,7 +29,11 @@ export async function buildWithEsbuild(
     platform: 'browser',
     conditions: ['browser', 'import', 'module', 'default'],
     metafile: true,
-    plugins: [ServiceWorker()]
+    plugins: [
+      ServiceWorker({
+        assets: [{ src: join(playgroundDir, 'add.wasm') }]
+      })
+    ]
   })
 
   // Copy and process HTML manually

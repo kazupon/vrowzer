@@ -19,8 +19,8 @@
  * @license MIT
  */
 
-import { ServiceWorkerPlugin } from './index.ts'
+import { ServiceWorkerPlugin, wasmUrlPlugin } from './index.ts'
 
 const rspack = ServiceWorkerPlugin.rspack
 export default rspack
-export { rspack as 'module.exports' }
+export { rspack as 'module.exports', wasmUrlPlugin }

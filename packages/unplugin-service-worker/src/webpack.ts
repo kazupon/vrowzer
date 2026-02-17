@@ -19,8 +19,8 @@
  * @license MIT
  */
 
-import { ServiceWorkerPlugin } from './index.ts'
+import { ServiceWorkerPlugin, wasmUrlPlugin } from './index.ts'
 
 const webpack = ServiceWorkerPlugin.webpack
 export default webpack
-export { webpack as 'module.exports' }
+export { webpack as 'module.exports', wasmUrlPlugin }

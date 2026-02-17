@@ -37,7 +37,9 @@ export async function buildWithWebpack(
             inject: 'body',
             scriptLoading: 'module'
           }),
-          ServiceWorker()
+          ServiceWorker({
+            assets: [{ src: join(playgroundDir, 'add.wasm') }]
+          })
         ]
       },
       // eslint-disable-next-line @typescript-eslint/no-misused-promises -- for testing

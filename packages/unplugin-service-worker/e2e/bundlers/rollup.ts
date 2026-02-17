@@ -20,7 +20,9 @@ export async function buildWithRollup(
         browser: true,
         preferBuiltins: false
       }),
-      ServiceWorker()
+      ServiceWorker({
+        assets: [{ src: join(playgroundDir, 'add.wasm') }]
+      })
     ],
     onwarn(warning, warn) {
       // Suppress circular dependency warnings from dependencies

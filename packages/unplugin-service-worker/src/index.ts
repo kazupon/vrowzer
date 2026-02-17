@@ -29,8 +29,8 @@ import type {
 import type { UnpluginInstance } from 'unplugin'
 import type { ViteDevServer, ResolvedConfig as ViteResolvedConfig } from 'vite'
 import type { Compiler as WebpackCompiler } from 'webpack'
-import type { ServiceWorkerCache } from './core/cache.ts'
-import type { Options, OptionsResolved } from './core/options.ts'
+import type { ServiceWorkerAsset, ServiceWorkerCache } from './core/cache.ts'
+import type { Options, OptionsResolved, ServiceWorkerAssetConfig } from './core/options.ts'
 import type { ResolvedServiceWorker } from './transform/utils.ts'
 
 /**
@@ -229,6 +229,31 @@ function resolveServiceWorkerPlugins(
 }
 
 /**
+ * Resolve plugins for production Service Worker bundling.
+ *
+ * When `assets` option has entries, automatically adds `wasmUrlPlugin` so that
+ * WASM files are loaded via URL (served as separate assets) instead of being inlined.
+ * When `assets` is not specified, WASM files are inlined as base64 data URLs
+ * (same behavior as dev mode).
+ */
+function resolveProductionPlugins(
+  options: OptionsResolved,
+  bundlerPlugins: import('rolldown').Plugin[] | undefined
+): import('rolldown').Plugin[] {
+  const base = resolveServiceWorkerPlugins(options.plugins, bundlerPlugins)
+  if (options.assets && options.assets.length > 0) {
+    // Add wasmUrlPlugin if not already present
+    const hasWasmUrl = base.some(
+      p => (p as { name?: string }).name === 'unplugin-service-worker:wasm-url'
+    )
+    if (!hasWasmUrl) {
+      return [wasmUrlPlugin(), ...base]
+    }
+  }
+  return base
+}
+
+/**
  * Default defines for Service Worker bundling.
  * Service Workers are bundled into IIFE format where import.meta is not available,
  * so we need to provide fallback values for import.meta and import.meta.env.
@@ -370,6 +395,116 @@ function createViteQueryPlugin(): import('rolldown').Plugin {
 }
 
 /**
+ * Create a rolldown plugin that inlines WASM files as base64 data URLs.
+ *
+ * Detects `new URL("*.wasm", import.meta.url)` patterns in code and replaces
+ * them with `"data:application/wasm;base64,..."` strings. This allows WASM
+ * to work inside IIFE-bundled Service Workers where `import.meta.url` is
+ * unavailable and `fetch()` would be intercepted by the SW's own fetch handler.
+ *
+ * This plugin is always included in `bundleServiceWorkerWithRolldown`,
+ * so it covers all parent bundlers (Vite, Rolldown, Rollup, esbuild, Farm).
+ */
+export function wasmInlinePlugin(): import('rolldown').Plugin & {
+  readonly _wasmFiles: Map<string, string>
+} {
+  // Collect WASM file absolute paths during transform phase.
+  // The actual inlining happens in `inlineWasmInCode()` as a post-process
+  // on the final bundled code, because rolldown's `transform.define` replaces
+  // `import.meta.url` with `{}.url` before plugin transform hooks run.
+  const wasmFiles = new Map<string, string>() // relative path -> absolute path
+
+  const plugin: import('rolldown').Plugin = {
+    name: 'unplugin-service-worker:wasm-inline',
+    transform: {
+      filter: { code: /\.wasm["'].*import\.meta\.url/ },
+      handler(code, id) {
+        const dir = path.dirname(id)
+        const re = /new\s+URL\(\s*["']([^"']*\.wasm)["']\s*,\s*import\.meta\.url\s*\)/g
+        let match: RegExpExecArray | null
+        while ((match = re.exec(code)) !== null) {
+          const wasmRelPath = match[1]!
+          const wasmAbsPath = path.resolve(dir, wasmRelPath)
+          wasmFiles.set(wasmRelPath, wasmAbsPath)
+        }
+        return null
+      }
+    }
+  }
+
+  // Expose collected WASM file mappings for post-processing in bundleServiceWorkerWithRolldown
+  Object.defineProperty(plugin, '_wasmFiles', { get: () => wasmFiles })
+  return plugin as import('rolldown').Plugin & { readonly _wasmFiles: Map<string, string> }
+}
+
+/**
+ * A rolldown plugin that replaces `new URL("*.wasm", import.meta.url)`
+ * with `new URL("*.wasm", self.location.href)` for Service Worker environments.
+ *
+ * This is used in production builds where WASM files are served as separate assets
+ * alongside the SW bundle, and `self.location.href` provides the correct base URL.
+ */
+export function wasmUrlPlugin(): import('rolldown').Plugin {
+  return {
+    name: 'unplugin-service-worker:wasm-url',
+    transform: {
+      filter: { code: /\.wasm["'].*import\.meta\.url/ },
+      handler(code) {
+        const replaced = code.replace(
+          /new\s+URL\(\s*["']([^"']*\.wasm)["']\s*,\s*import\.meta\.url\s*\)/g,
+          'new URL("$1", self.location.href)'
+        )
+        if (replaced === code) {
+          return null
+        }
+        return { code: replaced, moduleType: 'js' }
+      }
+    }
+  }
+}
+
+/**
+ * Inline WASM files referenced in bundled code as base64 data URLs.
+ *
+ * This is a post-processing step that runs after rolldown's `bundle.generate()`.
+ * It replaces `new URL("*.wasm", {}.url)` patterns (where `{}.url` is the
+ * define-replaced form of `import.meta.url`) with base64 data URL strings.
+ */
+export async function inlineWasmInCode(
+  code: string,
+  wasmFiles: Map<string, string>
+): Promise<string> {
+  if (wasmFiles.size === 0) return code
+
+  const fs = await import('node:fs/promises')
+  let result = code
+
+  // Match the define-replaced pattern: new URL("*.wasm", {}.url)
+  // Also match original pattern: new URL("*.wasm", import.meta.url)
+  const re = /new\s+URL\(\s*["']([^"']*\.wasm)["']\s*,\s*(?:\{\}\.url|import\.meta\.url)\s*\)/g
+  let match: RegExpExecArray | null
+
+  while ((match = re.exec(code)) !== null) {
+    const wasmRelPath = match[1]!
+    const wasmAbsPath = wasmFiles.get(wasmRelPath)
+    if (!wasmAbsPath) {
+      continue
+    }
+
+    try {
+      const content = await fs.readFile(wasmAbsPath)
+      const base64 = content.toString('base64')
+      const dataUrl = `data:application/wasm;base64,${base64}`
+      result = result.replace(match[0], JSON.stringify(dataUrl))
+    } catch {
+      // WASM file not found, skip
+    }
+  }
+
+  return result
+}
+
+/**
  * Try to resolve a package subpath directly by finding the package root
  * and looking for the file. This handles cases where package.json exports
  * don't include the subpath but the file exists on disk.
@@ -384,12 +519,16 @@ async function resolvePackageFileDirect(
   const parts = id.split('/')
   const packageName = id.startsWith('@') && parts.length >= 2 ? `${parts[0]}/${parts[1]}` : parts[0]
 
-  if (!packageName) return null
+  if (!packageName) {
+    return null
+  }
 
   // Get the subpath within the package
   const packageNameParts = packageName.split('/').length
   const subpath = parts.slice(packageNameParts).join('/')
-  if (!subpath) return null
+  if (!subpath) {
+    return null
+  }
 
   // Find the package root by walking up from the importer
   const startDir = importer ? path.dirname(importer) : process.cwd()
@@ -405,7 +544,9 @@ async function resolvePackageFileDirect(
         const candidate = path.join(nodeModulesDir, subpath + ext)
         try {
           const stat = await fs.stat(candidate)
-          if (stat.isFile()) return candidate
+          if (stat.isFile()) {
+            return candidate
+          }
         } catch {
           continue
         }
@@ -416,7 +557,9 @@ async function resolvePackageFileDirect(
         const candidate = path.join(nodeModulesDir, 'src', subpath + ext)
         try {
           const stat = await fs.stat(candidate)
-          if (stat.isFile()) return candidate
+          if (stat.isFile()) {
+            return candidate
+          }
         } catch {
           continue
         }
@@ -426,11 +569,45 @@ async function resolvePackageFileDirect(
     }
 
     const parentDir = path.dirname(currentDir)
-    if (parentDir === currentDir) break
+    if (parentDir === currentDir) {
+      break
+    }
     currentDir = parentDir
   }
 
   return null
+}
+
+/**
+ * Resolve asset configs to ServiceWorkerAsset array.
+ *
+ * Reads files specified in the `assets` option and returns them with
+ * output filenames relative to the Service Worker bundle's directory.
+ */
+async function resolveAssetConfigs(
+  assetConfigs: ServiceWorkerAssetConfig[] | undefined,
+  swOutputFilename: string
+): Promise<ServiceWorkerAsset[]> {
+  if (!assetConfigs || assetConfigs.length === 0) {
+    return []
+  }
+  const fs = await import('node:fs/promises')
+  const assets: ServiceWorkerAsset[] = []
+  const swDir = path.dirname(swOutputFilename)
+  for (const config of assetConfigs) {
+    const src = path.resolve(config.src)
+    const fileName =
+      swDir === '.' || swDir === ''
+        ? (config.fileName ?? path.basename(src))
+        : path.posix.join(swDir, config.fileName ?? path.basename(src))
+    try {
+      const source = await fs.readFile(src)
+      assets.push({ fileName, source })
+    } catch {
+      console.warn(`[unplugin-service-worker] Asset not found: ${config.src}`)
+    }
+  }
+  return assets
 }
 
 /**
@@ -449,10 +626,20 @@ async function bundleServiceWorkerWithRolldown(
     ...options.define
   }
 
-  // Always include the Vite query plugin for ?raw/?url/?inline support.
-  // This runs first so it can resolve queries before other plugins process them.
+  // Check if user explicitly provided wasmUrlPlugin (for production builds).
+  // When wasmUrlPlugin is present, skip wasmInlinePlugin to avoid conflicts:
+  // wasmUrlPlugin transforms `new URL("*.wasm", import.meta.url)` to
+  // `new URL("*.wasm", self.location.href)`, which prevents inlineWasmInCode
+  // from matching the pattern in the post-processing step.
+  // In dev mode, wasmUrlPlugin should already be filtered out by the caller.
+  const hasWasmUrlPlugin = options.plugins?.some(
+    p => (p as { name?: string }).name === 'unplugin-service-worker:wasm-url'
+  )
+
+  const wasmPlugin = hasWasmUrlPlugin ? null : wasmInlinePlugin()
   const allPlugins: import('rolldown').Plugin[] = [
     createViteQueryPlugin(),
+    ...(wasmPlugin ? [wasmPlugin] : []),
     ...(options.plugins && options.plugins.length > 0 ? options.plugins : [])
   ]
 
@@ -461,6 +648,7 @@ async function bundleServiceWorkerWithRolldown(
     platform: 'browser',
     resolve: {
       conditionNames: ['browser', 'import', 'module', 'default'],
+      symlinks: true,
       ...(options.alias && { alias: options.alias })
     },
     plugins: allPlugins,
@@ -480,7 +668,19 @@ async function bundleServiceWorkerWithRolldown(
     return null
   }
 
-  return { code: chunk.code }
+  // Post-process: inline WASM files as base64 data URLs.
+  // This runs after bundle.generate() because rolldown's transform.define
+  // replaces `import.meta.url` with `{}.url` before plugin transform hooks.
+  // Skipped when wasmUrlPlugin is used (WASM served as separate files in production).
+  let code = chunk.code
+  if (wasmPlugin) {
+    const wasmFiles = wasmPlugin._wasmFiles
+    if (wasmFiles.size > 0) {
+      code = await inlineWasmInCode(code, wasmFiles)
+    }
+  }
+
+  return { code }
 }
 
 /**
@@ -597,7 +797,8 @@ function setupWebpackLikeCompiler(
   ctx: PluginContext,
   cache: ServiceWorkerCache,
   pluginName: string,
-  _framework: 'webpack' | 'rspack'
+  _framework: 'webpack' | 'rspack',
+  options: OptionsResolved
 ): void {
   // Use thisCompilation to access compilation hooks
   compiler.hooks.thisCompilation.tap(pluginName, compilation => {
@@ -632,6 +833,17 @@ function setupWebpackLikeCompiler(
             if (bundledFilename) {
               // Register hash to filename mapping for placeholder replacement
               cache.registerHashToFilename(hashStr, bundledFilename)
+
+              // Emit additional assets alongside the Service Worker bundle
+              if (bundledFilename) {
+                const swAssets = await resolveAssetConfigs(options.assets, bundledFilename)
+                for (const asset of swAssets) {
+                  compilation.emitAsset(
+                    asset.fileName,
+                    new compiler.webpack.sources.RawSource(asset.source)
+                  )
+                }
+              }
             }
           }
 
@@ -654,7 +866,9 @@ function setupWebpackLikeCompiler(
 
             while ((match = SW_ASSET_RE.exec(source))) {
               const [full, hash] = match
-              if (!hash) continue
+              if (!hash) {
+                continue
+              }
 
               const filename = cache.getFilenameFromHash(hash)
               if (filename) {
@@ -802,13 +1016,20 @@ function createViteConfigureServer(ctx: PluginContext, options: OptionsResolved)
       try {
         // Bundle the Service Worker with rolldown
         // Pass bundler config extracted from Vite (define, alias, plugins)
+        // In dev mode, filter out wasmUrlPlugin so that wasmInlinePlugin is always used.
+        // WASM files cannot be served as separate assets from the dev server,
+        // so they must be inlined as base64 data URLs regardless of user config.
+        const devPlugins = resolveServiceWorkerPlugins(
+          options.plugins,
+          ctx.bundlerConfig.plugins
+        )?.filter(p => (p as { name?: string }).name !== 'unplugin-service-worker:wasm-url')
         const result = await bundleServiceWorkerWithRolldown(filePath, {
           minify: false,
           sourcemap: 'inline',
           define: ctx.bundlerConfig.define,
           alias: ctx.bundlerConfig.alias,
 
-          plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
+          plugins: devPlugins
         })
 
         if (!result) {
@@ -873,7 +1094,7 @@ function createViteRenderChunk(
           define: ctx.bundlerConfig.define,
           alias: ctx.bundlerConfig.alias,
 
-          plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
+          plugins: resolveProductionPlugins(options, ctx.bundlerConfig.plugins)
         })
 
         if (result) {
@@ -892,7 +1113,8 @@ function createViteRenderChunk(
           cache.registerHashToFilename(hashStr, outputFilename)
 
           // Save to cache for placeholder replacement and asset emission
-          cache.saveBundle(swPath, [swPath], outputFilename, result.code, [])
+          const swAssets = await resolveAssetConfigs(options.assets, outputFilename)
+          cache.saveBundle(swPath, [swPath], outputFilename, result.code, swAssets)
         }
       }
 
@@ -902,7 +1124,9 @@ function createViteRenderChunk(
       let match: RegExpExecArray | null
       while ((match = SW_ASSET_RE.exec(code))) {
         const [full, hash] = match
-        if (!hash) continue
+        if (!hash) {
+          continue
+        }
         const filename = cache.getFilenameFromHash(hash)
         if (!filename) {
           continue
@@ -959,7 +1183,7 @@ function createViteGenerateBundle(
         define: ctx.bundlerConfig.define,
         alias: ctx.bundlerConfig.alias,
 
-        plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
+        plugins: resolveProductionPlugins(options, ctx.bundlerConfig.plugins)
       })
 
       if (result) {
@@ -978,7 +1202,8 @@ function createViteGenerateBundle(
         cache.registerHashToFilename(hashStr, outputFilename)
 
         // Save to cache for placeholder replacement
-        cache.saveBundle(swPath, [swPath], outputFilename, result.code, [])
+        const swAssets = await resolveAssetConfigs(options.assets, outputFilename)
+        cache.saveBundle(swPath, [swPath], outputFilename, result.code, swAssets)
 
         // Emit the bundled Service Worker as asset
         this.emitFile({
@@ -1108,7 +1333,7 @@ function setupEsbuildHooks(build: EsbuildPluginBuild, options: OptionsResolved):
         define: bundlerConfig.define,
         alias: bundlerConfig.alias,
 
-        plugins: resolveServiceWorkerPlugins(options.plugins, bundlerConfig.plugins)
+        plugins: resolveProductionPlugins(options, bundlerConfig.plugins)
       })
 
       if (!bundleResult) {
@@ -1129,6 +1354,14 @@ function setupEsbuildHooks(build: EsbuildPluginBuild, options: OptionsResolved):
       const outputPath = path.join(outdir, outputFileName)
       await fs.mkdir(path.dirname(outputPath), { recursive: true })
       await fs.writeFile(outputPath, bundleResult.code)
+
+      // Write additional assets alongside the Service Worker bundle
+      const swAssets = await resolveAssetConfigs(options.assets, outputFileName)
+      for (const asset of swAssets) {
+        const assetPath = path.join(outdir, asset.fileName)
+        await fs.mkdir(path.dirname(assetPath), { recursive: true })
+        await fs.writeFile(assetPath, asset.source)
+      }
     }
 
     // Replace placeholders in output files
@@ -1263,7 +1496,7 @@ function createFarmFinishExecutor(
         define: ctx.bundlerConfig.define,
         alias: ctx.bundlerConfig.alias,
 
-        plugins: resolveServiceWorkerPlugins(options.plugins, ctx.bundlerConfig.plugins)
+        plugins: resolveProductionPlugins(options, ctx.bundlerConfig.plugins)
       })
 
       if (result) {
@@ -1279,6 +1512,14 @@ function createFarmFinishExecutor(
         const outputPath = path.join(farmOutputDir, outputFilename)
         await fs.mkdir(path.dirname(outputPath), { recursive: true })
         await fs.writeFile(outputPath, result.code)
+
+        // Write additional assets alongside the Service Worker bundle
+        const swAssets = await resolveAssetConfigs(options.assets, outputFilename)
+        for (const asset of swAssets) {
+          const assetPath = path.join(farmOutputDir, asset.fileName)
+          await fs.mkdir(path.dirname(assetPath), { recursive: true })
+          await fs.writeFile(assetPath, asset.source)
+        }
       }
     }
 
@@ -1298,7 +1539,9 @@ function createFarmFinishExecutor(
       let match: RegExpExecArray | null
       while ((match = SW_ASSET_RE.exec(content))) {
         const [full, hash] = match
-        if (!hash) continue
+        if (!hash) {
+          continue
+        }
 
         const filename = cache.getFilenameFromHash(hash)
         if (filename) {
@@ -1448,6 +1691,21 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
           handler(code, id) {
             return transformForRollup.call(this, code, id, ctx)
           }
+        },
+        async generateBundle() {
+          if (!options.assets || options.assets.length === 0) return
+          // Determine output directory from pending Service Workers' scope
+          const firstSw = ctx.pendingServiceWorkers.values().next().value
+          const outputDir = getOutputDirFromScope(firstSw?.scope, '')
+          const dummyFilename = outputDir ? `${outputDir}/sw.js` : 'sw.js'
+          const swAssets = await resolveAssetConfigs(options.assets, dummyFilename)
+          for (const asset of swAssets) {
+            this.emitFile({
+              type: 'asset',
+              fileName: asset.fileName,
+              source: asset.source
+            })
+          }
         }
       } satisfies Partial<RollupPlugin>,
 
@@ -1486,12 +1744,19 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
 
       // Webpack-specific hook
       webpack(compiler: WebpackCompiler) {
-        setupWebpackLikeCompiler(compiler, ctx, cache, name, 'webpack')
+        setupWebpackLikeCompiler(compiler, ctx, cache, name, 'webpack', options)
       },
 
       // Rspack-specific hook
       rspack(compiler: RspackCompiler) {
-        setupWebpackLikeCompiler(compiler as unknown as WebpackCompiler, ctx, cache, name, 'rspack')
+        setupWebpackLikeCompiler(
+          compiler as unknown as WebpackCompiler,
+          ctx,
+          cache,
+          name,
+          'rspack',
+          options
+        )
       },
 
       // esbuild-specific hooks

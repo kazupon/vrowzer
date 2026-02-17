@@ -55,7 +55,11 @@ export async function buildWithFarm(
     },
     // @ts-ignore -- for testing
 
-    plugins: [ServiceWorker()]
+    plugins: [
+      ServiceWorker({
+        assets: [{ src: path.join(playgroundDir, 'add.wasm') }]
+      })
+    ]
   })
 
   // Post-build: Bundle SW and replace placeholders

@@ -47,4 +47,23 @@ describe('resolveOptions', () => {
     expect(resolved.plugins![0]).toBe(pluginA)
     expect(resolved.plugins![1]).toBe(pluginB)
   })
+
+  it('should pass through assets option', () => {
+    const resolved = resolveOptions({
+      assets: [{ src: 'path/to/file.wasm' }]
+    })
+    expect(resolved.assets).toEqual([{ src: 'path/to/file.wasm' }])
+  })
+
+  it('should pass through assets with fileName', () => {
+    const resolved = resolveOptions({
+      assets: [{ src: 'path/to/file.wasm', fileName: 'custom.wasm' }]
+    })
+    expect(resolved.assets).toEqual([{ src: 'path/to/file.wasm', fileName: 'custom.wasm' }])
+  })
+
+  it('should leave assets undefined when not specified', () => {
+    const resolved = resolveOptions({})
+    expect(resolved.assets).toBeUndefined()
+  })
 })

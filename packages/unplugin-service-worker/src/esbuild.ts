@@ -17,8 +17,8 @@
  * @license MIT
  */
 
-import { ServiceWorkerPlugin } from './index.ts'
+import { ServiceWorkerPlugin, wasmUrlPlugin } from './index.ts'
 
 const esbuild = ServiceWorkerPlugin.esbuild
 export default esbuild
-export { esbuild as 'module.exports' }
+export { esbuild as 'module.exports', wasmUrlPlugin }

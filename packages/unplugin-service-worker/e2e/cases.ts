@@ -224,6 +224,48 @@ const lifecycleTransitions: TestCase = {
 }
 
 // =============================================================================
+// WASM Inline Tests
+// =============================================================================
+
+const wasmInlineWorks: TestCase = {
+  name: 'WASM is inlined as base64 data URL in SW bundle',
+  fn: async (ctx, expect) => {
+    // Verify the bundled SW contains inlined WASM as base64 data URL
+    // instead of the original new URL("*.wasm", import.meta.url) pattern
+    const assets = await readdir(ctx.outputDir, { recursive: true })
+    const swFiles = assets.filter(
+      f => typeof f === 'string' && f.includes('sw') && f.endsWith('.js')
+    )
+    expect(swFiles.length).toBeGreaterThan(0)
+
+    const { readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const swContent = await readFile(join(ctx.outputDir, String(swFiles[0])), 'utf-8')
+
+    // Should contain base64-encoded WASM data URL
+    expect(swContent).toContain('data:application/wasm;base64,')
+
+    // Should NOT contain the original import.meta.url pattern or {}.url
+    expect(swContent).not.toMatch(/new\s+URL\(["'][^"']*\.wasm["']/)
+  }
+}
+
+// =============================================================================
+// Assets Option Tests
+// =============================================================================
+
+const assetsEmitted: TestCase = {
+  name: 'assets option emits additional files alongside SW bundle',
+  fn: async (ctx, expect) => {
+    const assets = await readdir(ctx.outputDir, { recursive: true })
+
+    // add.wasm should be emitted alongside SW bundle
+    const wasmFiles = assets.filter(f => typeof f === 'string' && f.endsWith('.wasm'))
+    expect(wasmFiles.length).toBeGreaterThan(0)
+  }
+}
+
+// =============================================================================
 // Export all test cases
 // =============================================================================
 
@@ -242,5 +284,11 @@ export const testCases: TestCase[] = [
   resumeRestoresState,
 
   // State Transition Tests
-  lifecycleTransitions
+  lifecycleTransitions,
+
+  // WASM Inline Tests
+  wasmInlineWorks,
+
+  // Assets Option Tests
+  assetsEmitted
 ]

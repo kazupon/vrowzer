@@ -4,6 +4,9 @@ import { createSvcWorker } from '@vrowser/service-worker/worker'
 
 const SW_VERSION = 'e2e-test-v1'
 
+// WASM URL — wasmInlinePlugin converts this to a base64 data URL at bundle time
+const wasmUrl = new URL('./add.wasm', import.meta.url)
+
 // Create the service worker wrapper
 const sw = createSvcWorker(self, {
   version: SW_VERSION
@@ -42,6 +45,27 @@ sw.addEventListener('fetch', event => {
           headers: { 'Content-Type': 'application/json' }
         }
       )
+    )
+    return
+  }
+
+  // Test endpoint: /api/wasm-add?a=2&b=3 — uses inlined WASM to add two numbers
+  if (url.pathname === '/api/wasm-add') {
+    event.respondWith(
+      (async () => {
+        // Use fetch + arrayBuffer + instantiate instead of instantiateStreaming
+        // because data URLs from inlined WASM don't have the correct MIME type
+        const response = await fetch(wasmUrl)
+        const buffer = await response.arrayBuffer()
+        const { instance } = await WebAssembly.instantiate(buffer)
+        const add = /** @type {(a: number, b: number) => number} */ (instance.exports.add)
+        const a = Number(url.searchParams.get('a') || 0)
+        const b = Number(url.searchParams.get('b') || 0)
+        const result = add(a, b)
+        return new Response(JSON.stringify({ result }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      })()
     )
     return
   }

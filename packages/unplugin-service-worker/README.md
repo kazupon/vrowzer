@@ -26,7 +26,12 @@ yarn add -D @vrowser/unpluign-service-worker
 bun add -D @vrowser/unplugin-service-worker
 ```
 
-> **Note**: This plugin requires `@vrowser/service-worker` to be installed in your project.
+<!-- eslint-disable markdown/no-missing-label-refs -->
+
+> [!NOTE]
+> This plugin requires `@vrowser/service-worker` to be installed in your project.
+
+<!-- eslint-enable markdown/no-missing-label-refs -->
 
 <details>
 <summary>Vite</summary><br>
@@ -200,7 +205,7 @@ Production builds include content-based hashes in filenames:
 dist/
 ├── assets/
 │   ├── main-x9y8z7w6.js
-│   └── sw-a1b2c3d4.js    # Hash changes when SW content changes
+│   └── sw-a1b2c3d4.js    # Hash changes when Service Worker content changes
 └── index.html
 ```
 
@@ -249,7 +254,77 @@ dist/
 └── index.html
 ```
 
-> **Note**: The default scope of a Service Worker is determined by its script location. By placing the script at root, you can register it with `scope: '/'` without needing the `Service-Worker-Allowed` HTTP header.
+<!-- eslint-disable markdown/no-missing-label-refs -->
+
+> [!NOTE]
+> The default scope of a Service Worker is determined by its script location. By placing the script at root, you can register it with `scope: '/'` without needing the `Service-Worker-Allowed` HTTP header.
+
+<!-- eslint-enable markdown/no-missing-label-refs -->
+
+### WASM Support
+
+The plugin automatically handles `new URL("*.wasm", import.meta.url)` patterns in Service Worker code. The behavior depends on the build mode and configuration:
+
+| Mode        | `assets` option | Behavior                                                              |
+| ----------- | --------------- | --------------------------------------------------------------------- |
+| Development | Any             | WASM is always inlined as base64 data URL                             |
+| Production  | Not specified   | WASM is inlined as base64 data URL                                    |
+| Production  | Specified       | WASM is served as a separate file alongside the Service Worker bundle |
+
+#### Default: WASM Inline (no configuration needed)
+
+By default, WASM binaries are inlined as base64 data URLs (`data:application/wasm;base64,...`). This works automatically with no configuration in both dev and production modes.
+
+```ts
+// Before bundling (in your Service Worker code or dependencies)
+const wasmUrl = new URL('parser.wasm', import.meta.url)
+const module = await WebAssembly.instantiateStreaming(fetch(wasmUrl))
+
+// After bundling (automatic transformation)
+const wasmUrl = 'data:application/wasm;base64,AGFzbQ...'
+const module = await WebAssembly.instantiateStreaming(fetch(wasmUrl))
+```
+
+Inlining is necessary because:
+
+- Service Workers are bundled as IIFE format where `import.meta.url` is not available
+- The Service Worker's `fetch` handler would intercept WASM fetch requests, causing infinite loops
+
+#### Separate WASM files with `assets` option (production only)
+
+For production builds, you can serve WASM files as separate assets instead of inlining them by specifying the [`assets`](#assets) option. This reduces bundle size and enables streaming compilation.
+
+```ts
+ServiceWorker({
+  assets: [{ src: './node_modules/some-pkg/parser.wasm' }]
+})
+```
+
+When `assets` is specified, the plugin automatically:
+
+1. Adds `wasmUrlPlugin()` to the Service Worker bundler, which replaces `new URL("*.wasm", import.meta.url)` with `new URL("*.wasm", self.location.href)` in the production bundle
+2. Copies the WASM files to the same output directory as the Service Worker bundle
+
+You can also add `wasmUrlPlugin()` to the `plugins` option manually if you need more control:
+
+```ts
+import ServiceWorker, { wasmUrlPlugin } from '@vrowser/unplugin-service-worker/vite'
+
+ServiceWorker({
+  plugins: [wasmUrlPlugin()],
+  assets: [{ src: './node_modules/some-pkg/parser.wasm' }]
+})
+```
+
+<!-- eslint-disable markdown/no-missing-label-refs -->
+
+> [!NOTE]
+> In development mode, WASM is always inlined regardless of the `assets` or `plugins` option, because the dev server cannot serve additional asset files alongside the Service Worker.
+
+> [!NOTE]
+> `wasmUrlPlugin()` is a rolldown plugin for the Service Worker bundler. It works with all bundlers that use rolldown internally (Vite, Rolldown, Rollup, esbuild, Farm, Bun), but **does not work with webpack or rspack** as they use their own child compiler for Service Worker bundling.
+
+<!-- eslint-enable markdown/no-missing-label-refs -->
 
 ## ⚙️ Options
 
@@ -273,17 +348,56 @@ ServiceWorker({
 
   // Additional rolldown plugins for the Service Worker bundler
   // Default: undefined
-  plugins: [myRolldownPlugin()]
+  plugins: [myRolldownPlugin()],
+
+  // Additional assets to emit alongside the Service Worker bundle
+  // Default: undefined
+  assets: [
+    { src: './node_modules/some-pkg/file.wasm' },
+    { src: './static/data.bin', fileName: 'data.bin' }
+  ]
 })
 ```
 
-| Option                 | Type                           | Default                                      | Description                                                                                                                                                                     |
-| ---------------------- | ------------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `include`              | `FilterPattern`                | `[/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]` | Files to include for processing                                                                                                                                                 |
-| `exclude`              | `FilterPattern`                | `[/node_modules/]`                           | Files to exclude from processing                                                                                                                                                |
-| `enforce`              | `'pre' \| 'post' \| undefined` | `'pre'`                                      | Plugin enforcement phase                                                                                                                                                        |
-| `serviceWorkerAllowed` | `string \| undefined`          | `undefined`                                  | Set `Service-Worker-Allowed` header in Vite dev server. Allows registering a Service Worker with a scope broader than the script location. Only takes effect during `vite dev`. |
-| `plugins`              | `Plugin[] \| undefined`        | `undefined`                                  | Additional rolldown plugins for the Service Worker bundler. Merged with plugins from the parent bundler.                                                                        |
+| Option                 | Type                                      | Default                                      | Description                                                                                                                                                                     |
+| ---------------------- | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `include`              | `FilterPattern`                           | `[/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]` | Files to include for processing                                                                                                                                                 |
+| `exclude`              | `FilterPattern`                           | `[/node_modules/]`                           | Files to exclude from processing                                                                                                                                                |
+| `enforce`              | `'pre' \| 'post' \| undefined`            | `'pre'`                                      | Plugin enforcement phase                                                                                                                                                        |
+| `serviceWorkerAllowed` | `string \| undefined`                     | `undefined`                                  | Set `Service-Worker-Allowed` header in Vite dev server. Allows registering a Service Worker with a scope broader than the script location. Only takes effect during `vite dev`. |
+| `plugins`              | `Plugin[] \| undefined`                   | `undefined`                                  | Additional rolldown plugins for the Service Worker bundler. Merged with plugins from the parent bundler.                                                                        |
+| `assets`               | `ServiceWorkerAssetConfig[] \| undefined` | `undefined`                                  | Additional assets to emit alongside the Service Worker bundle. See [Assets](#assets) below.                                                                                     |
+
+### Assets
+
+The `assets` option allows you to emit additional files alongside the bundled Service Worker. This is useful for production builds where binary files (e.g. WASM) need to be served from the same location as the Service Worker script.
+
+```ts
+ServiceWorker({
+  assets: [
+    // Emit WASM file next to the Service Worker bundle
+    { src: './node_modules/@vrowser/oxc-parser/dist/vrowser_oxc_parser_bg.wasm' },
+    // Emit with a custom filename
+    { src: './static/model.bin', fileName: 'model.bin' }
+  ]
+})
+```
+
+**`ServiceWorkerAssetConfig`:**
+
+| Field      | Type                  | Description                                             |
+| ---------- | --------------------- | ------------------------------------------------------- |
+| `src`      | `string`              | Source file path (absolute or relative to project root) |
+| `fileName` | `string \| undefined` | Output filename. Defaults to the basename of `src`      |
+
+The emitted assets are placed in the same output directory as the Service Worker bundle, following the [scope-based output path](#scope-based-output-path) rules.
+
+When `assets` is specified, the production build behavior changes for WASM files:
+
+- WASM files are **not** inlined as base64 data URLs
+- Instead, `new URL("*.wasm", import.meta.url)` is rewritten to `new URL("*.wasm", self.location.href)`, and the WASM files are copied alongside the Service Worker bundle
+
+See [WASM Support](#wasm-support) for details on how dev and production modes handle WASM files.
 
 ### Plugin Support in Service Worker Bundling
 

@@ -27,7 +27,8 @@ __screenshots__
 test-results
 .output
 
-# for Rust projects
+# for projects
+packages/unplugin-service-worker/e2e/playground/add.wasm
 packages/oxc-parser/target
 
 .notes

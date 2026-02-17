@@ -23,7 +23,11 @@ export async function buildWithVite(
         input: path.join(playgroundDir, 'index.html')
       }
     },
-    plugins: [ServiceWorker()]
+    plugins: [
+      ServiceWorker({
+        assets: [{ src: path.join(playgroundDir, 'add.wasm') }]
+      })
+    ]
   })
 
   return { success: true }

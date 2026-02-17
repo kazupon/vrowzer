@@ -22,9 +22,9 @@
  * @license MIT
  */
 
-import { ServiceWorkerPlugin } from './index.ts'
+import { ServiceWorkerPlugin, wasmUrlPlugin } from './index.ts'
 
 // Bun uses an esbuild-compatible plugin API
 const bun = ServiceWorkerPlugin.esbuild
 export default bun
-export { bun as 'module.exports' }
+export { bun as 'module.exports', wasmUrlPlugin }

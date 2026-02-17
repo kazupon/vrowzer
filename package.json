@@ -26,6 +26,7 @@
     "fix:knip": "knip --fix --no-exit-code",
     "fix:oxfmt": "oxfmt . --config ./node_modules/@kazupon/prettier-config/index.json",
     "fix:oxlint": "oxlint --config .oxlintrc.json --type-aware --fix",
+    "gen:wasm": "tsx scripts/generate-wasm.ts",
     "lint": "pnpm run --color \"/^lint:/\"",
     "lint:clippy": "pnpm -r run lint:clippy",
     "lint:eslint": "eslint . --cache",
@@ -34,7 +35,7 @@
     "lint:oxlint": "oxlint --type-aware --config .oxlintrc.json",
     "play:dev-server": "pnpm --filter play-dev-server dev",
     "play:svc": "pnpm --filter service-worker play",
-    "prepare": "git config --local core.hooksPath .githooks",
+    "prepare": "git config --local core.hooksPath .githooks && pnpm run gen:wasm",
     "preview:dev-server": "pnpm --filter play-dev-server preview",
     "preview:vrowser": "pnpm --filter vrowser preview",
     "submodule:history": "tsx scripts/submodule-history.ts",
@@ -80,7 +81,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.53.0",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "watr": "^4.2.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

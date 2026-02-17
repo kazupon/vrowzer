@@ -113,7 +113,9 @@ function wrapEnvironmentLoad(
   environment: Environment,
   hook: Plugin['load'] | undefined
 ): Plugin['load'] | undefined {
-  if (!hook) return undefined
+  if (!hook) {
+    return undefined
+  }
 
   const fn = getHookHandler(hook as ObjectHook<Function>)
   const handler = function (this: unknown, id: string, ...args: unknown[]) {
@@ -131,7 +133,9 @@ function wrapEnvironmentTransform(
   environment: Environment,
   hook: Plugin['transform'] | undefined
 ): Plugin['transform'] | undefined {
-  if (!hook) return undefined
+  if (!hook) {
+    return undefined
+  }
 
   const fn = getHookHandler(hook as ObjectHook<Function>)
   const handler = function (this: unknown, code: string, id: string, ...args: unknown[]) {
@@ -148,10 +152,14 @@ function wrapEnvironmentTransform(
 function wrapEnvironmentHook(environment: Environment, plugin: Plugin, hookName: string): unknown {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- ignore
   const hook = (plugin as any)[hookName]
-  if (!hook) return undefined
+  if (!hook) {
+    return undefined
+  }
 
   const fn = getHookHandler(hook as ObjectHook<Function>)
-  if (typeof fn !== 'function') return hook
+  if (typeof fn !== 'function') {
+    return hook
+  }
 
   const handler = function (this: unknown, ...args: unknown[]) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- ignore
@@ -186,17 +194,23 @@ export function injectEnvironmentToHooks(environment: Environment, plugin: Plugi
     switch (hook) {
       case 'resolveId': {
         const wrapped = wrapEnvironmentResolveId(environment, resolveId)
-        if (wrapped) clone[hook] = wrapped
+        if (wrapped) {
+          clone[hook] = wrapped
+        }
         break
       }
       case 'load': {
         const wrapped = wrapEnvironmentLoad(environment, load)
-        if (wrapped) clone[hook] = wrapped
+        if (wrapped) {
+          clone[hook] = wrapped
+        }
         break
       }
       case 'transform': {
         const wrapped = wrapEnvironmentTransform(environment, transform)
-        if (wrapped) clone[hook] = wrapped
+        if (wrapped) {
+          clone[hook] = wrapped
+        }
         break
       }
       default:

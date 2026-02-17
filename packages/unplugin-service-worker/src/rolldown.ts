@@ -19,8 +19,8 @@
  * @license MIT
  */
 
-import { ServiceWorkerPlugin } from './index.ts'
+import { ServiceWorkerPlugin, wasmUrlPlugin } from './index.ts'
 
 const rolldown = ServiceWorkerPlugin.rolldown
 export default rolldown
-export { rolldown as 'module.exports' }
+export { rolldown as 'module.exports', wasmUrlPlugin }

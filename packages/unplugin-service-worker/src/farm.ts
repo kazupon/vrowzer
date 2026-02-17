@@ -19,11 +19,11 @@
  * @license MIT
  */
 
-import { ServiceWorkerPlugin } from './index.ts'
+import { ServiceWorkerPlugin, wasmUrlPlugin } from './index.ts'
 
 import type { Options } from './core/options.ts'
 
 // @ts-expect-error FIXME:
 const farm: (options?: Options) => unknown[] = ServiceWorkerPlugin.farm
 export default farm
-export { farm as 'module.exports' }
+export { farm as 'module.exports', wasmUrlPlugin }

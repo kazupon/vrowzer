@@ -28,7 +28,11 @@ export async function buildWithBun(playgroundDir: string, outputDir: string): Pr
     target: 'browser',
     minify: false,
     sourcemap: 'none',
-    plugins: [ServiceWorker()]
+    plugins: [
+      ServiceWorker({
+        assets: [{ src: join(playgroundDir, 'add.wasm') }]
+      })
+    ]
   })
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- for testing

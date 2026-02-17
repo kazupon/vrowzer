@@ -22,8 +22,8 @@
  * @license MIT
  */
 
-import { ServiceWorkerPlugin } from './index.ts'
+import { ServiceWorkerPlugin, wasmUrlPlugin } from './index.ts'
 
 const vite = ServiceWorkerPlugin.vite
 export default vite
-export { vite as 'module.exports' }
+export { vite as 'module.exports', wasmUrlPlugin }

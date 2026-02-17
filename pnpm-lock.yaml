@@ -133,6 +133,9 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.0.17(@types/node@25.0.9)(@vitest/browser-playwright@4.0.17)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      watr:
+        specifier: ^4.2.1
+        version: 4.2.1
 
   packages/fs:
     dependencies:
@@ -275,6 +278,9 @@ importers:
       '@vrowser/node-polyfill':
         specifier: workspace:*
         version: link:../node-polyfill
+      '@vrowser/oxc-parser':
+        specifier: workspace:*
+        version: link:../oxc-parser
       '@vrowser/unplugin-service-worker':
         specifier: workspace:*
         version: link:../unplugin-service-worker
@@ -5992,6 +5998,10 @@ packages:
     resolution: {integrity: sha512-e6vZvY6xboSwLz2GD36c16+O/2Z6fKvIf4pOXptw2rY9MVwE/TXc6RGqxD3I3x0a28lwBY7DE+76uTPSsBrrCA==}
     engines: {node: '>=10.13.0'}
 
+  watr@4.2.1:
+    resolution: {integrity: sha512-PlEZJDPubD/9NxHM5t3onefewS4Yr7UZryfB4UAqv+MDrtql0cJ/EAe1++zRw0RADbovbcY7sjIa6PWJGGdRlw==}
+    hasBin: true
+
   webpack-sources@3.3.3:
     resolution: {integrity: sha512-yd1RBzSGanHkitROoPFd6qsrxt+oFhg/129YzheDGqeustzX0vTZJZsSsQjVQC4yzBQ56K55XU8gaNCtIzOnTg==}
     engines: {node: '>=10.13.0'}
@@ -11184,6 +11194,8 @@ snapshots:
     dependencies:
       glob-to-regexp: 0.4.1
       graceful-fs: 4.2.11
+
+  watr@4.2.1: {}
 
   webpack-sources@3.3.3: {}
 

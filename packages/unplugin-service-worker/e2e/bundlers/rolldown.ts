@@ -18,7 +18,11 @@ export async function buildWithRolldown(
     resolve: {
       conditionNames: ['browser', 'import', 'module', 'default']
     },
-    plugins: [ServiceWorker()]
+    plugins: [
+      ServiceWorker({
+        assets: [{ src: join(playgroundDir, 'add.wasm') }]
+      })
+    ]
   })
 
   await bundle.write({

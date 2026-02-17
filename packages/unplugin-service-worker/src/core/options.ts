@@ -49,13 +49,37 @@ export interface Options {
    * @default undefined
    */
   plugins?: import('rolldown').Plugin[] | undefined
+  /**
+   * Additional assets to emit alongside the Service Worker bundle.
+   * These files are copied to the same output directory as the SW.
+   *
+   * Useful for production builds where WASM or other binary files
+   * need to be served from the same location as the SW script.
+   *
+   * @default undefined
+   */
+  assets?: ServiceWorkerAssetConfig[] | undefined
+}
+
+/**
+ * Configuration for an additional asset to emit alongside the Service Worker.
+ */
+export interface ServiceWorkerAssetConfig {
+  /**
+   * Source file path (absolute or relative to project root).
+   */
+  src: string
+  /**
+   * Output filename. Defaults to the basename of src.
+   */
+  fileName?: string
 }
 
 type Overwrite<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U
 
 export type OptionsResolved = Overwrite<
   Required<Options>,
-  Pick<Options, 'enforce' | 'serviceWorkerAllowed' | 'plugins'>
+  Pick<Options, 'enforce' | 'serviceWorkerAllowed' | 'plugins' | 'assets'>
 >
 
 export function resolveOptions(options: Options): OptionsResolved {
@@ -65,6 +89,7 @@ export function resolveOptions(options: Options): OptionsResolved {
     exclude: options.exclude || [/node_modules/],
     enforce: 'enforce' in options ? options.enforce : 'pre',
     serviceWorkerAllowed: options.serviceWorkerAllowed,
-    plugins: options.plugins
+    plugins: options.plugins,
+    assets: options.assets
   }
 }
