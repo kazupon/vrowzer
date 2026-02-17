@@ -1694,11 +1694,10 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
         },
         async generateBundle() {
           if (!options.assets || options.assets.length === 0) return
-          // Determine output directory from pending Service Workers' scope
-          const firstSw = ctx.pendingServiceWorkers.values().next().value
-          const outputDir = getOutputDirFromScope(firstSw?.scope, '')
-          const dummyFilename = outputDir ? `${outputDir}/sw.js` : 'sw.js'
-          const swAssets = await resolveAssetConfigs(options.assets, dummyFilename)
+          // Get the SW chunk's output filename from rollup reference IDs
+          const firstRefId = ctx.rollupReferenceIds.values().next().value as string | undefined
+          const swFileName = firstRefId ? this.getFileName(firstRefId) : 'sw.js'
+          const swAssets = await resolveAssetConfigs(options.assets, swFileName)
           for (const asset of swAssets) {
             this.emitFile({
               type: 'asset',
@@ -1729,6 +1728,29 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
           },
           handler(code: string, id: string) {
             return transformForRollup.call(this as unknown as RollupTransformContext, code, id, ctx)
+          }
+        },
+        async generateBundle() {
+          if (!options.assets || options.assets.length === 0) return
+          const firstRefId = ctx.rollupReferenceIds.values().next().value as string | undefined
+          const swFileName = firstRefId
+            ? (this as unknown as { getFileName: (id: string) => string }).getFileName(firstRefId)
+            : 'sw.js'
+          const swAssets = await resolveAssetConfigs(options.assets, swFileName)
+          for (const asset of swAssets) {
+            ;(
+              this as unknown as {
+                emitFile: (file: {
+                  type: 'asset'
+                  fileName: string
+                  source: string | Uint8Array
+                }) => string
+              }
+            ).emitFile({
+              type: 'asset',
+              fileName: asset.fileName,
+              source: asset.source
+            })
           }
         }
       },

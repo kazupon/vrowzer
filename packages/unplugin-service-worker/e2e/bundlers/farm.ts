@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises'
+import { copyFile, readdir, readFile, writeFile, mkdir } from 'node:fs/promises'
 import { build, NoopLogger } from '@farmfe/core'
 import { rolldown } from 'rolldown'
 
@@ -51,7 +51,8 @@ export async function buildWithFarm(
       presetEnv: false,
       minify: false,
       sourcemap: false,
-      persistentCache: false
+      persistentCache: false,
+      define: { __SW_TYPE__: JSON.stringify('classic') }
     },
     // @ts-ignore -- for testing
 
@@ -66,12 +67,24 @@ export async function buildWithFarm(
   // This is needed because Farm's unplugin adapter doesn't support renderChunk/generateBundle
   const swPath = path.join(playgroundDir, 'sw.js')
 
-  // Bundle SW with rolldown
+  // Bundle SW with rolldown (with WASM inline support)
+  const { wasmInlinePlugin, inlineWasmInCode } = (await import('../../dist/index.mjs')) as {
+    wasmInlinePlugin: () => import('rolldown').Plugin & { readonly _wasmFiles: Map<string, string> }
+    inlineWasmInCode: (code: string, wasmFiles: Map<string, string>) => Promise<string>
+  }
+  const wasmPlugin = wasmInlinePlugin()
   const bundle = await rolldown({
     input: swPath,
     platform: 'browser',
     resolve: {
       conditionNames: ['browser', 'import', 'module', 'default']
+    },
+    plugins: [wasmPlugin],
+    transform: {
+      define: {
+        'import.meta.env': '{}',
+        'import.meta': '{}'
+      }
     }
   })
 
@@ -88,14 +101,25 @@ export async function buildWithFarm(
     throw new Error('Failed to bundle Service Worker')
   }
 
+  // Post-process: inline WASM files as base64 data URLs
+  let swCode = swChunk.code
+  const wasmFiles = wasmPlugin._wasmFiles
+  if (wasmFiles.size > 0) {
+    swCode = await inlineWasmInCode(swCode, wasmFiles)
+  }
+
   // Generate SW filename with content hash
-  const swContentHash = generateContentHash(swChunk.code)
+  const swContentHash = generateContentHash(swCode)
   const swFilename = `sw-${swContentHash}.js`
   const swOutputPath = path.join(outputDir, 'assets', swFilename)
 
   // Write SW file
   await mkdir(path.join(outputDir, 'assets'), { recursive: true })
-  await writeFile(swOutputPath, swChunk.code)
+  await writeFile(swOutputPath, swCode)
+
+  // Copy assets alongside the SW bundle
+  const addWasmSrc = path.join(playgroundDir, 'add.wasm')
+  await copyFile(addWasmSrc, path.join(outputDir, 'assets', 'add.wasm'))
 
   // Replace placeholders in all JS files
   const allFiles = await readdir(outputDir, { recursive: true })

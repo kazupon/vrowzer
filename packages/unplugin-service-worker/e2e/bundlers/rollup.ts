@@ -16,6 +16,13 @@ export async function buildWithRollup(
   const bundle = await rollup({
     input: join(playgroundDir, 'main.js'),
     plugins: [
+      {
+        name: 'define-sw-type',
+        transform(code) {
+          if (!code.includes('__SW_TYPE__')) return null
+          return code.replace(/__SW_TYPE__/g, JSON.stringify('module'))
+        }
+      },
       nodeResolve({
         browser: true,
         preferBuiltins: false

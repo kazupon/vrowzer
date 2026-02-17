@@ -26,6 +26,7 @@ export async function buildWithEsbuild(
     splitting: true,
     minify: false,
     sourcemap: false,
+    define: { __SW_TYPE__: JSON.stringify('module') },
     platform: 'browser',
     conditions: ['browser', 'import', 'module', 'default'],
     metafile: true,

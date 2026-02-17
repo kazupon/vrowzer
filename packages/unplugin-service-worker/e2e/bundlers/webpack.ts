@@ -32,6 +32,9 @@ export async function buildWithWebpack(
           minimize: false
         },
         plugins: [
+          new webpack.DefinePlugin({
+            __SW_TYPE__: JSON.stringify('classic')
+          }),
           new HtmlWebpackPlugin({
             template: join(playgroundDir, 'index.html'),
             inject: 'body',

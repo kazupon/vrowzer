@@ -1,6 +1,6 @@
 import { copyFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { rspack, HtmlRspackPlugin } from '@rspack/core'
+import { rspack, HtmlRspackPlugin, DefinePlugin } from '@rspack/core'
 
 import type { Stats } from '@rspack/core'
 import type { BuildResult } from './types.ts'
@@ -32,6 +32,9 @@ export async function buildWithRspack(
           minimize: false
         },
         plugins: [
+          new DefinePlugin({
+            __SW_TYPE__: JSON.stringify('classic')
+          }),
           new HtmlRspackPlugin({
             template: join(playgroundDir, 'index.html'),
             inject: 'body',

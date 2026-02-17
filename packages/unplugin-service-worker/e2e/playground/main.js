@@ -33,7 +33,7 @@ async function init() {
     const controller = createSvcWorkerController({
       scriptURL: new URL('./sw.js', import.meta.url),
       version: SW_VERSION,
-      type: 'module'
+      type: __SW_TYPE__
     })
 
     window.testState.controller = controller

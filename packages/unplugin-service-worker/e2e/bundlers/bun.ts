@@ -27,6 +27,7 @@ export async function buildWithBun(playgroundDir: string, outputDir: string): Pr
     format: 'esm',
     target: 'browser',
     minify: false,
+    define: { __SW_TYPE__: JSON.stringify('module') },
     sourcemap: 'none',
     plugins: [
       ServiceWorker({

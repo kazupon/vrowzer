@@ -22,7 +22,10 @@ export async function buildWithRolldown(
       ServiceWorker({
         assets: [{ src: join(playgroundDir, 'add.wasm') }]
       })
-    ]
+    ],
+    transform: {
+      define: { __SW_TYPE__: JSON.stringify('module') }
+    }
   })
 
   await bundle.write({

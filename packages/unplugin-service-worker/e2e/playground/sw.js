@@ -4,8 +4,14 @@ import { createSvcWorker } from '@vrowser/service-worker/worker'
 
 const SW_VERSION = 'e2e-test-v1'
 
-// WASM URL — wasmInlinePlugin converts this to a base64 data URL at bundle time
-const wasmUrl = new URL('./add.wasm', import.meta.url)
+// WASM URL — transformed by wasmInlinePlugin (base64 data URL) or wasmUrlPlugin (self.location.href)
+// May fail in webpack/rspack child compiler where import.meta.url is unavailable in SW context
+let wasmUrl = null
+try {
+  wasmUrl = new URL('./add.wasm', import.meta.url)
+} catch {
+  // WASM not available in this bundler's SW output
+}
 
 // Create the service worker wrapper
 const sw = createSvcWorker(self, {
@@ -51,6 +57,15 @@ sw.addEventListener('fetch', event => {
 
   // Test endpoint: /api/wasm-add?a=2&b=3 — uses inlined WASM to add two numbers
   if (url.pathname === '/api/wasm-add') {
+    if (!wasmUrl) {
+      event.respondWith(
+        new Response(JSON.stringify({ error: 'WASM not available' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      return
+    }
     event.respondWith(
       (async () => {
         // Use fetch + arrayBuffer + instantiate instead of instantiateStreaming

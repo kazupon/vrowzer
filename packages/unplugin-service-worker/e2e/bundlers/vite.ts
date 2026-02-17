@@ -14,6 +14,9 @@ export async function buildWithVite(
     root: playgroundDir,
     base: '/',
     logLevel: 'warn',
+    define: {
+      __SW_TYPE__: JSON.stringify('module')
+    },
     build: {
       outDir: outputDir,
       emptyOutDir: true,

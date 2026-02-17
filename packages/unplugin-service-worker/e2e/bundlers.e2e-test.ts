@@ -96,12 +96,19 @@ for (const bundler of BUNDLERS_TO_TEST) {
 
     // Register all shared test cases
     for (const testCase of testCases) {
-      const testFn = testCase.skip ? test.skip : test
+      const shouldSkip = testCase.skip || testCase.skipBundlers?.includes(bundler.name)
+      const testFn = shouldSkip ? test.skip : test
       testFn(testCase.name, async () => {
         await testCase.fn(
           {
             getPage: async () => {
               const page = await context.newPage()
+              if (E2E_DEBUG) {
+                page.on('console', msg =>
+                  debug(`[${bundler.name}][CONSOLE]`, msg.type(), msg.text())
+                )
+                page.on('pageerror', err => debug(`[${bundler.name}][PAGE_ERROR]`, err.message))
+              }
               await page.goto(server.url)
               return page
             },

@@ -52,6 +52,8 @@ export interface Expect {
 export interface TestCase {
   name: string
   skip?: boolean
+  /** Bundler names to skip this test for */
+  skipBundlers?: string[]
   fn: (ctx: TestContext, expect: Expect) => Promise<void>
 }
 
@@ -224,14 +226,19 @@ const lifecycleTransitions: TestCase = {
 }
 
 // =============================================================================
-// WASM Inline Tests
+// WASM URL Rewrite Tests (assets option is specified in e2e bundler configs)
 // =============================================================================
 
-const wasmInlineWorks: TestCase = {
-  name: 'WASM is inlined as base64 data URL in SW bundle',
+const wasmNotInlined: TestCase = {
+  name: 'WASM is not inlined when assets option is specified',
+  // Farm e2e uses manual rolldown bundling with wasmInlinePlugin (not the plugin pipeline),
+  // so WASM is always inlined regardless of the assets option
+  skipBundlers: ['farm'],
   fn: async (ctx, expect) => {
-    // Verify the bundled SW contains inlined WASM as base64 data URL
-    // instead of the original new URL("*.wasm", import.meta.url) pattern
+    // When assets option is specified, WASM should NOT be inlined as base64.
+    // The URL resolution depends on the bundler:
+    // - IIFE bundles (Vite, esbuild, Farm, webpack, rspack): self.location.href
+    // - ES module bundles (Rollup, Rolldown): import.meta.url (preserved)
     const assets = await readdir(ctx.outputDir, { recursive: true })
     const swFiles = assets.filter(
       f => typeof f === 'string' && f.includes('sw') && f.endsWith('.js')
@@ -242,11 +249,8 @@ const wasmInlineWorks: TestCase = {
     const { join } = await import('node:path')
     const swContent = await readFile(join(ctx.outputDir, String(swFiles[0])), 'utf-8')
 
-    // Should contain base64-encoded WASM data URL
-    expect(swContent).toContain('data:application/wasm;base64,')
-
-    // Should NOT contain the original import.meta.url pattern or {}.url
-    expect(swContent).not.toMatch(/new\s+URL\(["'][^"']*\.wasm["']/)
+    // Should NOT contain inlined WASM (base64 data URL)
+    expect(swContent).not.toContain('data:application/wasm;base64,')
   }
 }
 
@@ -286,8 +290,8 @@ export const testCases: TestCase[] = [
   // State Transition Tests
   lifecycleTransitions,
 
-  // WASM Inline Tests
-  wasmInlineWorks,
+  // WASM Tests (assets option specified)
+  wasmNotInlined,
 
   // Assets Option Tests
   assetsEmitted
