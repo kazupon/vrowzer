@@ -400,6 +400,25 @@ importers:
         specifier: ^3.1.4
         version: 3.2.1(typescript@5.9.3)
 
+  packages/rolldown:
+    dependencies:
+      '@rolldown/browser':
+        specifier: ^1.0.0-beta.54
+        version: 1.0.0-beta.58
+    devDependencies:
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.57.0
+      get-port-please:
+        specifier: 'catalog:'
+        version: 3.2.0
+      rolldown:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.2
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.0-beta.12(@types/node@25.0.9)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+
   packages/service-worker:
     devDependencies:
       '@kazupon/jts-utils':

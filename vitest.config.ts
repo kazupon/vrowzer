@@ -148,6 +148,14 @@ export default defineConfig({
           testTimeout: 30000,
           hookTimeout: 60000
         }
+      },
+      {
+        test: {
+          name: 'rolldown:e2e',
+          include: ['./packages/rolldown/e2e/**/*.e2e-test.ts'],
+          testTimeout: 60000,
+          hookTimeout: 120000
+        }
       }
     ]
   }
