@@ -13,7 +13,7 @@ function createMockContext(options: {
       path: options.path,
       url: `http://localhost${options.path}`,
       header: vi.fn((name: string) => {
-        if (name === 'accept') return options.acceptHeader
+        if (name === 'accept') {return options.acceptHeader}
         return undefined
       })
     },

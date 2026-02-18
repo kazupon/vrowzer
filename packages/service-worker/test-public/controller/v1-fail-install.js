@@ -7,7 +7,9 @@ const SW_VERSION = 'v1'
 
 sw.addEventListener('message', event => {
   const data = event.data
-  if (!data || typeof data.type !== 'string') return
+  if (!data || typeof data.type !== 'string') {
+    return
+  }
 
   switch (data.type) {
     case 'V_SW_VERSION': {

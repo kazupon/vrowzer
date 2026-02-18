@@ -196,7 +196,9 @@ describe('test-stream2-transform', () => {
         _encoding: string,
         cb: () => void
       ) {
-        if (!chunk) chunk = ''
+        if (!chunk) {
+          chunk = ''
+        }
         const s = chunk.toString()
         setTimeout(() => {
           this.state += s.charAt(0)
@@ -249,8 +251,9 @@ describe('test-stream2-transform', () => {
         highWaterMark: 3
       })
       pt._transform = function (c: Buffer, _e: string, cb: () => void) {
-        if (count++ === 1) saved = c
-        else {
+        if (count++ === 1) {
+          saved = c
+        } else {
           if (saved) {
             pt.push(saved)
             saved = null
@@ -483,7 +486,9 @@ describe('test-stream2-transform', () => {
         'data',
         mustCall((data: unknown) => {
           expect((data as { toString: () => string }).toString()).toBe(expected.shift())
-          if (expected.length === 0) resolve()
+          if (expected.length === 0) {
+            resolve()
+          }
         }, 3) as (...args: unknown[]) => void
       )
       s.write('firstLine')

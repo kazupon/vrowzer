@@ -50,7 +50,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(10))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(10))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',
@@ -90,7 +92,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(10))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(10))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',
@@ -126,7 +130,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(13))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(13))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',
@@ -160,7 +166,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(10))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(10))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',
@@ -191,7 +199,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(10))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(10))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',
@@ -232,7 +242,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(10))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(10))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',
@@ -269,7 +281,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(13))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(13))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',
@@ -304,7 +318,9 @@ describe('test-stream2-set-encoding', () => {
       ]
       tr.on('readable', function flow() {
         let chunk
-        while (null !== (chunk = tr.read(10))) out.push(chunk as string)
+        while (null !== (chunk = tr.read(10))) {
+          out.push(chunk as string)
+        }
       })
       tr.on(
         'end',

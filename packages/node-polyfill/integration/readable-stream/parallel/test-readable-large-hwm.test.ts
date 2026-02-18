@@ -18,7 +18,9 @@ describe('test-readable-large-hwm', () => {
       r.on('readable', () => {
         while (true) {
           const ret = r.read(bufferSize)
-          if (ret === null) break
+          if (ret === null) {
+            break
+          }
         }
       })
       r.on(

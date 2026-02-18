@@ -13,7 +13,9 @@ describe('test-stream-readable-resume-hwm', () => {
       })
 
       // Fill up the internal buffer so that we definitely exceed the HWM:
-      for (let i = 0; i < 10; i++) readable.push('a'.repeat(200))
+      for (let i = 0; i < 10; i++) {
+        readable.push('a'.repeat(200))
+      }
 
       // Call resume, and pause after one chunk.
       // The .pause() is just so that we don't empty the buffer fully, which would

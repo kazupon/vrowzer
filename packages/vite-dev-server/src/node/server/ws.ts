@@ -238,7 +238,7 @@ export function createMessageChannelServer(
     clientId?: string,
   ) {
     const listeners = customListeners.get(event)
-    if (!listeners?.size) return
+    if (!listeners?.size) {return}
 
     const client = getPortClient(safePort, clientId)
     for (const listener of listeners) {
@@ -270,7 +270,7 @@ export function createMessageChannelServer(
       const data = msgEvent.data as HotPayload
 
       // Ignore ping messages (used for keep-alive)
-      if (data?.type === 'ping') return
+      if (data?.type === 'ping') {return}
 
       // Handle custom events
       if (data?.type === 'custom' && data?.event) {

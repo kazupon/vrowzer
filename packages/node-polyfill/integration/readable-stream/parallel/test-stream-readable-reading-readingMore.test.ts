@@ -19,7 +19,9 @@ describe('test-stream-readable-reading-readingMore', () => {
         mustCall((_data: unknown) => {
           // While in a flowing state with a 'readable' listener
           // we should not be reading more
-          if (readable.readableFlowing) expect(state.readingMore).toBe(true)
+          if (readable.readableFlowing) {
+            expect(state.readingMore).toBe(true)
+          }
 
           // Reading as long as we've not ended
           expect(state.reading).toBe(!state.ended)
@@ -45,10 +47,11 @@ describe('test-stream-readable-reading-readingMore', () => {
           expect(state.ended).toBe(!state.reading)
 
           // Consume all the data
-          while (readable.read() !== null);
-          if (expectedReadingMore.length === 0)
-            // Reached end of stream
+          while (readable.read() !== null) {}
+          if (expectedReadingMore.length === 0) // Reached end of stream
+          {
             process.nextTick(mustCall(onStreamEnd, 1) as (...args: unknown[]) => void)
+          }
         }, 3) as (...args: unknown[]) => void
       )
 
@@ -90,7 +93,9 @@ describe('test-stream-readable-reading-readingMore', () => {
         mustCall((_data: unknown) => {
           // While in a flowing state without a 'readable' listener
           // we should be reading more
-          if (readable.readableFlowing) expect(state.readingMore).toBe(true)
+          if (readable.readableFlowing) {
+            expect(state.readingMore).toBe(true)
+          }
 
           // Reading as long as we've not ended
           expect(state.reading).toBe(!state.ended)

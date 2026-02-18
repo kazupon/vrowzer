@@ -40,12 +40,16 @@ describe('test-stream-unshift-read-race', () => {
           if (fast) {
             pos += n
             r.push(c)
-            if (c === null) pushError()
+            if (c === null) {
+              pushError()
+            }
           } else {
             setTimeout(function () {
               pos += n
               r.push(c)
-              if (c === null) pushError()
+              if (c === null) {
+                pushError()
+              }
             }, 1)
           }
         }
@@ -75,7 +79,9 @@ describe('test-stream-unshift-read-race', () => {
         let chunk
         while (null !== (chunk = r.read(10))) {
           w.write(chunk)
-          if ((chunk as Buffer).length > 4) r.unshift(Buffer.from('1234'))
+          if ((chunk as Buffer).length > 4) {
+            r.unshift(Buffer.from('1234'))
+          }
         }
       })
 

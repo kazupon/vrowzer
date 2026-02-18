@@ -63,7 +63,7 @@ export function warnFutureDeprecation(
     !config.future ||
     config.future[type] !== 'warn'
   )
-    return
+    {return}
 
   let msg = `[vite future] ${deprecationMessages[type]}`
   if (extraMessage) {

@@ -15,11 +15,15 @@ describe('test-stream2-large-read-stall', () => {
       })
       let pushes = 0
       function push() {
-        if (pushes > PUSHCOUNT) return
+        if (pushes > PUSHCOUNT) {
+          return
+        }
         if (pushes++ === PUSHCOUNT) {
           return r.push(null)
         }
-        if (r.push(Buffer.allocUnsafe(PUSHSIZE))) setTimeout(push, 1)
+        if (r.push(Buffer.allocUnsafe(PUSHSIZE))) {
+          setTimeout(push, 1)
+        }
       }
 
       r._read = push

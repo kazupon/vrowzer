@@ -49,7 +49,9 @@ function onceWrapper(this: OnceState, ...args: unknown[]): unknown {
   if (!this.fired) {
     this.target.removeListener(this.type, this.wrapFn!)
     this.fired = true
-    if (args.length === 0) return this.listener.call(this.target)
+    if (args.length === 0) {
+      return this.listener.call(this.target)
+    }
     return this.listener.apply(this.target, args)
   }
 }
@@ -276,7 +278,9 @@ export class EventEmitter {
     }
 
     const handler = events![type]
-    if (handler === undefined) return false
+    if (handler === undefined) {
+      return false
+    }
 
     if (typeof handler === 'function') {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- handler is guaranteed to be a Function by the type guard above
@@ -326,10 +330,14 @@ export class EventEmitter {
     checkListener(listener)
 
     const events = this._events
-    if (events === undefined) return this
+    if (events === undefined) {
+      return this
+    }
 
     const list = events[type]
-    if (list === undefined) return this
+    if (list === undefined) {
+      return this
+    }
 
     if (list === listener || (list as Function & { listener?: Function }).listener === listener) {
       if (--this._eventsCount === 0) {
@@ -358,7 +366,9 @@ export class EventEmitter {
         }
       }
 
-      if (position < 0) return this
+      if (position < 0) {
+        return this
+      }
 
       if (position === 0) {
         arr.shift()
@@ -384,7 +394,9 @@ export class EventEmitter {
 
   removeAllListeners(type?: string | symbol): this {
     const events = this._events
-    if (events === undefined) return this
+    if (events === undefined) {
+      return this
+    }
 
     if (events.removeListener === undefined) {
       if (type === undefined) {
@@ -526,10 +538,14 @@ export class EventEmitter {
 
   #listeners(type: string | symbol, unwrap: boolean): Function[] {
     const events = this._events
-    if (events === undefined) return []
+    if (events === undefined) {
+      return []
+    }
 
     const evlistener = events[type]
-    if (evlistener === undefined) return []
+    if (evlistener === undefined) {
+      return []
+    }
 
     if (typeof evlistener === 'function') {
       return unwrap

@@ -226,22 +226,22 @@ function parseGlobOptions(
   // validate `import` option based on `as` option
   if (opts.as && forceDefaultAs.includes(opts.as)) {
     if (opts.import && opts.import !== 'default' && opts.import !== '*')
-      throw err(
+      {throw err(
         `Option "import" can only be "default" or "*" when "as" is "${opts.as}", but got "${opts.import}"`,
         optsStartIndex,
-      )
+      )}
     opts.import = opts.import || 'default'
   }
 
   if (opts.as && opts.query)
-    throw err(
+    {throw err(
       'Options "as" and "query" cannot be used together',
       optsStartIndex,
-    )
+    )}
 
-  if (opts.as) opts.query = opts.as
+  if (opts.as) {opts.query = opts.as}
 
-  if (opts.query && opts.query[0] !== '?') opts.query = `?${opts.query}`
+  if (opts.query && opts.query[0] !== '?') {opts.query = `?${opts.query}`}
 
   return opts as ParsedGeneralImportGlobOptions
 }
@@ -293,7 +293,7 @@ export async function parseImportGlob(
       throw err(`Expect CallExpression, got ${ast.type}`)
     }
     if (ast.arguments.length < 1 || ast.arguments.length > 2)
-      throw err(`Expected 1-2 arguments, but got ${ast.arguments.length}`)
+      {throw err(`Expected 1-2 arguments, but got ${ast.arguments.length}`)}
 
     const arg1 = ast.arguments[0] as ArrayExpression | Literal | TemplateLiteral
     const arg2 = ast.arguments[1] as
@@ -303,12 +303,12 @@ export async function parseImportGlob(
     const globs: string[] = []
 
     const validateLiteral = (element: Expression | SpreadElement | null) => {
-      if (!element) return
+      if (!element) {return}
       if (element.type === 'Literal') {
         if (typeof element.value !== 'string')
-          throw err(
+          {throw err(
             `Expected glob to be a string, but got "${typeof element.value}"`,
-          )
+          )}
         globs.push(element.value)
       } else if (element.type === 'TemplateLiteral') {
         if (element.expressions.length !== 0) {
@@ -334,9 +334,9 @@ export async function parseImportGlob(
     let options: ParsedGeneralImportGlobOptions = {}
     if (arg2) {
       if (arg2.type !== 'ObjectExpression')
-        throw err(
+        {throw err(
           `Expected the second argument to be an object literal, but got "${arg2.type}"`,
-        )
+        )}
 
       options = parseGlobOptions(
         code.slice(start + arg2.start, start + arg2.end),
@@ -379,9 +379,9 @@ function findCorrespondingCloseParenthesisPosition(
   openPos: number,
 ) {
   const closePos = cleanCode.indexOf(')', openPos)
-  if (closePos < 0) return -1
+  if (closePos < 0) {return -1}
 
-  if (!cleanCode.slice(openPos, closePos).includes('(')) return closePos
+  if (!cleanCode.slice(openPos, closePos).includes('(')) {return closePos}
 
   let remainingParenthesisCount = 0
   const cleanCodeLen = cleanCode.length
@@ -436,7 +436,7 @@ export async function transformGlobImport(
   )
   const matchedFiles = new Set<string>()
 
-  if (!matches.length) return null
+  if (!matches.length) {return null}
 
   const s = new MagicString(code)
 
@@ -472,9 +472,9 @@ export async function transformGlobImport(
           const resolvePaths = (file: string) => {
             if (!dir) {
               if (!options.base && isRelative)
-                throw new Error(
+                {throw new Error(
                   "In virtual modules, all globs must start with '/'",
-                )
+                )}
               const importPath = `/${relative(root, file)}`
               let filePath = options.base
                 ? `${relative(posix.join(root, options.base), file)}`
@@ -533,7 +533,7 @@ export async function transformGlobImport(
             if (importQuery && importQuery !== '?raw') {
               const fileExtension = basename(file).split('.').slice(-1)[0]
               if (fileExtension && restoreQueryExtension)
-                importQuery = `${importQuery}&lang.${fileExtension}`
+                {importQuery = `${importQuery}&lang.${fileExtension}`}
             }
 
             importPath = `${importPath}${importQuery}`
@@ -559,7 +559,7 @@ export async function transformGlobImport(
             } else {
               let importStatement = `import(${JSON.stringify(importPath)})`
               if (importKey)
-                importStatement += `.then(m => m[${JSON.stringify(importKey)}])`
+                {importStatement += `.then(m => m[${JSON.stringify(importKey)}])`}
               objectProps.push(
                 onlyValues
                   ? `() => ${importStatement}`
@@ -595,7 +595,7 @@ export async function transformGlobImport(
     )
   ).flat()
 
-  if (staticImports.length) s.prepend(`${staticImports.join(';')};`)
+  if (staticImports.length) {s.prepend(`${staticImports.join(';')};`)}
 
   return {
     s,
@@ -669,10 +669,10 @@ export async function toAbsoluteGlob(
     dir = importer ? globSafePath(dirname(importer)) : root
   }
 
-  if (glob[0] === '/') return pre + posix.join(root, glob.slice(1))
-  if (glob.startsWith('./')) return pre + posix.join(dir, glob.slice(2))
-  if (glob.startsWith('../')) return pre + posix.join(dir, glob)
-  if (glob.startsWith('**')) return pre + glob
+  if (glob[0] === '/') {return pre + posix.join(root, glob.slice(1))}
+  if (glob.startsWith('./')) {return pre + posix.join(dir, glob.slice(2))}
+  if (glob.startsWith('../')) {return pre + posix.join(dir, glob)}
+  if (glob.startsWith('**')) {return pre + glob}
 
   const isSubImportsPattern = glob[0] === '#' && glob.includes('*')
 
@@ -696,22 +696,22 @@ export function getCommonBase(globsResolved: string[]): null | string {
     .map((glob) => {
       let { base } = picomatch.scan(glob)
       // `scan('a/foo.js')` returns `base: 'a/foo.js'`
-      if (posix.basename(base).includes('.')) base = posix.dirname(base)
+      if (posix.basename(base).includes('.')) {base = posix.dirname(base)}
 
       return base
     })
 
-  if (!bases.length) return null
+  if (!bases.length) {return null}
 
   let commonAncestor = ''
   const dirS = bases[0].split('/')
   for (let i = 0; i < dirS.length; i++) {
     const candidate = dirS.slice(0, i + 1).join('/')
     if (bases.every((base) => base.startsWith(candidate)))
-      commonAncestor = candidate
-    else break
+      {commonAncestor = candidate}
+    else {break}
   }
-  if (!commonAncestor) commonAncestor = '/'
+  if (!commonAncestor) {commonAncestor = '/'}
 
   return commonAncestor
 }

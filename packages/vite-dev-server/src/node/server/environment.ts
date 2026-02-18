@@ -70,9 +70,9 @@ export class DevEnvironment extends BaseEnvironment {
 
   get pluginContainer(): EnvironmentPluginContainer<DevEnvironment> {
     if (!this._pluginContainer)
-      throw new Error(
+      {throw new Error(
         `${this.name} environment.pluginContainer called before initialized`,
-      )
+      )}
     return this._pluginContainer
   }
   /**
@@ -199,8 +199,8 @@ export class DevEnvironment extends BaseEnvironment {
     }
     // NOTE(kazupon): we need to initialize `@vrowser/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
     // WASM URL is handled by the build pipeline:
-    // - Dev mode: createWasmInlinePlugin inlines WASM as base64 data URL
-    // - Production: createWasmInlinePlugin also inlines WASM in the bundled SW
+    // - Dev mode: wasmInlinePlugin inlines WASM as base64 data URL
+    // - Production: wasmInlinePlugin also inlines WASM in the bundled SW
     // No explicit URL is needed; the wasm-bindgen default URL mechanism is used.
     await initOxcParser()
     this._initiated = true
@@ -400,16 +400,16 @@ function setupOnCrawlEnd(): CrawlEndFinder {
   }
 
   function checkIfCrawlEndAfterTimeout() {
-    if (cancelled || registeredIds.size > 0) return
+    if (cancelled || registeredIds.size > 0) {return}
 
-    if (timeoutHandle) clearTimeout(timeoutHandle)
+    if (timeoutHandle) {clearTimeout(timeoutHandle)}
     timeoutHandle = setTimeout(
       callOnCrawlEndWhenIdle,
       callCrawlEndIfIdleAfterMs,
     )
   }
   async function callOnCrawlEndWhenIdle() {
-    if (cancelled || registeredIds.size > 0) return
+    if (cancelled || registeredIds.size > 0) {return}
     onCrawlEndPromiseWithResolvers.resolve()
   }
 

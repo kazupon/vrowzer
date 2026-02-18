@@ -48,9 +48,9 @@ export class ScanEnvironment extends BaseEnvironment {
 
   get pluginContainer(): EnvironmentPluginContainer {
     if (!this._pluginContainer)
-      throw new Error(
+      {throw new Error(
         `${this.name} environment.pluginContainer called before initialized`,
-      )
+      )}
     return this._pluginContainer
   }
   /**
@@ -64,8 +64,8 @@ export class ScanEnvironment extends BaseEnvironment {
     }
     // NOTE(kazupon): we need to initialize `@vrowser/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
     // WASM URL is handled by the build pipeline:
-    // - Dev mode: createWasmInlinePlugin inlines WASM as base64 data URL
-    // - Production: createWasmInlinePlugin also inlines WASM in the bundled SW
+    // - Dev mode: wasmInlinePlugin inlines WASM as base64 data URL
+    // - Production: wasmInlinePlugin also inlines WASM in the bundled SW
     // No explicit URL is needed; the wasm-bindgen default URL mechanism is used.
     await initOxcParser()
     this._initiated = true
@@ -150,7 +150,7 @@ export function scanImports(environment: ScanEnvironment): {
       }
       return
     }
-    if (scanContext.cancelled) return
+    if (scanContext.cancelled) {return}
 
     debug?.(
       `Crawling dependencies using entries: ${entries
@@ -166,7 +166,7 @@ export function scanImports(environment: ScanEnvironment): {
       deps,
       missing,
     )
-    if (scanContext.cancelled) return
+    if (scanContext.cancelled) {return}
 
     try {
       await context.build()
@@ -590,7 +590,7 @@ function rolldownScanPlugin(
         // html types: extract script contents -----------------------------------
         if (htmlTypesRE.test(id)) {
           const resolved = await resolve(id, importer)
-          if (!resolved) return
+          if (!resolved) {return}
           // It is possible for the scanner to scan html types in node_modules.
           // If we can optimize this html type, skip it so it's handled by the
           // bare import resolve, and recorded as optimization dep.
@@ -598,7 +598,7 @@ function rolldownScanPlugin(
             isInNodeModules(resolved) &&
             isOptimizable(resolved, optimizeDepsOptions)
           )
-            return
+            {return}
           if (shouldExternalizeDep(resolved, id)) {
             return externalUnlessEntry({ path: id })
           }
@@ -727,7 +727,7 @@ function rolldownScanPlugin(
         async handler(code, id) {
           if (JS_TYPES_RE.test(id)) {
             let ext = path.extname(id).slice(1)
-            if (ext === 'mjs') ext = 'js'
+            if (ext === 'mjs') {ext = 'js'}
             const loader = ext as 'js' | 'ts' | 'jsx' | 'tsx'
             return {
               moduleType: 'js',

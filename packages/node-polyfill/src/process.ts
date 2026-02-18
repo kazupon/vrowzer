@@ -23,7 +23,9 @@ const _queue: Array<{ fn: Function; args: unknown[] }> = []
 let _draining = false
 
 function _drainQueue(): void {
-  if (_draining) return
+  if (_draining) {
+    return
+  }
   _draining = true
   let item = _queue.shift()
   while (item) {

@@ -148,7 +148,9 @@ describe('test-stream-duplex-from', () => {
         'end',
         mustCall(function () {
           expect(d.readable).toBe(false)
-          if (++endCount === 2) resolve()
+          if (++endCount === 2) {
+            resolve()
+          }
         }) as (...args: unknown[]) => void
       )
       d.end('asd')
@@ -157,7 +159,9 @@ describe('test-stream-duplex-from', () => {
         mustCall(function () {
           expect(d.writable).toBe(false)
           expect(ret).toBe('asd')
-          if (++endCount === 2) resolve()
+          if (++endCount === 2) {
+            resolve()
+          }
         }) as (...args: unknown[]) => void
       )
     }))
@@ -512,7 +516,9 @@ describe('test-stream-duplex-from', () => {
         'end',
         mustCall(() => {
           expect(d.readable).toBe(false)
-          if (++doneCount === 2) resolve()
+          if (++doneCount === 2) {
+            resolve()
+          }
         }) as (...args: unknown[]) => void
       )
       d.on(
@@ -520,7 +526,9 @@ describe('test-stream-duplex-from', () => {
         mustCall(() => {
           expect(ret).toBe('bar')
           expect(d.writable).toBe(false)
-          if (++doneCount === 2) resolve()
+          if (++doneCount === 2) {
+            resolve()
+          }
         }) as (...args: unknown[]) => void
       )
     }))

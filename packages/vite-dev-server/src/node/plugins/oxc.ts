@@ -305,12 +305,12 @@ export async function transformWithOxc(
 }
 
 function resolveTsconfigTarget(target: string | undefined): number | 'next' {
-  if (!target) return 5
+  if (!target) {return 5}
 
   const targetLowered = target.toLowerCase()
-  if (!targetLowered.startsWith('es')) return 5
+  if (!targetLowered.startsWith('es')) {return 5}
 
-  if (targetLowered === 'esnext') return 'next'
+  if (targetLowered === 'esnext') {return 'next'}
   return parseInt(targetLowered.slice(2))
 }
 

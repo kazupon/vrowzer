@@ -529,7 +529,9 @@ describe('module on() async iterator', () => {
     for await (const value of iterator) {
       collected.push(value)
       count++
-      if (count === 2) break
+      if (count === 2) {
+        break
+      }
     }
 
     expect(collected).toEqual([['a'], ['b']])

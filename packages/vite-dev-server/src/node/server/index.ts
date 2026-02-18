@@ -979,8 +979,8 @@ export function createServer(
     let initingServer: Promise<void> | undefined
     let serverInited = false
     const initServer = async (onListen: boolean) => {
-      if (serverInited) return
-      if (initingServer) return initingServer
+      if (serverInited) {return}
+      if (initingServer) {return initingServer}
 
       initingServer = (async function () {
         await startServer(

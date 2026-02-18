@@ -77,7 +77,9 @@ describe('test-stream-readable-event', () => {
       }
       r.on('readable', () => {
         const data = r.read()
-        if (data !== null) result.push(data as string)
+        if (data !== null) {
+          result.push(data as string)
+        }
       })
       r.on(
         'end',

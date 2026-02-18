@@ -626,7 +626,7 @@ if ('document' in globalThis) {
 let lastInsertedStyle: HTMLStyleElement | undefined
 
 export function updateStyle(id: string, content: string): void {
-  if (linkSheetsMap.has(id)) return
+  if (linkSheetsMap.has(id)) {return}
 
   let style = sheetsMap.get(id)
   if (!style) {

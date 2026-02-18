@@ -20,9 +20,13 @@ describe('test-stream3-pause-then-read', () => {
       let chunks = totalChunks
       r._read = function (_n: number) {
         silentConsole.log('_read called', chunks)
-        if (!(chunks % 2)) setImmediate(push)
-        else if (!(chunks % 3)) process.nextTick(push)
-        else push()
+        if (!(chunks % 2)) {
+          setImmediate(push)
+        } else if (!(chunks % 3)) {
+          process.nextTick(push)
+        } else {
+          push()
+        }
       }
       let totalPushed = 0
       function push() {
@@ -46,8 +50,9 @@ describe('test-stream3-pause-then-read', () => {
         ;(function read() {
           const c = r.read(n) as Buffer | null
           silentConsole.error('c', c)
-          if (!c) r.once('readable', read)
-          else {
+          if (!c) {
+            r.once('readable', read)
+          } else {
             expect(c.length).toBe(n)
             expect((r as unknown as { readableFlowing: boolean }).readableFlowing).toBeFalsy()
             then()

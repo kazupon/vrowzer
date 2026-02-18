@@ -19,7 +19,9 @@ describe('test-stream-uint8array', () => {
             expect(String(chunk)).toBe('DEF')
           }
           cb()
-          if (n === 2) resolve()
+          if (n === 2) {
+            resolve()
+          }
         }, 2) as (...args: unknown[]) => void
       })
       writable.write(ABC)

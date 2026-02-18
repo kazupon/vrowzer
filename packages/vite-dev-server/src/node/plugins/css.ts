@@ -317,25 +317,25 @@ const convertTargetsCache = new Map<
 export const convertTargets = (
   esbuildTarget: string | string[] | false,
 ): LightningCSSOptions['targets'] => {
-  if (!esbuildTarget) return {}
+  if (!esbuildTarget) {return {}}
   const cached = convertTargetsCache.get(esbuildTarget)
-  if (cached) return cached
+  if (cached) {return cached}
   const targets: LightningCSSOptions['targets'] = {}
 
   const entriesWithoutES = arraify(esbuildTarget).flatMap((e) => {
     const match = esRE.exec(e)
-    if (!match) return e
+    if (!match) {return e}
     const year = Number(match[1])
-    if (!esMap[year]) throw new Error(`Unsupported target "${e}"`)
+    if (!esMap[year]) {throw new Error(`Unsupported target "${e}"`)}
     return esMap[year]
   })
 
   for (const entry of entriesWithoutES) {
-    if (entry === 'esnext') continue
+    if (entry === 'esnext') {continue}
     const index = entry.search(versionRE)
     if (index >= 0) {
       const browser = map[entry.slice(0, index)]
-      if (browser === false) continue // No mapping available
+      if (browser === false) {continue} // No mapping available
       if (browser) {
         const [major, minor = 0] = entry
           .slice(index)

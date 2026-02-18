@@ -34,7 +34,9 @@ describe('test-stream-push-strings', () => {
       const results: string[] = []
       ms.on('readable', function () {
         let chunk
-        while (null !== (chunk = ms.read())) results.push(String(chunk))
+        while (null !== (chunk = ms.read())) {
+          results.push(String(chunk))
+        }
       })
       const expected = ['first chunksecond to last chunk', 'last chunk']
       ms.on('end', () => {

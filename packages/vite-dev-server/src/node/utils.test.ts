@@ -5,7 +5,7 @@ import { getHash } from './utils'
 describe('getHash', () => {
   function cryptoHash(text: string, length = 8): string {
     const h = crypto.hash('sha256', text, 'hex').substring(0, length)
-    if (length <= 64) return h
+    if (length <= 64) {return h}
     return h.padEnd(length, '_')
   }
 

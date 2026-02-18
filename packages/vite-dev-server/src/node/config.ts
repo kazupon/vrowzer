@@ -2183,9 +2183,9 @@ export function sortUserPlugins(
 
   if (plugins) {
     plugins.flat().forEach((p) => {
-      if (p.enforce === 'pre') prePlugins.push(p)
-      else if (p.enforce === 'post') postPlugins.push(p)
-      else normalPlugins.push(p)
+      if (p.enforce === 'pre') {prePlugins.push(p)}
+      else if (p.enforce === 'post') {postPlugins.push(p)}
+      else {normalPlugins.push(p)}
     })
   }
 

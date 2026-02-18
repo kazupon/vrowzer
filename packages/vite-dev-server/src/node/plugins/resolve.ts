@@ -742,10 +742,10 @@ function resolveSubpathImports(
   importer: string | undefined,
   options: InternalResolveOptions,
 ) {
-  if (!importer || !id.startsWith(subpathImportsPrefix)) return
+  if (!importer || !id.startsWith(subpathImportsPrefix)) {return}
   const basedir = path.dirname(importer)
   const pkgData = findNearestPackageData(basedir, options.packageCache)
-  if (!pkgData) return
+  if (!pkgData) {return}
 
   let { file: idWithoutPostfix, postfix } = splitFileAndPostfix(id.slice(1))
   idWithoutPostfix = '#' + idWithoutPostfix
@@ -812,13 +812,13 @@ export function tryFsResolve(
     if (queryIndex < 0 || queryIndex > hashIndex) {
       const file = queryIndex > hashIndex ? fsPath.slice(0, queryIndex) : fsPath
       const res = tryCleanFsResolve(file, options, tryIndex, skipPackageJson)
-      if (res) return res + fsPath.slice(file.length)
+      if (res) {return res + fsPath.slice(file.length)}
     }
   }
 
   const { file, postfix } = splitFileAndPostfix(fsPath)
   const res = tryCleanFsResolve(file, options, tryIndex, skipPackageJson)
-  if (res) return res + postfix
+  if (res) {return res + postfix}
 }
 
 const knownTsOutputRE = /\.(?:js|mjs|cjs|jsx)$/
@@ -835,7 +835,7 @@ function tryCleanFsResolve(
   // Optimization to get the real type or file type (directory, file, other)
   const fileResult = tryResolveRealFileOrType(file, options.preserveSymlinks)
 
-  if (fileResult?.path) return fileResult.path
+  if (fileResult?.path) {return fileResult.path}
 
   let res: string | undefined
 
@@ -854,13 +854,13 @@ function tryCleanFsResolve(
             preserveSymlinks,
           ))
         )
-          return res
+          {return res}
         // for .js, also try .tsx
         if (
           fileExt === '.js' &&
           (res = tryResolveRealFile(fileName + '.tsx', preserveSymlinks))
         )
-          return res
+          {return res}
       }
 
       if (
@@ -870,12 +870,12 @@ function tryCleanFsResolve(
           preserveSymlinks,
         ))
       )
-        return res
+        {return res}
 
       if (tryPrefix) {
         const prefixed = `${dirPath}/${options.tryPrefix}${path.basename(file)}`
 
-        if ((res = tryResolveRealFile(prefixed, preserveSymlinks))) return res
+        if ((res = tryResolveRealFile(prefixed, preserveSymlinks))) {return res}
 
         if (
           (res = tryResolveRealFileWithExtensions(
@@ -884,7 +884,7 @@ function tryCleanFsResolve(
             preserveSymlinks,
           ))
         )
-          return res
+          {return res}
       }
     }
   }
@@ -907,7 +907,7 @@ function tryCleanFsResolve(
       } catch (e) {
         // This check is best effort, so if an entry is not found, skip error for now
         if (e.code !== ERR_RESOLVE_PACKAGE_ENTRY_FAIL && e.code !== 'ENOENT')
-          throw e
+          {throw e}
       }
     }
 
@@ -918,7 +918,7 @@ function tryCleanFsResolve(
         preserveSymlinks,
       ))
     )
-      return res
+      {return res}
 
     if (tryPrefix) {
       if (
@@ -928,7 +928,7 @@ function tryCleanFsResolve(
           preserveSymlinks,
         ))
       )
-        return res
+        {return res}
     }
   }
 }
@@ -1114,22 +1114,22 @@ export async function tryOptimizedResolve(
     return depsOptimizer.getOptimizedDepId(depInfo)
   }
 
-  if (!importer) return
+  if (!importer) {return}
 
   // further check if id is imported by nested dependency
   let idPkgDir: string | undefined
   const nestedIdMatch = `> ${id}`
 
   for (const optimizedData of metadata.depInfoList) {
-    if (!optimizedData.src) continue // Ignore chunks
+    if (!optimizedData.src) {continue} // Ignore chunks
 
     // check where "foo" is nested in "my-lib > foo"
-    if (!optimizedData.id.endsWith(nestedIdMatch)) continue
+    if (!optimizedData.id.endsWith(nestedIdMatch)) {continue}
 
     // lazily initialize idPkgDir
     if (idPkgDir == null) {
       const pkgName = getNpmPackageName(id)
-      if (!pkgName) break
+      if (!pkgName) {break}
       idPkgDir = resolvePackageData(
         pkgName,
         importer,
@@ -1138,7 +1138,7 @@ export async function tryOptimizedResolve(
       )?.dir
       // if still null, it likely means that this id isn't a dep for importer.
       // break to bail early
-      if (idPkgDir == null) break
+      if (idPkgDir == null) {break}
       idPkgDir = normalizePath(idPkgDir)
     }
 
@@ -1493,7 +1493,7 @@ function tryResolveRealFile(
   preserveSymlinks?: boolean,
 ): string | undefined {
   const stat = tryStatSync(file)
-  if (stat?.isFile()) return getRealPath(file, preserveSymlinks)
+  if (stat?.isFile()) {return getRealPath(file, preserveSymlinks)}
 }
 
 function tryResolveRealFileWithExtensions(
@@ -1503,7 +1503,7 @@ function tryResolveRealFileWithExtensions(
 ): string | undefined {
   for (const ext of extensions) {
     const res = tryResolveRealFile(filePath + ext, preserveSymlinks)
-    if (res) return res
+    if (res) {return res}
   }
 }
 
@@ -1539,7 +1539,7 @@ function findNearestPackagePath(
   packageCache: PackageCache | undefined,
   isBuild: boolean,
 ) {
-  if (!isBuild || legacyInconsistentCjsInterop) return
+  if (!isBuild || legacyInconsistentCjsInterop) {return}
   const pkgData = findNearestPackageData(file, packageCache)
   return pkgData ? path.join(pkgData.dir, 'package.json') : null
 }

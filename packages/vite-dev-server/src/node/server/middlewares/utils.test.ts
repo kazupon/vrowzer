@@ -13,7 +13,7 @@ function createMockContext(options: {
       path: options.path
     },
     get: vi.fn((key: string) => {
-      if (key === 'rewrittenUrl') return options.rewrittenUrl
+      if (key === 'rewrittenUrl') {return options.rewrittenUrl}
       return undefined
     })
   } as unknown as Context

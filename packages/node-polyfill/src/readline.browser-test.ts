@@ -21,7 +21,9 @@ function mockStream() {
   return {
     write(data: string, cb?: () => void) {
       chunks.push(data)
-      if (typeof cb === 'function') cb()
+      if (typeof cb === 'function') {
+        cb()
+      }
       return true
     },
     chunks
@@ -259,7 +261,9 @@ describe('Interface', () => {
     const iterPromise = (async () => {
       for await (const line of rl) {
         lines.push(line)
-        if (lines.length === 2) break
+        if (lines.length === 2) {
+          break
+        }
       }
     })()
 

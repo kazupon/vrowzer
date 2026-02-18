@@ -9,7 +9,9 @@ class TestReadable extends Readable {
     this._ended = false
   }
   _read() {
-    if (this._ended) this.emit('error', new Error('_read called twice'))
+    if (this._ended) {
+      this.emit('error', new Error('_read called twice'))
+    }
     this._ended = true
     this.push(null)
   }

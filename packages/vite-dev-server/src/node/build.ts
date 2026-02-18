@@ -566,7 +566,7 @@ export const builderOptionsDefaults: Readonly<Partial<BuilderOptions>> =
 export function resolveBuilderOptions(
   options: BuilderOptions | undefined,
 ): ResolvedBuilderOptions | undefined {
-  if (!options) return
+  if (!options) {return}
   return mergeWithDefaults(
     { ..._builderOptionsDefaults, buildApp: async () => { } },
     options,

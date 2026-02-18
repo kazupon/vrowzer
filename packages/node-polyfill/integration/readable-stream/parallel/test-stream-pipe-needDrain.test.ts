@@ -12,7 +12,7 @@ describe('test-stream-pipe-needDrain', () => {
         },
         highWaterMark: 1
       })
-      while (w.write('asd'));
+      while (w.write('asd')) {}
       expect((w as any).writableNeedDrain).toBe(true)
 
       const r = new Readable({

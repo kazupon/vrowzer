@@ -68,7 +68,9 @@ describe('test-stream-writable-write-cb-error', () => {
       )
       let cnt = 0
       // Ensure we don't live lock on sync error
-      while (writable.write('a')) cnt++
+      while (writable.write('a')) {
+        cnt++
+      }
       expect(cnt).toBe(0)
     }))
 })

@@ -143,7 +143,7 @@ export function createLogger(
       output('warn', msg, opts)
     },
     warnOnce(msg, opts) {
-      if (warnedMessages.has(msg)) return
+      if (warnedMessages.has(msg)) {return}
       logger.hasWarned = true
       output('warn', msg, opts)
       warnedMessages.add(msg)

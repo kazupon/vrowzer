@@ -14,8 +14,11 @@ describe('test-stream-pipe-await-drain-manual-resume', () => {
       let isCurrentlyBufferingWrites = true
       const queue: Array<{ chunk: Buffer; cb: () => void }> = []
       writable._write = (chunk: Buffer, _encoding: string, cb: () => void) => {
-        if (isCurrentlyBufferingWrites) queue.push({ chunk, cb })
-        else cb()
+        if (isCurrentlyBufferingWrites) {
+          queue.push({ chunk, cb })
+        } else {
+          cb()
+        }
       }
 
       const readable = new Readable({
@@ -47,7 +50,9 @@ describe('test-stream-pipe-await-drain-manual-resume', () => {
               // fall back to 0 and all chunks that are pending on the readable side
               // should be flushed.
               isCurrentlyBufferingWrites = false
-              for (const queued of queue) queued.cb()
+              for (const queued of queue) {
+                queued.cb()
+              }
             }) as (...args: unknown[]) => void
           )
         }) as (...args: unknown[]) => void

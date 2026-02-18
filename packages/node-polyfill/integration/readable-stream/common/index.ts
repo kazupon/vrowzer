@@ -107,8 +107,12 @@ export function expectsError(
     if (typeof validator === 'function') {
       validator(error)
     } else {
-      if (validator.code) expect(error.code).toBe(validator.code)
-      if (validator.name) expect(error.name).toBe(validator.name)
+      if (validator.code) {
+        expect(error.code).toBe(validator.code)
+      }
+      if (validator.name) {
+        expect(error.name).toBe(validator.name)
+      }
       if (validator.message) {
         if (validator.message instanceof RegExp) {
           expect(error.message).toMatch(validator.message)

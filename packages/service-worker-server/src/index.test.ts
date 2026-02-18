@@ -45,7 +45,9 @@ function createMockSvcWorker(options?: {
   return {
     suspended: options?.suspended ?? false,
     addEventListener: vi.fn((type: string, handler: Function) => {
-      if (!listeners.has(type)) listeners.set(type, new Set())
+      if (!listeners.has(type)) {
+        listeners.set(type, new Set())
+      }
       listeners.get(type)!.add(handler)
     }),
     removeEventListener: vi.fn((type: string, handler: Function) => {
@@ -82,7 +84,9 @@ function createMockServiceWorkerGlobalScope(): MockServiceWorkerGlobalScope {
     },
     location: { href: 'https://example.com/sw.js' },
     addEventListener: vi.fn((type: string, handler: Function) => {
-      if (!listeners.has(type)) listeners.set(type, new Set())
+      if (!listeners.has(type)) {
+        listeners.set(type, new Set())
+      }
       listeners.get(type)!.add(handler)
     }),
     removeEventListener: vi.fn((type: string, handler: Function) => {

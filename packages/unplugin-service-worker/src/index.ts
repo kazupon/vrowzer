@@ -139,7 +139,9 @@ function generateContentHash(content: string): string {
 function sanitizeDefine(
   define: Record<string, unknown> | undefined
 ): Record<string, string> | undefined {
-  if (!define) return undefined
+  if (!define) {
+    return undefined
+  }
   return Object.fromEntries(
     Object.entries(define).map(([key, value]) => [
       key,
@@ -153,7 +155,9 @@ function sanitizeDefine(
  * Handles both Vite's array format and object format
  */
 function normalizeAlias(alias: unknown): Record<string, string> | undefined {
-  if (!alias) return undefined
+  if (!alias) {
+    return undefined
+  }
 
   if (Array.isArray(alias)) {
     const result: Record<string, string> = {}
@@ -188,7 +192,9 @@ function normalizeAlias(alias: unknown): Record<string, string> | undefined {
 function filterServiceWorkerPlugins(
   plugins: unknown[] | undefined
 ): import('rolldown').Plugin[] | undefined {
-  if (!plugins || plugins.length === 0) return undefined
+  if (!plugins || plugins.length === 0) {
+    return undefined
+  }
 
   // Vite internal plugins known to work safely in standalone rolldown
   // with environment injection. Based on Vite's own worker bundling pipeline.
@@ -203,15 +209,21 @@ function filterServiceWorkerPlugins(
   ])
 
   return plugins.filter(p => {
-    if (!p || typeof p !== 'object') return false
+    if (!p || typeof p !== 'object') {
+      return false
+    }
     const name = (p as { name?: string }).name
-    if (!name) return true
+    if (!name) {
+      return true
+    }
     // For Vite/native internal plugins, only allow known-safe ones
     if (name.startsWith('vite:') || name.startsWith('native:')) {
       return allowedVitePlugins.has(name)
     }
     // Exclude self to avoid recursion
-    if (name === 'unplugin-service-worker') return false
+    if (name === 'unplugin-service-worker') {
+      return false
+    }
     // Pass through all other plugins (user plugins, third-party plugins)
     return true
   }) as import('rolldown').Plugin[]
@@ -474,7 +486,9 @@ export async function inlineWasmInCode(
   code: string,
   wasmFiles: Map<string, string>
 ): Promise<string> {
-  if (wasmFiles.size === 0) return code
+  if (wasmFiles.size === 0) {
+    return code
+  }
 
   const fs = await import('node:fs/promises')
   let result = code
@@ -840,7 +854,7 @@ function setupWebpackLikeCompiler(
                 for (const asset of swAssets) {
                   compilation.emitAsset(
                     asset.fileName,
-                    new compiler.webpack.sources.RawSource(asset.source)
+                    new compiler.webpack.sources.RawSource(asset.source as string)
                   )
                 }
               }
@@ -1693,9 +1707,11 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
           }
         },
         async generateBundle() {
-          if (!options.assets || options.assets.length === 0) return
+          if (!options.assets || options.assets.length === 0) {
+            return
+          }
           // Get the SW chunk's output filename from rollup reference IDs
-          const firstRefId = ctx.rollupReferenceIds.values().next().value as string | undefined
+          const firstRefId = ctx.rollupReferenceIds.values().next().value
           const swFileName = firstRefId ? this.getFileName(firstRefId) : 'sw.js'
           const swAssets = await resolveAssetConfigs(options.assets, swFileName)
           for (const asset of swAssets) {
@@ -1731,8 +1747,10 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
           }
         },
         async generateBundle() {
-          if (!options.assets || options.assets.length === 0) return
-          const firstRefId = ctx.rollupReferenceIds.values().next().value as string | undefined
+          if (!options.assets || options.assets.length === 0) {
+            return
+          }
+          const firstRefId = ctx.rollupReferenceIds.values().next().value
           const swFileName = firstRefId
             ? (this as unknown as { getFileName: (id: string) => string }).getFileName(firstRefId)
             : 'sw.js'

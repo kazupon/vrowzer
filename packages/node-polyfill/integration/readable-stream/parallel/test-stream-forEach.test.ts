@@ -36,7 +36,9 @@ describe('test-stream-forEach', () => {
     const { signal } = ac
     const stream = Readable.from(
       (async function* () {
-        while (true) yield 1
+        while (true) {
+          yield 1
+        }
       })(),
       {
         // @ts-ignore - signal exists at runtime
@@ -48,7 +50,9 @@ describe('test-stream-forEach', () => {
       stream.forEach(
         mustCall((x: number) => {
           i++
-          if (i === 10) ac.abort()
+          if (i === 10) {
+            ac.abort()
+          }
           expect(x).toBe(1)
         }, 10) as (...args: unknown[]) => void
       )

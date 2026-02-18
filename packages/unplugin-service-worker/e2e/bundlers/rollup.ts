@@ -19,7 +19,9 @@ export async function buildWithRollup(
       {
         name: 'define-sw-type',
         transform(code) {
-          if (!code.includes('__SW_TYPE__')) return null
+          if (!code.includes('__SW_TYPE__')) {
+            return null
+          }
           return code.replace(/__SW_TYPE__/g, JSON.stringify('module'))
         }
       },
@@ -33,7 +35,9 @@ export async function buildWithRollup(
     ],
     onwarn(warning, warn) {
       // Suppress circular dependency warnings from dependencies
-      if (warning.code === 'CIRCULAR_DEPENDENCY') return
+      if (warning.code === 'CIRCULAR_DEPENDENCY') {
+        return
+      }
       warn(warning)
     }
   })

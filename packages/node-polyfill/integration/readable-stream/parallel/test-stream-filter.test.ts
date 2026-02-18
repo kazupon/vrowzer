@@ -39,7 +39,9 @@ describe('test-stream-filter', () => {
   it('filter works on an infinite stream', async () => {
     const stream = Readable.from(
       (async function* () {
-        while (true) yield 1
+        while (true) {
+          yield 1
+        }
       })()
     ).filter(
       // @ts-ignore - mustCall return type mismatch
@@ -50,7 +52,9 @@ describe('test-stream-filter', () => {
     let i = 1
     for await (const item of stream) {
       expect(item).toBe(1)
-      if (++i === 5) break
+      if (++i === 5) {
+        break
+      }
     }
   })
 

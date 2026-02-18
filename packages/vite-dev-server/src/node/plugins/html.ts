@@ -213,7 +213,7 @@ export function getScriptInfo(node: DefaultTreeAdapterMap['element']): {
   let isAsync = false
   let isIgnored = false
   for (const p of node.attrs) {
-    if (p.prefix !== undefined) continue
+    if (p.prefix !== undefined) {continue}
     if (p.name === 'src') {
       if (!src) {
         src = p
@@ -342,7 +342,7 @@ export function findNeedTransformStyleAttribute(
       // only url(...) or image-set(...) in css need to emit file
       (prop.value.includes('url(') || prop.value.includes('image-set(')),
   )
-  if (!attr) return undefined
+  if (!attr) {return undefined}
   const location = node.sourceCodeLocation?.attrs?.['style']
   return { attr, location }
 }
@@ -423,10 +423,10 @@ export function preImportMapHook(
 ): IndexHtmlTransformHook {
   return (html, ctx) => {
     const importMapIndex = html.search(importMapRE)
-    if (importMapIndex < 0) return
+    if (importMapIndex < 0) {return}
 
     const importMapAppendIndex = html.search(importMapAppendRE)
-    if (importMapAppendIndex < 0) return
+    if (importMapAppendIndex < 0) {return}
 
     if (importMapAppendIndex < importMapIndex) {
       const relativeHtml = normalizePath(
@@ -448,7 +448,7 @@ export function preImportMapHook(
  */
 export function postImportMapHook(): IndexHtmlTransformHook {
   return (html) => {
-    if (!importMapAppendRE.test(html)) return
+    if (!importMapAppendRE.test(html)) {return}
 
     let importMap: string | undefined
     html = html.replace(importMapRE, (match) => {
@@ -471,7 +471,7 @@ export function injectCspNonceMetaTagHook(
   config: ResolvedConfig,
 ): IndexHtmlTransformHook {
   return () => {
-    if (!config.html?.cspNonce) return
+    if (!config.html?.cspNonce) {return}
 
     return [
       {
@@ -543,7 +543,7 @@ export function injectNonceAttributeTagHook(
 
   return async (html, { filename }) => {
     const nonce = config.html?.cspNonce
-    if (!nonce) return
+    if (!nonce) {return}
 
     const s = new MagicString(html)
 
@@ -596,7 +596,7 @@ export function resolveHtmlTransforms(
 
   for (const plugin of plugins) {
     const hook = plugin.transformIndexHtml
-    if (!hook) continue
+    if (!hook) {continue}
 
     if (typeof hook === 'function') {
       normalHooks.push(hook)
@@ -631,7 +631,7 @@ function headTagInsertCheck(
   tags: HtmlTagDescriptor[],
   ctx: IndexHtmlTransformContext,
 ) {
-  if (!tags.length) return
+  if (!tags.length) {return}
   const { logger } = ctx.server?.config || {}
   const disallowedTags = tags.filter(
     (tagDescriptor) => !elementsAllowedInHead.has(tagDescriptor.tag),
@@ -694,10 +694,10 @@ export async function applyHtmlTransforms(
         }
       }
       headTagInsertCheck([...(headTags || []), ...(headPrependTags || [])], ctx)
-      if (headPrependTags) html = injectToHead(html, headPrependTags, true)
-      if (headTags) html = injectToHead(html, headTags)
-      if (bodyPrependTags) html = injectToBody(html, bodyPrependTags, true)
-      if (bodyTags) html = injectToBody(html, bodyTags)
+      if (headPrependTags) {html = injectToHead(html, headPrependTags, true)}
+      if (headTags) {html = injectToHead(html, headTags)}
+      if (bodyPrependTags) {html = injectToBody(html, bodyPrependTags, true)}
+      if (bodyTags) {html = injectToBody(html, bodyTags)}
     }
   }
 
@@ -739,7 +739,7 @@ function injectToHead(
   tags: HtmlTagDescriptor[],
   prepend = false,
 ) {
-  if (tags.length === 0) return html
+  if (tags.length === 0) {return html}
 
   if (prepend) {
     // inject as the first element of head
@@ -775,7 +775,7 @@ function injectToBody(
   tags: HtmlTagDescriptor[],
   prepend = false,
 ) {
-  if (tags.length === 0) return html
+  if (tags.length === 0) {return html}
 
   if (prepend) {
     // inject after body open

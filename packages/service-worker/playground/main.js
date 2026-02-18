@@ -201,7 +201,9 @@ async function init() {
 
 // SvcWorkerController button handlers
 window.controllerSuspend = async function () {
-  if (!controller || isTerminated) return
+  if (!controller || isTerminated) {
+    return
+  }
   try {
     logEvent('controller.suspend')
     const result = await controller.suspend()
@@ -212,7 +214,9 @@ window.controllerSuspend = async function () {
 }
 
 window.controllerResume = async function () {
-  if (!controller || isTerminated) return
+  if (!controller || isTerminated) {
+    return
+  }
   try {
     logEvent('controller.resume')
     const result = await controller.resume()
@@ -225,7 +229,9 @@ window.controllerResume = async function () {
 // Admin API button handlers
 // Note: controller.scriptURL is a string, but Admin API functions expect URL objects
 window.adminSuspend = async function () {
-  if (!controller || isTerminated) return
+  if (!controller || isTerminated) {
+    return
+  }
   try {
     const scriptURL = new URL(controller.scriptURL)
     console.log('[adminSuspend] controller.scriptURL:', controller.scriptURL)
@@ -245,7 +251,9 @@ window.adminSuspend = async function () {
 }
 
 window.adminResume = async function () {
-  if (!controller || isTerminated) return
+  if (!controller || isTerminated) {
+    return
+  }
   try {
     const scriptURL = new URL(controller.scriptURL)
     logEvent('resumeServiceWorker', {
@@ -260,7 +268,9 @@ window.adminResume = async function () {
 }
 
 window.adminTerminate = async function () {
-  if (!controller || isTerminated) return
+  if (!controller || isTerminated) {
+    return
+  }
   try {
     const scriptURL = new URL(controller.scriptURL)
     logEvent('terminateServiceWorker', {

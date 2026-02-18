@@ -21,7 +21,9 @@ describe('test-stream-writev', () => {
           expectCount++
           const expected = expectCount
           return function (er?: Error | null) {
-            if (er) throw er
+            if (er) {
+              throw er
+            }
             counter++
             expect(counter).toBe(expected)
           }
@@ -67,12 +69,18 @@ describe('test-stream-writev', () => {
         w.cork()
         w.write('hello, ', 'ascii', cnt('hello'))
         w.write('world', 'utf8', cnt('world'))
-        if (multi) w.cork()
+        if (multi) {
+          w.cork()
+        }
         w.write(Buffer.from('!'), 'buffer' as BufferEncoding, cnt('!'))
         w.write('\nand then...', 'latin1', cnt('and then'))
-        if (multi) w.uncork()
+        if (multi) {
+          w.uncork()
+        }
         w.write('facebea7deadbeefdecafbad', 'hex', cnt('hex'))
-        if (uncork) w.uncork()
+        if (uncork) {
+          w.uncork()
+        }
         w.end(cnt('end'))
         w.on('finish', function () {
           cnt('finish')()

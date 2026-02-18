@@ -8,7 +8,9 @@ describe('test-readable-from-iterator-closing', () => {
     const bodyMustCall = mustCall() as () => void
     async function* infiniteGenerate() {
       try {
-        while (true) yield 'a'
+        while (true) {
+          yield 'a'
+        }
       } finally {
         finallyMustCall()
       }
@@ -26,7 +28,9 @@ describe('test-readable-from-iterator-closing', () => {
     const bodyMustCall = mustCall() as () => void
     function* infiniteGenerate() {
       try {
-        while (true) yield 'a'
+        while (true) {
+          yield 'a'
+        }
       } finally {
         finallyMustCall()
       }
@@ -44,7 +48,9 @@ describe('test-readable-from-iterator-closing', () => {
     const bodyMustCall = mustCall() as () => void
     function* infiniteGenerate(): Generator<Promise<string>, any, unknown> {
       try {
-        while (true) yield Promise.resolve('a')
+        while (true) {
+          yield Promise.resolve('a')
+        }
       } finally {
         return {
           then(cb: () => void) {

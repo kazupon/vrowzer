@@ -8,7 +8,9 @@ describe('test-stream-duplex-readable-end', () => {
       let loops = 5
       const src = new Readable({
         read() {
-          if (loops--) this.push(Buffer.alloc(20000))
+          if (loops--) {
+            this.push(Buffer.alloc(20000))
+          }
         }
       })
       const dst = new Transform({

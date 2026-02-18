@@ -105,7 +105,7 @@ export async function fetchModule(
 
   // remove shebang
   if (result.code[0] === '#')
-    result.code = result.code.replace(/^#!.*/, (s) => ' '.repeat(s.length))
+    {result.code = result.code.replace(/^#!.*/, (s) => ' '.repeat(s.length))}
 
   return {
     code: result.code,
@@ -134,12 +134,12 @@ function inlineSourceMap(
     !('version' in map) ||
     code.includes(MODULE_RUNNER_SOURCEMAPPING_SOURCE)
   )
-    return result
+    {return result}
 
   // to reduce the payload size, we only inline vite node source map, because it's also the only one we use
   OTHER_SOURCE_MAP_REGEXP.lastIndex = 0
   if (OTHER_SOURCE_MAP_REGEXP.test(code))
-    code = code.replace(OTHER_SOURCE_MAP_REGEXP, '')
+    {code = code.replace(OTHER_SOURCE_MAP_REGEXP, '')}
 
   const sourceMap = startOffset
     ? Object.assign({}, map, {

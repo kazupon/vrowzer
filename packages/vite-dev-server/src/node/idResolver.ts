@@ -43,8 +43,8 @@ export function createIdResolver(
     if (!pluginContainer) {
       // NOTE(kazupon): we need to initialize `@vrowser/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
       // WASM URL is handled by the build pipeline:
-      // - Dev mode: createWasmInlinePlugin inlines WASM as base64 data URL
-      // - Production: createWasmInlinePlugin also inlines WASM in the bundled SW
+      // - Dev mode: wasmInlinePlugin inlines WASM as base64 data URL
+      // - Production: wasmInlinePlugin also inlines WASM in the bundled SW
       // No explicit URL is needed; the wasm-bindgen default URL mechanism is used.
       await initOxcParser()
       pluginContainer = await createEnvironmentPluginContainer(

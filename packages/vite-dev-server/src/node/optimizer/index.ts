@@ -1457,11 +1457,11 @@ const safeRename = promisify(function gracefulRename(
     ) {
       setTimeout(function () {
         fs.stat(to, function (stater, _st) {
-          if (stater && stater.code === 'ENOENT') fs.rename(from, to, CB)
-          else CB(er)
+          if (stater && stater.code === 'ENOENT') {fs.rename(from, to, CB)}
+          else {CB(er)}
         })
       }, backoff)
-      if (backoff < 100) backoff += 10
+      if (backoff < 100) {backoff += 10}
       return
     }
     cb(er)

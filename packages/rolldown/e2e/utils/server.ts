@@ -76,8 +76,11 @@ export async function createStaticServer(
     close: () =>
       new Promise<void>((resolve, reject) => {
         server.close(err => {
-          if (err) reject(err)
-          else resolve()
+          if (err) {
+            reject(err)
+          } else {
+            resolve()
+          }
         })
       })
   }

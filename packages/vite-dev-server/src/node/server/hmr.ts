@@ -575,7 +575,7 @@ function isNodeWithinCircularImports(
 
   for (const importer of node.importers) {
     // Node may import itself which is safe
-    if (importer === node) continue
+    if (importer === node) {continue}
 
     // Check circular imports
     const importerIndex = nodeChain.indexOf(importer)
@@ -608,7 +608,7 @@ function isNodeWithinCircularImports(
         currentChain.concat(importer),
         traversedModules,
       )
-      if (result) return result
+      if (result) {return result}
     }
   }
   return false

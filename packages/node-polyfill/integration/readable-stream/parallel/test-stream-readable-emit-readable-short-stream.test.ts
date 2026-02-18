@@ -31,7 +31,9 @@ describe('test-stream-readable-emit-readable-short-stream', () => {
         mustCall(function () {
           while (true) {
             const chunk = t.read()
-            if (!chunk) break
+            if (!chunk) {
+              break
+            }
             expect(chunk.toString()).toBe('content')
           }
         }, 2) as (...args: unknown[]) => void
@@ -66,7 +68,9 @@ describe('test-stream-readable-emit-readable-short-stream', () => {
         mustCall(function () {
           while (true) {
             const chunk = t.read()
-            if (!chunk) break
+            if (!chunk) {
+              break
+            }
             expect(chunk.toString()).toBe('content')
           }
         }) as (...args: unknown[]) => void
@@ -102,7 +106,9 @@ describe('test-stream-readable-emit-readable-short-stream', () => {
         mustCall(function () {
           while (true) {
             const chunk = t.read()
-            if (!chunk) break
+            if (!chunk) {
+              break
+            }
             expect(chunk.toString()).toBe('content')
           }
         }) as (...args: unknown[]) => void
@@ -125,7 +131,9 @@ describe('test-stream-readable-emit-readable-short-stream', () => {
         mustCall(function () {
           while (true) {
             const chunk = t.read()
-            if (!chunk) break
+            if (!chunk) {
+              break
+            }
             expect(chunk.toString()).toBe('content')
           }
         }) as (...args: unknown[]) => void
@@ -150,7 +158,9 @@ describe('test-stream-readable-emit-readable-short-stream', () => {
         mustCall(function () {
           while (true) {
             const chunk = t.read()
-            if (!chunk) break
+            if (!chunk) {
+              break
+            }
             expect(chunk.toString()).toBe('content')
           }
         }, 2) as (...args: unknown[]) => void
@@ -188,7 +198,9 @@ describe('test-stream-readable-emit-readable-short-stream', () => {
         mustCall(function () {
           while (true) {
             const chunk = t.read()
-            if (!chunk) break
+            if (!chunk) {
+              break
+            }
             expect(chunk.toString()).toBe('content')
           }
         }, 2) as (...args: unknown[]) => void

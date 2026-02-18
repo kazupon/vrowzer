@@ -7,7 +7,9 @@ const fromList = (Readable as any)._fromList
 
 function bufferListFromArray(arr: any[]) {
   const bl = new BufferList()
-  for (let i = 0; i < arr.length; ++i) bl.push(arr[i])
+  for (let i = 0; i < arr.length; ++i) {
+    bl.push(arr[i])
+  }
   return bl
 }
 

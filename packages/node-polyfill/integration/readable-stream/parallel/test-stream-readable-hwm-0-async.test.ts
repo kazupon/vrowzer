@@ -10,8 +10,11 @@ describe('test-stream-readable-hwm-0-async', () => {
         read: mustCall(() => {
           process.nextTick(
             mustCall(() => {
-              if (count--) r.push('a')
-              else r.push(null)
+              if (count--) {
+                r.push('a')
+              } else {
+                r.push(null)
+              }
             }) as (...args: unknown[]) => void
           )
         }, 6) as () => void,

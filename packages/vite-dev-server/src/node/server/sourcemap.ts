@@ -129,7 +129,7 @@ export function applySourcemapIgnoreList(
       ++sourcesIndex
     ) {
       const sourcePath = map.sources[sourcesIndex]
-      if (!sourcePath) continue
+      if (!sourcePath) {continue}
 
       const ignoreList = sourcemapIgnoreList(
         path.isAbsolute(sourcePath)
@@ -148,7 +148,7 @@ export function applySourcemapIgnoreList(
 
     if (x_google_ignoreList.length > 0) {
       if (!map.x_google_ignoreList)
-        map.x_google_ignoreList = x_google_ignoreList
+        {map.x_google_ignoreList = x_google_ignoreList}
     }
   }
 }

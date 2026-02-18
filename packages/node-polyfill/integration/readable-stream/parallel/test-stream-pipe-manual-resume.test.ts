@@ -12,8 +12,11 @@ describe('test-stream-pipe-manual-resume', () => {
       const rs = new Readable({
         objectMode: true,
         read: mustCallAtLeast(() => {
-          if (--counter >= 0) rs.push({ counter })
-          else rs.push(null)
+          if (--counter >= 0) {
+            rs.push({ counter })
+          } else {
+            rs.push(null)
+          }
         }, n) as (...args: unknown[]) => void
       })
       const ws = new Writable({

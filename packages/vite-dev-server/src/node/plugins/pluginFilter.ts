@@ -108,7 +108,7 @@ export function createIdFilter(
   // TODO(kazupon): disable cwd default to '/', after `@vrowser/polyfills` is fixed.
   // cwd: string = process.cwd(),
 ): PluginFilter | undefined {
-  if (!filter) return
+  if (!filter) {return}
   const { exclude, include } = normalizeFilter(filter)
   const excludeFilter = exclude?.map((p) => patternToIdFilter(p, cwd))
   const includeFilter = include?.map((p) => patternToIdFilter(p, cwd))
@@ -118,7 +118,7 @@ export function createIdFilter(
 export function createCodeFilter(
   filter: StringFilter | undefined,
 ): PluginFilter | undefined {
-  if (!filter) return
+  if (!filter) {return}
   const { exclude, include } = normalizeFilter(filter)
   const excludeFilter = exclude?.map(patternToCodeFilter)
   const includeFilter = include?.map(patternToCodeFilter)
@@ -128,7 +128,7 @@ export function createCodeFilter(
 function createModuleTypeFilter(
   filter: ModuleTypeFilter | undefined,
 ): PluginFilter | undefined {
-  if (!filter) return
+  if (!filter) {return}
   const include = Array.isArray(filter) ? filter : (filter.include ?? [])
   return (moduleType: string) => include.includes(moduleType)
 }
@@ -139,7 +139,7 @@ export function createFilterForTransform(
   moduleTypeFilter: ModuleTypeFilter | undefined,
   cwd?: string,
 ): TransformHookFilter | undefined {
-  if (!idFilter && !codeFilter && !moduleTypeFilter) return
+  if (!idFilter && !codeFilter && !moduleTypeFilter) {return}
   const idFilterFn = createIdFilter(idFilter, cwd)
   const codeFilterFn = createCodeFilter(codeFilter)
   const moduleTypeFilterFn = createModuleTypeFilter(moduleTypeFilter)

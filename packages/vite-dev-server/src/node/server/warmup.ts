@@ -57,7 +57,7 @@ async function warmupFile(
 function htmlFileToUrl(file: string, root: string) {
   const url = path.relative(root, file)
   // out of root, ignore file
-  if (url[0] === '.') return
+  if (url[0] === '.') {return}
   // file within root, create root-relative url
   return '/' + normalizePath(url)
 }
@@ -73,7 +73,7 @@ function fileToUrl(file: string, root: string) {
 }
 
 async function mapFiles(files: string[], root: string) {
-  if (!files.length) return []
+  if (!files.length) {return []}
 
   const result: string[] = []
   const globs: string[] = []

@@ -62,8 +62,11 @@ describe('test-stream2-writable', () => {
       let i = 0
       ;(function W() {
         tw.write(chunks[i++])
-        if (i < chunks.length) setTimeout(W, 10)
-        else tw.end()
+        if (i < chunks.length) {
+          setTimeout(W, 10)
+        } else {
+          tw.end()
+        }
       })()
     }))
 

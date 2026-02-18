@@ -52,7 +52,9 @@ async function startDevServer(options: {
     }
 
     const onAbort = () => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       cleanup()
       childProcess.kill()
       reject(
@@ -63,7 +65,9 @@ async function startDevServer(options: {
     signal?.addEventListener('abort', onAbort)
 
     childProcess.on('error', err => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       cleanup()
       reject(err)
     })
@@ -73,7 +77,9 @@ async function startDevServer(options: {
     })
 
     childProcess.on('exit', code => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       if (code !== null && code !== 0) {
         cleanup()
         reject(
@@ -84,7 +90,9 @@ async function startDevServer(options: {
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises -- for testing
     const pollId = setInterval(async () => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       try {
         const res = await fetch(url)
         if (res.ok) {
@@ -134,7 +142,9 @@ describe('@vrowser/oxc-parser E2E', () => {
   it('initializes WASM and parseSync works', async () => {
     const errors: string[] = []
     page.on('console', msg => {
-      if (msg.type() === 'error') errors.push(msg.text())
+      if (msg.type() === 'error') {
+        errors.push(msg.text())
+      }
     })
     page.on('pageerror', err => {
       errors.push(err.message)

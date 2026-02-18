@@ -157,11 +157,11 @@ export function definePlugin(config: ResolvedConfig): Plugin {
         }
 
         let [define, pattern, importMetaEnvVal] = getPattern(this.environment)
-        if (!pattern) return
+        if (!pattern) {return}
 
         // Check if our code needs any replacements before running esbuild
         pattern.lastIndex = 0
-        if (!pattern.test(code)) return
+        if (!pattern.test(code)) {return}
 
         const hasDefineImportMetaEnv = 'import.meta.env' in define
         let marker = importMetaEnvMarker
@@ -262,8 +262,8 @@ export function serializeDefine(define: Record<string, any>): string {
 }
 
 function handleDefineValue(value: any): string {
-  if (typeof value === 'undefined') return 'undefined'
-  if (typeof value === 'string') return value
+  if (typeof value === 'undefined') {return 'undefined'}
+  if (typeof value === 'string') {return value}
   return JSON.stringify(value)
 }
 

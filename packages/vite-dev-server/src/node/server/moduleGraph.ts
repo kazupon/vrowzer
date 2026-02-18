@@ -203,7 +203,7 @@ export class EnvironmentModuleGraph {
     // Don't invalidate mod.info and mod.meta, as they are part of the processing pipeline
     // Invalidating the transform result is enough to ensure this module is re-processed next time it is requested
     const etag = mod.transformResult?.etag
-    if (etag) this.etagToModuleMap.delete(etag)
+    if (etag) {this.etagToModuleMap.delete(etag)}
 
     mod.transformResult = null
 
@@ -361,7 +361,7 @@ export class EnvironmentModuleGraph {
           this.environment,
           setIsSelfAccepting,
         )
-        if (meta) mod.meta = meta
+        if (meta) {mod.meta = meta}
         this.urlToModuleMap.set(url, mod)
         mod.id = resolvedId
         this.idToModuleMap.set(resolvedId, mod)
@@ -433,8 +433,8 @@ export class EnvironmentModuleGraph {
   ): void {
     if (this.environment === 'client') {
       const prevEtag = mod.transformResult?.etag
-      if (prevEtag) this.etagToModuleMap.delete(prevEtag)
-      if (result?.etag) this.etagToModuleMap.set(result.etag, mod)
+      if (prevEtag) {this.etagToModuleMap.delete(prevEtag)}
+      if (result?.etag) {this.etagToModuleMap.set(result.etag, mod)}
     }
 
     mod.transformResult = result

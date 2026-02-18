@@ -152,7 +152,9 @@ describe('promises.setInterval', () => {
     const iter = setIntervalP(10)
     for await (const v of iter) {
       values.push(v)
-      if (values.length === 3) break
+      if (values.length === 3) {
+        break
+      }
     }
     expect(values).toHaveLength(3)
   })

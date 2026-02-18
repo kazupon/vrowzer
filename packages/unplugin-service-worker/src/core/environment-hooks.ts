@@ -90,7 +90,9 @@ function wrapEnvironmentResolveId(
   environment: Environment,
   hook: Plugin['resolveId'] | undefined
 ): Plugin['resolveId'] | undefined {
-  if (!hook) return undefined
+  if (!hook) {
+    return undefined
+  }
 
   const fn = getHookHandler(hook as ObjectHook<Function>)
   const handler = function (

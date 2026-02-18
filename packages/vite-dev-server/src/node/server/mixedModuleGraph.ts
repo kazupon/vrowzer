@@ -63,7 +63,7 @@ export class ModuleNode {
     const ids = new Set<string>()
     if (this._clientModule) {
       for (const mod of this._clientModule[prop]) {
-        if (mod.id) ids.add(mod.id)
+        if (mod.id) {ids.add(mod.id)}
         importedModules.add(
           this._moduleGraph.getBackwardCompatibleModuleNode(mod),
         )
@@ -84,7 +84,7 @@ export class ModuleNode {
     const _clientValue = this._clientModule?.[prop]
     const _ssrValue = this._ssrModule?.[prop]
 
-    if (_clientValue == null && _ssrValue == null) return undefined
+    if (_clientValue == null && _ssrValue == null) {return undefined}
 
     return new Proxy({} as any, {
       get: (_, key: string) => {
@@ -110,7 +110,7 @@ export class ModuleNode {
     const _clientValue = this._clientModule?.[prop]
     const _ssrValue = this._ssrModule?.[prop]
 
-    if (_clientValue == null && _ssrValue == null) return undefined
+    if (_clientValue == null && _ssrValue == null) {return undefined}
 
     const info: Record<string, any> = {}
     if (_ssrValue) {

@@ -2,6 +2,9 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "import", "promise", "unicorn", "node"],
   "extends": ["./node_modules/@kazupon/eslint-plugin/oxlint/recommended.json"],
+  "rules": {
+    "curly": "error"
+  },
   "overrides": [
     {
       "files": ["**/*.{test,spec}.{ts,tsx}"],
@@ -45,15 +48,16 @@
     }
   ],
   "ignorePatterns": [
+    ".playwright-cli",
+    ".vscode/**/*.json",
+    ".claude/**/*.md",
     "**/dist",
     "**/.output",
     "**/.output-shared",
     "**/.notes",
-    ".vscode/**/*.json",
     "**/*.html",
     "**/tsconfig*.json",
     "**/__screenshots__",
-    ".playwright-cli",
     "packages/**/docs/**",
     "refers/**",
     "packages/playground/src/**",

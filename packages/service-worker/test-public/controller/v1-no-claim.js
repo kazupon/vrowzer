@@ -27,7 +27,9 @@ function handleSessionMessage(clientId, port, data) {
 
 sw.addEventListener('message', event => {
   const data = event.data
-  if (!data || typeof data.type !== 'string') return
+  if (!data || typeof data.type !== 'string') {
+    return
+  }
 
   switch (data.type) {
     case 'V_SW_VERSION': {

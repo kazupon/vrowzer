@@ -112,7 +112,7 @@ export function getNodeAssetAttributes(
   node: DefaultTreeAdapterMap['element'],
 ): HtmlAssetAttribute[] {
   const matched = DEFAULT_HTML_ASSET_SOURCES[node.nodeName]
-  if (!matched) return []
+  if (!matched) {return []}
 
   const attributes: Record<string, string> = {}
   for (const attr of node.attrs) {
@@ -136,8 +136,8 @@ export function getNodeAssetAttributes(
   const actions: HtmlAssetAttribute[] = []
   function handleAttributeKey(key: string, type: 'src' | 'srcset') {
     const value = attributes[key]
-    if (!value) return
-    if (matched.filter && !matched.filter({ key, value, attributes })) return
+    if (!value) {return}
+    if (matched.filter && !matched.filter({ key, value, attributes })) {return}
     const location = node.sourceCodeLocation!.attrs![key]
     actions.push({ type, key, value, attributes, location })
   }

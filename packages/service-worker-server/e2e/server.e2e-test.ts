@@ -65,7 +65,9 @@ async function startDevServer(options: {
     }
 
     const onAbort = () => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       cleanup()
       childProcess.kill()
       reject(
@@ -76,7 +78,9 @@ async function startDevServer(options: {
     signal?.addEventListener('abort', onAbort)
 
     childProcess.on('error', err => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       cleanup()
       reject(err)
     })
@@ -86,7 +90,9 @@ async function startDevServer(options: {
     })
 
     childProcess.on('exit', code => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       if (code !== null && code !== 0) {
         cleanup()
         reject(
@@ -96,7 +102,9 @@ async function startDevServer(options: {
     })
 
     const pollId = setInterval(async () => {
-      if (settled) return
+      if (settled) {
+        return
+      }
       try {
         // Check if server is responding (any status code means it's up)
         const res = await fetch(`${url}/e2e/server-test.html`)

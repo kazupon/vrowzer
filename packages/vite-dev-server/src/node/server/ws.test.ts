@@ -21,12 +21,12 @@ function createMockSafePort(rawPort: MessagePort) {
     close: vi.fn(),
     start: vi.fn(),
     on: vi.fn((type: string, handler: EventListener) => {
-      if (type === 'message') messageListeners.add(handler as MessageListener)
-      if (type === 'messageerror') errorListeners.add(handler as ErrorListener)
+      if (type === 'message') {messageListeners.add(handler as MessageListener)}
+      if (type === 'messageerror') {errorListeners.add(handler as ErrorListener)}
     }),
     off: vi.fn((type: string, handler: EventListener) => {
-      if (type === 'message') messageListeners.delete(handler as MessageListener)
-      if (type === 'messageerror') errorListeners.delete(handler as ErrorListener)
+      if (type === 'message') {messageListeners.delete(handler as MessageListener)}
+      if (type === 'messageerror') {errorListeners.delete(handler as ErrorListener)}
     }),
     once: vi.fn(),
     emit: vi.fn(),

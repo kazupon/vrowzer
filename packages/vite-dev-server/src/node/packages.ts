@@ -98,7 +98,7 @@ export function resolvePackageData(
         originalBasedir,
         preserveSymlinks,
       )
-      if (cached) return cached
+      if (cached) {return cached}
     }
 
     const pkg = path.join(basedir, 'node_modules', pkgName, 'package.json')
@@ -123,7 +123,7 @@ export function resolvePackageData(
     } catch { }
 
     const nextBasedir = path.dirname(basedir)
-    if (nextBasedir === basedir) break
+    if (nextBasedir === basedir) {break}
     basedir = nextBasedir
   }
 
@@ -138,7 +138,7 @@ export function findNearestPackageData(
   while (basedir) {
     if (packageCache) {
       const cached = getFnpdCache(packageCache, basedir, originalBasedir)
-      if (cached) return cached
+      if (cached) {return cached}
     }
 
     const pkgPath = path.join(basedir, 'package.json')
@@ -155,7 +155,7 @@ export function findNearestPackageData(
     }
 
     const nextBasedir = path.dirname(basedir)
-    if (nextBasedir === basedir) break
+    if (nextBasedir === basedir) {break}
     basedir = nextBasedir
   }
 
@@ -248,7 +248,7 @@ export function findNearestNodeModules(basedir: string): string | null {
     }
 
     const nextBasedir = path.dirname(basedir)
-    if (nextBasedir === basedir) break
+    if (nextBasedir === basedir) {break}
     basedir = nextBasedir
   }
 

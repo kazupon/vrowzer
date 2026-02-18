@@ -31,7 +31,9 @@ describe('test-stream-asIndexedPairs', () => {
     const infinite = () =>
       Readable.from(
         (async function* () {
-          while (true) yield 1
+          while (true) {
+            yield 1
+          }
         })()
       )
     const pairs = await infinite().asIndexedPairs().take(3).toArray()

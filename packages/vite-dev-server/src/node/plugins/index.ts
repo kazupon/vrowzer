@@ -159,7 +159,7 @@ export function createPluginHookUtils(
     hookName: K,
   ): PluginWithRequiredHook<K>[] {
     if (sortedPluginsCache.has(hookName))
-      return sortedPluginsCache.get(hookName) as PluginWithRequiredHook<K>[]
+      {return sortedPluginsCache.get(hookName) as PluginWithRequiredHook<K>[]}
     const sorted = getSortedPluginsByHook(hookName, plugins)
     sortedPluginsCache.set(hookName, sorted)
     return sorted

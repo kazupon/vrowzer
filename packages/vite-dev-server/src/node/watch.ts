@@ -15,7 +15,7 @@ export function getResolvedOutDirs(
   outputOptions: OutputOptions[] | OutputOptions | undefined,
 ): Set<string> {
   const resolvedOutDir = path.resolve(root, outDir)
-  if (!outputOptions) return new Set([resolvedOutDir])
+  if (!outputOptions) {return new Set([resolvedOutDir])}
 
   return new Set(
     arraify(outputOptions).map(({ dir }) =>
@@ -30,7 +30,7 @@ export function resolveEmptyOutDir(
   outDirs: Set<string>,
   logger?: Logger,
 ): boolean {
-  if (emptyOutDir != null) return emptyOutDir
+  if (emptyOutDir != null) {return emptyOutDir}
 
   for (const outDir of outDirs) {
     if (!normalizePath(outDir).startsWith(withTrailingSlash(root))) {
@@ -82,7 +82,7 @@ export function resolveChokidarOptions(
 export function convertToNotifyOptions(
   options: WatchOptions | undefined,
 ): WatcherOptions['notify'] {
-  if (!options) return
+  if (!options) {return}
 
   return {
     pollInterval: options.usePolling ? (options.interval ?? 100) : undefined,

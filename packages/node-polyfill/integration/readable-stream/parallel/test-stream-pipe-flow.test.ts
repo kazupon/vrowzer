@@ -9,7 +9,9 @@ describe('test-stream-pipe-flow', () => {
       const rs = new Readable({
         objectMode: true,
         read: () => {
-          if (ticks-- > 0) return process.nextTick(() => rs.push({}))
+          if (ticks-- > 0) {
+            return process.nextTick(() => rs.push({}))
+          }
           rs.push({})
           rs.push(null)
         }
@@ -35,8 +37,11 @@ describe('test-stream-pipe-flow', () => {
       const rs = new Readable({
         objectMode: true,
         read: () => {
-          if (missing--) rs.push({})
-          else rs.push(null)
+          if (missing--) {
+            rs.push({})
+          } else {
+            rs.push(null)
+          }
         }
       })
       const pt = rs
@@ -63,7 +68,9 @@ describe('test-stream-pipe-flow', () => {
             if (data === null) {
               pt.once('readable', () => {
                 data = pt.read()
-                if (data !== null) wrapper.push(data)
+                if (data !== null) {
+                  wrapper.push(data)
+                }
               })
             } else {
               wrapper.push(data)

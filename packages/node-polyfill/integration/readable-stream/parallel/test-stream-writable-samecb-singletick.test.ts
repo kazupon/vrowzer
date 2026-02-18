@@ -14,6 +14,8 @@ describe('test-stream-writable-samecb-singletick', () => {
         cb()
       }, 100) as (chunk: unknown, encoding: string, cb: () => void) => void
     })
-    for (let i = 0; i < 100; i++) w.write(`${i}\n`)
+    for (let i = 0; i < 100; i++) {
+      w.write(`${i}\n`)
+    }
   })
 })

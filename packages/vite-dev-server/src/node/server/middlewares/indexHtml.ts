@@ -539,7 +539,7 @@ function preTransformRequest(
   decodedUrl: string,
   decodedBase: string,
 ) {
-  if (!server.config.server.preTransformRequests) return
+  if (!server.config.server.preTransformRequests) {return}
 
   // transform all url as non-ssr as html includes client-side assets only
   decodedUrl = unwrapId(stripBase(decodedUrl, decodedBase))

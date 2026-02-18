@@ -217,7 +217,7 @@ export class HMRClient {
     await Promise.all(
       paths.map((path) => {
         const disposer = this.disposeMap.get(path)
-        if (disposer) return disposer(this.dataMap.get(path))
+        if (disposer) {return disposer(this.dataMap.get(path))}
       }),
     )
     await Promise.all(
@@ -281,7 +281,7 @@ export class HMRClient {
 
     if (isSelfUpdate || qualifiedCallbacks.length > 0) {
       const disposer = this.disposeMap.get(acceptedPath)
-      if (disposer) await disposer(this.dataMap.get(acceptedPath))
+      if (disposer) {await disposer(this.dataMap.get(acceptedPath))}
       try {
         fetchedModule = await this.importUpdatedModule(update)
       } catch (e) {

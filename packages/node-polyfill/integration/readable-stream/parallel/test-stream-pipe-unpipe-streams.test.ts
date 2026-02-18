@@ -51,7 +51,9 @@ describe('test-stream-pipe-unpipe-streams', () => {
         destCheckEventNames.forEach(eventName => {
           expect(dest.listenerCount(eventName)).toBe(0)
         })
-        if (--destCount === 0) checkSrcCleanup()
+        if (--destCount === 0) {
+          checkSrcCleanup()
+        }
       }) as (...args: unknown[]) => void
       dest.on('unpipe', unpipeChecker)
     }

@@ -45,7 +45,7 @@ self.addEventListener('activate', (event) => {
 // are handled automatically by createSvcWorkerServer (via createSvcWorker)
 self.addEventListener('message', async (event) => {
   const data = event.data
-  if (!data || typeof data.type !== 'string') return
+  if (!data || typeof data.type !== 'string') {return}
 
   const port = event.ports?.[0]
 

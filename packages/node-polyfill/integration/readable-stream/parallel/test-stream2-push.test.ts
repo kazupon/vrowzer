@@ -23,7 +23,9 @@ describe('test-stream2-push', () => {
 
       source.on('data', function (chunk) {
         const ret = stream.push(chunk)
-        if (!ret) readStop()
+        if (!ret) {
+          readStop()
+        }
       })
 
       source.on('end', function () {
@@ -39,7 +41,9 @@ describe('test-stream2-push', () => {
         reading = false
         process.nextTick(function () {
           const r = stream.read()
-          if (r !== null) writer.write(r)
+          if (r !== null) {
+            writer.write(r)
+          }
         })
       }
 
@@ -82,8 +86,11 @@ describe('test-stream2-push', () => {
         expect(reading).toBe(true)
         source.emit('data', chunk)
         expect(reading).toBe(false)
-        if (set++ < 5) setTimeout(data, 10)
-        else end()
+        if (set++ < 5) {
+          setTimeout(data, 10)
+        } else {
+          end()
+        }
       }
 
       function end() {

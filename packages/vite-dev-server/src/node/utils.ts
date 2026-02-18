@@ -400,10 +400,10 @@ export function lookupFile(
   while (dir) {
     for (const fileName of fileNames) {
       const fullPath = path.join(dir, fileName)
-      if (tryStatSync(fullPath)?.isFile()) return fullPath
+      if (tryStatSync(fullPath)?.isFile()) {return fullPath}
     }
     const parentDir = path.dirname(dir)
-    if (parentDir === dir) return
+    if (parentDir === dir) {return}
 
     dir = parentDir
   }
@@ -445,7 +445,7 @@ type Pos = {
 }
 
 export function posToNumber(source: string, pos: number | Pos): number {
-  if (typeof pos === 'number') return pos
+  if (typeof pos === 'number') {return pos}
   const lines = source.split(splitRE)
   const { line, column } = pos
   let start = 0
@@ -457,7 +457,7 @@ export function posToNumber(source: string, pos: number | Pos): number {
 }
 
 export function numberToPos(source: string, offset: number | Pos): Pos {
-  if (typeof offset !== 'number') return offset
+  if (typeof offset !== 'number') {return offset}
   if (offset > source.length) {
     throw new Error(
       `offset is longer than source length! offset ${offset} > length ${source.length}`,
@@ -498,7 +498,7 @@ export function generateCodeFrame(
     count += lines[i].length
     if (count >= start) {
       for (let j = i - range; j <= i + range || end > count; j++) {
-        if (j < 0 || j >= lines.length) continue
+        if (j < 0 || j >= lines.length) {continue}
         const line = j + 1
         // @ts-expect-error -- FIXME(kazupon): fix me
         const lineLength = lines[j].length
@@ -690,7 +690,7 @@ function windowsMappedRealpathSync(path: string) {
   const realPath = fs.realpathSync.native(path)
   if (realPath.startsWith('\\\\')) {
     for (const [network, volume] of windowsNetworkMap) {
-      if (realPath.startsWith(network)) return realPath.replace(network, volume)
+      if (realPath.startsWith(network)) {return realPath.replace(network, volume)}
     }
   }
   return realPath
@@ -1002,7 +1002,7 @@ export const blankReplacer = (match: string): string => ' '.repeat(match.length)
 export function getHash(text: Buffer | string, length = 8): string {
   const data = typeof text === 'string' ? utf8ToBytes(text) : new Uint8Array(text)
   const h = bytesToHex(sha256(data)).substring(0, length)
-  if (length <= 64) return h
+  if (length <= 64) {return h}
   return h.padEnd(length, '_')
 }
 // NOTE(kazupon): comment out, because we need to keep the maintainance from vite original code
@@ -1094,7 +1094,7 @@ function mergeWithDefaultsRecursively<
   for (const key in values) {
     const value = values[key]
     // let null to set the value (e.g. `server.watch: null`)
-    if (value === undefined) continue
+    if (value === undefined) {continue}
 
     const existing = merged[key]
     if (existing === undefined) {
@@ -1224,7 +1224,7 @@ function mergeConfigRecursively(
     if (key === 'rollupOptions' && rollupOptionsRootPaths.has(rootPath)) {
       // if both rollupOptions and rolldownOptions are present,
       // ignore rollupOptions and use rolldownOptions
-      if (overrides.rolldownOptions) continue
+      if (overrides.rolldownOptions) {continue}
       existing = merged.rolldownOptions
     }
 
@@ -1300,8 +1300,8 @@ export function mergeAlias(
   a?: AliasOptions,
   b?: AliasOptions,
 ): AliasOptions | undefined {
-  if (!a) return b
-  if (!b) return a
+  if (!a) {return b}
+  if (!b) {return a}
   if (isObject(a) && isObject(b)) {
     return { ...a, ...b }
   }
@@ -1394,7 +1394,7 @@ const windowsDrivePathPrefixRE = /^[A-Za-z]:[/\\]/
  * this function returns false for them but true for absolute paths (e.g. C:/something)
  */
 export const isNonDriveRelativeAbsolutePath = (p: string): boolean => {
-  if (!isWindows) return p[0] === '/'
+  if (!isWindows) {return p[0] === '/'}
   return windowsDrivePathPrefixRE.test(p)
 }
 
@@ -1404,7 +1404,7 @@ export const isNonDriveRelativeAbsolutePath = (p: string): boolean => {
  */
 export function shouldServeFile(filePath: string, root: string): boolean {
   // can skip case check on Linux
-  if (!isCaseInsensitiveFS) return true
+  if (!isCaseInsensitiveFS) {return true}
 
   return hasCorrectCase(filePath, root)
 }
@@ -1414,7 +1414,7 @@ export function shouldServeFile(filePath: string, root: string): boolean {
  * symlinks.
  */
 function hasCorrectCase(file: string, assets: string): boolean {
-  if (file === assets) return true
+  if (file === assets) {return true}
 
   const parent = path.dirname(file)
 
@@ -1451,10 +1451,10 @@ export function stripBase(path: string, base: string): string {
 }
 
 export function arrayEqual(a: any[], b: any[]): boolean {
-  if (a === b) return true
-  if (a.length !== b.length) return false
+  if (a === b) {return true}
+  if (a.length !== b.length) {return false}
   for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false
+    if (a[i] !== b[i]) {return false}
   }
   return true
 }
@@ -1470,7 +1470,7 @@ export function evalValue<T = any>(rawValue: string): T {
 export function getNpmPackageName(importPath: string): string | null {
   const parts = importPath.split('/')
   if (parts[0][0] === '@') {
-    if (!parts[1]) return null
+    if (!parts[1]) {return null}
     return `${parts[0]}/${parts[1]}`
   } else {
     return parts[0]
@@ -1579,7 +1579,7 @@ export function displayTime(time: number): string {
  * Encodes the URI path portion (ignores part after ? or #)
  */
 export function encodeURIPath(uri: string): string {
-  if (uri.startsWith('data:')) return uri
+  if (uri.startsWith('data:')) {return uri}
   const filePath = cleanUrl(uri)
   const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
   return encodeURI(filePath) + postfix
@@ -1590,7 +1590,7 @@ export function encodeURIPath(uri: string): string {
  * that can handle un-encoded URIs, where `%` is the only ambiguous character.
  */
 export function partialEncodeURIPath(uri: string): string {
-  if (uri.startsWith('data:')) return uri
+  if (uri.startsWith('data:')) {return uri}
   const filePath = cleanUrl(uri)
   const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
   return filePath.replaceAll('%', '%25') + postfix

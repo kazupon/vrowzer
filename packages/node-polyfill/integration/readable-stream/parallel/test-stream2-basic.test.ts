@@ -26,7 +26,9 @@ class TestReader extends Readable {
         this._pos = 0
         this._bufs -= 1
         if (this._bufs <= 0) {
-          if (!this.ended) this.push(null)
+          if (!this.ended) {
+            this.push(null)
+          }
         } else {
           this._read(n)
         }
@@ -56,7 +58,9 @@ class TestWriter extends EE {
   }
 
   end(c?: any) {
-    if (c) this.write(c)
+    if (c) {
+      this.write(c)
+    }
     this.emit('end', this.received)
   }
 }
@@ -161,14 +165,18 @@ describe('test-stream2-basic', () => {
         'end',
         mustCall(function (received: string[]) {
           expect(received).toStrictEqual(expected)
-          if (++finished === 2) resolve()
+          if (++finished === 2) {
+            resolve()
+          }
         }) as (...args: unknown[]) => void
       )
       w[1]!.on(
         'end',
         mustCall(function (received: string[]) {
           expect(received).toStrictEqual(expected)
-          if (++finished === 2) resolve()
+          if (++finished === 2) {
+            resolve()
+          }
         }) as (...args: unknown[]) => void
       )
       r.pipe(w[0] as any)
@@ -295,8 +303,11 @@ describe('test-stream2-basic', () => {
       let onReadable = false
       let readCalled = 0
       r._read = function () {
-        if (readCalled++ === 2) r.push(null)
-        else r.push(Buffer.from('asdf'))
+        if (readCalled++ === 2) {
+          r.push(null)
+        } else {
+          r.push(Buffer.from('asdf'))
+        }
       }
       r.on('readable', function () {
         onReadable = true

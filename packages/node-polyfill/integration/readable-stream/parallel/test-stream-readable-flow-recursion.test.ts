@@ -13,15 +13,21 @@ describe('test-stream-readable-flow-recursion', () => {
         reads++
         size = Math.min(size, total)
         total -= size
-        if (size === 0) stream.push(null)
-        else stream.push(Buffer.allocUnsafe(size))
+        if (size === 0) {
+          stream.push(null)
+        } else {
+          stream.push(Buffer.allocUnsafe(size))
+        }
       }
       let depth = 0
       function flow(stream: Readable, size: number, callback: (chunk: Buffer) => void) {
         depth += 1
         const chunk = stream.read(size) as Buffer | null
-        if (!chunk) stream.once('readable', flow.bind(null, stream, size, callback))
-        else callback(chunk)
+        if (!chunk) {
+          stream.once('readable', flow.bind(null, stream, size, callback))
+        } else {
+          callback(chunk)
+        }
         depth -= 1
       }
       flow(stream, 5000, function () {

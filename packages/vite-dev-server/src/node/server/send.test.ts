@@ -21,7 +21,7 @@ function createMockContext(options: {
       url: `http://localhost${path}`,
       path,
       header: vi.fn((name: string) => {
-        if (name === 'if-none-match') return ifNoneMatch
+        if (name === 'if-none-match') {return ifNoneMatch}
         return undefined
       }),
     },

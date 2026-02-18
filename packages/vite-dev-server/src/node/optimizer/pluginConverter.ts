@@ -67,7 +67,7 @@ export function convertEsbuildPluginToRolldownPlugin(
         },
         {
           get(target, p, _receiver) {
-            if (p in target) return (target as any)[p]
+            if (p in target) {return (target as any)[p]}
             throw new Error('Not implemented')
           },
         },
@@ -218,7 +218,7 @@ function createResolveIdHandler(
       pluginData: {},
       with: {},
     })
-    if (!result) return
+    if (!result) {return}
     if (result.errors && result.errors.length > 0) {
       throw new AggregateError(result.errors)
     }
@@ -267,7 +267,7 @@ function createLoadHandler(
       pluginData: {},
       with: {},
     })
-    if (!result) return
+    if (!result) {return}
     if (result.errors && result.errors.length > 0) {
       throw new AggregateError(result.errors)
     }
@@ -299,7 +299,7 @@ function idToPathAndNamespace(
 function idToPathAndNamespace(
   id: string | undefined,
 ): [path: string | undefined, namespace: string] {
-  if (id === undefined) return [undefined, 'file']
+  if (id === undefined) {return [undefined, 'file']}
 
   const namespaceIndex = id.indexOf(':')
   if (namespaceIndex >= 0) {

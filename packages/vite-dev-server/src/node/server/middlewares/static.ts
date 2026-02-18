@@ -186,7 +186,7 @@ export function serveStaticMiddleware(
     }
 
     const pathname = decodeURIIfPossible(requestPath)
-    if (pathname === undefined) return next()
+    if (pathname === undefined) {return next()}
 
     // apply aliases to static requests as well
     let redirectedPathname: string | undefined
@@ -273,10 +273,10 @@ export function serveRawFsMiddleware(
     }
 
     const pathname = decodeURIIfPossible(requestPath)
-    if (pathname === undefined) return next()
+    if (pathname === undefined) {return next()}
 
     let newPathname = pathname.slice(FS_PREFIX.length)
-    if (isWindows) newPathname = newPathname.replace(/^[A-Z]:/i, '')
+    if (isWindows) {newPathname = newPathname.replace(/^[A-Z]:/i, '')}
 
     const filePath = '/' + newPathname
 
@@ -323,7 +323,7 @@ export function isFileServingAllowed(
     typeof urlOrServer === 'string' ? urlOrServer : configOrUrl
   ) as string
 
-  if (!config.server.fs.strict) return true
+  if (!config.server.fs.strict) {return true}
   const filePath = fsPathFromUrl(url)
   return isFileLoadingAllowed(config, filePath)
 }
@@ -353,18 +353,18 @@ export function isFileLoadingAllowed(
 ): boolean {
   const { fs } = config.server
 
-  if (!fs.strict) return true
+  if (!fs.strict) {return true}
 
   // NOTE: `fs.readFile('/foo.png/')` tries to load `'/foo.png'`
   // so we should check the path without trailing slash
   const filePathWithoutTrailingSlash = filePath.endsWith('/')
     ? filePath.slice(0, -1)
     : filePath
-  if (config.fsDenyGlob(filePathWithoutTrailingSlash)) return false
+  if (config.fsDenyGlob(filePathWithoutTrailingSlash)) {return false}
 
-  if (config.safeModulePaths.has(filePath)) return true
+  if (config.safeModulePaths.has(filePath)) {return true}
 
-  if (fs.allow.some((uri) => isFileInTargetPath(uri, filePath))) return true
+  if (fs.allow.some((uri) => isFileInTargetPath(uri, filePath))) {return true}
 
   return false
 }

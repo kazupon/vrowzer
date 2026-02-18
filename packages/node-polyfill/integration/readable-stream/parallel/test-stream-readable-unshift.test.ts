@@ -34,7 +34,9 @@ describe('test-stream-readable-unshift', () => {
         mustCall((chunk: Buffer) => {
           expect(chunk.toString('utf8')).toBe(expected.shift())
           count++
-          if (count === 2) resolve()
+          if (count === 2) {
+            resolve()
+          }
         }, 2) as (...args: unknown[]) => void
       )
       readable.push(push)
@@ -78,7 +80,9 @@ describe('test-stream-readable-unshift', () => {
           // @ts-ignore - toString accepts encoding at runtime
           expect(chunk.toString(encoding as BufferEncoding)).toBe(string)
           count++
-          if (count === encodings.length) resolve()
+          if (count === encodings.length) {
+            resolve()
+          }
         }, encodings.length) as (...args: unknown[]) => void
       )
       for (const encoding of encodings) {
@@ -115,7 +119,9 @@ describe('test-stream-readable-unshift', () => {
           // @ts-ignore - toString accepts encoding at runtime
           expect(chunk.toString(encoding as BufferEncoding)).toBe(string)
           count++
-          if (count === encodings.length) resolve()
+          if (count === encodings.length) {
+            resolve()
+          }
         }, encodings.length) as (...args: unknown[]) => void
       )
       for (const encoding of encodings) {
@@ -149,7 +155,9 @@ describe('test-stream-readable-unshift', () => {
         mustCall((chunk: string) => {
           expect(chunk).toBe(Buffer.from(string).toString(encoding))
           count++
-          if (count === 2) resolve()
+          if (count === 2) {
+            resolve()
+          }
         }, 2) as (...args: unknown[]) => void
       )
       r1.push(string)
@@ -172,7 +180,9 @@ describe('test-stream-readable-unshift', () => {
         mustCall((chunk: string) => {
           expect(chunk).toBe(Buffer.from(string).toString(encoding))
           count++
-          if (count === 2) resolve()
+          if (count === 2) {
+            resolve()
+          }
         }, 2) as (...args: unknown[]) => void
       )
       r2.push(string)
@@ -194,7 +204,9 @@ describe('test-stream-readable-unshift', () => {
         mustCall((chunk: unknown) => {
           expect(chunk).toBe(chunksClone.pop())
           count++
-          if (count === chunks.length) resolve()
+          if (count === chunks.length) {
+            resolve()
+          }
         }, chunks.length) as (...args: unknown[]) => void
       )
       for (const chunk of chunks) {
@@ -222,7 +234,9 @@ describe('test-stream-readable-unshift', () => {
               this.push(null)
               return
             }
-            if (!this.push(chunk)) return
+            if (!this.push(chunk)) {
+              return
+            }
           }
         }
       }

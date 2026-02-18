@@ -93,9 +93,9 @@ const createInvokeableTransport = (
             if (data.id.startsWith('response:')) {
               const invokeId = data.id.slice('response:'.length)
               const promise = rpcPromises.get(invokeId)
-              if (!promise) return
+              if (!promise) {return}
 
-              if (promise.timeoutId) clearTimeout(promise.timeoutId)
+              if (promise.timeoutId) {clearTimeout(promise.timeoutId)}
 
               rpcPromises.delete(invokeId)
 
@@ -201,7 +201,7 @@ export const normalizeModuleRunnerTransport = (
     ...(invokeableTransport.connect
       ? {
         async connect(onMessage) {
-          if (isConnected) return
+          if (isConnected) {return}
           if (connectingPromise) {
             await connectingPromise
             return
@@ -225,7 +225,7 @@ export const normalizeModuleRunnerTransport = (
     ...(invokeableTransport.disconnect
       ? {
         async disconnect() {
-          if (!isConnected) return
+          if (!isConnected) {return}
           if (connectingPromise) {
             await connectingPromise
           }
@@ -235,7 +235,7 @@ export const normalizeModuleRunnerTransport = (
       }
       : {}),
     async send(data) {
-      if (!invokeableTransport.send) return
+      if (!invokeableTransport.send) {return}
 
       if (!isConnected) {
         if (connectingPromise) {

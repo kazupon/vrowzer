@@ -126,7 +126,7 @@ function patchTypes(): Plugin {
       order: 'post',
       handler(_opts, bundle) {
         for (const chunk of Object.values(bundle)) {
-          if (chunk.type !== 'chunk') continue
+          if (chunk.type !== 'chunk') {continue}
 
           const ast = parseAst(chunk.code, { lang: 'ts', sourceType: 'module' })
           const importBindings = getAllImportBindings(ast)
@@ -173,7 +173,7 @@ function getImportBindings(node: Directive | Statement): ImportBindings | undefi
     }
   }
   if (node.type === 'ExportNamedDeclaration') {
-    if (!node.source) return undefined
+    if (!node.source) {return undefined}
     return {
       id: node.source.value,
       bindings: node.specifiers.map(s => stringifyModuleExportName(s.local)),
@@ -181,7 +181,7 @@ function getImportBindings(node: Directive | Statement): ImportBindings | undefi
     }
   }
   if (node.type === 'ExportAllDeclaration') {
-    if (!node.source) return undefined
+    if (!node.source) {return undefined}
     return { id: node.source.value, bindings: ['*'], locals: [] }
   }
 }

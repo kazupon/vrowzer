@@ -37,7 +37,9 @@ describe('test-stream2-readable-empty-buffer-no-eof', () => {
       const results: string[] = []
       function flow() {
         let chunk
-        while (null !== (chunk = r.read())) results.push(String(chunk))
+        while (null !== (chunk = r.read())) {
+          results.push(String(chunk))
+        }
       }
       r.on('readable', flow)
       r.on('end', () => {
@@ -55,13 +57,17 @@ describe('test-stream2-readable-empty-buffer-no-eof', () => {
       })
       let reads = 5
       r._read = function () {
-        if (!reads--) return r.push(null)
+        if (!reads--) {
+          return r.push(null)
+        }
         return r.push(Buffer.from('x'))
       }
       const results: string[] = []
       function flow() {
         let chunk
-        while (null !== (chunk = r.read())) results.push(String(chunk))
+        while (null !== (chunk = r.read())) {
+          results.push(String(chunk))
+        }
       }
       r.on('readable', flow)
       r.on('end', () => {

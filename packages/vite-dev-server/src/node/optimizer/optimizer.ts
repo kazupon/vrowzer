@@ -68,7 +68,7 @@ export function createExplicitDepsOptimizer(
 
   let inited = false
   async function init() {
-    if (inited) return
+    if (inited) {return}
     inited = true
 
     // depsOptimizer.metadata = await optimizeExplicitEnvironmentDeps(environment)
