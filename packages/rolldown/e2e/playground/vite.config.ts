@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
 import path from 'node:path'
+import { defineConfig } from 'vite'
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname)
 
@@ -7,8 +7,11 @@ export default defineConfig({
   resolve: {
     alias: {
       // Map @vrowser/rolldown imports to the pre-bundled dist files
-      '@vrowser/rolldown/experimental': path.resolve(__dirname, '../../dist/experimental.js'),
-      '@vrowser/rolldown': path.resolve(__dirname, '../../dist/index.js')
+      '@vrowser/rolldown/browser/experimental': path.resolve(
+        __dirname,
+        '../../dist/browser/experimental.js'
+      ),
+      '@vrowser/rolldown/browser': path.resolve(__dirname, '../../dist/browser/index.js')
     }
   },
   define: {

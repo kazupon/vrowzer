@@ -48,13 +48,15 @@ beforeAll(async () => {
 
   // Copy dist files to output (worker.js, WASM binary)
   // These files are loaded at runtime via import.meta.url and can't be bundled by Vite
-  const { copyFileSync, mkdirSync } = await import('node:fs')
+  const { copyFileSync } = await import('node:fs')
   const distDir = join(__dirname, '..', 'dist')
-  mkdirSync(join(OUTPUT_DIR, 'assets'), { recursive: true })
-  copyFileSync(join(distDir, 'worker.js'), join(OUTPUT_DIR, 'assets', 'worker.js'))
+  // Worker and WASM are referenced from browser/chunks/ as ../worker.js and
+  // ../rolldown-binding.wasm32-wasi.wasm. Vite outputs the bundled JS into
+  // assets/, so the parent directory is the output root.
+  copyFileSync(join(distDir, 'worker.js'), join(OUTPUT_DIR, 'worker.js'))
   copyFileSync(
     join(distDir, 'rolldown-binding.wasm32-wasi.wasm'),
-    join(OUTPUT_DIR, 'assets', 'rolldown-binding.wasm32-wasi.wasm')
+    join(OUTPUT_DIR, 'rolldown-binding.wasm32-wasi.wasm')
   )
 
   // Start static server with COOP/COEP headers

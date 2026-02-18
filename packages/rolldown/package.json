@@ -18,6 +18,16 @@
       "import": "./dist/experimental.js",
       "default": "./dist/experimental.js"
     },
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "import": "./dist/browser/index.js",
+      "default": "./dist/browser/index.js"
+    },
+    "./browser/experimental": {
+      "types": "./dist/browser/experimental.d.ts",
+      "import": "./dist/browser/experimental.js",
+      "default": "./dist/browser/experimental.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -25,11 +35,16 @@
     "prepack": "pnpm build"
   },
   "dependencies": {
-    "@rolldown/browser": "^1.0.0-beta.54"
+    "@rolldown/browser": "^1.0.0-beta.54",
+    "@vrowser/fs": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
+    "@vrowser/node-polyfill": "workspace:*",
+    "buffer": "catalog:",
     "get-port-please": "catalog:",
+    "pathe": "catalog:",
+    "readable-stream": "catalog:",
     "rolldown": "catalog:",
     "vite": "catalog:"
   }

@@ -6,8 +6,8 @@
  */
 
 // These imports work because @vrowser/rolldown pre-bundles all dependencies
-import { rolldown } from '@vrowser/rolldown'
-import { memfs } from '@vrowser/rolldown/experimental'
+import { rolldown } from '@vrowser/rolldown/browser'
+import { memfs } from '@vrowser/rolldown/browser/experimental'
 
 window.testState = { status: 'initializing', result: null, error: null }
 

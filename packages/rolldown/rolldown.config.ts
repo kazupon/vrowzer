@@ -2,16 +2,17 @@
  * Rolldown config for @vrowser/rolldown
  *
  * Pre-bundles @rolldown/browser with all dependencies resolved,
- * so that it can be used with a simple `import` in the browser.
+ * replacing internal memfs with @vrowser/fs.
  *
- * Output:
- *   dist/index.mjs              - Main entry (rolldown API)
- *   dist/experimental.mjs       - Experimental entry (memfs, parseSync, etc.)
- *   dist/chunks/                - Shared chunks (binding, wasm-runtime, etc.)
- *   dist/worker.mjs             - Bundled worker script (bare specifiers resolved)
- *   dist/rolldown-binding.wasm32-wasi.wasm - WASM binary (copied)
+ * Two build variants:
+ *   1. dist/ — @vrowser/fs is external (consumer provides it)
+ *   2. dist/browser/ — @vrowser/fs is bundled (fully self-contained)
  *
- * IMPORTANT: index.mjs and experimental.mjs MUST share the same binding
+ * Shared files:
+ *   dist/worker.js                         — Bundled WASI worker script
+ *   dist/rolldown-binding.wasm32-wasi.wasm — WASM binary
+ *
+ * IMPORTANT: index.js and experimental.js MUST share the same binding
  * instance (memfs, WASM runtime). They are bundled together with code
  * splitting so the binding is in a shared chunk.
  */
@@ -36,7 +37,43 @@ const rolldownDist = resolveRolldownDist()
 // Increase to 10MB to handle larger source files in Worker threads
 const FS_PROXY_BUFFER_SIZE = 16 + 10 * 1024 * 1024
 
+// ---------------------------------------------------------------------------
 // Shared plugins
+// ---------------------------------------------------------------------------
+
+/**
+ * Replace `@napi-rs/wasm-runtime/fs` with `@vrowser/fs` at the resolve level.
+ *
+ * The installed `@napi-rs/wasm-runtime/fs` (dist/fs.js) is a pre-bundled file
+ * that has memfs inlined (~21k lines). We can't use transform to replace
+ * `from 'memfs'` because it doesn't exist in the bundled dist/fs.js.
+ * Instead, we redirect the entire `@napi-rs/wasm-runtime/fs` import to
+ * `@vrowser/fs` which exports the same API surface (including `memfsExported`).
+ */
+/**
+ * Replace `@napi-rs/wasm-runtime/fs` with `@vrowser/fs` at the resolve level.
+ * For variant 1 (external): @vrowser/fs is marked external (bare specifier kept).
+ * For variant 2 (bundled) and worker: resolves to @vrowser/fs browser build path.
+ */
+const replaceWasmRuntimeFsExternalPlugin: Plugin = {
+  name: 'replace-wasm-runtime-fs-external',
+  resolveId: {
+    filter: { id: /^@napi-rs\/wasm-runtime\/fs$/ },
+    handler() {
+      return { id: '@vrowser/fs', external: true }
+    }
+  }
+}
+
+const replaceWasmRuntimeFsBundledPlugin: Plugin = {
+  name: 'replace-wasm-runtime-fs-bundled',
+  resolveId: {
+    filter: { id: /^@napi-rs\/wasm-runtime\/fs$/ },
+    handler() {
+      return { id: vrowserFsSrcPath, external: false }
+    }
+  }
+}
 
 const replaceNodeGlobalsPlugin: Plugin = {
   name: 'replace-node-globals',
@@ -46,7 +83,9 @@ const replaceNodeGlobalsPlugin: Plugin = {
       const replaced = code
         .replace(/process\.cwd\(\)/g, '"/"')
         .replace(/process\.env\.NODE_ENV/g, '"production"')
-      if (replaced === code) return null
+      if (replaced === code) {
+        return null
+      }
       return { code: replaced, moduleType: 'js' }
     }
   }
@@ -54,18 +93,12 @@ const replaceNodeGlobalsPlugin: Plugin = {
 
 /**
  * Increases the fs-proxy SharedArrayBuffer size in @napi-rs/wasm-runtime.
- *
- * The default buffer is 16 + 10240 bytes (~10KB), which limits the maximum
- * file size that can be read/written via IPC between Worker threads and the
- * main thread's memfs. This plugin replaces the fixed buffer size with a
- * larger value to support typical source files.
  */
 const expandFsProxyBufferPlugin: Plugin = {
   name: 'expand-fs-proxy-buffer',
   transform: {
     filter: { id: /fs-proxy\.js$/ },
     handler(code) {
-      // Match: new SharedArrayBuffer(16 + 10240) or new SharedArrayBuffer(10256)
       const replaced = code
         .replace(
           /new SharedArrayBuffer\(16\s*\+\s*10240\)/g,
@@ -83,27 +116,49 @@ const expandFsProxyBufferPlugin: Plugin = {
   }
 }
 
-const rewriteWorkerUrlPlugin: Plugin = {
-  name: 'rewrite-worker-url',
-  transform: {
-    filter: { id: /rolldown-binding\.wasi-browser\.js$/ },
-    handler(code) {
-      // Rewrite Worker URL: ./wasi-worker-browser.mjs → ./worker.mjs
-      // Use string concatenation to prevent Vite/rolldown from detecting
-      // `new URL('...', import.meta.url)` pattern and trying to process it as a worker.
-      const replaced = code.replace(
-        /new URL\(['"]\.\/wasi-worker-browser\.mjs['"],\s*import\.meta\.url\)/g,
-        "new URL('./worker.js', '' + import.meta.url)"
-      )
-      if (replaced === code) return null
-      return { code: replaced, moduleType: 'js' }
+/**
+ * Rewrite Worker and WASM URLs in the binding file.
+ *
+ * After code splitting, the binding code ends up in a chunk inside a `chunks/`
+ * subdirectory. The URLs must account for this relative path offset.
+ * Uses `'' + import.meta.url` to prevent Vite/rolldown from detecting
+ * `new URL('...', import.meta.url)` and trying to process it as a worker.
+ *
+ * @param prefix - Path prefix from the chunk to dist root
+ *   Variant 1 (dist/chunks/ → dist/): '../'
+ *   Variant 2 (dist/browser/chunks/ → dist/): '../../'
+ */
+function createRewriteUrlsPlugin(prefix: string): Plugin {
+  return {
+    name: 'rewrite-urls',
+    transform: {
+      filter: { id: /rolldown-binding\.wasi-browser\.js$/ },
+      handler(code) {
+        const replaced = code
+          .replace(
+            /new URL\(['"]\.\/wasi-worker-browser\.mjs['"],\s*import\.meta\.url\)/g,
+            `new URL('${prefix}worker.js', '' + import.meta.url)`
+          )
+          .replace(
+            /new URL\(['"]\.\/rolldown-binding\.wasm32-wasi\.wasm['"],\s*import\.meta\.url\)/g,
+            `new URL('${prefix}rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
+          )
+        if (replaced === code) {
+          return null
+        }
+        return { code: replaced, moduleType: 'js' }
+      }
     }
   }
 }
 
+// Variant 1: chunk is in dist/chunks/, Worker/WASM in dist/
+const rewriteUrlsPlugin = createRewriteUrlsPlugin('../')
+// Variant 2: chunk is in dist/browser/chunks/, Worker/WASM in dist/
+const rewriteUrlsForBrowserPlugin = createRewriteUrlsPlugin('../../')
+
 /**
- * Plugin that copies WASM binary and generates type declaration files
- * after the main bundle is written.
+ * Plugin that copies WASM binary and generates type declaration files.
  */
 const postBuildPlugin: Plugin = {
   name: 'post-build',
@@ -115,7 +170,7 @@ const postBuildPlugin: Plugin = {
       join(distDir, 'rolldown-binding.wasm32-wasi.wasm')
     )
 
-    // Generate type declaration files
+    // Generate type declarations for variant 1 (external @vrowser/fs)
     writeFileSync(
       join(distDir, 'index.d.ts'),
       `export { rolldown, type RolldownOptions, type RolldownOutput, type RolldownBuild, VERSION } from '@rolldown/browser'\n`
@@ -124,39 +179,108 @@ const postBuildPlugin: Plugin = {
       join(distDir, 'experimental.d.ts'),
       `export { memfs, parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'\n`
     )
+
+    // Generate type declarations for variant 2 (bundled @vrowser/fs)
+    mkdirSync(join(distDir, 'browser'), { recursive: true })
+    writeFileSync(
+      join(distDir, 'browser', 'index.d.ts'),
+      `export { rolldown, type RolldownOptions, type RolldownOutput, type RolldownBuild, VERSION } from '@rolldown/browser'\n`
+    )
+    writeFileSync(
+      join(distDir, 'browser', 'experimental.d.ts'),
+      `export { memfs, parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'\n`
+    )
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Build configurations
+// ---------------------------------------------------------------------------
+
+// Resolve @vrowser/fs source path via package name (pnpm workspace symlink).
+// Use source directly to avoid re-bundling issues with pre-built dist files.
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
+const vrowserFsPkgPath = require.resolve('@vrowser/fs/package.json')
+const vrowserFsSrcPath = join(dirname(vrowserFsPkgPath), 'src', 'index.ts')
+
+const commonResolve = {
+  conditionNames: ['browser', 'import', 'module', 'default']
+}
+
+const bundledResolve = {
+  ...commonResolve,
+  alias: {
+    '@vrowser/fs': vrowserFsSrcPath,
+    // Node.js module aliases for browser compatibility (same as @vrowser/fs tsdown config)
+    'node:events': '@vrowser/node-polyfill/events',
+    'node:path': 'pathe',
+    'node:stream': 'readable-stream',
+    'node:buffer': 'buffer',
+    buffer: 'buffer',
+    events: '@vrowser/node-polyfill/events',
+    path: 'pathe',
+    stream: 'readable-stream',
+    process: '@vrowser/node-polyfill/process'
   }
 }
 
 export default defineConfig([
-  // 1. Bundle the worker script (resolve bare specifiers)
+  // 1. Worker script (shared by both variants, @vrowser/fs always bundled)
   {
     input: join(rolldownDist, 'wasi-worker-browser.mjs'),
     platform: 'browser',
-    resolve: {
-      conditionNames: ['browser', 'import', 'module', 'default']
-    },
-    plugins: [expandFsProxyBufferPlugin],
+    resolve: bundledResolve,
+    plugins: [replaceWasmRuntimeFsBundledPlugin, expandFsProxyBufferPlugin],
     output: {
       file: join(distDir, 'worker.js'),
       format: 'esm',
       minify: false
     }
   },
-  // 2. Bundle main + experimental entries together with code splitting
-  //    Both entries MUST share the same binding instance (memfs, WASM runtime).
+
+  // 2. Variant 1: @vrowser/fs external
+  //    Consumer provides @vrowser/fs, allowing shared memfs instances.
   {
     input: {
       index: join(rolldownDist, 'index.browser.mjs'),
       experimental: join(rolldownDist, 'experimental-index.browser.mjs')
     },
     platform: 'browser',
-    resolve: {
-      conditionNames: ['browser', 'import', 'module', 'default']
-    },
-    plugins: [replaceNodeGlobalsPlugin, rewriteWorkerUrlPlugin, postBuildPlugin],
+    resolve: commonResolve,
+    plugins: [
+      replaceWasmRuntimeFsExternalPlugin,
+      replaceNodeGlobalsPlugin,
+      rewriteUrlsPlugin,
+      postBuildPlugin
+    ],
     external: [/\.wasm$/],
     output: {
       dir: distDir,
+      format: 'esm',
+      entryFileNames: '[name].js',
+      chunkFileNames: 'chunks/[name]-[hash].js',
+      minify: false
+    }
+  },
+
+  // 3. Variant 2: @vrowser/fs bundled (fully self-contained)
+  //    No additional dependencies needed.
+  {
+    input: {
+      index: join(rolldownDist, 'index.browser.mjs'),
+      experimental: join(rolldownDist, 'experimental-index.browser.mjs')
+    },
+    platform: 'browser',
+    resolve: bundledResolve,
+    plugins: [
+      replaceWasmRuntimeFsBundledPlugin,
+      replaceNodeGlobalsPlugin,
+      rewriteUrlsForBrowserPlugin
+    ],
+    external: [/\.wasm$/],
+    output: {
+      dir: join(distDir, 'browser'),
       format: 'esm',
       entryFileNames: '[name].js',
       chunkFileNames: 'chunks/[name]-[hash].js',
