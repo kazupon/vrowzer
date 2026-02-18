@@ -1,9 +1,50 @@
 <script setup lang="ts">
-import EditorPanel from './components/EditorPanel.vue';
-import PreviewPanel from './components/PreviewPanel.vue';
-import { getServiceWorker } from './sw/controller.ts';
+import { onMounted, onUnmounted } from 'vue'
+import EditorPanel from './components/EditorPanel.vue'
+import PreviewPanel from './components/PreviewPanel.vue'
+import { getServiceWorker } from './sw/controller.ts'
 
-import type { FileChangeMessage } from './types.ts';
+import type { BundleRequestMessage, BundleResultMessage, FileChangeMessage } from './types.ts'
+
+let rolldownWorker: Worker | null = null
+
+onMounted(() => {
+  // Initialize Rolldown Web Worker
+  rolldownWorker = new Worker(new URL('./worker/rolldown.worker.ts', import.meta.url), {
+    type: 'module'
+  })
+
+  rolldownWorker.onmessage = (event: MessageEvent<BundleResultMessage>) => {
+    const { type, success, code, fileName, error } = event.data
+    if (type === 'bundle-result') {
+      if (success) {
+        console.log('[App] Bundle success:', fileName, code?.slice(0, 100) + '...')
+      } else {
+        console.error('[App] Bundle failed:', error)
+      }
+    }
+  }
+
+  rolldownWorker.onerror = error => {
+    console.error('[App] Rolldown Worker error:', error)
+  }
+
+  // Test bundle on worker initialization
+  const testMessage: BundleRequestMessage = {
+    type: 'bundle',
+    files: {
+      '/src/index.js': 'import { add } from "./math.js"\nconsole.log(add(1, 2))',
+      '/src/math.js': 'export function add(a, b) { return a + b }'
+    },
+    input: '/src/index.js'
+  }
+  rolldownWorker.postMessage(testMessage)
+})
+
+onUnmounted(() => {
+  rolldownWorker?.terminate()
+  rolldownWorker = null
+})
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
   const serviceWorker = getServiceWorker()

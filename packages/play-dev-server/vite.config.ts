@@ -1,21 +1,55 @@
 import inject from '@rollup/plugin-inject'
 import vue from '@vitejs/plugin-vue'
-import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import ServiceWorker, { wasmUrlPlugin } from '@vrowser/unplugin-service-worker/vite'
+import { createRequire } from 'node:module'
+import path from 'node:path'
 import { defineConfig } from 'vite'
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname)
+const require = createRequire(import.meta.url)
+
+// Resolve @vrowser/rolldown dist paths for dev mode aliases
+const rolldownPkgDir = path.dirname(require.resolve('@vrowser/rolldown/package.json'))
+const rolldownDistDir = path.resolve(rolldownPkgDir, 'dist')
 
 export default defineConfig({
   plugins: [
+    {
+      name: 'cross-origin-isolation',
+      configureServer(server) {
+        // Add CORP header to all Vite dev server responses.
+        // Required for COEP: require-corp to work with SW-served iframe content.
+        server.middlewares.use((_req, res, next) => {
+          res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+          next()
+        })
+      }
+    },
     inject({
       process: '@vrowser/node-polyfill/process'
     }),
     vue(),
-    ServiceWorker({ serviceWorkerAllowed: '/' })
+    ServiceWorker({
+      serviceWorkerAllowed: '/',
+      plugins: [wasmUrlPlugin()],
+      assets: [
+        {
+          src: path.resolve(
+            __dirname,
+            './node_modules/@vrowser/oxc-parser/dist/vrowser_oxc_parser_bg.wasm'
+          )
+        }
+      ]
+    })
   ],
   define: {
     'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
   },
   resolve: {
     alias: {
+      // @vrowser/rolldown aliases - resolve to pre-bundled dist files
+      '@vrowser/rolldown/experimental': path.resolve(rolldownDistDir, 'experimental.js'),
+      '@vrowser/rolldown': path.resolve(rolldownDistDir, 'index.js'),
       'node:events': '@vrowser/node-polyfill/events',
       'node:path': 'pathe',
       'node:stream': 'readable-stream/lib/stream',
@@ -26,6 +60,7 @@ export default defineConfig({
       'node:url': '@vrowser/node-polyfill/url',
       'node:readline': '@vrowser/node-polyfill/readline',
       'node:util': '@vrowser/node-polyfill/util',
+      'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
       buffer: 'buffer',
       dns: '@vrowser/node-polyfill/dns',
       events: '@vrowser/node-polyfill/events',
@@ -33,6 +68,7 @@ export default defineConfig({
       stream: 'readable-stream/lib/stream',
       readline: '@vrowser/node-polyfill/readline',
       util: '@vrowser/node-polyfill/util',
+      perf_hooks: '@vrowser/node-polyfill/perf_hooks',
       // NOTE(kazupon):
       // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
       'process/': '@vrowser/node-polyfill/process',
@@ -42,9 +78,21 @@ export default defineConfig({
       url: '@vrowser/node-polyfill/url'
     }
   },
+  optimizeDeps: {
+    // @vrowser/rolldown is pre-bundled, skip Vite's dep optimization
+    exclude: ['@vrowser/rolldown']
+  },
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless'
+    }
+  },
   preview: {
     headers: {
-      'Service-Worker-Allowed': '/'
+      'Service-Worker-Allowed': '/',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless'
     }
   }
 })

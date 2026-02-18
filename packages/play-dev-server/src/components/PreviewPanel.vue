@@ -47,20 +47,50 @@ onUnmounted(() => {
   }
 })
 
-function loadIframe() {
-  const iframe = iframeRef.value
-  if (iframe) {
-    iframe.src = PREVIEW_URL
-    isPreviewReady.value = true
+async function loadIframe() {
+  // Wait for SW to become the controller (after clients.claim() completes).
+  if (!navigator.serviceWorker.controller) {
+    await new Promise<void>(resolve => {
+      navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true })
+    })
   }
+
+  const iframe = iframeRef.value
+  if (!iframe) {
+    return
+  }
+
+  // credentialless iframes don't use SW for navigation requests (setting src),
+  // but fetch() inside the iframe DOES go through the SW.
+  // So we use a srcdoc bootstrap that fetches the preview HTML via fetch()
+  // and writes it to the document.
+  const bootstrapHtml = `<!doctype html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<script>
+(async () => {
+  try {
+    const res = await fetch('${PREVIEW_URL}');
+    const html = await res.text();
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (e) {
+    document.body.textContent = 'Preview load error: ' + e.message;
+  }
+})();
+<\/script>
+</body>
+</html>`
+
+  iframe.srcdoc = bootstrapHtml
+  isPreviewReady.value = true
 }
 
 function reload() {
-  const iframe = iframeRef.value
-  if (iframe && isServiceWorkerReady.value) {
-    setTimeout(() => {
-      iframe.src = iframe.src
-    }, 100)
+  if (isServiceWorkerReady.value) {
+    loadIframe()
   }
 }
 
@@ -77,7 +107,9 @@ defineExpose({ reload })
           class="reload-btn"
           title="Reload preview"
           @click="reload"
-        >Reload</button>
+        >
+          Reload
+        </button>
         <span
           :class="['status-dot', { ready: isServiceWorkerReady }]"
           title="Service Worker"
@@ -98,6 +130,7 @@ defineExpose({ reload })
         ref="iframeRef"
         class="preview-iframe"
         sandbox="allow-scripts allow-same-origin"
+        credentialless
       ></iframe>
     </div>
   </div>

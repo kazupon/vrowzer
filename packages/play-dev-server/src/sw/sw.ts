@@ -44,6 +44,7 @@ const listenableServer = createServer(
   {
     version: SW_VERSION,
     basePath: previewBase,
+    // @ts-expect-error -- FIXME
     watcherFactory: (targets: string[], options) => {
       console.log('[SW] Creating FSWatcher :', targets, options)
       const first = targets.pop()
@@ -52,13 +53,25 @@ const listenableServer = createServer(
       }
       const watcher = watch(first, options)
       console.log('[SW] FSWatcher created.', watcher)
-      for (const target of targets) {
+      for (const _target of targets) {
         // TODO:
       }
       return watcher
     }
   }
 )
+
+// Add cross-origin isolation headers for COEP compatibility.
+// The main page sets COEP: require-corp, so all responses (including
+// SW-served iframe content) must include CORP headers.
+// COEP on the iframe response is also needed to enable cross-origin
+// isolation within the iframe context.
+listenableServer.middlewares.push(async (c, next) => {
+  c.header('Cross-Origin-Resource-Policy', 'same-origin')
+  c.header('Cross-Origin-Embedder-Policy', 'require-corp')
+  c.header('Cross-Origin-Opener-Policy', 'same-origin')
+  await next()
+})
 
 listenableServer.middlewares.push(async (c, next) => {
   const path = getRequestPath(c)
@@ -71,7 +84,7 @@ listenableServer.middlewares.push(async (c, next) => {
 
 listenableServer.middlewares.push(async (c, next) => {
   const path = getRequestPath(c)
-  console.log('[SW] Received request for /fs', c.req.url, path)
+  console.log('[SW] Received request for ./fs', c.req.url, path, getContentType)
 
   // Let indexHtmlMiddleware handle HTML; let htmlFallbackMiddleware handle dirs
   // if (path.endsWith('.html') || path.endsWith('/')) {
@@ -163,6 +176,7 @@ function handleFileChange(message: FileChangeMessage) {
   const { path, content } = message
   console.log('[SW] File changed:', path)
   fs.writeFileSync(path, content, { encoding: 'utf8' })
+  console.log('[SW] File updated in virtual FS:', vol.toTree())
 }
 
 /**
@@ -171,15 +185,16 @@ function handleFileChange(message: FileChangeMessage) {
 self.addEventListener('activate', _event => {
   console.log('[SW] Activating...')
   _event.waitUntil(
-    new Promise<void>(async (resolve, reject) => {
+    (async () => {
       try {
         await listenableServer.listen()
-        resolve()
+        await self.clients.claim()
+        console.log('[SW] Activated and claimed clients')
       } catch (e) {
         console.error('[SW] Failed to start Vite Dev Server:', e)
-        reject(e)
+        throw e
       }
-    })
+    })()
   )
 })
 

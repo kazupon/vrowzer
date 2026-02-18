@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b && vite build --minify false",
     "preview": "vite preview"
   },
   "dependencies": {
     "@kazupon/jts-utils": "catalog:",
+    "@vrowser/rolldown": "workspace:*",
     "@vrowser/service-worker": "workspace:*",
     "@vrowser/vite-dev-server": "workspace:*",
+    "@vrowser/fs": "workspace:*",
     "hono": "^4.7.10",
     "monaco-editor": "^0.55.1",
     "vue": "^3.5.24"
@@ -20,8 +22,8 @@
     "@rollup/plugin-inject": "^5.0.5",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.1",
-    "@vrowser/fs": "workspace:*",
     "@vrowser/node-polyfill": "workspace:*",
+    "@vrowser/oxc-parser": "workspace:*",
     "@vrowser/unplugin-service-worker": "workspace:*",
     "@vue/tsconfig": "^0.8.1",
     "buffer": "catalog:",

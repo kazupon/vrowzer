@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import * as monaco from 'monaco-editor';
-import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
+import * as monaco from 'monaco-editor'
+import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
 const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void

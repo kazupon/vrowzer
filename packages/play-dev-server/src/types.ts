@@ -33,8 +33,30 @@ export interface FullReloadMessage {
 }
 
 /**
+ * Main Thread -> Web Worker: Bundle request
+ */
+export interface BundleRequestMessage {
+  type: 'bundle'
+  files: Record<string, string>
+  input: string
+}
+
+/**
+ * Web Worker -> Main Thread: Bundle result
+ */
+export interface BundleResultMessage {
+  type: 'bundle-result'
+  success: boolean
+  code?: string
+  fileName?: string
+  error?: string
+}
+
+/**
  * Union types for message routing
  */
 export type MainToServiceWorkerMessage = InitMessage | FileChangeMessage
 export type ServiceWorkerToMainMessage = ServiceWorkerReadyMessage
 export type ServiceWorkerToIframeMessage = FullReloadMessage
+export type MainToWorkerMessage = BundleRequestMessage
+export type WorkerToMainMessage = BundleResultMessage
