@@ -14,11 +14,13 @@ Run Vite HMR flavor on the browser
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | [vrowser](./packages/vrowser)                                                    | Preview with Vite HMR flavor for the browser                                                                                    |
 | [@vrowser/vite-dev-server](./packages/vite-dev-server)                           | Vite dev server for Vrowser                                                                                                     |
+| [@vrowser/rolldown](./packages/rolldown)                                         | Pre-bundled @rolldown/browser for easy browser usage                                                                            |
+| [@vrowser/fs](./packages/fs)                                                     | Browser-compatible filesystem using memfs for vrowser                                                                           |
+| [@vrowser/node-polyfill](./packages/node-polyfill)                               | Browser-compatible Node.js module polyfills for vrowser                                                                         |
 | [@vrowser/service-worker](./packages/service-worker)                             | Safely deploy and manage Service Workers with version control, bidirectional communication, and emergency shutdown capabilities |
 | [@vrowser/service-worker-server](./packages/service-worker-server)               | Serverized service worker with the Node Server interface                                                                        |
 | [@vrowser/unplugin-service-worker](./packages/unplugin-service-worker)           | unplugin for `@vrowser/service-worker`                                                                                          |
 | [@vrowser/oxlint-plugin-service-worker](./packages/oxlint-plugin-service-worker) | Oxlint plugin for `@vrowser/service-worker`                                                                                     |
-| [@vrowser/fs](./packages/fs)                                                     | Browser-compatible filesystem using memfs for vrowser                                                                           |
 
 ## ©️ License
 
