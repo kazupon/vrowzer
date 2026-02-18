@@ -75,6 +75,41 @@ const replaceWasmRuntimeFsBundledPlugin: Plugin = {
   }
 }
 
+/**
+ * Replace `memfs()` factory call with `@vrowser/fs` singletons in the binding.
+ *
+ * The original binding (`rolldown-binding.wasi-browser.js`) does:
+ *   import { memfs } from '@napi-rs/wasm-runtime/fs'
+ *   export const { fs: __fs, vol: __volume } = memfs()
+ *
+ * This creates a NEW Volume instance, separate from @vrowser/fs's singleton.
+ * We replace it so that rolldown uses the same Volume as @vrowser/fs:
+ *   import { fs as __fs, vol as __volume } from '@vrowser/fs'
+ */
+const useSharedFsSingletonPlugin: Plugin = {
+  name: 'use-shared-fs-singleton',
+  transform: {
+    filter: { id: /rolldown-binding\.wasi-browser\.js$/ },
+    handler(code) {
+      // Replace: import { memfs } from '@napi-rs/wasm-runtime/fs'
+      //          export const { fs: __fs, vol: __volume } = memfs()
+      // With:    import { fs as __fs, vol as __volume } from '@vrowser/fs'
+      let replaced = code.replace(
+        /import\s*\{\s*memfs\s*\}\s*from\s*['"]@napi-rs\/wasm-runtime\/fs['"]/,
+        "import { fs as __fs, vol as __volume } from '@vrowser/fs'"
+      )
+      replaced = replaced.replace(
+        /export\s+const\s*\{\s*fs:\s*__fs,\s*vol:\s*__volume\s*\}\s*=\s*memfs\(\)/,
+        'export { __fs, __volume }'
+      )
+      if (replaced === code) {
+        return null
+      }
+      return { code: replaced, moduleType: 'js' }
+    }
+  }
+}
+
 const replaceNodeGlobalsPlugin: Plugin = {
   name: 'replace-node-globals',
   transform: {
@@ -249,12 +284,13 @@ export default defineConfig([
     platform: 'browser',
     resolve: commonResolve,
     plugins: [
+      useSharedFsSingletonPlugin,
       replaceWasmRuntimeFsExternalPlugin,
       replaceNodeGlobalsPlugin,
       rewriteUrlsPlugin,
       postBuildPlugin
     ],
-    external: [/\.wasm$/],
+    external: [/\.wasm$/, /^@vrowser\/fs/],
     output: {
       dir: distDir,
       format: 'esm',
@@ -274,6 +310,7 @@ export default defineConfig([
     platform: 'browser',
     resolve: bundledResolve,
     plugins: [
+      useSharedFsSingletonPlugin,
       replaceWasmRuntimeFsBundledPlugin,
       replaceNodeGlobalsPlugin,
       rewriteUrlsForBrowserPlugin

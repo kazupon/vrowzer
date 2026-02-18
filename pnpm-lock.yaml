@@ -247,6 +247,12 @@ importers:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
         version: 0.16.0(@vue/reactivity@3.5.26)
+      '@vrowser/fs':
+        specifier: workspace:*
+        version: link:../fs
+      '@vrowser/rolldown':
+        specifier: workspace:*
+        version: link:../rolldown
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -272,9 +278,6 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
         version: 6.0.3(vite@8.0.0-beta.12(@types/node@25.0.9)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
-      '@vrowser/fs':
-        specifier: workspace:*
-        version: link:../fs
       '@vrowser/node-polyfill':
         specifier: workspace:*
         version: link:../node-polyfill

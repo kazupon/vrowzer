@@ -26,6 +26,8 @@ tsconfig.tsbuildinfo
 __screenshots__
 test-results
 .output
+.output-shared
+.playwright-cli
 
 # for projects
 packages/unplugin-service-worker/e2e/playground/add.wasm
