@@ -14,6 +14,9 @@
 // Re-export memfs core APIs
 export { createFsFromVolume, fs, memfs, vol, Volume } from 'memfs'
 
+// Re-export memfs namespace (used by @napi-rs/wasm-runtime fs-proxy)
+export * as memfsExported from 'memfs'
+
 export type { DirectoryJSON, IFs } from 'memfs'
 
 // Import fs for individual API exports
