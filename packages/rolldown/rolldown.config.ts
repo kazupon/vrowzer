@@ -206,13 +206,20 @@ const postBuildPlugin: Plugin = {
     )
 
     // Generate type declarations for variant 1 (external @vrowser/fs)
+    // memfs uses @vrowser/fs singletons (fs, vol), so types are precise
     writeFileSync(
       join(distDir, 'index.d.ts'),
       `export { rolldown, type RolldownOptions, type RolldownOutput, type RolldownBuild, VERSION } from '@rolldown/browser'\n`
     )
     writeFileSync(
       join(distDir, 'experimental.d.ts'),
-      `export { memfs, parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'\n`
+      [
+        `import type { IFs } from '@vrowser/fs'`,
+        `import type { Volume } from '@vrowser/fs'`,
+        `export declare const memfs: { fs: IFs; volume: InstanceType<typeof Volume> }`,
+        `export { parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'`,
+        ``
+      ].join('\n')
     )
 
     // Generate type declarations for variant 2 (bundled @vrowser/fs)
