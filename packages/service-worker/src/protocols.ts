@@ -42,6 +42,15 @@ export const V_SW_VERSION = 'V_SW_VERSION'
 export const V_SW_SKIP_WAITING = 'V_SW_SKIP_WAITING'
 
 /**
+ * Request the service worker to call `self.clients.claim()`.
+ *
+ * This is used when the service worker is active but not yet the controller
+ * (e.g. after a hard reload). The controller sends this message to request
+ * the service worker to claim all clients.
+ */
+export const V_SW_CLAIM_CLIENTS = 'V_SW_CLAIM_CLIENTS'
+
+/**
  * Message type constant for circuit breaker operations.
  */
 export const V_SW_SESSION_CIRCUIT_BREAKER = 'V_SW_SESSION_CIRCUIT_BREAKER'
@@ -84,6 +93,13 @@ export interface SvcWorkerVersionResponse extends SvcWorkerMessageBase {
  */
 export interface SvcWorkerSkipWaitingMessage extends SvcWorkerMessageBase {
   type: typeof V_SW_SKIP_WAITING
+}
+
+/**
+ * CLAIM_CLIENTS message (Page -> Service Worker).
+ */
+export interface SvcWorkerClaimClientsMessage extends SvcWorkerMessageBase {
+  type: typeof V_SW_CLAIM_CLIENTS
 }
 
 /**
@@ -186,6 +202,15 @@ export function createSvcWorkerVersionResponse(version: string): SvcWorkerVersio
  */
 export function createSvcWorkerSkipWaitingMessage(): SvcWorkerSkipWaitingMessage {
   return { type: V_SW_SKIP_WAITING }
+}
+
+/**
+ * Create a {@link SvcWorkerClaimClientsMessage | service worker 'V_SW_CLAIM_CLIENTS' message}.
+ *
+ * @returns The constructed {@link SvcWorkerClaimClientsMessage}
+ */
+export function createSvcWorkerClaimClientsMessage(): SvcWorkerClaimClientsMessage {
+  return { type: V_SW_CLAIM_CLIENTS }
 }
 
 /**

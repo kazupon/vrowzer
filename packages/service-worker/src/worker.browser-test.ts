@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import {
+  V_SW_CLAIM_CLIENTS,
   V_SW_SESSION_PONG,
   V_SW_SESSION_CLOSE,
   V_SW_SESSION_INIT,
@@ -33,7 +34,7 @@ function createMockSelf() {
     // Native properties for Proxy transparency test
     registration: { scope: '/test/' },
     clients: {
-      claim: vi.fn(),
+      claim: vi.fn(() => Promise.resolve()),
       matchAll: vi.fn(() => Promise.resolve([]))
     }
   } as unknown as ServiceWorkerGlobalScope & {
@@ -604,6 +605,23 @@ describe('createSvcWorker', () => {
       })
 
       expect(debug).toHaveBeenCalledWith('createSvcWorker: circuit breaker resumed')
+    })
+  })
+
+  describe('V_SW_CLAIM_CLIENTS message', () => {
+    test('calls self.clients.claim() when V_SW_CLAIM_CLIENTS message is received', () => {
+      const mockSelf = createMockSelf()
+      createSvcWorker(mockSelf as unknown as ServiceWorkerGlobalScope, {
+        version: '1.0.0'
+      })
+
+      mockSelf._dispatchEvent('message', {
+        data: { type: V_SW_CLAIM_CLIENTS },
+        ports: [],
+        source: null
+      })
+
+      expect(mockSelf.clients.claim).toHaveBeenCalled()
     })
   })
 })

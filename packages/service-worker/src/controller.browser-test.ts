@@ -594,4 +594,36 @@ describe('createSvcWorkerController', () => {
       expect(controller2.state).toBe('suspended')
     })
   })
+
+  describe('waitForController option', () => {
+    // NOTE: Full integration test of waitForController: true is in
+    // play-dev-server's Playwright tests. Browser tests run on a page
+    // at '/' while SW scope is '/controller/', so clients.claim()
+    // cannot control the test page, making waitForController: true
+    // impossible to test here.
+
+    test('ready() without waitForController emits reloadSuggested for SW that does not call clients.claim()', async () => {
+      const reloadSuggested = vi.fn()
+
+      const controller = createSvcWorkerController({
+        scriptURL: new URL('/controller/v1-claim-on-message.js', location.href),
+        version: 'v1',
+        scope: '/controller/'
+      })
+
+      controller.on('reloadSuggested', reloadSuggested)
+
+      const result = await controller.ready({
+        timeout: 10000,
+        skipWaitingPolicy: 'force'
+        // waitForController defaults to false
+      })
+
+      expect(result).toBe(true)
+      expect(controller.state).toBe('activated')
+      expect(reloadSuggested).toHaveBeenCalled()
+
+      controller.dispose()
+    })
+  })
 })

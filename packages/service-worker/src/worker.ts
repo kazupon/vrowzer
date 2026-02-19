@@ -45,17 +45,18 @@
  */
 
 import {
-  V_SW_SESSION_PONG,
+  V_SW_CLAIM_CLIENTS,
+  V_SW_SESSION_CIRCUIT_BREAKER,
   V_SW_SESSION_CLOSE,
   V_SW_SESSION_INIT,
-  V_SW_SESSION_CIRCUIT_BREAKER,
+  V_SW_SESSION_PONG,
   V_SW_SESSION_RESUME,
   V_SW_SKIP_WAITING,
   V_SW_VERSION,
   createSvcWorkerSessionCircuitBreakerResponse,
-  createSvcWorkerSessionResumeResponse,
   createSvcWorkerSessionInitResponse,
   createSvcWorkerSessionPingMessage,
+  createSvcWorkerSessionResumeResponse,
   createSvcWorkerSessionTerminatedMessage,
   createSvcWorkerVersionResponse
 } from './protocols.ts'
@@ -63,10 +64,10 @@ import { safePostMessage } from './utils.ts'
 
 import type {
   SvcWorkerMessage,
-  SvcWorkerSessionMessage,
   SvcWorkerSessionCircuitBreakerMessage,
-  SvcWorkerSessionResumeMessage,
   SvcWorkerSessionCircuitBreakerResult,
+  SvcWorkerSessionMessage,
+  SvcWorkerSessionResumeMessage,
   SvcWorkerSessionResumeResult
 } from './protocols.ts'
 
@@ -440,6 +441,14 @@ export function createSvcWorker(
           debug?.('createSvcWorker: executing skipWaiting')
           self.skipWaiting().catch(error => {
             console.error('createSvcWorker: skipWaiting failed', error)
+          })
+          break
+        }
+
+        case V_SW_CLAIM_CLIENTS: {
+          debug?.('createSvcWorker: executing clients.claim()')
+          self.clients.claim().catch(error => {
+            console.error('createSvcWorker: clients.claim() failed', error)
           })
           break
         }

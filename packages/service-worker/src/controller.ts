@@ -39,6 +39,7 @@
 import { abortError, throwIfAborted } from '@kazupon/jts-utils/abort'
 import { Emitter, waitOnce } from '@kazupon/jts-utils/event'
 import {
+  createSvcWorkerClaimClientsMessage,
   createSvcWorkerSkipWaitingMessage,
   createSvcWorkerVersionMessage,
   isSvcWrokerVersionMessageResponse,
@@ -252,6 +253,20 @@ export interface SvcWorkerControllerReadyOptions {
    * @default 3000
    */
   timeout?: number
+  /**
+   * Wait for the service worker to become the page controller.
+   *
+   * When `true`, `ready()` will send a `V_SW_CLAIM_CLIENTS` message to the
+   * active SW and wait for `navigator.serviceWorker.controller` to become
+   * non-null before returning `true`.
+   *
+   * When `false` (default), `ready()` returns `true` as soon as the SW is
+   * active, even if it's not yet the controller. A `reloadSuggested` event
+   * is emitted in this case.
+   *
+   * @default false
+   */
+  waitForController?: boolean
 }
 
 /**
@@ -496,6 +511,7 @@ export function createSvcWorkerController(
    */
   async function ready(options?: SvcWorkerControllerReadyOptions): Promise<boolean> {
     const timeout = options?.timeout ?? 3000
+    const waitForController = options?.waitForController ?? false
     const skipWaitingPolicy = options?.skipWaitingPolicy ?? 'strict'
 
     const abortController = new AbortController()
@@ -542,6 +558,41 @@ export function createSvcWorkerController(
           onProgress: emitProgress,
           onStateChange: info => emitStateChange(info.state, info.serviceWorker)
         })
+
+        // If waitForController is requested and SW is active but not controller,
+        // send claim-clients before checking isExpectedController.
+        // This must happen before isExpectedController check because
+        // promoteIfPossible may have confirmed the SW is active and expected
+        // version but not controller (returns 'none' with the active path log).
+        if (waitForController && !navigator.serviceWorker.controller && registration.active) {
+          safePostMessage(registration.active, createSvcWorkerClaimClientsMessage(), {
+            context: 'claim-clients request'
+          })
+          // Wait briefly for claim to take effect
+          await new Promise<void>(resolve => {
+            const onControllerChange = () => {
+              clearInterval(pollId)
+              resolve()
+            }
+            navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, {
+              once: true
+            })
+            const pollId = setInterval(() => {
+              if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+                clearInterval(pollId)
+                resolve()
+              }
+            }, 100)
+            // Don't wait forever — let the outer loop handle retries
+            setTimeout(() => {
+              navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+              clearInterval(pollId)
+              resolve()
+            }, 3000)
+          })
+          emitProgress('controller-claimed')
+        }
 
         // If controller is now expected service worker, done.
         if (await isExpectedController(version, signal)) {
@@ -591,6 +642,49 @@ export function createSvcWorkerController(
             }
             setupControllerChangeHandler(timeout)
           }
+
+          // If waitForController is requested and SW is not yet the controller,
+          // send V_SW_CLAIM_CLIENTS to the SW and wait for it to become controller.
+          if (waitForController && !navigator.serviceWorker.controller) {
+            if (activeServiceWorker) {
+              safePostMessage(activeServiceWorker, createSvcWorkerClaimClientsMessage(), {
+                context: 'claim-clients request'
+              })
+            }
+            // Wait for controller to become available (with AbortSignal timeout)
+            await new Promise<void>((resolve, reject) => {
+              const onAbort = () => {
+                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+                clearInterval(pollId)
+                reject(abortError() as Error)
+              }
+              const onControllerChange = () => {
+                signal.removeEventListener('abort', onAbort)
+                clearInterval(pollId)
+                resolve()
+              }
+              navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, {
+                once: true
+              })
+              // Poll as fallback — controllerchange may not fire in some edge cases
+              const pollId = setInterval(() => {
+                if (navigator.serviceWorker.controller) {
+                  signal.removeEventListener('abort', onAbort)
+                  navigator.serviceWorker.removeEventListener(
+                    'controllerchange',
+                    onControllerChange
+                  )
+                  clearInterval(pollId)
+                  resolve()
+                }
+              }, 100)
+              signal.addEventListener('abort', onAbort, { once: true })
+            })
+            emitProgress('controller-claimed')
+            registry.register(instance)
+            return true
+          }
+
           _debug?.('reload suggested ?', reloadSuggested)
           if (!reloadSuggested) {
             reloadSuggested = true
