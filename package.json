@@ -88,6 +88,10 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@rolldown/browser",
+      "core-js",
+      "deno",
+      "esbuild",
       "wasm-pack"
     ]
   },
