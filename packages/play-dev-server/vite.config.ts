@@ -15,12 +15,23 @@ const rolldownDistDir = path.resolve(rolldownPkgDir, 'dist')
 export default defineConfig({
   plugins: [
     {
-      name: 'cross-origin-isolation',
+      name: 'preview-guard',
       configureServer(server) {
-        // Add CORP header to all Vite dev server responses.
-        // Required for COEP: require-corp to work with SW-served iframe content.
-        server.middlewares.use((_req, res, next) => {
-          res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+        server.middlewares.use((req, res, next) => {
+          // Prevent Vite's SPA fallback from serving index.html for /__preview__/ requests.
+          // When SW is not yet controlling the page (e.g. after hard reload),
+          // __preview__/ requests bypass SW and hit Vite directly.
+          // Without this guard, Vite returns the main page HTML, causing recursive display.
+          if (req.url?.startsWith('/__preview__')) {
+            res.writeHead(503, {
+              'Content-Type': 'text/html',
+              'Retry-After': '1'
+            })
+            res.end(`<!doctype html><html><head><meta charset="utf-8"><title>Preview</title></head><body>
+<script>setTimeout(() => location.reload(), 1000)</script>
+<p>Waiting for Service Worker...</p></body></html>`)
+            return
+          }
           next()
         })
       }

@@ -166,6 +166,15 @@ self.addEventListener('message', event => {
       handleFileChange(message as FileChangeMessage)
       break
     }
+    case 'claim-clients': {
+      // Re-claim all clients after hard reload.
+      // After Ctrl+Shift+R, the SW loses controller status and activate
+      // event does not re-fire, so clients.claim() must be called explicitly.
+      self.clients.claim().then(() => {
+        console.log('[SW] Re-claimed clients')
+      })
+      break
+    }
   }
 })
 

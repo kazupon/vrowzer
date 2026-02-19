@@ -1,23 +1,17 @@
 /// <reference lib="webworker" />
 
-import { fs } from '@vrowser/fs'
-
 import type { BundleRequestMessage, BundleResultMessage } from '../types.ts'
 
 declare const self: DedicatedWorkerGlobalScope
 
 console.log('[Rolldown Worker] initialized')
 
-setInterval(() => {
-  console.log('vrowser/fs export memfs', fs.readFileSync('/src/index.js', 'utf-8'))
-}, 1000)
-
 // Lazily load rolldown to avoid blocking onmessage registration.
 // rolldown's WASM init (top-level await) creates sub-workers and uses
 // Atomics.wait which can block until all sub-workers are ready.
 let rolldownPromise: Promise<{
   rolldown: typeof import('@vrowser/rolldown').rolldown
-  memfs: { volume: { reset: () => void; fromJSON: (json: Record<string, string>) => void } }
+  memfs: typeof import('@vrowser/rolldown/experimental').memfs
 }> | null = null
 
 function loadRolldown() {
@@ -47,9 +41,6 @@ self.onmessage = async (event: MessageEvent<BundleRequestMessage>) => {
       memfs.volume.reset()
       memfs.volume.fromJSON(files)
 
-      setInterval(() => {
-        console.log('rolldown export memfs', memfs.fs.readFileSync('/src/index.js', 'utf-8'))
-      }, 1000)
       const bundle = await rolldown({ input, cwd: '/' })
       const { output } = await bundle.generate({ format: 'esm' })
 

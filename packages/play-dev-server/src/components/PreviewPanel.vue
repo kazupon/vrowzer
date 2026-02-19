@@ -15,6 +15,7 @@ let stateChangeHandler: ((info: StateChangeInfo) => void) | null = null
 let controllerRef: SvcWorkerController | null = null
 
 onMounted(() => {
+
   const controller = getController()
   if (!controller) {
     error.value = 'Service Worker Controller not available'
@@ -48,10 +49,34 @@ onUnmounted(() => {
 })
 
 async function loadIframe() {
-  // Wait for SW to become the controller (after clients.claim() completes).
+  // Ensure SW is the controller before loading the iframe.
+  // After hard reload (Ctrl+Shift+R), the SW loses controller status
+  // because activate event does not re-fire for an already-activated SW.
+  // We explicitly request the SW to re-claim clients via a message.
   if (!navigator.serviceWorker.controller) {
+    const reg = await navigator.serviceWorker.ready
+    reg.active?.postMessage({ type: 'claim-clients' })
+
     await new Promise<void>(resolve => {
-      navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true })
+      const onControllerChange = () => {
+        clearInterval(pollId)
+        resolve()
+      }
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, { once: true })
+
+      const pollId = setInterval(() => {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+          clearInterval(pollId)
+          resolve()
+        }
+      }, 100)
+
+      setTimeout(() => {
+        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+        clearInterval(pollId)
+        resolve()
+      }, 10000)
     })
   }
 
@@ -64,6 +89,14 @@ async function loadIframe() {
   // but fetch() inside the iframe DOES go through the SW.
   // So we use a srcdoc bootstrap that fetches the preview HTML via fetch()
   // and writes it to the document.
+  // credentialless iframes don't use SW for navigation requests (setting src),
+  // but fetch() inside the iframe DOES go through the SW.
+  // Use srcdoc bootstrap to fetch preview HTML via fetch().
+  //
+  // If SW is not yet the controller (e.g. after hard reload), the fetch
+  // hits Vite's preview-guard middleware which returns a 503 with auto-reload.
+  // The iframe will keep reloading until SW becomes the controller and
+  // returns the actual preview content.
   const bootstrapHtml = `<!doctype html>
 <html>
 <head><meta charset="utf-8"></head>
