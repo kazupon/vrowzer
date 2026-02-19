@@ -49,37 +49,6 @@ onUnmounted(() => {
 })
 
 async function loadIframe() {
-  // Ensure SW is the controller before loading the iframe.
-  // After hard reload (Ctrl+Shift+R), the SW loses controller status
-  // because activate event does not re-fire for an already-activated SW.
-  // We explicitly request the SW to re-claim clients via a message.
-  if (!navigator.serviceWorker.controller) {
-    const reg = await navigator.serviceWorker.ready
-    reg.active?.postMessage({ type: 'claim-clients' })
-
-    await new Promise<void>(resolve => {
-      const onControllerChange = () => {
-        clearInterval(pollId)
-        resolve()
-      }
-      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, { once: true })
-
-      const pollId = setInterval(() => {
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
-          clearInterval(pollId)
-          resolve()
-        }
-      }, 100)
-
-      setTimeout(() => {
-        navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
-        clearInterval(pollId)
-        resolve()
-      }, 10000)
-    })
-  }
-
   const iframe = iframeRef.value
   if (!iframe) {
     return

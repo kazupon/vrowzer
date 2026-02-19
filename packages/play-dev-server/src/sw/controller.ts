@@ -48,7 +48,11 @@ export async function initServiceWorker(): Promise<SvcWorkerController> {
     console.log('[SW Controller] Progress:', phase)
   })
 
-  const ready = await controller.ready({ timeout: 10000 })
+  const ready = await controller.ready({
+    timeout: 10000,
+    skipWaitingPolicy: 'force',
+    waitForController: true
+  })
   if (!ready) {
     throw new Error('Service Worker failed to become ready')
   }
