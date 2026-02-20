@@ -48,6 +48,7 @@
     },
     "./module-runner": "./dist/node/module-runner.js",
     "./web-worker": "./dist/node/worker.js",
+    "./service-worker": "./dist/node/service-worker.js",
     "./internal": "./dist/node/internal.js",
     "./dist/client/*": "./dist/client/*",
     "./types/*": {

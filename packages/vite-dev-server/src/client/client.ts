@@ -258,7 +258,10 @@ const hmrClient = new HMRClient(
       return await importPromise
     },
 )
-transport.connect!(createHMRHandler(handleMessage))
+
+console.log('[vrowser] connecting to HMR server...', transport, createHMRHandler, handleMessage)
+// NOTE(kazupon): disable now, because move to prepare for web-wokrer connection
+// transport.connect!(createHMRHandler(handleMessage))
 
 async function handleMessage(payload: HotPayload) {
   switch (payload.type) {
@@ -626,7 +629,7 @@ if ('document' in globalThis) {
 let lastInsertedStyle: HTMLStyleElement | undefined
 
 export function updateStyle(id: string, content: string): void {
-  if (linkSheetsMap.has(id)) {return}
+  if (linkSheetsMap.has(id)) { return }
 
   let style = sheetsMap.get(id)
   if (!style) {

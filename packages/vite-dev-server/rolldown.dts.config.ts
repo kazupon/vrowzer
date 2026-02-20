@@ -23,6 +23,7 @@ const external = [
 export default defineConfig({
   input: {
     index: './src/node/index.ts',
+    'service-worker': './src/node/service-worker.ts',
     worker: './src/node/worker.ts',
     'module-runner': './src/module-runner/index.ts',
     internal: './src/node/internalIndex.ts'
@@ -137,7 +138,8 @@ function patchTypes(): Plugin {
             validateRunnerChunk.call(this, chunk, importBindings)
           } else if (
             chunk.fileName.startsWith('worker') ||
-            // shared chunks used by index, worker, and moduleRunner
+            chunk.fileName.startsWith('service-worker') ||
+            // shared chunks used by index, service-worker, worker, and moduleRunner
             chunk.fileName.startsWith('chunks/') ||
             chunk.fileName.startsWith('types.d-')
           ) {

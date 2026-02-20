@@ -246,6 +246,18 @@ const webWorkerConfig = defineConfig({
   ],
 })
 
+const serviceWorkerConfig = defineConfig({
+  ...sharedNodeOptions,
+  output: {
+    ...sharedNodeOptions.output,
+    // Use separate chunk directory to avoid conflicting with nodeConfig's and webWorkerConfig's chunks
+    chunkFileNames: 'node/sw-chunks/[name]-[hash].js',
+  },
+  input: {
+    'service-worker': path.resolve(__dirname, 'src/node/service-worker.ts'),
+  },
+})
+
 const moduleRunnerConfig = defineConfig({
   ...sharedNodeOptions,
   input: {
@@ -268,7 +280,7 @@ const moduleRunnerConfig = defineConfig({
   // },
 })
 
-export default defineConfig([envConfig, clientConfig, nodeConfig, webWorkerConfig, moduleRunnerConfig])
+export default defineConfig([envConfig, clientConfig, nodeConfig, serviceWorkerConfig, webWorkerConfig, moduleRunnerConfig])
 
 // #region Plugins
 
