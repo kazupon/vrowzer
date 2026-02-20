@@ -33,7 +33,8 @@ import type { FSWatcher } from '#dep-types/chokidar'
 import type { RawSourceMap } from '@jridgewell/remapping'
 import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
 import type { Program } from '@oxc-project/types'
-import { parseSync } from '@vrowser/oxc-parser'
+// NOTE(kazupon): disalbe for now, because we move to web worker.
+// import { parseSync } from '@vrowser/oxc-parser'
 import MagicString from 'magic-string'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
@@ -313,7 +314,7 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
     const parallelPromises: Promise<unknown>[] = []
     for (const plugin of this.getSortedPlugins(hookName)) {
       // Don't throw here if closed, so buildEnd and closeBundle hooks can finish running
-      if (condition && !condition(plugin)) {continue}
+      if (condition && !condition(plugin)) { continue }
 
       const hook = plugin[hookName]
       const handler: Function = getHookHandler(hook)
@@ -394,12 +395,11 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
     let id: string | null = null
     const partial: Partial<PartialResolvedId> = {}
     for (const plugin of this.getSortedPlugins('resolveId')) {
-      if (this._closed && this.environment.config.dev.recoverable)
-        {throwClosedServerError()}
-      if (mergedSkip?.has(plugin)) {continue}
+      if (this._closed && this.environment.config.dev.recoverable) { throwClosedServerError() }
+      if (mergedSkip?.has(plugin)) { continue }
 
       const filter = getCachedFilterForPlugin(plugin, 'resolveId')
-      if (filter && !filter(rawId)) {continue}
+      if (filter && !filter(rawId)) { continue }
 
       ctx._plugin = plugin
 
@@ -439,7 +439,7 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
         // @ts-expect-error -- FIXME(kazupon): fix me
         handler.call(ctx as any, rawId, importer, normalizedOptions),
       )
-      if (!result) {continue}
+      if (!result) { continue }
 
       if (typeof result === 'string') {
         id = result
@@ -485,11 +485,10 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
     const options = { ssr }
     const ctx = new LoadPluginContext(this)
     for (const plugin of this.getSortedPlugins('load')) {
-      if (this._closed && this.environment.config.dev.recoverable)
-        {throwClosedServerError()}
+      if (this._closed && this.environment.config.dev.recoverable) { throwClosedServerError() }
 
       const filter = getCachedFilterForPlugin(plugin, 'load')
-      if (filter && !filter(id)) {continue}
+      if (filter && !filter(id)) { continue }
 
       ctx._plugin = plugin
 
@@ -553,11 +552,10 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
     ctx._addedImports = this._getAddedImports(id)
 
     for (const plugin of this.getSortedPlugins('transform')) {
-      if (this._closed && this.environment.config.dev.recoverable)
-        {throwClosedServerError()}
+      if (this._closed && this.environment.config.dev.recoverable) { throwClosedServerError() }
 
       const filter = getCachedFilterForPlugin(plugin, 'transform')
-      if (filter && !filter(id, code, optionsWithSSR.moduleType)) {continue}
+      if (filter && !filter(id, code, optionsWithSSR.moduleType)) { continue }
 
       if (
         isFutureDeprecationEnabled(
@@ -592,7 +590,7 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
         // @ts-expect-error -- ignore for context error
         ctx.error(e)
       }
-      if (!result) {continue}
+      if (!result) { continue }
       debugPluginTransform?.(
         timeFrom(start),
         plugin.name,
@@ -641,7 +639,7 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
   }
 
   async close(): Promise<void> {
-    if (this._closed) {return}
+    if (this._closed) { return }
     this._closed = true
     await Promise.allSettled(Array.from(this._processesing))
     const config = this.environment.getTopLevelConfig()
@@ -771,7 +769,8 @@ class PluginContext
   // fs: RollupFsModule = fsModule
 
   parse(code: string, opts: any): Program {
-    return parseSync(code, opts).program
+    return {} as Program
+    //return parseSync(code, opts).program
     // NOTE(kazupon): commented out for maintaining sync from original repo codes as background context
     // return rolldownParseAst(code, opts)
   }
@@ -817,7 +816,7 @@ class PluginContext
       skipCalls,
       scan: this._scan,
     })
-    if (typeof out === 'string') {out = { id: out }}
+    if (typeof out === 'string') { out = { id: out } }
     return out as ResolvedId | null
   }
 
@@ -843,7 +842,7 @@ class PluginContext
     // This shouldn't happen due to calling ensureEntryFromUrl, but 1) our types can't ensure that
     // and 2) moduleGraph may not have been provided (though in the situations where that happens,
     // we should never have plugins calling this.load)
-    if (!moduleInfo) {throw Error(`Failed to load module with id ${options.id}`)}
+    if (!moduleInfo) { throw Error(`Failed to load module with id ${options.id}`) }
     return moduleInfo
   }
 
@@ -868,12 +867,13 @@ class PluginContext
 
   addWatchFile(id: string): void {
     this._container.watchFiles.add(id)
-    if (this._container.watcher)
-      {ensureWatchedFile(
+    if (this._container.watcher) {
+      ensureWatchedFile(
         this._container.watcher,
         id,
         this.environment.config.root,
-      )}
+      )
+    }
   }
 
   getWatchFiles(): string[] {
@@ -933,7 +933,7 @@ class PluginContext
       return err // The plugin likely called `this.error`
     }
     err.plugin = this._plugin.name
-    if (this._activeId && !err.id) {err.id = this._activeId}
+    if (this._activeId && !err.id) { err.id = this._activeId }
     if (this._activeCode) {
       err.pluginCode = this._activeCode
 
@@ -1124,7 +1124,7 @@ class TransformPluginContext
     }
 
     for (let m of this.sourcemapChain) {
-      if (typeof m === 'string') {m = JSON.parse(m)}
+      if (typeof m === 'string') { m = JSON.parse(m) }
       if (!('version' in (m as SourceMap))) {
         // { mappings: '' }
         if ((m as SourceMap).mappings === '') {
@@ -1220,7 +1220,7 @@ class PluginContainer {
       this.environments.ssr as DevEnvironment
     ).pluginContainer.getModuleInfo(id)
 
-    if (clientModuleInfo == null && ssrModuleInfo == null) {return null}
+    if (clientModuleInfo == null && ssrModuleInfo == null) { return null }
 
     return new Proxy({} as any, {
       get: (_, key: string) => {

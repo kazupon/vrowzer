@@ -1,13 +1,13 @@
-import { readFileSync } from 'node:fs'
-import { builtinModules } from 'node:module'
-import { defineConfig } from 'rolldown'
-import type { OutputChunk, Plugin, PluginContext, RenderedChunk } from 'rolldown'
-import { parseAst } from 'rolldown/parseAst'
-import { dts } from 'rolldown-plugin-dts'
 import { parse as parseWithBabel } from '@babel/parser'
+import type { Directive, ModuleExportName, Program, Statement } from '@oxc-project/types'
 import { walk } from 'estree-walker'
 import MagicString from 'magic-string'
-import type { Directive, ModuleExportName, Program, Statement } from '@oxc-project/types'
+import { readFileSync } from 'node:fs'
+import { builtinModules } from 'node:module'
+import type { OutputChunk, Plugin, PluginContext, RenderedChunk } from 'rolldown'
+import { defineConfig } from 'rolldown'
+import { dts } from 'rolldown-plugin-dts'
+import { parseAst } from 'rolldown/parseAst'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)).toString())
 
@@ -23,6 +23,7 @@ const external = [
 export default defineConfig({
   input: {
     index: './src/node/index.ts',
+    worker: './src/node/worker.ts',
     'module-runner': './src/module-runner/index.ts',
     internal: './src/node/internalIndex.ts'
   },
@@ -126,17 +127,24 @@ function patchTypes(): Plugin {
       order: 'post',
       handler(_opts, bundle) {
         for (const chunk of Object.values(bundle)) {
-          if (chunk.type !== 'chunk') {continue}
+          if (chunk.type !== 'chunk') { continue }
 
           const ast = parseAst(chunk.code, { lang: 'ts', sourceType: 'module' })
           const importBindings = getAllImportBindings(ast)
           if (
-            chunk.fileName.startsWith('module-runner') ||
-            // index and moduleRunner have a common chunk
+            chunk.fileName.startsWith('module-runner')
+          ) {
+            validateRunnerChunk.call(this, chunk, importBindings)
+          } else if (
+            chunk.fileName.startsWith('worker') ||
+            // shared chunks used by index, worker, and moduleRunner
             chunk.fileName.startsWith('chunks/') ||
             chunk.fileName.startsWith('types.d-')
           ) {
-            validateRunnerChunk.call(this, chunk, importBindings)
+            // skip confusing name replacements for shared/worker chunks
+            validateChunkImports.call(this, chunk, importBindings)
+            stripInternalTypes.call(this, chunk)
+            cleanUnnecessaryComments(chunk)
           } else {
             validateChunkImports.call(this, chunk, importBindings)
             replaceConfusingTypeNames.call(this, chunk, importBindings)
@@ -173,7 +181,7 @@ function getImportBindings(node: Directive | Statement): ImportBindings | undefi
     }
   }
   if (node.type === 'ExportNamedDeclaration') {
-    if (!node.source) {return undefined}
+    if (!node.source) { return undefined }
     return {
       id: node.source.value,
       bindings: node.specifiers.map(s => stringifyModuleExportName(s.local)),
@@ -181,7 +189,7 @@ function getImportBindings(node: Directive | Statement): ImportBindings | undefi
     }
   }
   if (node.type === 'ExportAllDeclaration') {
-    if (!node.source) {return undefined}
+    if (!node.source) { return undefined }
     return { id: node.source.value, bindings: ['*'], locals: [] }
   }
 }

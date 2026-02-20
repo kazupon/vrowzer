@@ -1,4 +1,5 @@
-import { init as initOxcParser } from '@vrowser/oxc-parser'
+// NOTE(kazupon): disalbe for now, because we move to web worker.
+// import { init as initOxcParser } from '@vrowser/oxc-parser'
 import colors from 'picocolors'
 import type { FetchFunctionOptions, FetchResult } from '../../shared/invokeMethods'
 // NOTE(kazupon): comment out because we need to undserstand the previous implementation as background
@@ -69,10 +70,11 @@ export class DevEnvironment extends BaseEnvironment {
   _remoteRunnerOptions: DevEnvironmentContext['remoteRunner']
 
   get pluginContainer(): EnvironmentPluginContainer<DevEnvironment> {
-    if (!this._pluginContainer)
-      {throw new Error(
+    if (!this._pluginContainer) {
+      throw new Error(
         `${this.name} environment.pluginContainer called before initialized`,
-      )}
+      )
+    }
     return this._pluginContainer
   }
   /**
@@ -202,7 +204,7 @@ export class DevEnvironment extends BaseEnvironment {
     // - Dev mode: wasmInlinePlugin inlines WASM as base64 data URL
     // - Production: wasmInlinePlugin also inlines WASM in the bundled SW
     // No explicit URL is needed; the wasm-bindgen default URL mechanism is used.
-    await initOxcParser()
+    // await initOxcParser()
     this._initiated = true
     this._pluginContainer = await createEnvironmentPluginContainer(
       this,
@@ -400,16 +402,16 @@ function setupOnCrawlEnd(): CrawlEndFinder {
   }
 
   function checkIfCrawlEndAfterTimeout() {
-    if (cancelled || registeredIds.size > 0) {return}
+    if (cancelled || registeredIds.size > 0) { return }
 
-    if (timeoutHandle) {clearTimeout(timeoutHandle)}
+    if (timeoutHandle) { clearTimeout(timeoutHandle) }
     timeoutHandle = setTimeout(
       callOnCrawlEndWhenIdle,
       callCrawlEndIfIdleAfterMs,
     )
   }
   async function callOnCrawlEndWhenIdle() {
-    if (cancelled || registeredIds.size > 0) {return}
+    if (cancelled || registeredIds.size > 0) { return }
     onCrawlEndPromiseWithResolvers.resolve()
   }
 

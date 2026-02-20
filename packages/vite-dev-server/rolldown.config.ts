@@ -1,5 +1,5 @@
 // import { readFileSync, writeFileSync } from 'node:fs'
-import { copyFileSync } from 'node:fs'
+import { copyFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 // import MagicString from 'magic-string'
@@ -81,17 +81,6 @@ const sharedNodeOptions = defineConfig({
     format: 'esm',
     externalLiveBindings: false
   },
-  plugins: [
-    {
-      name: 'copy-oxc-parser-wasm',
-      writeBundle() {
-        copyFileSync(
-          path.resolve(__dirname, './node_modules/@vrowser/oxc-parser/dist/vrowser_oxc_parser_bg.wasm'),
-          path.resolve(__dirname, './dist/node/vrowser_oxc_parser_bg.wasm')
-        )
-      }
-    }
-  ],
   onwarn(warning, warn) {
     if (warning.message.includes('Circular dependency')) {
       return
@@ -165,6 +154,96 @@ const nodeConfig = defineConfig({
   // ],
 })
 
+// Resolve @vrowser/rolldown dist paths for WASM/Worker file copying
+const rolldownPkgDir = path.dirname(fileURLToPath(import.meta.resolve('@vrowser/rolldown/package.json')))
+const rolldownDistDir = path.resolve(rolldownPkgDir, 'dist')
+
+const webWorkerConfig = defineConfig({
+  ...sharedNodeOptions,
+  output: {
+    ...sharedNodeOptions.output,
+    // Use separate chunk directory to avoid conflicting with nodeConfig's chunks
+    chunkFileNames: 'node/worker-chunks/[name]-[hash].js',
+  },
+  // @vrowser/rolldown and @vrowser/fs are kept external to avoid:
+  // 1. rolldown's top-level await in WASM init being inlined (breaks IIFE worker bundling)
+  // 2. rolldown code-splitting bug with duplicate identifier names (import_lib)
+  // Consumer must provide these dependencies (e.g. via resolve.alias in Vite config)
+  external: [
+    /^@vrowser\/rolldown/,
+    /^@vrowser\/fs/,
+  ],
+  input: {
+    worker: path.resolve(__dirname, 'src/node/worker.ts'),
+  },
+  resolve: {
+    alias: {
+      'node:events': '@vrowser/node-polyfill/events',
+      'node:path': 'pathe',
+      'node:stream': 'readable-stream/lib/stream',
+      'node:buffer': 'buffer',
+      'node:fs': '@vrowser/fs',
+      'node:fs/promises': '@vrowser/fs/promises',
+      'node:url': '@vrowser/node-polyfill/url',
+      'node:util': '@vrowser/node-polyfill/util',
+      'node:readline': '@vrowser/node-polyfill/readline',
+      'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
+      events: '@vrowser/node-polyfill/events',
+      path: 'pathe',
+      stream: 'readable-stream/lib/stream',
+      buffer: 'buffer',
+      fs: '@vrowser/fs',
+      'fs/promises': '@vrowser/fs/promises',
+      url: '@vrowser/node-polyfill/url',
+      util: '@vrowser/node-polyfill/util',
+      'readline': '@vrowser/node-polyfill/readline',
+      'perf_hooks': '@vrowser/node-polyfill/perf_hooks',
+      // NOTE(kazupon):
+      // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
+      'process/': '@vrowser/node-polyfill/process',
+      process: '@vrowser/node-polyfill/process',
+    }
+  },
+  plugins: [
+    // Rewrite rolldown WASM/Worker URLs for worker.js output location.
+    // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm),
+    // but worker.js is output directly to dist/node/ (no chunks), so URLs must be rewritten to ./
+    {
+      name: 'rewrite-rolldown-urls',
+      renderChunk(code) {
+        const replaced = code
+          .replace(
+            /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+            `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
+          )
+          .replace(
+            /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+            `new URL('./rolldown-worker.js', '' + import.meta.url)`
+          )
+        if (replaced === code) { return null }
+        return { code: replaced }
+      }
+    },
+    // Copy rolldown WASM binary and sub-worker to dist/node/
+    {
+      name: 'copy-rolldown-assets',
+      writeBundle() {
+        const destDir = path.resolve(__dirname, 'dist/node')
+        // Copy WASM binary
+        const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
+        if (existsSync(wasmSrc)) {
+          copyFileSync(wasmSrc, path.resolve(destDir, 'rolldown-binding.wasm32-wasi.wasm'))
+        }
+        // Copy sub-worker (renamed to avoid conflict with worker.js entry)
+        const workerSrc = path.resolve(rolldownDistDir, 'worker.js')
+        if (existsSync(workerSrc)) {
+          copyFileSync(workerSrc, path.resolve(destDir, 'rolldown-worker.js'))
+        }
+      }
+    }
+  ],
+})
+
 const moduleRunnerConfig = defineConfig({
   ...sharedNodeOptions,
   input: {
@@ -187,7 +266,7 @@ const moduleRunnerConfig = defineConfig({
   // },
 })
 
-export default defineConfig([envConfig, clientConfig, nodeConfig, moduleRunnerConfig])
+export default defineConfig([envConfig, clientConfig, nodeConfig, webWorkerConfig, moduleRunnerConfig])
 
 // #region Plugins
 

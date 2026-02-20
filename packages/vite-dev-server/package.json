@@ -47,6 +47,7 @@
       "types": "./client.d.ts"
     },
     "./module-runner": "./dist/node/module-runner.js",
+    "./web-worker": "./dist/node/worker.js",
     "./internal": "./dist/node/internal.js",
     "./dist/client/*": "./dist/client/*",
     "./types/*": {
@@ -79,6 +80,7 @@
   "devDependencies": {
     "@vrowser/node-polyfill": "workspace:*",
     "@vrowser/fs": "workspace:*",
+    "@vrowser/rolldown": "workspace:*",
     "@vrowser/oxc-parser": "workspace:*",
     "@babel/parser": "^7.28.6",
     "@jridgewell/remapping": "^2.3.5",
