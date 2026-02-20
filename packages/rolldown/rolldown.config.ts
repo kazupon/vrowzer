@@ -20,7 +20,9 @@
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { defineConfig, type Plugin } from 'rolldown'
+import { defineConfig } from 'rolldown'
+
+import type { Plugin } from 'rolldown'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const distDir = join(__dirname, 'dist')
@@ -241,9 +243,7 @@ const postBuildPlugin: Plugin = {
 
 // Resolve @vrowser/fs source path via package name (pnpm workspace symlink).
 // Use source directly to avoid re-bundling issues with pre-built dist files.
-import { createRequire } from 'node:module'
-const require = createRequire(import.meta.url)
-const vrowserFsPkgPath = require.resolve('@vrowser/fs/package.json')
+const vrowserFsPkgPath = fileURLToPath(import.meta.resolve('@vrowser/fs/package.json'))
 const vrowserFsSrcPath = join(dirname(vrowserFsPkgPath), 'src', 'index.ts')
 
 const commonResolve = {
