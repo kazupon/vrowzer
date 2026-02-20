@@ -10,7 +10,7 @@ let rolldownWorker: Worker | null = null
 
 onMounted(() => {
   // Initialize Rolldown Web Worker
-  rolldownWorker = new Worker(new URL('./worker/rolldown.worker.ts', import.meta.url), {
+  rolldownWorker = new Worker(new URL('./worker.ts', import.meta.url), {
     type: 'module'
   })
 

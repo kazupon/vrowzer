@@ -1,16 +1,16 @@
 import inject from '@rollup/plugin-inject'
 import vue from '@vitejs/plugin-vue'
-import ServiceWorker, { wasmUrlPlugin } from '@vrowser/unplugin-service-worker/vite'
-import { createRequire } from 'node:module'
+import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import { copyFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname)
-const require = createRequire(import.meta.url)
-
-// Resolve @vrowser/rolldown dist paths for dev mode aliases
-const rolldownPkgDir = path.dirname(require.resolve('@vrowser/rolldown/package.json'))
-const rolldownDistDir = path.resolve(rolldownPkgDir, 'dist')
+// Resolve @vrowser/rolldown dist path for WASM/Worker file copying
+const rolldownDistDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.resolve('@vrowser/rolldown/package.json'))),
+  'dist'
+)
 
 export default defineConfig({
   plugins: [
@@ -41,26 +41,31 @@ export default defineConfig({
     }),
     vue(),
     ServiceWorker({
-      serviceWorkerAllowed: '/',
-      plugins: [wasmUrlPlugin()],
-      assets: [
-        {
-          src: path.resolve(
-            __dirname,
-            './node_modules/@vrowser/oxc-parser/dist/vrowser_oxc_parser_bg.wasm'
-          )
+      serviceWorkerAllowed: '/'
+    }),
+    // Copy rolldown WASM binary and sub-worker to dist/ for production builds.
+    // The Worker bundle references these via `new URL("../rolldown-binding.wasm32-wasi.wasm", import.meta.url)`
+    // which resolves to dist/ from dist/assets/.
+    {
+      name: 'copy-rolldown-wasm',
+      writeBundle() {
+        const outDir = path.resolve(fileURLToPath(import.meta.url), '../dist')
+        const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
+        const workerSrc = path.resolve(rolldownDistDir, 'worker.js')
+        if (existsSync(wasmSrc)) {
+          copyFileSync(wasmSrc, path.resolve(outDir, 'rolldown-binding.wasm32-wasi.wasm'))
         }
-      ]
-    })
+        if (existsSync(workerSrc)) {
+          copyFileSync(workerSrc, path.resolve(outDir, 'worker.js'))
+        }
+      }
+    }
   ],
   define: {
     'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
   },
   resolve: {
     alias: {
-      // @vrowser/rolldown aliases - resolve to pre-bundled dist files
-      '@vrowser/rolldown/experimental': path.resolve(rolldownDistDir, 'experimental.js'),
-      '@vrowser/rolldown': path.resolve(rolldownDistDir, 'index.js'),
       'node:events': '@vrowser/node-polyfill/events',
       'node:path': 'pathe',
       'node:stream': 'readable-stream/lib/stream',
@@ -89,9 +94,8 @@ export default defineConfig({
       url: '@vrowser/node-polyfill/url'
     }
   },
-  optimizeDeps: {
-    // @vrowser/rolldown is pre-bundled, skip Vite's dep optimization
-    exclude: ['@vrowser/rolldown']
+  worker: {
+    format: 'es'
   },
   server: {
     headers: {
