@@ -6,34 +6,41 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
 // Resolve @vrowser/rolldown dist path for WASM/Worker file copying
 const rolldownDistDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.resolve('@vrowser/rolldown/package.json'))),
   'dist'
 )
 
+// Prevent Vite's SPA fallback from serving index.html for /__preview__/ requests.
+// When SW is not yet controlling the page (e.g. after hard reload),
+// __preview__/ requests bypass SW and hit Vite directly.
+// Without this guard, Vite returns the main page HTML, causing recursive display.
+function previewGuardMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
+  if (req.url?.startsWith('/__preview__')) {
+    res.writeHead(503, {
+      'Content-Type': 'text/html',
+      'Retry-After': '1'
+    })
+    res.end(`<!doctype html><html><head><meta charset="utf-8"><title>Preview</title></head><body>
+<script>setTimeout(() => location.reload(), 1000)</script>
+<p>Waiting for Service Worker...</p></body></html>`)
+    return
+  }
+  next()
+}
+
 export default defineConfig({
   plugins: [
     {
       name: 'preview-guard',
       configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          // Prevent Vite's SPA fallback from serving index.html for /__preview__/ requests.
-          // When SW is not yet controlling the page (e.g. after hard reload),
-          // __preview__/ requests bypass SW and hit Vite directly.
-          // Without this guard, Vite returns the main page HTML, causing recursive display.
-          if (req.url?.startsWith('/__preview__')) {
-            res.writeHead(503, {
-              'Content-Type': 'text/html',
-              'Retry-After': '1'
-            })
-            res.end(`<!doctype html><html><head><meta charset="utf-8"><title>Preview</title></head><body>
-<script>setTimeout(() => location.reload(), 1000)</script>
-<p>Waiting for Service Worker...</p></body></html>`)
-            return
-          }
-          next()
-        })
+        server.middlewares.use(previewGuardMiddleware)
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use(previewGuardMiddleware)
       }
     },
     inject({
@@ -43,20 +50,21 @@ export default defineConfig({
     ServiceWorker({
       serviceWorkerAllowed: '/'
     }),
-    // Copy rolldown WASM binary and sub-worker to dist/ for production builds.
-    // The Worker bundle references these via `new URL("../rolldown-binding.wasm32-wasi.wasm", import.meta.url)`
-    // which resolves to dist/ from dist/assets/.
+    // Copy rolldown WASM binary and sub-worker for production builds.
+    // The Worker chunk is output to dist/assets/ and references WASM via
+    // `new URL("./rolldown-binding.wasm32-wasi.wasm", import.meta.url)`,
+    // so the WASM file must be in dist/assets/ alongside the Worker chunk.
     {
       name: 'copy-rolldown-wasm',
       writeBundle() {
-        const outDir = path.resolve(fileURLToPath(import.meta.url), '../dist')
+        const assetsDir = path.resolve(fileURLToPath(import.meta.url), '../dist/assets')
         const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
         const workerSrc = path.resolve(rolldownDistDir, 'worker.js')
         if (existsSync(wasmSrc)) {
-          copyFileSync(wasmSrc, path.resolve(outDir, 'rolldown-binding.wasm32-wasi.wasm'))
+          copyFileSync(wasmSrc, path.resolve(assetsDir, 'rolldown-binding.wasm32-wasi.wasm'))
         }
         if (existsSync(workerSrc)) {
-          copyFileSync(workerSrc, path.resolve(outDir, 'worker.js'))
+          copyFileSync(workerSrc, path.resolve(assetsDir, 'rolldown-worker.js'))
         }
       }
     }
