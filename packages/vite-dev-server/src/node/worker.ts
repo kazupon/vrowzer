@@ -11,6 +11,9 @@
  * @license MIT
  */
 
+import { fs } from '@vrowser/fs'
+import { rolldown } from '@vrowser/rolldown'
+import { memfs } from '@vrowser/rolldown/experimental'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 
@@ -30,29 +33,6 @@ export interface SetupWorkerOptions {
    * @internal
    */
   previousEnvironments?: Record<string, DevEnvironment>
-}
-
-// Lazily load @vrowser/rolldown to avoid top-level await.
-// rolldown's WASM init uses top-level await which is incompatible with
-// IIFE output format used by Vite's worker bundler and Service Worker bundler.
-let rolldownPromise: Promise<{
-  rolldown: typeof import('@vrowser/rolldown').rolldown
-  memfs: NonNullable<typeof import('@vrowser/rolldown/experimental').memfs>
-  fs: typeof import('@vrowser/fs').fs
-}> | null = null
-
-function loadRolldown() {
-  if (!rolldownPromise) {
-    rolldownPromise = (async () => {
-      const [{ rolldown }, { memfs }, { fs }] = await Promise.all([
-        import('@vrowser/rolldown'),
-        import('@vrowser/rolldown/experimental'),
-        import('@vrowser/fs')
-      ])
-      return { rolldown, memfs: memfs!, fs }
-    })()
-  }
-  return rolldownPromise
 }
 
 export async function setupWorker(
@@ -81,8 +61,6 @@ export async function setupWorker(
 }
 
 export async function bundle(files: Record<string, string>, input: string): Promise<[string, string]> {
-  const { rolldown, memfs, fs } = await loadRolldown()
-
   console.log('[Rolldown Worker] bundling', input)
 
   memfs.volume.reset()

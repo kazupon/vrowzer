@@ -165,14 +165,6 @@ const webWorkerConfig = defineConfig({
     // Use separate chunk directory to avoid conflicting with nodeConfig's chunks
     chunkFileNames: 'node/worker-chunks/[name]-[hash].js',
   },
-  // @vrowser/rolldown and @vrowser/fs are kept external to avoid:
-  // 1. rolldown's top-level await in WASM init being inlined (breaks IIFE worker bundling)
-  // 2. rolldown code-splitting bug with duplicate identifier names (import_lib)
-  // Consumer must provide these dependencies (e.g. via resolve.alias in Vite config)
-  external: [
-    /^@vrowser\/rolldown/,
-    /^@vrowser\/fs/,
-  ],
   input: {
     worker: path.resolve(__dirname, 'src/node/worker.ts'),
   },

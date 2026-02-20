@@ -250,9 +250,6 @@ importers:
       '@vrowser/fs':
         specifier: workspace:*
         version: link:../fs
-      '@vrowser/rolldown':
-        specifier: workspace:*
-        version: link:../rolldown
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -284,6 +281,9 @@ importers:
       '@vrowser/oxc-parser':
         specifier: workspace:*
         version: link:../oxc-parser
+      '@vrowser/rolldown':
+        specifier: workspace:*
+        version: link:../rolldown
       '@vrowser/unplugin-service-worker':
         specifier: workspace:*
         version: link:../unplugin-service-worker
