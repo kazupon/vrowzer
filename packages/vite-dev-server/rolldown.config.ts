@@ -196,6 +196,16 @@ const webWorkerConfig = defineConfig({
       process: '@vrowser/node-polyfill/process',
     }
   },
+  transform: {
+    ...sharedNodeOptions.transform,
+    // Inject `process` global for browser/Worker environments.
+    // The resolve.alias above handles `import process from 'process'`,
+    // but bare `process.stdout`, `process.env` references in the code
+    // need the global to be shimmed via inject.
+    inject: {
+      process: '@vrowser/node-polyfill/process',
+    },
+  },
   plugins: [
     // Rewrite rolldown WASM/Worker URLs for worker.js output location.
     // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm),

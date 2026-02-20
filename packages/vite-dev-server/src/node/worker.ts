@@ -16,6 +16,11 @@ import { rolldown } from '@vrowser/rolldown'
 import { memfs } from '@vrowser/rolldown/experimental'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
+import {
+  getResolvedOutDirs,
+  resolveChokidarOptions,
+  resolveEmptyOutDir
+} from './watch'
 
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { DevEnvironment } from './server/environment'
@@ -58,6 +63,27 @@ export async function setupWorker(
 
   const { root } = config
   const basePath = options.basePath || '/'
+
+  const resolvedOutDirs = getResolvedOutDirs(
+    config.root,
+    config.build.outDir,
+    config.build.rollupOptions.output,
+  )
+  const emptyOutDir = resolveEmptyOutDir(
+    config.build.emptyOutDir,
+    config.root,
+    resolvedOutDirs,
+  )
+
+  const resolvedWatchOptions = resolveChokidarOptions(
+    {
+      disableGlobbing: true,
+      // ...serverConfig.watch,
+    },
+    resolvedOutDirs,
+    emptyOutDir,
+    config.cacheDir,
+  )
 }
 
 export async function bundle(files: Record<string, string>, input: string): Promise<[string, string]> {

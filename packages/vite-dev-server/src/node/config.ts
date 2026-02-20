@@ -1336,6 +1336,11 @@ export async function resolveConfig(
 
   let configFileDependencies: string[] = []
   let mode = inlineConfig.mode || defaultMode
+  // NOTE(kazupon): In browser/Worker environments, import.meta.env may be statically replaced
+  // by the bundler (e.g. Vite replaces import.meta.env.NODE_ENV with "production" or undefined).
+  // Direct assignment like `import.meta.env.NODE_ENV = ...` would become `undefined = ...` or
+  // `"production" = ...` which throws in strict mode (ESM Workers).
+  // Use try-catch to safely handle this.
   const isNodeEnvSet = !!import.meta.env.NODE_ENV
   // NOTE(kazupon): comment out because we need to understand the previous implementation as background
   // const isNodeEnvSet = !!process.env.NODE_ENV
@@ -1344,7 +1349,12 @@ export async function resolveConfig(
   // some dependencies e.g. @vue/compiler-* relies on NODE_ENV for getting
   // production-specific behavior, so set it early on
   if (!isNodeEnvSet) {
-    import.meta.env.NODE_ENV = defaultNodeEnv
+    try {
+      import.meta.env.NODE_ENV = defaultNodeEnv
+    } catch {
+      // In bundled environments, import.meta.env.NODE_ENV may be replaced with a literal
+      // value by the bundler, making assignment impossible. This is safe to ignore.
+    }
     // NOTE(kazupon): comment out because we need to understand the previous implementation as background
     // process.env.NODE_ENV = defaultNodeEnv
   }
