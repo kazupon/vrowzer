@@ -34,3 +34,9 @@
 [submodule "refers/chokidar"]
 	path = refers/chokidar
 	url = git@github.com:paulmillr/chokidar.git
+[submodule "refers/devtools"]
+	path = refers/devtools
+	url = git@github.com:vitejs/devtools.git
+[submodule "refers/birpc"]
+	path = refers/birpc
+	url = git@github.com:antfu-collective/birpc.git
