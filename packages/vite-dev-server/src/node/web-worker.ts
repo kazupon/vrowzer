@@ -19,8 +19,16 @@
  */
 
 // NOTE: Only type-only imports from heavy modules.
-// Runtime imports of ./transformer (transformer) happen inside listen() via dynamic import.
+// Runtime imports of ./transformer happen inside listen() via dynamic import.
+import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage } from '../shared/messages'
 import type { ViteDevServerForWorker } from './transformer'
+
+/**
+ * Messages handled internally by createServer().
+ * V_WW_SETUP and V_SW_CONNECT_PORT are protocol messages;
+ * any other messages are forwarded to onUnhandledMessage.
+ */
+type InternalWorkerMessage = SetupWorkerMessage | ConnectServiceWorkerPortMessage
 
 /**
  * This module defines the Web Worker server for @vrowser/vite-dev-server.
@@ -55,8 +63,11 @@ export interface ListenableWorkerServer {
    *
    * After `listen()` resolves, `V_SW_CONNECT_PORT` messages are
    * automatically handled for birpc channel establishment.
+   *
+   * @param timeout - Maximum time in ms to wait for V_WW_SETUP.
+   *   Default: 30000 (30s). Set to 0 to disable timeout.
    */
-  listen(): Promise<ViteDevServerForWorker>
+  listen(timeout?: number): Promise<ViteDevServerForWorker>
 }
 
 /**
@@ -83,8 +94,8 @@ export function createServer(
   let server: ViteDevServerForWorker | null = null
 
   // Register onmessage immediately (lightweight, no WASM)
-  workerScope.onmessage = async (event: MessageEvent) => {
-    const { type } = event.data ?? {}
+  workerScope.onmessage = async (event: MessageEvent<InternalWorkerMessage>) => {
+    const { type } = event.data ?? {} as InternalWorkerMessage
 
     switch (type) {
       case 'V_WW_SETUP': {
@@ -154,14 +165,24 @@ export function createServer(
   }
 
   return Object.freeze({
-    listen(): Promise<ViteDevServerForWorker> {
+    listen(timeout = 30_000): Promise<ViteDevServerForWorker> {
       // If already initialized (unlikely but possible), resolve immediately
       if (server) {
         return Promise.resolve(server)
       }
       return new Promise<ViteDevServerForWorker>((resolve, reject) => {
-        setupResolve = resolve
-        setupReject = reject
+        if (timeout > 0) {
+          const timer = setTimeout(() => {
+            setupResolve = null
+            setupReject = null
+            reject(new Error(`[vrowser-web-worker] listen() timed out after ${timeout}ms waiting for V_WW_SETUP`))
+          }, timeout)
+          setupResolve = (s) => { clearTimeout(timer); resolve(s) }
+          setupReject = (e) => { clearTimeout(timer); reject(e) }
+        } else {
+          setupResolve = resolve
+          setupReject = reject
+        }
       })
     }
   })
