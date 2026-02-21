@@ -5,7 +5,7 @@
  * as a proxy inside a Service Worker: server creation, middleware,
  * MessageChannel HMR server, and configuration.
  *
- * @module service-worker
+ * @module node/service-worker
  */
 
 /**
@@ -14,6 +14,7 @@
  */
 
 import { createSvcWorkerServer } from '@vrowser/service-worker-server'
+import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
 import { isResolvedConfig, resolveConfig } from './config'
@@ -48,6 +49,7 @@ import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-ser
 import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
 import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
+import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
 import type { MinimalPluginContextWithoutEnvironment } from './plugin'
@@ -455,6 +457,15 @@ export interface CreateServerOptions {
    */
   basePath?: string
   /**
+   * MessagePort connected to the Web Worker for RPC communication.
+   * When provided, transform requests are delegated to the Web Worker
+   * via birpc instead of being processed locally.
+   *
+   * This port should be established via the V_WW_CONNECT_PORT / V_SW_CONNECT_PORT
+   * handshake protocol before calling listen().
+   */
+  workerPort?: MessagePort
+  /**
    * FSWawtcher factory function to create a custom FSWatcher instance.
    */
   watcherFactory?: (targets: string[], options: WatchOptions) => FSWatcher
@@ -556,6 +567,22 @@ export function createServer(
 
     const closeHttpServer = createServerCloseFn(httpServer)
 
+    // Setup birpc RPC client for delegating transform to Web Worker
+    let workerRpc: ReturnType<typeof createBirpc<WorkerFunctions, ServiceWorkerFunctions>> | null = null
+    if (options.workerPort) {
+      const port = options.workerPort
+      workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
+        {
+          // SW functions callable from WW (currently empty, future: HMR relay etc.)
+        },
+        {
+          post: data => port.postMessage(data),
+          on: fn => { port.onmessage = (e: MessageEvent) => fn(e.data) },
+          timeout: 30_000,
+        }
+      )
+    }
+
     // const devHtmlTransformFn = createDevHtmlTransformFn(config)
 
     // Promise used by `server.close()` to ensure `closeServer()` is only called once
@@ -594,21 +621,21 @@ export function createServer(
       //     },
       //   })
       // },
-      // transformRequest(url, options) {
-      //   warnFutureDeprecation(config, 'removeServerTransformRequest')
-      //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
-      //   return environment.transformRequest(url)
-      // },
-      // warmupRequest(url, options) {
-      //   warnFutureDeprecation(config, 'removeServerWarmupRequest')
-      //   const environment = server.environments[options?.ssr ? 'ssr' : 'client']
-      //   return environment.warmupRequest(url)
-      // },
+      transformRequest(url, options) {
+        if (!workerRpc) {
+          throw new Error('[@vrowser/vite-dev-server/service-worker] transformRequest requires workerPort to be set in CreateServerOptions')
+        }
+        return workerRpc.transformRequest(url, options)
+      },
+      warmupRequest(url, options) {
+        // warmup is best-effort, silently ignore errors
+        return this.transformRequest(url, options).then(() => { }).catch(() => { })
+      },
       transformIndexHtml(url, html, originalUrl) {
-        console.log('[@vrowser/vite-dev-server/service-worker] url, originalUrl', url, originalUrl)
-        console.log('[@vrowser/vite-dev-server/service-worker] html', html)
-        return Promise.resolve(`<html><body><h1>Vite Dev Server is running in Service Worker</h1><p>Requested URL: ${url}</p></body></html>`)
-        // return devHtmlTransformFn(server, url, html, originalUrl)
+        if (!workerRpc) {
+          throw new Error('[@vrowser/vite-dev-server/service-worker] transformIndexHtml requires workerPort to be set in CreateServerOptions')
+        }
+        return workerRpc.transformIndexHtml(url, html, originalUrl)
       },
       // async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
       //   warnFutureDeprecation(config, 'removeSsrLoadModule')

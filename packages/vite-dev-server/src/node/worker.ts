@@ -14,6 +14,7 @@
 import { fs } from '@vrowser/fs'
 import { rolldown } from '@vrowser/rolldown'
 import { memfs } from '@vrowser/rolldown/experimental'
+import { createBirpc } from 'birpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import {
@@ -22,6 +23,8 @@ import {
   resolveEmptyOutDir
 } from './watch'
 
+import type { BirpcReturn } from 'birpc'
+import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { DevEnvironment } from './server/environment'
 
@@ -84,6 +87,46 @@ export async function setupWorker(
     emptyOutDir,
     config.cacheDir,
   )
+
+  // TODO(kazupon): implment later ...
+}
+
+/**
+ * Connect a MessagePort from the Service Worker and establish birpc RPC.
+ *
+ * Performs the V_WW_SW_CHANNEL_READY handshake on the port, then
+ * creates a birpc RPC server that handles transform requests from the SW.
+ *
+ * @param port - MessagePort received via V_SW_CONNECT_PORT message
+ * @param handlers - WorkerFunctions handlers (transformRequest, transformIndexHtml)
+ * @returns Promise that resolves with the birpc instance after handshake completes
+ */
+export function connectServiceWorkerPort(
+  port: MessagePort,
+  handlers: WorkerFunctions,
+): Promise<BirpcReturn<ServiceWorkerFunctions, WorkerFunctions>> {
+  return new Promise((resolve) => {
+    // Phase 1: Handshake — wait for SW's channel-ready before creating birpc
+    port.onmessage = (e: MessageEvent) => {
+      if (e.data?.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'sw') {
+        console.log('[vrowser-worker] SW channel ready, creating birpc')
+
+        // Phase 2: Replace onmessage with birpc
+        const rpc = createBirpc<ServiceWorkerFunctions, WorkerFunctions>(
+          handlers,
+          {
+            post: data => port.postMessage(data),
+            on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
+          }
+        )
+
+        resolve(rpc)
+      }
+    }
+
+    // Send WW's channel-ready first
+    port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'ww' })
+  })
 }
 
 export async function bundle(files: Record<string, string>, input: string): Promise<[string, string]> {
@@ -224,4 +267,7 @@ export type {
   Update,
   UpdatePayload
 } from '#types/hmrPayload'
+
+// === RPC types ===
+export type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 

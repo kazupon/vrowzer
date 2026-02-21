@@ -1,59 +1,169 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
-import EditorPanel from './components/EditorPanel.vue'
-import PreviewPanel from './components/PreviewPanel.vue'
-import { getServiceWorker } from './sw/controller.ts'
+import { onMounted, onUnmounted } from "vue";
+import EditorPanel from "./components/EditorPanel.vue";
+import PreviewPanel from "./components/PreviewPanel.vue";
+import { getServiceWorker, initServiceWorker } from "./sw/controller.ts";
 
-import type { BundleRequestMessage, BundleResultMessage, FileChangeMessage } from './types.ts'
+import type {
+  BundleRequestMessage,
+  FileChangeMessage,
+  ServiceWorkerToMainMessage,
+  WorkerToMainMessage,
+} from "./types.ts";
 
-let rolldownWorker: Worker | null = null
+const previewBase = "/__preview__/";
 
-onMounted(() => {
-  // Initialize Rolldown Web Worker
-  rolldownWorker = new Worker(new URL('./worker.ts', import.meta.url), {
-    type: 'module'
-  })
+let rolldownWorker: Worker | null = null;
 
-  rolldownWorker.onmessage = (event: MessageEvent<BundleResultMessage>) => {
-    const { type, success, code, fileName, error } = event.data
-    if (type === 'bundle-result') {
+onMounted(async () => {
+  // Create Web Worker
+  rolldownWorker = new Worker(new URL("./worker.ts", import.meta.url), {
+    type: "module",
+  });
+
+  // Set up message handler for WW responses
+  rolldownWorker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
+    if (event.data.type === "bundle-result") {
+      const { success, code, fileName, error } = event.data;
       if (success) {
-        console.log('[App] Bundle success:', fileName, code?.slice(0, 100) + '...')
+        console.log("[App] Bundle success:", fileName, code?.slice(0, 100) + "...");
       } else {
-        console.error('[App] Bundle failed:', error)
+        console.error("[App] Bundle failed:", error);
       }
     }
-  }
+  };
 
-  rolldownWorker.onerror = error => {
-    console.error('[App] Rolldown Worker error:', error)
-  }
+  rolldownWorker.onerror = (error) => {
+    console.error("[App] Rolldown Worker error:", error);
+  };
 
-  // Test bundle on worker initialization
-  const testMessage: BundleRequestMessage = {
-    type: 'bundle',
-    files: {
-      '/src/index.js': 'import { add } from "./math.js"\nconsole.log(add(1, 2))',
-      '/src/math.js': 'export function add(a, b) { return a + b }'
+  // WW ready promise: send V_WW_SETUP and wait for V_WW_SETUP_ACK
+  const wwReady = new Promise<void>((resolve) => {
+    const prevHandler = rolldownWorker!.onmessage;
+    rolldownWorker!.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
+      if (event.data.type === "V_WW_SETUP_ACK") {
+        console.log("[App] WW setup complete");
+        rolldownWorker!.onmessage = prevHandler;
+        resolve();
+        return;
+      }
+      // Forward other messages to the previous handler
+      prevHandler?.call(rolldownWorker!, event);
+    };
+  });
+
+  console.log("[App] Sending V_WW_SETUP to worker...");
+  rolldownWorker.postMessage({
+    type: "V_WW_SETUP",
+    config: {
+      root: "/",
+      base: previewBase,
+      publicDir: "public",
+      optimizeDeps: { disabled: true },
+      experimental: {
+        importGlobRestoreExtension: false,
+        // NOTE: renderBuiltUrl is a function and cannot be cloned via postMessage.
+        // It will be set to the default value in the worker's setupWorker().
+        // renderBuiltUrl: () => undefined,
+        hmrPartialAccept: false,
+        enableNativePlugin: "v2",
+        bundledDev: false,
+      },
     },
-    input: '/src/index.js'
+    options: { basePath: previewBase },
+  });
+
+  // Initialize SW and WW in parallel
+  const [swController] = await Promise.all([
+    initServiceWorker()
+      .then((controller) => {
+        console.log("[App] SW ready:", controller.state);
+        return controller;
+      })
+      .catch((error) => {
+        console.error("[App] SW init failed:", error);
+        return null;
+      }),
+    wwReady,
+  ]);
+
+  // Both ready — establish MessageChannel between SW and WW
+  if (swController) {
+    await establishChannel();
   }
-  rolldownWorker.postMessage(testMessage)
-})
+
+  // Test bundle after setup
+  const testMessage: BundleRequestMessage = {
+    type: "bundle",
+    files: {
+      "/src/index.js": 'import { add } from "./math.js"\nconsole.log(add(1, 2))',
+      "/src/math.js": "export function add(a, b) { return a + b }",
+    },
+    input: "/src/index.js",
+  };
+  rolldownWorker.postMessage(testMessage);
+});
 
 onUnmounted(() => {
-  rolldownWorker?.terminate()
-  rolldownWorker = null
-})
+  rolldownWorker?.terminate();
+  rolldownWorker = null;
+});
+
+/**
+ * Establish MessageChannel between SW and WW.
+ * Creates a MessageChannel, sends one port to each side,
+ * and waits for both ACKs (handshake + birpc ready).
+ */
+async function establishChannel() {
+  const sw = getServiceWorker();
+  if (!sw || !rolldownWorker) {
+    console.error("[App] Cannot establish channel: missing SW or WW");
+    return;
+  }
+
+  const channel = new MessageChannel();
+
+  // Wait for SW's ACK (via navigator.serviceWorker message)
+  const swAck = new Promise<void>((resolve) => {
+    const handler = (event: MessageEvent<ServiceWorkerToMainMessage>) => {
+      if (event.data?.type === "V_WW_CONNECT_PORT_ACK") {
+        navigator.serviceWorker.removeEventListener("message", handler);
+        resolve();
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+  });
+
+  // Wait for WW's ACK (via worker.onmessage)
+  const wwAck = new Promise<void>((resolve) => {
+    const prevHandler = rolldownWorker!.onmessage;
+    rolldownWorker!.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
+      if (event.data.type === "V_SW_CONNECT_PORT_ACK") {
+        rolldownWorker!.onmessage = prevHandler;
+        resolve();
+        return;
+      }
+      prevHandler?.call(rolldownWorker!, event);
+    };
+  });
+
+  // Transfer ports
+  sw.postMessage({ type: "V_WW_CONNECT_PORT" }, [channel.port1]);
+  rolldownWorker.postMessage({ type: "V_SW_CONNECT_PORT" }, [channel.port2]);
+
+  // Wait for both sides to complete handshake + birpc setup
+  await Promise.all([swAck, wwAck]);
+  console.log("[App] SW<->WW MessageChannel fully established");
+}
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
-  const serviceWorker = getServiceWorker()
+  const serviceWorker = getServiceWorker();
   const message: FileChangeMessage = {
-    type: 'file-change',
+    type: "file-change",
     path,
-    content
-  }
-  serviceWorker?.postMessage(message)
+    content,
+  };
+  serviceWorker?.postMessage(message);
 }
 </script>
 

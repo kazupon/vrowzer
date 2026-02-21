@@ -13,20 +13,34 @@ const PREVIEW_URL = '/__preview__/'
 
 let stateChangeHandler: ((info: StateChangeInfo) => void) | null = null
 let controllerRef: SvcWorkerController | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
+  // SW controller may not be available yet (initialized in App.vue onMounted).
+  // Poll until it becomes available, then set up state change listener.
+  tryInitController()
+  if (!controllerRef) {
+    pollTimer = setInterval(() => {
+      tryInitController()
+      if (controllerRef && pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+      }
+    }, 100)
+  }
+})
 
+function tryInitController() {
   const controller = getController()
   if (!controller) {
-    error.value = 'Service Worker Controller not available'
     return
   }
 
   controllerRef = controller
+  error.value = null
 
   if (controller.state === 'activated') {
     isServiceWorkerReady.value = true
-    error.value = null
     loadIframe()
     return
   }
@@ -40,9 +54,13 @@ onMounted(() => {
   }
 
   controller.on('changeState', stateChangeHandler)
-})
+}
 
 onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
   if (controllerRef && stateChangeHandler) {
     controllerRef.off('changeState', stateChangeHandler)
   }

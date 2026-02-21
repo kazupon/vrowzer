@@ -1,9 +1,9 @@
 /// <reference lib="webworker" />
 
 import { fs, vol, watch } from '@vrowser/fs'
-import { createServer, getRequestPath } from '@vrowser/vite-dev-server'
 import client from '@vrowser/vite-dev-server/dist/client/client.mjs?raw'
 import env from '@vrowser/vite-dev-server/dist/client/env.mjs?raw'
+import { createServer, getRequestPath } from '@vrowser/vite-dev-server/service-worker'
 
 import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
 

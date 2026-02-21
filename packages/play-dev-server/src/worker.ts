@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import type { BundleRequestMessage, BundleResultMessage } from './types.ts'
+import type { BundleResultMessage, MainToWorkerMessage } from './types.ts'
 
 declare const self: DedicatedWorkerGlobalScope
 
@@ -11,41 +11,89 @@ let viteWebWorkerPromise: Promise<typeof import('@vrowser/vite-dev-server/web-wo
 function loadViteWebWorker() {
   if (!viteWebWorkerPromise) {
     viteWebWorkerPromise = (async () => {
-      const module = await import('@vrowser/vite-dev-server/web-worker')
-      return module
+      return await import('@vrowser/vite-dev-server/web-worker')
     })()
   }
   return viteWebWorkerPromise
 }
 
-const previewBase = '/__preview__/'
+let setupDone = false
 
-self.onmessage = async (event: MessageEvent<BundleRequestMessage>) => {
-  const { type, files, input } = event.data
+self.onmessage = async (event: MessageEvent<MainToWorkerMessage>) => {
+  const { type } = event.data
 
-  const { setupWorker, bundle } = await loadViteWebWorker()
-  await setupWorker(
-    {
-      root: '/',
-      base: previewBase,
-      publicDir: 'public',
-      // NOTE(kazupon): disable optimizeDeps for sw dev server, because vite optimizer is not working well on service worker environment.
-      optimizeDeps: {
-        disabled: true
-      },
-      experimental: {
-        importGlobRestoreExtension: false,
-        renderBuiltUrl: () => undefined,
-        hmrPartialAccept: false,
-        enableNativePlugin: 'v2',
-        bundledDev: false
-      }
-    },
-    { basePath: previewBase }
-  )
-
-  if (type === 'bundle') {
+  // ---- V_WW_SETUP: Initialize worker with config ----
+  if (type === 'V_WW_SETUP') {
     try {
+      console.log('[Rolldown Worker] V_WW_SETUP received, loading vite-dev-server/web-worker...')
+      const { setupWorker } = await loadViteWebWorker()
+      console.log('[Rolldown Worker] setupWorker loaded, initializing...')
+      await setupWorker(event.data.config, event.data.options)
+      setupDone = true
+      self.postMessage({ type: 'V_WW_SETUP_ACK' })
+      console.log('[Rolldown Worker] setup complete')
+    } catch (error) {
+      console.error('[Rolldown Worker] V_WW_SETUP failed:', error)
+    }
+    return
+  }
+
+  // ---- V_SW_CONNECT_PORT: Accept MessagePort from SW via Main Thread ----
+  if (type === 'V_SW_CONNECT_PORT') {
+    const port = event.ports[0]
+    if (!port) {
+      console.error('[Rolldown Worker] V_SW_CONNECT_PORT: no port received')
+      return
+    }
+
+    const { connectServiceWorkerPort } = await loadViteWebWorker()
+    const rpc = await connectServiceWorkerPort(port, {
+      async transformRequest(url, options) {
+        // TODO: delegate to DevEnvironment.transformRequest
+        console.log('[Rolldown Worker] transformRequest:', url, options)
+        return null
+      },
+      async transformIndexHtml(url, html, _originalUrl) {
+        // TODO: delegate to devHtmlTransformFn
+        console.log('[Rolldown Worker] transformIndexHtml:', url)
+        return html
+      }
+    })
+
+    // Notify Main Thread that handshake is complete
+    self.postMessage({ type: 'V_SW_CONNECT_PORT_ACK' })
+    console.log('[Rolldown Worker] SW<->WW birpc channel established', rpc)
+    return
+  }
+
+  // ---- bundle: Bundle request ----
+  if (type === 'bundle') {
+    const { files, input } = event.data
+
+    // Ensure setupWorker has been called
+    if (!setupDone) {
+      const { setupWorker } = await loadViteWebWorker()
+      await setupWorker(
+        {
+          root: '/',
+          base: '/__preview__/',
+          publicDir: 'public',
+          optimizeDeps: { disabled: true },
+          experimental: {
+            importGlobRestoreExtension: false,
+            renderBuiltUrl: () => undefined,
+            hmrPartialAccept: false,
+            enableNativePlugin: 'v2',
+            bundledDev: false
+          }
+        },
+        { basePath: '/__preview__/' }
+      )
+      setupDone = true
+    }
+
+    try {
+      const { bundle } = await loadViteWebWorker()
       const [code, fileName] = await bundle(files, input)
       const result: BundleResultMessage = {
         type: 'bundle-result',

@@ -619,6 +619,9 @@ importers:
       '@vrowser/unplugin-service-worker':
         specifier: workspace:*
         version: link:../unplugin-service-worker
+      birpc:
+        specifier: ^4.0.0
+        version: 4.0.0
       convert-source-map:
         specifier: ^2.0.0
         version: 2.0.0
