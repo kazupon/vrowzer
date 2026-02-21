@@ -16,7 +16,7 @@ let controllerRef: SvcWorkerController | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
-  // SW controller may not be available yet (initialized in App.vue onMounted).
+  // service worker controller may not be available yet (initialized in App.vue onMounted).
   // Poll until it becomes available, then set up state change listener.
   tryInitController()
   if (!controllerRef) {
@@ -72,17 +72,17 @@ async function loadIframe() {
     return
   }
 
-  // credentialless iframes don't use SW for navigation requests (setting src),
-  // but fetch() inside the iframe DOES go through the SW.
+  // credentialless iframes don't use service worker for navigation requests (setting src),
+  // but fetch() inside the iframe DOES go through the service worker.
   // So we use a srcdoc bootstrap that fetches the preview HTML via fetch()
   // and writes it to the document.
-  // credentialless iframes don't use SW for navigation requests (setting src),
-  // but fetch() inside the iframe DOES go through the SW.
+  // credentialless iframes don't use service worker for navigation requests (setting src),
+  // but fetch() inside the iframe DOES go through the service worker.
   // Use srcdoc bootstrap to fetch preview HTML via fetch().
   //
-  // If SW is not yet the controller (e.g. after hard reload), the fetch
+  // If service worker is not yet the controller (e.g. after hard reload), the fetch
   // hits Vite's preview-guard middleware which returns a 503 with auto-reload.
-  // The iframe will keep reloading until SW becomes the controller and
+  // The iframe will keep reloading until service worker becomes the controller and
   // returns the actual preview content.
   const bootstrapHtml = `<!doctype html>
 <html>

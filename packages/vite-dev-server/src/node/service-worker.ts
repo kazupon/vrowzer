@@ -29,7 +29,6 @@ import { notFoundMiddleware } from './server/middlewares/notFound'
 import { servePublicMiddleware, serveRawFsMiddleware, serveStaticMiddleware } from './server/middlewares/static'
 import { timeMiddleware } from './server/middlewares/time'
 import { transformMiddleware } from './server/middlewares/transform'
-import { ModuleGraph } from './server/mixedModuleGraph'
 import {
   BasicMinimalPluginContext,
   basePluginContextMeta
@@ -45,21 +44,16 @@ import {
 } from './watch'
 
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
+import type { ConnectionEvent, ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
 import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
-import type { SourceMap } from 'rolldown'
-import type { ModuleRunner } from 'vite/module-runner'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
 import type { MinimalPluginContextWithoutEnvironment } from './plugin'
 import type { DevEnvironment } from './server/environment'
-import type { HmrOptions, NormalizedHotChannel } from './server/hmr'
-import type { ModuleNode } from './server/mixedModuleGraph'
-import type { PluginContainer } from './server/pluginContainer'
-import type { TransformOptions, TransformResult } from './server/transformRequest'
-import type { MessageChannelServer } from './server/ws'
-import type { BindCLIShortcutsOptions, ShortcutsState } from './shortcuts'
+import type { HmrOptions } from './server/hmr'
+import type { ViteDevServer } from './server/index'
+import type { ShortcutsState } from './shortcuts'
 import type { RequiredExceptFor } from './typeUtils'
 
 export * from './server/middlewares/utils'
@@ -258,182 +252,34 @@ export interface ListenableViteDevServer {
    *
    * @returns The ViteDevServer instance
    */
-  listen(): Promise<Omit<ViteDevServer, 'listen'>>
+  listen(): Promise<ViteDevServerForServiceWorker>
 }
 
 /**
- * Minimal Vite Dev Server interface for Service Worker environment
+ * Subset of ViteDevServer for Service Worker environment.
+ *
+ * The full ViteDevServer (defined in server/index.ts) is the single source of truth.
+ * This type picks the properties needed by the SW proxy: fetch handling, middleware,
+ * and birpc-delegated transform methods.
  */
-export interface ViteDevServer {
-  /**
-   * The resolved vite config object
-   */
-  config: ResolvedConfig
-  /**
-   * A Hono app instance.
-   * - Can be used to attach custom middlewares to the dev server.
-   * - Can also be used as the handler function in Service Worker's fetch event
-   * - Compatible with Web Standard Request/Response API
-   */
-  middlewares: Hono<ViteEnv, BlankSchema, '/'>
-  /**
-   * native Node http server instance
-   * will be null in middleware mode
-   */
-  // httpServer: HttpServer | null
-  httpServer: HttpServer
-  /**
-   * Chokidar watcher instance. If `config.server.watch` is set to `null`,
-   * it will not watch any files and calling `add` or `unwatch` will have no effect.
-   * https://github.com/paulmillr/chokidar/tree/3.6.0#api
-   */
-  watcher: FSWatcher
-  /**
-   * The MessageChannel server that sends HMR payloads to the client.
-   * This is the Service Worker equivalent of WebSocket server in standard Vite.
-   */
-  ws: MessageChannelServer
-  /**
-   * An alias to `server.environments.client.hot`.
-   * If you want to interact with all environments, loop over `server.environments`.
-   */
-  hot: NormalizedHotChannel
-  /**
-   * Rollup plugin container that can run plugin hooks on a given file
-   */
-  pluginContainer: PluginContainer
-  /**
-   * Module execution environments attached to the Vite server.
-   */
-  environments: Record<'client' | 'ssr' | (string & {}), DevEnvironment>
-  /**
-   * Module graph that tracks the import relationships, url to file mapping
-   * and hmr state.
-   */
-  moduleGraph: ModuleGraph
-  /**
-   * The resolved urls Vite prints on the CLI (URL-encoded). Returns `null`
-   * in middleware mode or if the server is not listening on any port.
-   */
-  resolvedUrls: ResolvedServerUrls | null
-  /**
-    * Programmatically resolve, load and transform a URL and get the result
-    * without going through the http request pipeline.
-    */
-  transformRequest(
-    url: string,
-    options?: TransformOptions,
-  ): Promise<TransformResult | null>
-  /**
-   * Same as `transformRequest` but only warm up the URLs so the next request
-   * will already be cached. The function will never throw as it handles and
-   * reports errors internally.
-   */
-  warmupRequest(url: string, options?: TransformOptions): Promise<void>
-  /**
-   * Apply vite built-in HTML transforms and any plugin HTML transforms.
-   */
-  transformIndexHtml(
-    url: string,
-    html: string,
-    originalUrl?: string,
-  ): Promise<string>
-  /**
-   * Transform module code into SSR format.
-   */
-  ssrTransform(
-    code: string,
-    inMap: SourceMap | { mappings: '' } | null,
-    url: string,
-    originalCode?: string,
-  ): Promise<TransformResult | null>
-  /**
-   * Load a given URL as an instantiated module for SSR.
-   */
-  ssrLoadModule(
-    url: string,
-    opts?: { fixStacktrace?: boolean },
-  ): Promise<Record<string, any>>
-  /**
-   * Returns a fixed version of the given stack
-   */
-  ssrRewriteStacktrace(stack: string): string
-  /**
-   * Mutates the given SSR error by rewriting the stacktrace
-   */
-  ssrFixStacktrace(e: Error): void
-  /**
-   * Triggers HMR for a module in the module graph. You can use the `server.moduleGraph`
-   * API to retrieve the module to be reloaded. If `hmr` is false, this is a no-op.
-   */
-  reloadModule(module: ModuleNode): Promise<void>
-  /**
-   * Start the server.
-   */
-  listen(port?: number, isRestart?: boolean): Promise<ViteDevServer>
-  /**
-   * Stop the server.
-   */
-  close(): Promise<void>
-  /**
-   * Print server urls
-   */
-  printUrls(): void
-  /**
-   * Bind CLI shortcuts
-   */
-  bindCLIShortcuts(options?: BindCLIShortcutsOptions<ViteDevServer>): void
-  /**
-   * Restart the server.
-   *
-   * @param forceOptimize - force the optimizer to re-bundle, same as --force cli flag
-   */
-  restart(forceOptimize?: boolean): Promise<void>
-  /**
-   * Open browser
-   */
-  openBrowser(): void
-  /**
-   * Calling `await server.waitForRequestsIdle(id)` will wait until all static imports
-   * are processed. If called from a load or transform plugin hook, the id needs to be
-   * passed as a parameter to avoid deadlocks. Calling this function after the first
-   * static imports section of the module graph has been processed will resolve immediately.
-   */
-  waitForRequestsIdle: (ignoredId?: string) => Promise<void>
-  /**
-   * @internal
-   */
-  _setInternalServer(server: ViteDevServer): void
-  /**
-   * @internal
-   */
-  _restartPromise: Promise<void> | null
-  /**
-   * @internal
-   */
-  _forceOptimizeOnRestart: boolean
-  /**
-   * @internal
-   */
-  _shortcutsState?: ShortcutsState<ViteDevServer>
-  /**
-   * @internal
-   */
-  _currentServerPort?: number | undefined
-  /**
-   * @internal
-   */
-  _configServerPort?: number | undefined
-  /**
-   * @internal
-   */
-  _ssrCompatModuleRunner?: ModuleRunner
-}
-
-export interface ResolvedServerUrls {
-  local: string[]
-  network: string[]
-}
+export type ViteDevServerForServiceWorker = Pick<ViteDevServer,
+  | 'config'
+  | 'middlewares'
+  | 'httpServer'
+  | 'resolvedUrls'
+  | 'transformRequest'
+  | 'warmupRequest'
+  | 'transformIndexHtml'
+  | 'close'
+  | 'openBrowser'
+  | '_setInternalServer'
+  | '_restartPromise'
+  | '_forceOptimizeOnRestart'
+  | '_shortcutsState'
+  | '_currentServerPort'
+  | '_configServerPort'
+  | '_ssrCompatModuleRunner'
+>
 
 /**
  * Options for {@link createServer} function.
@@ -456,15 +302,6 @@ export interface CreateServerOptions {
    * @default '/'
    */
   basePath?: string
-  /**
-   * MessagePort connected to the Web Worker for RPC communication.
-   * When provided, transform requests are delegated to the Web Worker
-   * via birpc instead of being processed locally.
-   *
-   * This port should be established via the V_WW_CONNECT_PORT / V_SW_CONNECT_PORT
-   * handshake protocol before calling listen().
-   */
-  workerPort?: MessagePort
   /**
    * FSWawtcher factory function to create a custom FSWatcher instance.
    */
@@ -514,7 +351,7 @@ export function createServer(
   /**
    * Start the Vite Dev Server
    */
-  async function listen(): Promise<ViteDevServer> {
+  async function listen(): Promise<ViteDevServerForServiceWorker> {
     const config = isResolvedConfig(inlineConfig)
       ? inlineConfig
       : await resolveConfig(inlineConfig, 'serve')
@@ -567,21 +404,10 @@ export function createServer(
 
     const closeHttpServer = createServerCloseFn(httpServer)
 
-    // Setup birpc RPC client for delegating transform to Web Worker
+    // birpc RPC client for delegating transform to Web Worker.
+    // Initialized dynamically when a V_WW_CONNECT_PORT connection arrives
+    // via the httpServer's connection event (after startServer enables listenConnections).
     let workerRpc: ReturnType<typeof createBirpc<WorkerFunctions, ServiceWorkerFunctions>> | null = null
-    if (options.workerPort) {
-      const port = options.workerPort
-      workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
-        {
-          // SW functions callable from WW (currently empty, future: HMR relay etc.)
-        },
-        {
-          post: data => port.postMessage(data),
-          on: fn => { port.onmessage = (e: MessageEvent) => fn(e.data) },
-          timeout: 30_000,
-        }
-      )
-    }
 
     // const devHtmlTransformFn = createDevHtmlTransformFn(config)
 
@@ -601,26 +427,14 @@ export function createServer(
       server._ssrCompatModuleRunner = undefined
     }
 
-    let server: ViteDevServer = {
+    let server: ViteDevServerForServiceWorker = {
       config,
       middlewares,
       httpServer,
       // watcher,
 
       resolvedUrls: null, // will be set on listen
-      // ssrTransform(
-      //   code: string,
-      //   inMap: SourceMap | { mappings: '' } | null,
-      //   url: string,
-      //   originalCode = code,
-      // ) {
-      //   return ssrTransform(code, inMap, url, originalCode, {
-      //     json: {
-      //       stringify:
-      //         config.json.stringify === true && config.json.namedExports !== true,
-      //     },
-      //   })
-      // },
+
       transformRequest(url, options) {
         if (!workerRpc) {
           throw new Error('[@vrowser/vite-dev-server/service-worker] transformRequest requires workerPort to be set in CreateServerOptions')
@@ -637,104 +451,8 @@ export function createServer(
         }
         return workerRpc.transformIndexHtml(url, html, originalUrl)
       },
-      // async ssrLoadModule(url, opts?: { fixStacktrace?: boolean }) {
-      //   warnFutureDeprecation(config, 'removeSsrLoadModule')
-      //   return ssrLoadModule(url, server, opts?.fixStacktrace)
-      // },
-      // ssrFixStacktrace(e) {
-      //   warnFutureDeprecation(
-      //     config,
-      //     'removeSsrLoadModule',
-      //     "ssrFixStacktrace doesn't need to be used for Environment Module Runners.",
-      //   )
-      //   ssrFixStacktrace(e, server.environments.ssr.moduleGraph)
-      // },
-      // ssrRewriteStacktrace(stack: string) {
-      //   warnFutureDeprecation(
-      //     config,
-      //     'removeSsrLoadModule',
-      //     "ssrRewriteStacktrace doesn't need to be used for Environment Module Runners.",
-      //   )
-      //   return ssrRewriteStacktrace(stack, server.environments.ssr.moduleGraph)
-      //     .result
-      // },
-      // async reloadModule(module) {
-      //   warnFutureDeprecation(config, 'removeServerReloadModule')
-      //   if (serverConfig.hmr !== false && module.file) {
-      //     // TODO: Should we also update the node moduleGraph for backward compatibility?
-      //     const environmentModule = (module._clientModule ?? module._ssrModule)!
-      //     updateModules(
-      //       environments[environmentModule.environment]!,
-      //       module.file,
-      //       [environmentModule],
-      //       monotonicDateNow(),
-      //     )
-      //   }
-      // },
-      // async listen(port?: number, isRestart?: boolean) {
-      //   const hostname = await resolveHostname(config.server.host)
-      //   if (httpServer) {
-      //     httpServer.prependListener('listening', () => {
-      //       server.resolvedUrls = resolveServerUrls(
-      //         httpServer,
-      //         config.server,
-      //         hostname,
-      //         httpsOptions,
-      //         config,
-      //       )
-      //     })
-      //   }
-      //   await startServer(server, hostname, port)
-      //   if (httpServer) {
-      //     if (!isRestart && config.server.open) server.openBrowser()
-      //   }
-      //   return server
-      // },
       openBrowser() {
         console.warn('[@vrowser/vite-dev-server] not supported: server.openBrowser()')
-        // NOTE(kazupon): commented out, because Service Worker server don't need to open browser
-        // const options = server.config.server
-        // const url = getServerUrlByHost(server.resolvedUrls, options.host)
-        // if (url) {
-        //   const path =
-        //     typeof options.open === 'string'
-        //       ? new URL(options.open, url).href
-        //       : url
-
-        //   // We know the url that the browser would be opened to, so we can
-        //   // start the request while we are awaiting the browser. This will
-        //   // start the crawling of static imports ~500ms before.
-        //   // preTransformRequests needs to be enabled for this optimization.
-        //   if (server.config.server.preTransformRequests) {
-        //     setTimeout(() => {
-        //       const getMethod = path.startsWith('https:') ? httpsGet : httpGet
-
-        //       getMethod(
-        //         path,
-        //         {
-        //           headers: {
-        //             // Allow the history middleware to redirect to /index.html
-        //             Accept: 'text/html',
-        //           },
-        //         },
-        //         (res) => {
-        //           res.on('end', () => {
-        //             // Ignore response, scripts discovered while processing the entry
-        //             // will be preprocessed (server.config.server.preTransformRequests)
-        //           })
-        //         },
-        //       )
-        //         .on('error', () => {
-        //           // Ignore errors
-        //         })
-        //         .end()
-        //     }, 0)
-        //   }
-
-        //   _openBrowser(path, true, server.config.logger)
-        // } else {
-        //   server.config.logger.warn('No URL available to open in browser')
-        // }
       },
       async close() {
         if (!closeServerPromise) {
@@ -742,43 +460,10 @@ export function createServer(
         }
         return closeServerPromise
       },
-      // printUrls() {
-      //   if (server.resolvedUrls) {
-      //     printServerUrls(
-      //       server.resolvedUrls,
-      //       serverConfig.host,
-      //       config.logger.info,
-      //     )
-      //   } else if (middlewareMode) {
-      //     throw new Error('cannot print server URLs in middleware mode.')
-      //   } else {
-      //     throw new Error(
-      //       'cannot print server URLs before server.listen is called.',
-      //     )
-      //   }
-      // },
-      // bindCLIShortcuts(options) {
-      //   bindCLIShortcuts(server, options)
-      // },
-      // async restart(forceOptimize?: boolean) {
-      //   if (!server._restartPromise) {
-      //     server._forceOptimizeOnRestart = !!forceOptimize
-      //     server._restartPromise = restartServer(server).finally(() => {
-      //       server._restartPromise = null
-      //       server._forceOptimizeOnRestart = false
-      //     })
-      //   }
-      //   return server._restartPromise
-      // },
-
-      // waitForRequestsIdle(ignoredId?: string): Promise<void> {
-      //   return environments.client.waitForRequestsIdle(ignoredId)
-      // },
-
       _setInternalServer(_server: ViteDevServer) {
         // Rebind internal the server variable so functions reference the user
         // server instance after a restart
-        server = _server
+        server = _server as unknown as ViteDevServerForServiceWorker
       },
       _restartPromise: null,
       _forceOptimizeOnRestart: false,
@@ -787,10 +472,10 @@ export function createServer(
 
     // maintain consistency with the server instance after restarting.
     const reflexServer = new Proxy(server, {
-      get: (_, property: keyof ViteDevServer) => {
+      get: (_, property: keyof ViteDevServerForServiceWorker) => {
         return server[property]
       },
-      set: (_, property: keyof ViteDevServer, value: never) => {
+      set: (_, property: keyof ViteDevServerForServiceWorker, value: never) => {
         server[property] = value
         return true
       },
@@ -840,7 +525,7 @@ export function createServer(
     )
     const postHooks: ((() => void) | void)[] = []
     for (const hook of config.getSortedPluginHooks('configureServer')) {
-      postHooks.push(await hook.call(configureServerContext, reflexServer))
+      postHooks.push(await hook.call(configureServerContext, reflexServer as unknown as ViteDevServer))
     }
 
     // Internal middlewares ------------------------------------------------------
@@ -962,6 +647,53 @@ export function createServer(
       httpServer.emit('error', err as Error)
     }
 
+    // Listen for V_WW_CONNECT_PORT connections from Main Thread.
+    // When a MessagePort for Web Worker communication arrives,
+    // perform the V_WW_SW_CHANNEL_READY handshake, then create
+    // a birpc RPC client for delegating transform requests to the WW.
+    const V_WW_CONNECT_PORT = 'V_WW_CONNECT_PORT'
+    const V_WW_SW_CHANNEL_READY = 'V_WW_SW_CHANNEL_READY'
+    const V_WW_CONNECT_PORT_ACK = 'V_WW_CONNECT_PORT_ACK'
+
+    httpServer.on('connection', (event: ConnectionEvent) => {
+      const data = event.data as { type?: string } | undefined
+      if (data?.type !== V_WW_CONNECT_PORT || !event.ports[0]) {
+        return
+      }
+
+      const port = event.ports[0]
+      const clientId = event.clientId
+      console.log('[vrowser-vite-dev-server/service-worker] Worker port received via connection event')
+
+      // Phase 1: Handshake — wait for WW's channel-ready before creating birpc
+      port.onmessage = async (e: MessageEvent) => {
+        if (e.data?.type === V_WW_SW_CHANNEL_READY && e.data.source === 'ww') {
+          // Reply with SW's channel-ready
+          port.postMessage({ type: V_WW_SW_CHANNEL_READY, source: 'sw' })
+
+          // Notify the originating client that the connection is established
+          if (clientId) {
+            const client = await serviceWorkerScope.clients.get(clientId)
+            client?.postMessage({ type: V_WW_CONNECT_PORT_ACK })
+          }
+
+          // Phase 2: Replace onmessage with birpc
+          workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
+            {
+              // ServiceWorkerFunctions handlers (currently empty, future: HMR relay etc.)
+            },
+            {
+              post: rpcData => port.postMessage(rpcData),
+              on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
+              timeout: 30_000,
+            }
+          )
+
+          console.log('[vrowser-vite-dev-server/service-worker] Worker RPC established via birpc')
+        }
+      }
+    })
+
     return server
   }
 
@@ -972,7 +704,7 @@ export function createServer(
 }
 
 async function startServer(
-  server: ViteDevServer,
+  server: ViteDevServerForServiceWorker,
   options?: ListenOptions & { port?: number },
 ): Promise<void> {
   const httpServer = server.httpServer
@@ -1131,4 +863,14 @@ export type {
   ResolverObject
 } from '#dep-types/alias'
 export type { Hono } from 'hono'
+
+// === Protocol message types & constants ===
+export {
+  V_WW_CONNECT_PORT,
+  V_WW_CONNECT_PORT_ACK,
+  V_WW_SW_CHANNEL_READY
+} from '../shared/messages'
+export type {
+  ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage, WebWorkerServiceWorkerChannelReadyMessage
+} from '../shared/messages'
 

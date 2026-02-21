@@ -47,8 +47,14 @@
       "types": "./client.d.ts"
     },
     "./module-runner": "./dist/node/module-runner.js",
-    "./web-worker": "./dist/node/worker.js",
-    "./service-worker": "./dist/node/service-worker.js",
+    "./web-worker": {
+      "types": "./dist/node/worker.d.ts",
+      "default": "./dist/node/worker.js"
+    },
+    "./service-worker": {
+      "types": "./dist/node/service-worker.d.ts",
+      "default": "./dist/node/service-worker.js"
+    },
     "./internal": "./dist/node/internal.js",
     "./dist/client/*": "./dist/client/*",
     "./types/*": {

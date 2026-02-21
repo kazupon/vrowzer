@@ -27,6 +27,22 @@ import type { BirpcReturn } from 'birpc'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { DevEnvironment } from './server/environment'
+import type { ViteDevServer } from './server/index'
+
+/**
+ * Subset of ViteDevServer for Web Worker environment.
+ *
+ * The full ViteDevServer includes SW-specific properties (middlewares, httpServer, etc.)
+ * that are not available in the Web Worker. This type picks only the properties
+ * needed by Environment APIs (warmupFiles, createDevHtmlTransformFn, etc.).
+ */
+export type ViteDevServerForWorker = Pick<ViteDevServer,
+  | 'config'
+  | 'environments'
+  | 'transformRequest'
+  | 'warmupRequest'
+  | 'transformIndexHtml'
+>
 
 export interface SetupWorkerOptions {
   /**
@@ -270,4 +286,15 @@ export type {
 
 // === RPC types ===
 export type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
+
+// === Protocol message types & constants ===
+export {
+  V_SW_CONNECT_PORT,
+  V_SW_CONNECT_PORT_ACK, V_WW_CONNECT_PORT,
+  V_WW_CONNECT_PORT_ACK, V_WW_SETUP,
+  V_WW_SETUP_ACK, V_WW_SW_CHANNEL_READY
+} from '../shared/messages'
+export type {
+  ConnectServiceWorkerPortAckMessage, ConnectServiceWorkerPortMessage, ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage, SetupWorkerAckMessage, SetupWorkerMessage, WebWorkerServiceWorkerChannelReadyMessage
+} from '../shared/messages'
 

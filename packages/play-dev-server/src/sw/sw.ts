@@ -29,7 +29,7 @@ const listenableServer = createServer(
     server: { middlewareMode: false },
     base: previewBase,
     publicDir: 'public',
-    // NOTE(kazupon): disable optimizeDeps for sw dev server, because vite optimizer is not working well on service worker environment.
+    // NOTE(kazupon): disable optimizeDeps for service worker dev server, because vite optimizer is not working well on service worker environment.
     optimizeDeps: {
       disabled: true
     },
@@ -63,7 +63,7 @@ const listenableServer = createServer(
 
 // Add cross-origin isolation headers for COEP compatibility.
 // The main page sets COEP: require-corp, so all responses (including
-// SW-served iframe content) must include CORP headers.
+// service worker served iframe content) must include CORP headers.
 // COEP on the iframe response is also needed to enable cross-origin
 // isolation within the iframe context.
 listenableServer.middlewares.push(async (c, next) => {

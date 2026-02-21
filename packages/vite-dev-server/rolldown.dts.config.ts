@@ -39,6 +39,7 @@ export default defineConfig({
   external,
   plugins: [
     patchTypes(),
+    emitChunkJsStubs(),
     addNodePrefix(),
     dts({
       tsconfig: './tsconfig.json',
@@ -399,6 +400,35 @@ function escapeRegex(str: string): string {
 
 function unique<T>(arr: T[]): T[] {
   return Array.from(new Set(arr))
+}
+
+/**
+ * Emit empty .js stub files for d.ts chunks that reference .js imports.
+ * rolldown-plugin-dts may generate d.ts files that import from `./chunks/foo.js`,
+ * but the JS build may inline those modules instead of emitting separate chunk files.
+ * Without the .js stubs, TypeScript resolution fails with "Cannot find module".
+ */
+function emitChunkJsStubs(): Plugin {
+  return {
+    name: 'emit-chunk-js-stubs',
+    generateBundle: {
+      order: 'post',
+      handler(_opts, bundle) {
+        for (const fileName of Object.keys(bundle)) {
+          if (fileName.startsWith('chunks/') && fileName.endsWith('.d.ts') && !fileName.endsWith('.d.ts.map')) {
+            const jsFileName = fileName.replace(/\.d\.ts$/, '.js')
+            if (!bundle[jsFileName]) {
+              this.emitFile({
+                type: 'asset',
+                fileName: jsFileName,
+                source: '// stub for d.ts resolution\n'
+              })
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 function addNodePrefix(): Plugin {
