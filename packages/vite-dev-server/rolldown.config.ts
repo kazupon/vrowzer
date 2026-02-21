@@ -166,7 +166,7 @@ const webWorkerConfig = defineConfig({
     chunkFileNames: 'node/worker-chunks/[name]-[hash].js',
   },
   input: {
-    worker: path.resolve(__dirname, 'src/node/worker.ts'),
+    transformer: path.resolve(__dirname, 'src/node/transformer.ts'),
   },
   resolve: {
     alias: {
@@ -207,9 +207,9 @@ const webWorkerConfig = defineConfig({
     },
   },
   plugins: [
-    // Rewrite rolldown WASM/Worker URLs for worker.js output location.
+    // Rewrite rolldown WASM/Worker URLs for transformer.js output location.
     // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm),
-    // but worker.js is output directly to dist/node/ (no chunks), so URLs must be rewritten to ./
+    // but transformer.js is output directly to dist/node/ (no chunks), so URLs must be rewritten to ./
     {
       name: 'rewrite-rolldown-urls',
       renderChunk(code) {
@@ -280,7 +280,35 @@ const moduleRunnerConfig = defineConfig({
   // },
 })
 
-export default defineConfig([envConfig, clientConfig, nodeConfig, serviceWorkerConfig, webWorkerConfig, moduleRunnerConfig])
+// Lightweight Web Worker entry — does NOT bundle ./worker (transformer).
+// Dynamic import('./worker') at runtime resolves to the webWorkerConfig output (dist/node/worker.js).
+const webWorkerEntryConfig = defineConfig({
+  ...sharedNodeOptions,
+  input: {
+    'web-worker': path.resolve(__dirname, 'src/node/web-worker.ts'),
+  },
+  // Mark ./transformer as external so it's not bundled into web-worker.js.
+  external: [
+    /^\.\/transformer$/,
+  ],
+  plugins: [
+    // Fix external import path: rolldown resolves `./transformer` relative to source dir,
+    // but the output `dist/node/web-worker.js` needs `./transformer.js` (same directory).
+    {
+      name: 'fix-transformer-import-path',
+      renderChunk(code) {
+        const replaced = code.replace(
+          /await import\(["']\.\.\/transformer["']\)/g,
+          'await import("./transformer.js")'
+        )
+        if (replaced === code) {return null}
+        return { code: replaced }
+      }
+    }
+  ],
+})
+
+export default defineConfig([envConfig, clientConfig, nodeConfig, serviceWorkerConfig, webWorkerConfig, webWorkerEntryConfig, moduleRunnerConfig])
 
 // #region Plugins
 

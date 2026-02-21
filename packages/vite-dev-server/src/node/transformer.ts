@@ -4,6 +4,8 @@
  * This module exports everything needed to run DevEnvironment,
  * PluginContainer, ModuleGraph, transform pipeline, HMR computation,
  * and DepsOptimizer inside a Web Worker.
+ *
+ * @module node/transformer
  */
 
 /**

@@ -24,7 +24,8 @@ export default defineConfig({
   input: {
     index: './src/node/index.ts',
     'service-worker': './src/node/service-worker.ts',
-    worker: './src/node/worker.ts',
+    'web-worker': './src/node/web-worker.ts',
+    transformer: './src/node/transformer.ts',
     'module-runner': './src/module-runner/index.ts',
     internal: './src/node/internalIndex.ts'
   },
@@ -138,9 +139,10 @@ function patchTypes(): Plugin {
           ) {
             validateRunnerChunk.call(this, chunk, importBindings)
           } else if (
-            chunk.fileName.startsWith('worker') ||
+            chunk.fileName.startsWith('transformer') ||
+            chunk.fileName.startsWith('web-worker') ||
             chunk.fileName.startsWith('service-worker') ||
-            // shared chunks used by index, service-worker, worker, and moduleRunner
+            // shared chunks used by index, service-worker, transformer, web-worker, and moduleRunner
             chunk.fileName.startsWith('chunks/') ||
             chunk.fileName.startsWith('types.d-')
           ) {

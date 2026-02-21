@@ -48,8 +48,12 @@
     },
     "./module-runner": "./dist/node/module-runner.js",
     "./web-worker": {
-      "types": "./dist/node/worker.d.ts",
-      "default": "./dist/node/worker.js"
+      "types": "./dist/node/web-worker.d.ts",
+      "default": "./dist/node/web-worker.js"
+    },
+    "./transformer": {
+      "types": "./dist/node/transformer.d.ts",
+      "default": "./dist/node/transformer.js"
     },
     "./service-worker": {
       "types": "./dist/node/service-worker.d.ts",
