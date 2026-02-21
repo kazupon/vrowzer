@@ -43,9 +43,12 @@ import {
   resolveEmptyOutDir,
 } from './watch'
 
+const debug = createDebugger('vrowser:service-worker')
+
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-import type { ConnectionEvent, ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
+import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
 import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
+import type { ConnectWebWorkerPortMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
@@ -220,7 +223,7 @@ export type ServerHook = (
   server: ViteDevServer,
 ) => (() => void) | void | Promise<(() => void) | void>
 
-export type HttpServer = SvcWorkerServer
+export type HttpServer = SvcWorkerServer<ConnectWebWorkerPortMessage>
 
 /**
  * Vite Dev Server that can be started by calling `listen()`
@@ -264,6 +267,7 @@ export interface ListenableViteDevServer {
  */
 export type ViteDevServerForServiceWorker = Pick<ViteDevServer,
   | 'config'
+  | 'watcher'
   | 'middlewares'
   | 'httpServer'
   | 'resolvedUrls'
@@ -337,7 +341,7 @@ export function createServer(
 
   let middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
   const customMiddlewares: MiddlewareHandler<ViteEnv, string>[] = []
-  const httpServer = createSvcWorkerServer(serviceWorkerScope, {
+  const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage>(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: true,
     debug: createDebugger('vrowser:svc-worker-server')!,
@@ -355,7 +359,7 @@ export function createServer(
     const config = isResolvedConfig(inlineConfig)
       ? inlineConfig
       : await resolveConfig(inlineConfig, 'serve')
-    console.log('[vrowser-vite-dev-server] Vite Dev Server config:', config)
+    debug?.('config:', config)
 
     const initPublicFilesPromise = initPublicFiles(config)
 
@@ -431,7 +435,7 @@ export function createServer(
       config,
       middlewares,
       httpServer,
-      // watcher,
+      watcher,
 
       resolvedUrls: null, // will be set on listen
 
@@ -452,7 +456,7 @@ export function createServer(
         return workerRpc.transformIndexHtml(url, html, originalUrl)
       },
       openBrowser() {
-        console.warn('[@vrowser/vite-dev-server] not supported: server.openBrowser()')
+        debug?.('not supported: server.openBrowser()')
       },
       async close() {
         if (!closeServerPromise) {
@@ -651,30 +655,25 @@ export function createServer(
     // When a MessagePort for Web Worker communication arrives,
     // perform the V_WW_SW_CHANNEL_READY handshake, then create
     // a birpc RPC client for delegating transform requests to the WW.
-    const V_WW_CONNECT_PORT = 'V_WW_CONNECT_PORT'
-    const V_WW_SW_CHANNEL_READY = 'V_WW_SW_CHANNEL_READY'
-    const V_WW_CONNECT_PORT_ACK = 'V_WW_CONNECT_PORT_ACK'
-
-    httpServer.on('connection', (event: ConnectionEvent) => {
-      const data = event.data as { type?: string } | undefined
-      if (data?.type !== V_WW_CONNECT_PORT || !event.ports[0]) {
+    httpServer.on('connection', (event) => {
+      if (event.data?.type !== 'V_WW_CONNECT_PORT' || !event.ports[0]) {
         return
       }
 
       const port = event.ports[0]
       const clientId = event.clientId
-      console.log('[vrowser-vite-dev-server/service-worker] Worker port received via connection event')
+      debug?.('Worker port received via connection event')
 
       // Phase 1: Handshake — wait for WW's channel-ready before creating birpc
-      port.onmessage = async (e: MessageEvent) => {
-        if (e.data?.type === V_WW_SW_CHANNEL_READY && e.data.source === 'ww') {
+      port.onmessage = async (e: MessageEvent<WebWorkerServiceWorkerChannelReadyMessage>) => {
+        if (e.data.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'ww') {
           // Reply with SW's channel-ready
-          port.postMessage({ type: V_WW_SW_CHANNEL_READY, source: 'sw' })
+          port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'sw' })
 
           // Notify the originating client that the connection is established
           if (clientId) {
             const client = await serviceWorkerScope.clients.get(clientId)
-            client?.postMessage({ type: V_WW_CONNECT_PORT_ACK })
+            client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
           }
 
           // Phase 2: Replace onmessage with birpc
@@ -689,7 +688,7 @@ export function createServer(
             }
           )
 
-          console.log('[vrowser-vite-dev-server/service-worker] Worker RPC established via birpc')
+          debug?.('Worker RPC established via birpc')
         }
       }
     })

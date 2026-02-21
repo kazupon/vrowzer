@@ -18,10 +18,14 @@
  * @license MIT
  */
 
+import { createDebugger } from './utils'
+
 // NOTE: Only type-only imports from heavy modules.
 // Runtime imports of ./transformer happen inside listen() via dynamic import.
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage } from '../shared/messages'
 import type { ViteDevServerForWorker } from './transformer'
+
+const debug = createDebugger('vrowser:web-worker')
 
 /**
  * Messages handled internally by createServer().
@@ -100,12 +104,12 @@ export function createServer(
     switch (type) {
       case 'V_WW_SETUP': {
         try {
-          console.log('[vrowser-web-worker] V_WW_SETUP received, loading transformer...')
+          debug?.('V_WW_SETUP received, loading transformer...')
 
           // Dynamic import — heavy modules loaded here for the first time
           const transformer = await import('./transformer')
 
-          console.log('[vrowser-web-worker] transformer loaded, initializing...')
+          debug?.('transformer loaded, initializing...')
           await transformer.setupWorker(event.data.config, event.data.options)
 
           // Build ViteDevServerForWorker
@@ -114,24 +118,24 @@ export function createServer(
             config: event.data.config,
             environments: {} as any,
             transformRequest: async (url, _options) => {
-              console.log('[vrowser-web-worker] transformRequest:', url)
+              debug?.('transformRequest:', url)
               return null
             },
             warmupRequest: async (url) => {
               try { await server?.transformRequest(url) } catch { /* best-effort */ }
             },
             transformIndexHtml: async (url, html, _originalUrl) => {
-              console.log('[vrowser-web-worker] transformIndexHtml:', url)
+              debug?.('transformIndexHtml:', url)
               return html
             },
           }
 
           workerScope.postMessage({ type: 'V_WW_SETUP_ACK' })
-          console.log('[vrowser-web-worker] setup complete')
+          debug?.('setup complete')
 
           setupResolve?.(server)
         } catch (error) {
-          console.error('[vrowser-web-worker] V_WW_SETUP failed:', error)
+          debug?.('V_WW_SETUP failed:', error)
           setupReject?.(error instanceof Error ? error : new Error(String(error)))
         }
         break
@@ -140,11 +144,11 @@ export function createServer(
       case 'V_SW_CONNECT_PORT': {
         const port = event.ports[0]
         if (!port) {
-          console.error('[vrowser-web-worker] V_SW_CONNECT_PORT: no port received')
+          debug?.('V_SW_CONNECT_PORT: no port received')
           break
         }
         if (!server) {
-          console.error('[vrowser-web-worker] V_SW_CONNECT_PORT: server not initialized (V_WW_SETUP not received)')
+          debug?.('V_SW_CONNECT_PORT: server not initialized (V_WW_SETUP not received)')
           break
         }
 
@@ -155,7 +159,7 @@ export function createServer(
         })
 
         workerScope.postMessage({ type: 'V_SW_CONNECT_PORT_ACK' })
-        console.log('[vrowser-web-worker] SW<->WW birpc channel established')
+        debug?.('SW<->WW birpc channel established')
         break
       }
 
@@ -175,7 +179,7 @@ export function createServer(
           const timer = setTimeout(() => {
             setupResolve = null
             setupReject = null
-            reject(new Error(`[vrowser-web-worker] listen() timed out after ${timeout}ms waiting for V_WW_SETUP`))
+            reject(new Error(`listen() timed out after ${timeout}ms waiting for V_WW_SETUP`))
           }, timeout)
           setupResolve = (s) => { clearTimeout(timer); resolve(s) }
           setupReject = (e) => { clearTimeout(timer); reject(e) }

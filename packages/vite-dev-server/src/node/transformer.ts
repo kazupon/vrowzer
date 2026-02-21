@@ -19,6 +19,7 @@ import { memfs } from '@vrowser/rolldown/experimental'
 import { createBirpc } from 'birpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
+import { createDebugger } from './utils'
 import {
   getResolvedOutDirs,
   resolveChokidarOptions,
@@ -26,10 +27,13 @@ import {
 } from './watch'
 
 import type { BirpcReturn } from 'birpc'
+import type { WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { DevEnvironment } from './server/environment'
 import type { ViteDevServer } from './server/index'
+
+const debug = createDebugger('vrowser:transformer')
 
 /**
  * Subset of ViteDevServer for Web Worker environment.
@@ -46,6 +50,11 @@ export type ViteDevServerForWorker = Pick<ViteDevServer,
   | 'transformIndexHtml'
 >
 
+/**
+ * This module defines the Web Worker server for @vrowser/vite-dev-server.
+ * It handles the Web Worker side of the protocol for setup and Service Worker communication,
+ * as well as providing a lightweight API for the worker's main logic (e.g. DevEnvironment).
+ */
 export interface SetupWorkerOptions {
   /**
    * Base path for the Vite Dev Server routes.
@@ -61,6 +70,16 @@ export interface SetupWorkerOptions {
   previousEnvironments?: Record<string, DevEnvironment>
 }
 
+/**
+ * Initialize the Web Worker server and DevEnvironment.
+ *
+ * Waits for `V_WW_SETUP` message from Main Thread, dynamically imports the transformer module to load rolldown + DevEnvironment,
+ * resolves config, initializes DevEnvironment, and sends `V_WW_SETUP_ACK`.
+ * After `setupWorker()` resolves, `V_SW_CONNECT_PORT` messages are automatically handled for birpc channel establishment.
+ *
+ * @param inlineConfig - Vite config object or resolved config
+ * @param options - Setup options for the worker
+ */
 export async function setupWorker(
   inlineConfig: InlineConfig | ResolvedConfig = {
     base: '/',
@@ -78,7 +97,7 @@ export async function setupWorker(
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
-  console.log('[vrowser-worker] vrower web worker config:', config)
+  debug?.('config:', config)
 
   const initPublicFilesPromise = initPublicFiles(config)
 
@@ -125,9 +144,9 @@ export function connectServiceWorkerPort(
 ): Promise<BirpcReturn<ServiceWorkerFunctions, WorkerFunctions>> {
   return new Promise((resolve) => {
     // Phase 1: Handshake — wait for SW's channel-ready before creating birpc
-    port.onmessage = (e: MessageEvent) => {
-      if (e.data?.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'sw') {
-        console.log('[vrowser-worker] SW channel ready, creating birpc')
+    port.onmessage = (e: MessageEvent<WebWorkerServiceWorkerChannelReadyMessage>) => {
+      if (e.data.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'sw') {
+        debug?.('SW channel ready, creating birpc')
 
         // Phase 2: Replace onmessage with birpc
         const rpc = createBirpc<ServiceWorkerFunctions, WorkerFunctions>(
@@ -148,14 +167,14 @@ export function connectServiceWorkerPort(
 }
 
 export async function bundle(files: Record<string, string>, input: string): Promise<[string, string]> {
-  console.log('[Rolldown Worker] bundling', input)
+  debug?.('bundling', input)
 
   memfs.volume.reset()
   memfs.volume.fromJSON(files)
 
   fs.mkdirSync('/node_modules', { recursive: true })
-  console.log('[Rolldown Worker on @vrowser/rolldown memfs] virtual files:', memfs.fs.readdirSync('/'))
-  console.log('[Rolldown Worker on @vrowser/fs memfs] virtual file content:', fs.readdirSync('/'))
+  debug?.('virtual files (@vrowser/rolldown memfs):', memfs.fs.readdirSync('/'))
+  debug?.('virtual files (@vrowser/fs memfs):', fs.readdirSync('/'))
 
   const bundle = await rolldown({ input, cwd: '/' })
   const { output } = await bundle.generate({ format: 'esm' })
