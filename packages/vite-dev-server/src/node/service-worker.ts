@@ -13,32 +13,11 @@
  * @license MIT
  */
 
-import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
 import { createSvcWorkerServer } from '@vrowser/service-worker-server'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
-import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
-import type { SourceMap } from 'rolldown'
-import type { ModuleRunner } from 'vite/module-runner'
-import type { InlineConfig, ResolvedConfig } from './config'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
-import {
-  createNoopWatcher,
-  getResolvedOutDirs,
-  resolveChokidarOptions,
-  resolveEmptyOutDir,
-} from './watch'
-// NOTE(kazupon): disable now
-// import {
-//   DEFAULT_DEV_PORT,
-//   defaultAllowedOrigins
-// } from '../constants'
-import type { CommonServerOptions } from './http'
-import type { MinimalPluginContextWithoutEnvironment } from './plugin'
-import type { DevEnvironment } from './server/environment'
-import type { HmrOptions, NormalizedHotChannel } from './server/hmr'
 import { baseMiddleware } from './server/middlewares/base'
 import { errorMiddleware } from './server/middlewares/error'
 import { htmlFallbackMiddleware } from './server/middlewares/htmlFallback'
@@ -49,21 +28,37 @@ import { notFoundMiddleware } from './server/middlewares/notFound'
 import { servePublicMiddleware, serveRawFsMiddleware, serveStaticMiddleware } from './server/middlewares/static'
 import { timeMiddleware } from './server/middlewares/time'
 import { transformMiddleware } from './server/middlewares/transform'
-import type { ModuleNode } from './server/mixedModuleGraph'
 import { ModuleGraph } from './server/mixedModuleGraph'
-import type { BindCLIShortcutsOptions, ShortcutsState } from './shortcuts'
-import type { RequiredExceptFor } from './typeUtils'
-import {
-  createDebugger
-} from './utils'
-// NOTE(kazupon): `./options` importing for avoid circular dependency
-import type { PluginContainer } from './server/pluginContainer'
 import {
   BasicMinimalPluginContext,
   basePluginContextMeta
 } from './server/pluginContainer'
+import {
+  createDebugger
+} from './utils'
+import {
+  createNoopWatcher,
+  getResolvedOutDirs,
+  resolveChokidarOptions,
+  resolveEmptyOutDir,
+} from './watch'
+
+import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
+import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
+import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
+import type { SourceMap } from 'rolldown'
+import type { ModuleRunner } from 'vite/module-runner'
+import type { InlineConfig, ResolvedConfig } from './config'
+import type { CommonServerOptions } from './http'
+import type { MinimalPluginContextWithoutEnvironment } from './plugin'
+import type { DevEnvironment } from './server/environment'
+import type { HmrOptions, NormalizedHotChannel } from './server/hmr'
+import type { ModuleNode } from './server/mixedModuleGraph'
+import type { PluginContainer } from './server/pluginContainer'
 import type { TransformOptions, TransformResult } from './server/transformRequest'
 import type { MessageChannelServer } from './server/ws'
+import type { BindCLIShortcutsOptions, ShortcutsState } from './shortcuts'
+import type { RequiredExceptFor } from './typeUtils'
 
 export * from './server/middlewares/utils'
 
