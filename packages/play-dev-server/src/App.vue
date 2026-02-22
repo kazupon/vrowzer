@@ -15,6 +15,7 @@ const previewBase = '/__preview__/'
 
 let rolldownWorker: Worker | null = null
 const editorPanel = useTemplateRef<InstanceType<typeof EditorPanel>>('editorPanel')
+const previewPanel = useTemplateRef<InstanceType<typeof PreviewPanel>>('previewPanel')
 
 onMounted(async () => {
   // Create Web Worker
@@ -106,6 +107,9 @@ onMounted(async () => {
   // Both ready — establish MessageChannel between service worker and web worker
   if (serviceWorkerController) {
     await establishChannel()
+    // Load preview iframe after birpc channel is established
+    // so that transformIndexHtml can delegate to WW
+    previewPanel.value?.loadIframe()
   }
 
   // Test bundle after setup
@@ -192,7 +196,7 @@ function handleFileChange({ path, content }: { path: string; content: string }) 
     </header>
     <main class="app-main">
       <EditorPanel ref="editorPanel" @file-change="handleFileChange" />
-      <PreviewPanel />
+      <PreviewPanel ref="previewPanel" />
     </main>
   </div>
 </template>

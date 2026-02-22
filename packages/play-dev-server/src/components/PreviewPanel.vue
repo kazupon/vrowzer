@@ -41,7 +41,8 @@ function tryInitController() {
 
   if (controller.state === 'activated') {
     isServiceWorkerReady.value = true
-    loadIframe()
+    // NOTE: Do not auto-load iframe here.
+    // App.vue will call loadIframe() after birpc channel is established.
     return
   }
 
@@ -49,7 +50,8 @@ function tryInitController() {
     if (info.state === 'activated') {
       isServiceWorkerReady.value = true
       error.value = null
-      loadIframe()
+      // NOTE: Do not auto-load iframe here.
+      // App.vue will call loadIframe() after birpc channel is established.
     }
   }
 
@@ -114,7 +116,7 @@ function reload() {
   }
 }
 
-defineExpose({ reload })
+defineExpose({ reload, loadIframe })
 </script>
 
 <template>
