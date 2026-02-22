@@ -11,10 +11,18 @@ console.log('[Rolldown Worker] initialized')
 
 // Create server — registers self.onmessage immediately (lightweight)
 // V_WW_SETUP and V_SW_CONNECT_PORT are handled internally by createServer.
-// App-specific messages (e.g. 'bundle') are forwarded to onUnhandledMessage.
+// App-specific messages (e.g. 'bundle', 'file-change') are forwarded to onUnhandledMessage.
 const server = createServer(self, {
   onUnhandledMessage: async (event: MessageEvent<MainToWorkerMessage>) => {
     switch (event.data.type) {
+      case 'file-change': {
+        const { path, content } = event.data
+        // Use transformer's @vrowser/fs instance (same instance used by DevEnvironment)
+        const { updateFile } = await import('@vrowser/vite-dev-server/transformer')
+        updateFile(path, content)
+        break
+      }
+
       case 'bundle': {
         const { files, input } = event.data
         try {

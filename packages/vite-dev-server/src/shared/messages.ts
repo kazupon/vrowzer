@@ -25,6 +25,11 @@ export interface SetupWorkerMessage {
   type: 'V_WW_SETUP'
   config: Record<string, unknown>
   options?: Record<string, unknown>
+  /**
+   * Initial files to populate the virtual filesystem (@vrowser/fs).
+   * Keys are absolute paths (e.g. '/main.js'), values are file contents.
+   */
+  files?: Record<string, string>
 }
 
 /**

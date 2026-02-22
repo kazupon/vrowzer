@@ -20,7 +20,7 @@
 
 import { createDebugger } from './utils'
 
-// NOTE: Only type-only imports from heavy modules.
+// NOTE(kazupon): Only type-only imports from heavy modules.
 // Runtime imports of ./transformer happen inside listen() via dynamic import.
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage } from '../shared/messages'
 import type { ViteDevServerForWorker } from './transformer'
@@ -68,8 +68,7 @@ export interface ListenableWorkerServer {
    * After `listen()` resolves, `V_SW_CONNECT_PORT` messages are
    * automatically handled for birpc channel establishment.
    *
-   * @param timeout - Maximum time in ms to wait for V_WW_SETUP.
-   *   Default: 30000 (30s). Set to 0 to disable timeout.
+   * @param timeout - Maximum time in ms to wait for V_WW_SETUP. Default: 30000 (30s). Set to 0 to disable timeout
    */
   listen(timeout?: number): Promise<ViteDevServerForWorker>
 }
@@ -110,7 +109,7 @@ export function createServer(
           const transformer = await import('./transformer')
 
           debug?.('transformer loaded, initializing...')
-          await transformer.setupWorker(event.data.config, event.data.options)
+          await transformer.setupWorker(event.data.config, event.data.options, event.data.files)
 
           // Build ViteDevServerForWorker
           // TODO: construct proper server with DevEnvironment once Environment integration is done

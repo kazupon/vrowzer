@@ -13,7 +13,7 @@
  * @license MIT
  */
 
-import { fs } from '@vrowser/fs'
+import { fs, vol } from '@vrowser/fs'
 import { rolldown } from '@vrowser/rolldown'
 import { memfs } from '@vrowser/rolldown/experimental'
 import { createBirpc } from 'birpc'
@@ -93,11 +93,17 @@ export async function setupWorker(
     }
   },
   options: SetupWorkerOptions = {},
+  files?: Record<string, string>,
 ) {
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
   debug?.('config:', config)
+
+  // Populate virtual filesystem with initial files
+  if (files) {
+    updateFiles(files)
+  }
 
   const initPublicFilesPromise = initPublicFiles(config)
 
@@ -126,6 +132,34 @@ export async function setupWorker(
   )
 
   // TODO(kazupon): implment later ...
+
+  // setup initial files in virtual fs
+  fs.mkdirSync('/public', { recursive: true })
+  fs.writeFileSync('/public/.gitkeep', '', { encoding: 'utf8' })
+  fs.writeFileSync(
+    '/index.html',
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"><p>Loading...</p></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
+    { encoding: 'utf8' }
+  )
+  debug?.('virtual file system initialized', vol.toTree())
 }
 
 /**
@@ -166,11 +200,35 @@ export function connectServiceWorkerPort(
   })
 }
 
+/**
+ * Update a file in the virtual filesystem (@vrowser/fs).
+ *
+ * This ensures the file is written to the same @vrowser/fs instance
+ * used by DevEnvironment and the transform pipeline.
+ */
+export function updateFile(path: string, content: string): void {
+  const dir = path.substring(0, path.lastIndexOf('/'))
+  if (dir && !fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+  fs.writeFileSync(path, content, { encoding: 'utf8' })
+  debug?.('file updated:', path)
+  debug?.('current virtual files:', vol.toTree())
+}
+
+function updateFiles(files: Record<string, string>): void {
+  for (const [path, content] of Object.entries(files)) {
+    updateFile(path, content)
+  }
+}
+
+// NOTE(kazupon): rolldown load for testing
 export async function bundle(files: Record<string, string>, input: string): Promise<[string, string]> {
   debug?.('bundling', input)
 
-  memfs.volume.reset()
-  memfs.volume.fromJSON(files)
+  // memfs.volume.reset()
+  // memfs.volume.fromJSON(files)
+  updateFiles(files)
 
   fs.mkdirSync('/node_modules', { recursive: true })
   debug?.('virtual files (@vrowser/rolldown memfs):', memfs.fs.readdirSync('/'))

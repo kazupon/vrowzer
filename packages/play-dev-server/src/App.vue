@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, useTemplateRef } from 'vue'
 import EditorPanel from './components/EditorPanel.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
 import { getServiceWorker, initServiceWorker } from './sw/controller.ts'
@@ -14,6 +14,7 @@ import type {
 const previewBase = '/__preview__/'
 
 let rolldownWorker: Worker | null = null
+const editorPanel = useTemplateRef<InstanceType<typeof EditorPanel>>('editorPanel')
 
 onMounted(async () => {
   // Create Web Worker
@@ -52,6 +53,20 @@ onMounted(async () => {
     }
   })
 
+  // Collect initial files from EditorPanel to sync with Web Worker's virtual FS
+  const initialFiles: Record<string, string> = {}
+  if (editorPanel.value?.files) {
+    for (const [path, content] of editorPanel.value.files) {
+      initialFiles[path] = content
+    }
+  }
+
+  // Import dist client files
+  const { default: client } = await import('@vrowser/vite-dev-server/dist/client/client.mjs?raw')
+  initialFiles['/dist/client/client.mjs'] = client
+  const { default: env } = await import('@vrowser/vite-dev-server/dist/client/env.mjs?raw')
+  initialFiles['/dist/client/env.mjs'] = env
+
   console.log('[App] Sending V_WW_SETUP to worker...')
   rolldownWorker.postMessage({
     type: 'V_WW_SETUP',
@@ -70,7 +85,8 @@ onMounted(async () => {
         bundledDev: false
       }
     },
-    options: { basePath: previewBase }
+    options: { basePath: previewBase },
+    files: initialFiles
   })
 
   // Initialize service worker and web worker  in parallel
@@ -157,13 +173,14 @@ async function establishChannel() {
 }
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
-  const serviceWorker = getServiceWorker()
   const message: FileChangeMessage = {
     type: 'file-change',
     path,
     content
   }
-  serviceWorker?.postMessage(message)
+  // Send to both Service Worker and Web Worker
+  getServiceWorker()?.postMessage(message)
+  rolldownWorker?.postMessage(message)
 }
 </script>
 
@@ -174,7 +191,7 @@ function handleFileChange({ path, content }: { path: string; content: string }) 
       <span class="subtitle">@vrowser/vite-dev-server playground</span>
     </header>
     <main class="app-main">
-      <EditorPanel @file-change="handleFileChange" />
+      <EditorPanel ref="editorPanel" @file-change="handleFileChange" />
       <PreviewPanel />
     </main>
   </div>

@@ -51,6 +51,8 @@ render()
 
 const files = ref<Map<string, string>>(new Map([['/main.js', defaultCode]]))
 const activeFile = ref('/main.js')
+
+defineExpose({ files })
 const editorContainer = useTemplateRef('editorContainer')
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null

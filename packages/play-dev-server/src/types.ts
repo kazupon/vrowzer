@@ -30,7 +30,7 @@ export type {
 // ---- App-specific message types ----
 
 /**
- * File change notification (Main → SW)
+ * File change notification (Main Thread → Service Worker, Main Thread → Web Worker)
  */
 export interface FileChangeMessage {
   type: 'file-change'
@@ -67,6 +67,7 @@ export type ServiceWorkerToMainMessage = ConnectWebWorkerPortAckMessage
 export type MainToWorkerMessage =
   | SetupWorkerMessage
   | BundleRequestMessage
+  | FileChangeMessage
   | ConnectServiceWorkerPortMessage
 
 export type WorkerToMainMessage =
