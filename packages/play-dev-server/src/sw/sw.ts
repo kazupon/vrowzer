@@ -14,15 +14,10 @@ console.log('[SW] Service Worker loaded, version:', SW_VERSION)
 
 setupVolume(vol)
 
-// self.addEventListener('install', event => {
-//   console.log('[SW] Installing...')
-//   event.waitUntil(self.skipWaiting())
-// })
-
 const previewBase = '/__preview__/'
 
 // Create Vite Dev Server on Service Worker
-const listenableServer = createServer(
+const listen = createServer(
   self,
   {
     root: '/',
@@ -39,7 +34,34 @@ const listenableServer = createServer(
       hmrPartialAccept: false,
       enableNativePlugin: 'v2',
       bundledDev: false
-    }
+    },
+    plugins: [
+      {
+        name: 'play-dev-server:middlewares',
+        configureServer(server) {
+          // pre-hook: registered before transformMiddleware
+
+          // Cross-origin isolation headers for COEP compatibility.
+          // The main page sets COEP: require-corp, so all responses (including
+          // service worker served iframe content) must include CORP headers.
+          server.middlewares.use(async (c, next) => {
+            c.header('Cross-Origin-Resource-Policy', 'same-origin')
+            c.header('Cross-Origin-Embedder-Policy', 'require-corp')
+            c.header('Cross-Origin-Opener-Policy', 'same-origin')
+            await next()
+          })
+
+          // /hello API endpoint
+          server.middlewares.use(async (c, next) => {
+            const path = getRequestPath(c)
+            if (path.endsWith('/hello')) {
+              return c.text('Vite Dev Server on Service Worker says hello!')
+            }
+            await next()
+          })
+        }
+      }
+    ]
   },
   {
     version: SW_VERSION,
@@ -60,48 +82,6 @@ const listenableServer = createServer(
     }
   }
 )
-
-// Add cross-origin isolation headers for COEP compatibility.
-// The main page sets COEP: require-corp, so all responses (including
-// service worker served iframe content) must include CORP headers.
-// COEP on the iframe response is also needed to enable cross-origin
-// isolation within the iframe context.
-listenableServer.middlewares.push(async (c, next) => {
-  c.header('Cross-Origin-Resource-Policy', 'same-origin')
-  c.header('Cross-Origin-Embedder-Policy', 'require-corp')
-  c.header('Cross-Origin-Opener-Policy', 'same-origin')
-  await next()
-})
-
-listenableServer.middlewares.push(async (c, next) => {
-  const path = getRequestPath(c)
-  console.log('[SW] Received request for /hello', c.req.url, path)
-  if (path.endsWith('/hello')) {
-    return c.text('Vite Dev Server on Service Worker says hello!')
-  }
-  await next()
-})
-
-listenableServer.middlewares.push(async (c, next) => {
-  const path = getRequestPath(c)
-  console.log('[SW] Received request for ./fs', c.req.url, path, getContentType)
-
-  // Let indexHtmlMiddleware handle HTML; let htmlFallbackMiddleware handle dirs
-  // if (path.endsWith('.html') || path.endsWith('/')) {
-  //   await next()
-  //   return
-  // }
-
-  // if (fs.existsSync(path) && fs.statSync(path).isFile()) {
-  //   const content = fs.readFileSync(path, 'utf8') as string
-  //   return c.body(content, 200, {
-  //     'Content-Type': getContentType(path),
-  //     'Cache-Control': 'no-cache'
-  //   })
-  // }
-
-  await next()
-})
 
 function setupVolume(vol: typeof import('@vrowser/fs').vol) {
   vol.fromJSON({
@@ -141,10 +121,6 @@ function setupVolume(vol: typeof import('@vrowser/fs').vol) {
     fs.readdirSync('/'),
     fs.existsSync('/public')
   )
-
-  // Change working directory
-  // chdir('/src')
-  // console.log('cwd()', cwd()) // '/src'
 }
 
 /**
@@ -187,7 +163,7 @@ self.addEventListener('activate', _event => {
   _event.waitUntil(
     (async () => {
       try {
-        await listenableServer.listen()
+        await listen()
         await self.clients.claim()
         console.log('[SW] Activated and claimed clients')
       } catch (e) {
@@ -201,7 +177,7 @@ self.addEventListener('activate', _event => {
 /**
  * Get content type based on file extension
  */
-function getContentType(pathname: string): string {
+function _getContentType(pathname: string): string {
   console.log('[SW] Getting content type for:', pathname)
   if (pathname.endsWith('.js') || pathname.endsWith('.mjs')) {
     return 'application/javascript'
