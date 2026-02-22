@@ -30,9 +30,6 @@ import type { Context, MiddlewareHandler } from 'hono'
 import type { ViteDevServer } from '..'
 import type { ResolvedConfig } from '../../config'
 import type { ViteEnv } from '../index'
-import type {
-  TransformResult,
-} from '../transformRequest'
 
 const debugCache = createDebugger('vite:cache')
 
@@ -55,7 +52,7 @@ const rawRE = /[?&]raw\b/
 const inlineRE = /[?&]inline\b/
 const svgRE = /\.svg\b/
 
-function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
+export function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
   if (rawRE.test(id) || urlRE.test(id) || inlineRE.test(id) || svgRE.test(id)) {
     return checkLoadingAccess(config, id) !== 'allowed'
   }
@@ -78,7 +75,7 @@ export function transformMiddleware(
     console.log('[transform] viteTransformMiddleware called for:', c.req.url, getRequestPath(c))
 
     // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
-    const environment = server.environments.client
+    // const environment = server.environments.client
 
     if (
       (c.req.method !== 'GET' && c.req.method !== 'HEAD') ||
@@ -160,7 +157,7 @@ export function transformMiddleware(
         }
 
         // resolve, load and transform using the plugin container
-        const result = Promise.resolve({}) as Promise<TransformResult | null>
+        const result = await server.transformRequest(url)
         // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
         // const result = await environment.transformRequest(url, {
         //   allowId(id) {

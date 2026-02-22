@@ -440,35 +440,45 @@ export function createServer(
       resolvedUrls: null, // will be set on listen
 
       transformRequest(url, options) {
+        debug?.('transformRequest:', url)
         if (!workerRpc) {
           throw new Error('[@vrowser/vite-dev-server/service-worker] transformRequest requires workerPort to be set in CreateServerOptions')
         }
+        // delegate to Web Worker via birpc
         return workerRpc.transformRequest(url, options)
       },
+
       warmupRequest(url, options) {
         // warmup is best-effort, silently ignore errors
         return this.transformRequest(url, options).then(() => { }).catch(() => { })
       },
+
       transformIndexHtml(url, html, originalUrl) {
+        debug?.('transformIndexHtml:', url, originalUrl)
         if (!workerRpc) {
           throw new Error('[@vrowser/vite-dev-server/service-worker] transformIndexHtml requires workerPort to be set in CreateServerOptions')
         }
+        // delegate to Web Worker via birpc
         return workerRpc.transformIndexHtml(url, html, originalUrl)
       },
+
       openBrowser() {
         debug?.('not supported: server.openBrowser()')
       },
+
       async close() {
         if (!closeServerPromise) {
           closeServerPromise = closeServer()
         }
         return closeServerPromise
       },
+
       _setInternalServer(_server: ViteDevServer) {
         // Rebind internal the server variable so functions reference the user
         // server instance after a restart
         server = _server as unknown as ViteDevServerForServiceWorker
       },
+
       _restartPromise: null,
       _forceOptimizeOnRestart: false,
       _shortcutsState: options.previousShortcutsState,
@@ -570,7 +580,7 @@ export function createServer(
     // this applies before the transform middleware so that these files are served
     // as-is without transforms.
     if (publicDir) {
-      middlewares.use(servePublicMiddleware(server, publicFiles))
+      middlewares.use(servePublicMiddleware(server as ViteDevServer, publicFiles))
     }
 
     if (config.experimental.bundledDev) {
@@ -578,12 +588,12 @@ export function createServer(
       // middlewares.use(memoryFilesMiddleware(server))
     } else {
       // main transform middleware
-      middlewares.use('*', transformMiddleware(server))
+      middlewares.use('*', transformMiddleware(server as ViteDevServer))
       // console.log('[SW] transformMiddleware applied', transformMiddleware)
 
       // serve static files
-      middlewares.use(serveRawFsMiddleware(server))
-      middlewares.use(serveStaticMiddleware(server))
+      middlewares.use(serveRawFsMiddleware(server as ViteDevServer))
+      middlewares.use(serveStaticMiddleware(server as ViteDevServer))
     }
 
     // Register custom hono middlewares
@@ -609,14 +619,14 @@ export function createServer(
 
     if (config.appType === 'spa' || config.appType === 'mpa') {
       // transform index.html
-      middlewares.use(indexHtmlMiddleware(root, server))
+      middlewares.use(indexHtmlMiddleware(root, server as ViteDevServer, { isDev: true }))
 
       // handle 404s
       middlewares.use(notFoundMiddleware())
     }
 
     // error handler
-    middlewares.onError(errorMiddleware(server, false))
+    middlewares.onError(errorMiddleware(server as ViteDevServer, false))
 
     // httpServer.listen can be called multiple times
     // when port when using next port number

@@ -18,11 +18,16 @@
  * @license MIT
  */
 
+import { isServerAccessDeniedForTransform } from './server/middlewares/transform'
 import { createDebugger } from './utils'
 
 // NOTE(kazupon): Only type-only imports from heavy modules.
 // Runtime imports of ./transformer happen inside listen() via dynamic import.
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage } from '../shared/messages'
+import type { ViteDevServer } from './server/index'
+import type {
+  TransformOptionsInternal,
+} from './server/transformRequest'
 import type { ViteDevServerForWorker } from './transformer'
 
 const debug = createDebugger('vrowser:web-worker')
@@ -109,30 +114,44 @@ export function createServer(
           const transformer = await import('./transformer')
 
           debug?.('transformer loaded, initializing...')
-          await transformer.setupWorker(event.data.config, event.data.options, event.data.files)
+          const { config, environments } = await transformer.setupWorker(event.data.config, event.data.options, event.data.files)
+          const clientEnv = environments.client
+          const devHtmlTransformFn = transformer.createDevHtmlTransformFn(config)
 
-          // Build ViteDevServerForWorker
-          // TODO: construct proper server with DevEnvironment once Environment integration is done
+          // Build ViteDevServerForWorker with DevEnvironment
           server = {
-            config: event.data.config,
-            environments: {} as any,
-            transformRequest: async (url, _options) => {
-              debug?.('transformRequest:', url)
-              return null
+            config,
+            environments,
+            transformRequest: (url, options) => {
+              debug?.('transformRequest:', url, options)
+              if (server == null) {
+                debug?.('transformRequest called before config initialization')
+                return Promise.resolve(null)
+              }
+
+              return clientEnv?.transformRequest(url, {
+                ...options,
+                allowId(id: string) {
+                  return (
+                    id[0] === '\0' ||
+                    !isServerAccessDeniedForTransform((server as ViteDevServer).config, id)
+                  )
+                },
+              } as TransformOptionsInternal) || Promise.resolve(null)
             },
             warmupRequest: async (url) => {
               try { await server?.transformRequest(url) } catch { /* best-effort */ }
             },
-            transformIndexHtml: async (url, html, _originalUrl) => {
+            transformIndexHtml: (url, html, originalUrl) => {
               debug?.('transformIndexHtml:', url)
-              return html
+              return devHtmlTransformFn(server as unknown as ViteDevServer, url, html, originalUrl)
             },
           }
 
           workerScope.postMessage({ type: 'V_WW_SETUP_ACK' })
           debug?.('setup complete')
 
-          setupResolve?.(server)
+          setupResolve?.(server!)
         } catch (error) {
           debug?.('V_WW_SETUP failed:', error)
           setupReject?.(error instanceof Error ? error : new Error(String(error)))
@@ -180,8 +199,14 @@ export function createServer(
             setupReject = null
             reject(new Error(`listen() timed out after ${timeout}ms waiting for V_WW_SETUP`))
           }, timeout)
-          setupResolve = (s) => { clearTimeout(timer); resolve(s) }
-          setupReject = (e) => { clearTimeout(timer); reject(e) }
+          setupResolve = (s) => {
+            clearTimeout(timer)
+            resolve(s)
+          }
+          setupReject = (e) => {
+            clearTimeout(timer)
+            reject(e)
+          }
         } else {
           setupResolve = resolve
           setupReject = reject

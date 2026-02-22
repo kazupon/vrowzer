@@ -461,8 +461,11 @@ const devHtmlHook: IndexHtmlTransformHook = async (
 export function indexHtmlMiddleware(
   root: string,
   server: ViteDevServer | PreviewServer,
+  options?: { isDev?: boolean },
 ): MiddlewareHandler<ViteEnv> {
-  const isDev = isDevServer(server)
+  const isDev = options?.isDev ?? isDevServer(server)
+  // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
+  // const isDev = isDevServer(server)
   const fullBundleEnv = undefined
   // NOTE(kazupon): comment out, because fullBundleEnv is not supported in vrowser yet
   // const fullBundleEnv =
@@ -539,7 +542,7 @@ function preTransformRequest(
   decodedUrl: string,
   decodedBase: string,
 ) {
-  if (!server.config.server.preTransformRequests) {return}
+  if (!server.config.server.preTransformRequests) { return }
 
   // transform all url as non-ssr as html includes client-side assets only
   decodedUrl = unwrapId(stripBase(decodedUrl, decodedBase))

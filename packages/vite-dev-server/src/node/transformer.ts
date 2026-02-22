@@ -19,8 +19,11 @@ import { memfs } from '@vrowser/rolldown/experimental'
 import { createBirpc } from 'birpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
+import { DevEnvironment } from './server/environment'
+import { createNoopMessageChannelServer } from './server/ws'
 import { createDebugger } from './utils'
 import {
+  createNoopWatcher,
   getResolvedOutDirs,
   resolveChokidarOptions,
   resolveEmptyOutDir
@@ -30,7 +33,6 @@ import type { BirpcReturn } from 'birpc'
 import type { WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
-import type { DevEnvironment } from './server/environment'
 import type { ViteDevServer } from './server/index'
 
 const debug = createDebugger('vrowser:transformer')
@@ -51,10 +53,13 @@ export type ViteDevServerForWorker = Pick<ViteDevServer,
 >
 
 /**
- * This module defines the Web Worker server for @vrowser/vite-dev-server.
- * It handles the Web Worker side of the protocol for setup and Service Worker communication,
- * as well as providing a lightweight API for the worker's main logic (e.g. DevEnvironment).
+ * Result of {@link setupWorker} initialization.
  */
+export interface SetupWorkerResult {
+  config: ResolvedConfig
+  environments: Record<string, DevEnvironment>
+}
+
 export interface SetupWorkerOptions {
   /**
    * Base path for the Vite Dev Server routes.
@@ -94,16 +99,13 @@ export async function setupWorker(
   },
   options: SetupWorkerOptions = {},
   files?: Record<string, string>,
-) {
+): Promise<SetupWorkerResult> {
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
   debug?.('config:', config)
 
-  // Populate virtual filesystem with initial files
-  if (files) {
-    updateFiles(files)
-  }
+  setupVirtualFiles(files)
 
   const initPublicFilesPromise = initPublicFiles(config)
 
@@ -131,9 +133,41 @@ export async function setupWorker(
     config.cacheDir,
   )
 
-  // TODO(kazupon): implment later ...
+  // Create MessageChannel server for HMR
+  // TODO(kazupon): Replace with real MessageChannel server when HMR is implemented
+  const ws = createNoopMessageChannelServer()
 
-  // setup initial files in virtual fs
+  const publicFiles = await initPublicFilesPromise
+  const { publicDir } = config
+  debug?.('publicDir:', publicDir, 'publicFiles:', publicFiles)
+
+  const watcher = createNoopWatcher(resolvedWatchOptions)
+
+  const environments: Record<string, DevEnvironment> = {}
+  await Promise.all(
+    Object.entries(config.environments).map(
+      async ([name, environmentOptions]) => {
+        const environment = await environmentOptions.dev.createEnvironment(
+          name,
+          config,
+          {
+            ws,
+          },
+        )
+        environments[name] = environment
+
+        const previousInstance =
+          options.previousEnvironments?.[environment.name]
+        await environment.init({ watcher, previousInstance })
+      },
+    ),
+  )
+  debug?.('Created environments:', environments)
+
+  return { config, environments }
+}
+
+function setupVirtualFiles(files?: Record<string, string>): void {
   fs.mkdirSync('/public', { recursive: true })
   fs.writeFileSync('/public/.gitkeep', '', { encoding: 'utf8' })
   fs.writeFileSync(
@@ -159,6 +193,11 @@ export async function setupWorker(
 </html>`,
     { encoding: 'utf8' }
   )
+
+  if (files) {
+    updateFiles(files)
+  }
+
   debug?.('virtual file system initialized', vol.toTree())
 }
 
@@ -241,8 +280,8 @@ export async function bundle(files: Record<string, string>, input: string): Prom
 }
 
 // === DevEnvironment ===
-export { DevEnvironment } from './server/environment'
 export type { DevEnvironmentContext } from './server/environment'
+export { DevEnvironment }
 
 // === Plugin Container ===
 export {

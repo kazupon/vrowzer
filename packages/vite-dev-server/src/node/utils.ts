@@ -672,8 +672,8 @@ export async function recursiveReaddir(dir: string): Promise<string[]> {
 }
 
 // @ts-expect-error -- ignore
-export let safeRealpathSync: typeof fs.realpathSync.native = (path: string, ...args): string => '(not supproted)'
-// NOTE(kazupon): browser environment does not need safeRealpathSync
+export let safeRealpathSync: typeof fs.realpathSync.native = (path: string, ..._args): string => path
+// NOTE(kazupon): browser environment (virtual FS) has no symlinks, so return the path as-is
 // // `fs.realpathSync.native` resolves differently in Windows network drive,
 // // causing file read errors. skip for now.
 // // https://github.com/nodejs/node/issues/37737

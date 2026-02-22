@@ -141,7 +141,7 @@ function noop() {
 /**
  * Create a noop MessageChannel server for when HMR is disabled
  */
-function createNoopMessageChannelServer(): MessageChannelServer {
+export function createNoopMessageChannelServer(): MessageChannelServer {
   return {
     [isMessageChannelServer]: true,
     get clients() {
