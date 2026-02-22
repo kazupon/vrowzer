@@ -414,9 +414,12 @@ export function createServer(
         return workerRpc.transformRequest(url, options)
       },
 
-      warmupRequest(url, options) {
-        // warmup is best-effort, silently ignore errors
-        return this.transformRequest(url, options).then(() => { }).catch(() => { })
+      warmupRequest(url) {
+        if (!workerRpc) {
+          return Promise.resolve()
+        }
+        // delegate to Web Worker via birpc (best-effort, never throws)
+        return workerRpc.warmupRequest(url).catch(() => { })
       },
 
       transformIndexHtml(url, html, originalUrl) {

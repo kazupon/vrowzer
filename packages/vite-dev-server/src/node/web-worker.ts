@@ -140,7 +140,8 @@ export function createServer(
               } as TransformOptionsInternal) || Promise.resolve(null)
             },
             warmupRequest: async (url) => {
-              try { await server?.transformRequest(url) } catch { /* best-effort */ }
+              debug?.('warmupRequest:', url)
+              await clientEnv?.warmupRequest(url)
             },
             transformIndexHtml: (url, html, originalUrl) => {
               debug?.('transformIndexHtml:', url)

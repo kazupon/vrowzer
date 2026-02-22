@@ -32,6 +32,13 @@ export interface WorkerFunctions {
    * Delegates to devHtmlTransformFn() in the Web Worker.
    */
   transformIndexHtml: (url: string, html: string, originalUrl?: string) => Promise<string>
+
+  /**
+   * Warm up a URL by pre-transforming it.
+   * Delegates to DevEnvironment.warmupRequest() in the Web Worker.
+   * Best-effort: never throws, handles and reports errors internally.
+   */
+  warmupRequest: (url: string) => Promise<void>
 }
 
 /**
