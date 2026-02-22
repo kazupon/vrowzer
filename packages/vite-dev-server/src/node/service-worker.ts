@@ -47,7 +47,7 @@ const debug = createDebugger('vrowser:service-worker')
 
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
 import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
-import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
+import type { BlankSchema, Env } from 'hono/types'
 import type { ConnectWebWorkerPortMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
@@ -226,39 +226,6 @@ export type ServerHook = (
 export type HttpServer = SvcWorkerServer<ConnectWebWorkerPortMessage>
 
 /**
- * Vite Dev Server that can be started by calling `listen()`
- */
-export interface ListenableViteDevServer {
-  /**
-   * Custom middlewares handler.
-   *
-   * - Can be used to attach custom middlewares to the dev server.
-   * - Can also be used as the handler function in Service Worker's fetch event
-   * - Compatible with Web Standard Request/Response API
-   *
-   * @example
-   * ```ts
-   * const listenableServer = createServer(self, { server: { middlewareMode: true } })
-   *
-   * // Add custom middleware before default handlers
-   * listenableServer.middlewares.push('/__preview__/*', (c) => {
-   *   return c.text('Preview content')
-   * })
-   *
-   * // Start listening for fetch events
-   * const server = listenableServer.listen() // get ViteDevServer instance after listening
-   * ```
-   */
-  middlewares: MiddlewareHandler<ViteEnv, string>[]
-  /**
-   * Start the server
-   *
-   * @returns The ViteDevServer instance
-   */
-  listen(): Promise<ViteDevServerForServiceWorker>
-}
-
-/**
  * Subset of ViteDevServer for Service Worker environment.
  *
  * The full ViteDevServer (defined in server/index.ts) is the single source of truth.
@@ -335,12 +302,11 @@ export function createServer(
     }
   },
   options: CreateServerOptions = {},
-): Readonly<ListenableViteDevServer> {
+): () => Promise<ViteDevServerForServiceWorker> {
   const { server: serverConfig } = inlineConfig as InlineConfig | ResolvedConfig
   const middlewareMode = !!serverConfig?.middlewareMode
 
   let middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
-  const customMiddlewares: MiddlewareHandler<ViteEnv, string>[] = []
   const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage>(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: true,
@@ -539,7 +505,7 @@ export function createServer(
     )
     const postHooks: ((() => void) | void)[] = []
     for (const hook of config.getSortedPluginHooks('configureServer')) {
-      postHooks.push(await hook.call(configureServerContext, reflexServer as unknown as ViteDevServer))
+      postHooks.push(await hook.call(configureServerContext, reflexServer as ViteDevServer))
     }
 
     // Internal middlewares ------------------------------------------------------
@@ -594,11 +560,6 @@ export function createServer(
       // serve static files
       middlewares.use(serveRawFsMiddleware(server as ViteDevServer))
       middlewares.use(serveStaticMiddleware(server as ViteDevServer))
-    }
-
-    // Register custom hono middlewares
-    for (const middleware of customMiddlewares) {
-      middlewares.use(middleware)
     }
 
     // html fallback
@@ -706,10 +667,7 @@ export function createServer(
     return server
   }
 
-  return Object.freeze({
-    middlewares: customMiddlewares,
-    listen
-  })
+  return listen
 }
 
 async function startServer(
