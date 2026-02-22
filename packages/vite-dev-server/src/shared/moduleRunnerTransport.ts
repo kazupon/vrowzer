@@ -3,6 +3,8 @@
 import type { CustomPayload, HotPayload } from '#types/hmrPayload'
 import { safeMessagePort } from '@kazupon/jts-utils/message/port'
 import { nanoid } from 'nanoid/non-secure'
+import type { ViteMessageChannelInitMessage } from '../shared/messages'
+import { MC_INIT_EVENT } from '../shared/messages'
 import type {
   InvokeMethods,
   InvokeResponseData,
@@ -93,9 +95,9 @@ const createInvokeableTransport = (
             if (data.id.startsWith('response:')) {
               const invokeId = data.id.slice('response:'.length)
               const promise = rpcPromises.get(invokeId)
-              if (!promise) {return}
+              if (!promise) { return }
 
-              if (promise.timeoutId) {clearTimeout(promise.timeoutId)}
+              if (promise.timeoutId) { clearTimeout(promise.timeoutId) }
 
               rpcPromises.delete(invokeId)
 
@@ -201,7 +203,7 @@ export const normalizeModuleRunnerTransport = (
     ...(invokeableTransport.connect
       ? {
         async connect(onMessage) {
-          if (isConnected) {return}
+          if (isConnected) { return }
           if (connectingPromise) {
             await connectingPromise
             return
@@ -225,7 +227,7 @@ export const normalizeModuleRunnerTransport = (
     ...(invokeableTransport.disconnect
       ? {
         async disconnect() {
-          if (!isConnected) {return}
+          if (!isConnected) { return }
           if (connectingPromise) {
             await connectingPromise
           }
@@ -235,7 +237,7 @@ export const normalizeModuleRunnerTransport = (
       }
       : {}),
     async send(data) {
-      if (!invokeableTransport.send) {return}
+      if (!invokeableTransport.send) { return }
 
       if (!isConnected) {
         if (connectingPromise) {
@@ -259,8 +261,6 @@ export const normalizeModuleRunnerTransport = (
   }
 }
 
-// MessageChannel connection events
-const MC_INIT_EVENT = 'vite:mc:init'
 // Vite-compatible events (same as vite:ws:connect/disconnect)
 const WS_CONNECT_EVENT = 'vite:ws:connect'
 const WS_DISCONNECT_EVENT = 'vite:ws:disconnect'
@@ -277,18 +277,20 @@ export const createMessageChannelModuleRunnerTransport = (
   const pingInterval = options.pingInterval ?? 30000
   const timeout = options.timeout ?? 10000
 
-  let sourcePort: ReturnType<typeof safeMessagePort> | undefined
+  type SourcePortType = ViteMessageChannelInitMessage | HotPayload
+  let sourcePort: ReturnType<typeof safeMessagePort<SourcePortType>> | undefined
   let pingIntervalId: ReturnType<typeof setInterval> | undefined
 
   return {
     async connect({ onMessage, onDisconnection }) {
       // Create `MessageChannel`
       const channel = new MessageChannel()
-      sourcePort = safeMessagePort(channel.port1)
+      sourcePort = safeMessagePort<SourcePortType>(channel.port1)
+      const clientId = nanoid()
 
       // Transfer `port2` to host via `postMessage`
       postMessage(
-        { type: MC_INIT_EVENT },
+        { type: MC_INIT_EVENT, clientId },
         [channel.port2]
       )
 
@@ -298,18 +300,22 @@ export const createMessageChannelModuleRunnerTransport = (
           reject(new Error('MessageChannel connection timeout'))
         }, timeout)
 
-        sourcePort!.once('message', (event: MessageEvent) => {
-          if (event.data?.type === MC_INIT_EVENT) {
+        sourcePort!.once('message', event => {
+          if (event.data.type === MC_INIT_EVENT) {
             clearTimeout(timeoutId)
-            resolve()
+            if (event.data.clientId !== clientId) {
+              reject(new Error(`Client ID mismatch: expected ${clientId}, got ${event.data.clientId}`))
+            } else {
+              resolve()
+            }
           }
         })
       })
 
       // Set up message listener
-      sourcePort.on('message', (event: MessageEvent) => {
-        const data = event.data as HotPayload
-        if (data?.type === 'custom' && data?.event === WS_DISCONNECT_EVENT) {
+      sourcePort.on('message', (event) => {
+        const data = event.data
+        if (event.data.type === 'custom' && event.data.event === WS_DISCONNECT_EVENT) {
           onMessage({
             type: 'custom',
             event: WS_DISCONNECT_EVENT,
@@ -318,7 +324,7 @@ export const createMessageChannelModuleRunnerTransport = (
           onDisconnection()
           return
         }
-        onMessage(data)
+        onMessage(data as HotPayload)
       })
 
       // Emit connection event (Vite-compatible)

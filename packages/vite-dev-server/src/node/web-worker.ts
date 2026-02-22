@@ -179,9 +179,9 @@ export function createServer(
           transformRequest: (url, opts) => server!.transformRequest(url, opts),
           transformIndexHtml: (url, html, originalUrl) => server!.transformIndexHtml(url, html, originalUrl),
           warmupRequest: (url) => server!.warmupRequest(url),
-        }, (hmrPort) => {
+        }, (hmrPort, clientId) => {
           debug?.('HMR port received from SW, connecting to MessageChannelServer')
-          ws!.handlePort(hmrPort)
+          ws!.handlePort(hmrPort, clientId)
         })
 
         workerScope.postMessage({ type: 'V_SW_CONNECT_PORT_ACK' })

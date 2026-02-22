@@ -48,7 +48,7 @@ const debug = createDebugger('vrowser:service-worker')
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
 import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
 import type { BlankSchema, Env } from 'hono/types'
-import type { ConnectWebWorkerPortMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
+import type { ConnectWebWorkerPortMessage, ViteMessageChannelInitMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
@@ -307,7 +307,7 @@ export function createServer(
   const middlewareMode = !!serverConfig?.middlewareMode
 
   let middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
-  const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage>(serviceWorkerScope, {
+  const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage>(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: true,
     debug: createDebugger('vrowser:svc-worker-server')!,
@@ -629,11 +629,11 @@ export function createServer(
     // Handles two types:
     // 1. V_WW_CONNECT_PORT: MessagePort for Web Worker birpc communication
     // 2. vite:mc:init: iframe HMR port, forwarded to WW via the birpc port
-    let swWwPort: MessagePort | null = null
+    let swWwPort: MessagePort | null = null // swWw: Service Worker Web Worker
 
     httpServer.on('connection', (event) => {
       // V_WW_CONNECT_PORT: birpc handshake with Web Worker
-      if (event.data?.type === 'V_WW_CONNECT_PORT' && event.ports[0]) {
+      if (event.data.type === 'V_WW_CONNECT_PORT' && event.ports[0]) {
         const port = event.ports[0]
         swWwPort = port
         const clientId = event.clientId
@@ -670,9 +670,9 @@ export function createServer(
       }
 
       // vite:mc:init: iframe HMR port — forward to WW via the birpc MessagePort
-      if (event.data?.type === 'vite:mc:init' && event.ports[0] && swWwPort) {
-        debug?.('HMR port received from iframe, forwarding to WW')
-        swWwPort.postMessage({ type: 'V_WW_HMR_PORT' }, [event.ports[0]])
+      if (event.data.type === 'vite:mc:init' && event.ports[0] && swWwPort) {
+        debug?.('HMR port received from iframe, forwarding to WW', event.data.clientId)
+        swWwPort.postMessage({ type: 'V_WW_HMR_PORT', clientId: event.data.clientId }, [event.ports[0]])
         return
       }
     })

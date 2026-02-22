@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@kazupon/jts-utils':
-      specifier: ^0.16.0
-      version: 0.16.0
+      specifier: ^0.17.0
+      version: 0.17.0
     '@playwright/test':
       specifier: 1.57.0
       version: 1.57.0
@@ -246,7 +246,7 @@ importers:
     dependencies:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.16.0(@vue/reactivity@3.5.26)
+        version: 0.17.0(@vue/reactivity@3.5.26)
       '@vrowser/fs':
         specifier: workspace:*
         version: link:../fs
@@ -441,7 +441,7 @@ importers:
     devDependencies:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.16.0(@vue/reactivity@3.5.26)
+        version: 0.17.0(@vue/reactivity@3.5.26)
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.57.0
@@ -471,7 +471,7 @@ importers:
     dependencies:
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.16.0(@vue/reactivity@3.5.26)
+        version: 0.17.0(@vue/reactivity@3.5.26)
       '@vrowser/service-worker':
         specifier: workspace:*
         version: link:../service-worker
@@ -567,7 +567,7 @@ importers:
         version: 0.3.31
       '@kazupon/jts-utils':
         specifier: 'catalog:'
-        version: 0.16.0(@vue/reactivity@3.5.26)
+        version: 0.17.0(@vue/reactivity@3.5.26)
       '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
@@ -1387,8 +1387,8 @@ packages:
     peerDependencies:
       eslint: ^9.0.0
 
-  '@kazupon/jts-utils@0.16.0':
-    resolution: {integrity: sha512-TK73ZbNHrunaxOUHS61orUZyqh8qFMTjsArPqOsTitVSP6AYWGtZ7sOAYWzUYDRlcP7l39jS7VG4r1vuAFAc0Q==}
+  '@kazupon/jts-utils@0.17.0':
+    resolution: {integrity: sha512-5vGpgjbY++qCbvxdHK2V+nl+X9dGgLjlChs7VQOma5wqBacv3wldTrzJsrtWXkmPBgJYpQ8OFzW8HgR5lCqulg==}
     engines: {node: '>= 20'}
     peerDependencies:
       '@vue/reactivity': ^3.4
@@ -6947,7 +6947,7 @@ snapshots:
       '@eslint/core': 0.17.0
       eslint: 9.39.2(jiti@2.6.1)
 
-  '@kazupon/jts-utils@0.16.0(@vue/reactivity@3.5.26)':
+  '@kazupon/jts-utils@0.17.0(@vue/reactivity@3.5.26)':
     optionalDependencies:
       '@vue/reactivity': 3.5.26
 

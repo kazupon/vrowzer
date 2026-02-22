@@ -30,7 +30,7 @@ import {
 } from './watch'
 
 import type { BirpcReturn } from 'birpc'
-import type { WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
+import type { WebWorkerHmrPortMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { ViteDevServer } from './server/index'
@@ -223,7 +223,7 @@ function setupVirtualFiles(files?: Record<string, string>): void {
 export function connectServiceWorkerPort(
   port: MessagePort,
   handlers: WorkerFunctions,
-  onHmrPort?: (port: MessagePort) => void,
+  onHmrPort?: (port: MessagePort, clientId?: string) => void,
 ): Promise<BirpcReturn<ServiceWorkerFunctions, WorkerFunctions>> {
   return new Promise((resolve) => {
     // Phase 1: Handshake — wait for SW's channel-ready before creating birpc
@@ -237,11 +237,11 @@ export function connectServiceWorkerPort(
           {
             post: data => port.postMessage(data),
             on: fn => {
-              port.onmessage = (ev: MessageEvent) => {
+              port.onmessage = (ev: MessageEvent<WebWorkerHmrPortMessage>) => {
                 // Intercept: HMR port forwarded from SW
-                if (ev.data?.type === 'V_WW_HMR_PORT' && ev.ports?.[0]) {
-                  debug?.('HMR port received from SW')
-                  onHmrPort?.(ev.ports[0])
+                if (ev.data.type === 'V_WW_HMR_PORT' && ev.ports?.[0]) {
+                  debug?.('HMR port received from SW', ev.data.clientId)
+                  onHmrPort?.(ev.ports[0], ev.data.clientId)
                   return
                 }
                 // Normal birpc message

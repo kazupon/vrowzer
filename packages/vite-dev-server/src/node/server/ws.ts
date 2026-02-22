@@ -1,6 +1,7 @@
 import type { ErrorPayload, FullReloadPayload, HotPayload } from '#types/hmrPayload'
 import { Emitter } from '@kazupon/jts-utils/event'
 import { safeMessagePort } from '@kazupon/jts-utils/message/port'
+import { MC_INIT_EVENT } from '../../shared/messages'
 // NOTE(kazupon): HttpServer and ConnectionEvent imports removed.
 // createMessageChannelServer no longer depends on httpServer.
 // Ports are accepted via handlePort() instead.
@@ -19,9 +20,6 @@ type SafeMessagePort = ReturnType<typeof safeMessagePort>
 //   : WebSocketServerRaw_
 
 export const HMR_HEADER = 'vite-hmr'
-
-// MessageChannel connection events
-const MC_INIT_EVENT = 'vite:mc:init'
 
 /**
  * Custom listener type for MessageChannel events
@@ -97,7 +95,7 @@ export interface MessageChannelServer extends NormalizedHotChannel {
    * Accept a MessagePort from an external source (e.g. forwarded from SW).
    * Equivalent to WebSocket's `wss.on('connection', socket)`.
    */
-  handlePort(port: MessagePort): void
+  handlePort(port: MessagePort, clientId?: string): void
   /**
    * Start accepting connections. Activates any ports registered via handlePort() before listen().
    * Equivalent to WebSocket's `wsHttpServer.listen(port, host)`.
@@ -197,8 +195,8 @@ export function createMessageChannelServer(
   // Internal state
   let isListening = false
   const safePorts = new Set<SafeMessagePort>()
-  const clientsMap = new WeakMap<SafeMessagePort, MessageChannelClient>()
   const customListeners = new Map<string, Set<MessageChannelCustomListener<any>>>()
+  const clientsMap = new WeakMap<SafeMessagePort, MessageChannelClient>()
   const serverEmitter = Emitter<{ connection: MessagePort; close: void; error: Error }>()
 
   // On page reloads, if a file fails to compile and returns 500, the server
@@ -206,36 +204,6 @@ export function createMessageChannelServer(
   // If we have no open clients, buffer the error and send it to the next
   // connected client.
   let bufferedMessage: ErrorPayload | FullReloadPayload | null = null
-
-  /**
-   * Get or create a MessageChannelClient wrapper for a safe port
-   */
-  function getPortClient(safePort: SafeMessagePort, clientId?: string): MessageChannelClient {
-    if (!clientsMap.has(safePort)) {
-      const client: MessageChannelClient = {
-        send: (...args: unknown[]) => {
-          let payload: HotPayload
-          if (typeof args[0] === 'string') {
-            payload = {
-              type: 'custom',
-              event: args[0],
-              data: args[1],
-            }
-          } else {
-            payload = args[0] as HotPayload
-          }
-          safePort.postMessage(payload)
-        },
-        // TODO(kazupon): check `@kazupon/jts-utils/message/port` type
-        port: safePort.port,
-      }
-      if (clientId !== undefined) {
-        client.clientId = clientId
-      }
-      clientsMap.set(safePort, client)
-    }
-    return clientsMap.get(safePort)!
-  }
 
   /**
    * Emit a custom event to registered listeners
@@ -260,12 +228,12 @@ export function createMessageChannelServer(
   /**
    * Activate a port: send handshake messages and buffered payloads
    */
-  function activatePort(safePort: SafeMessagePort, rawPort: MessagePort) {
+  function activatePort(safePort: SafeMessagePort, rawPort: MessagePort, clientId?: string) {
     serverEmitter.emit('connection', rawPort)
-    emitCustomEvent('vite:client:connect', undefined, safePort)
+    emitCustomEvent('vite:client:connect', undefined, safePort, clientId)
 
     // Echo back the init event for handshake confirmation
-    safePort.postMessage({ type: MC_INIT_EVENT })
+    safePort.postMessage({ type: MC_INIT_EVENT, clientId })
     // Send connected message
     safePort.postMessage({ type: 'connected' })
 
@@ -280,31 +248,65 @@ export function createMessageChannelServer(
    * Accept a MessagePort from an external source.
    * Equivalent to WebSocket's `wss.on('connection', socket)`.
    */
-  function handlePort(rawPort: MessagePort) {
-    const safePort = safeMessagePort(rawPort)
+  function handlePort(rawPort: MessagePort, clientId?: string) {
+    const safePort = safeMessagePort<HotPayload>(rawPort)
     safePorts.add(safePort)
 
     // Set up message handler
-    safePort.on('message', (msgEvent: MessageEvent) => {
-      const data = msgEvent.data as HotPayload
-      if (data?.type === 'ping') {
+    safePort.on('message', msgEvent => {
+      const data = msgEvent.data
+      if (data.type === 'ping') {
         return
       }
-      if (data?.type === 'custom' && data?.event) {
-        emitCustomEvent(data.event, data.data, safePort)
+      if (data.type === 'custom' && data.event) {
+        emitCustomEvent(data.event, data.data, safePort, clientId)
       }
     })
 
     // Set up error handler
-    safePort.on('messageerror', (err: MessageEvent) => {
+    safePort.on('messageerror', err => {
       console.error(`[vrowser] MessageChannel error:`, err)
+      // NOTE(kazupon): Disable orignal WebSocket error logging, because MessageChannel errors are not as critical as WebSocket errors and can be noisy during development.
+      // config.logger.error(`${colors.red(`ws error:`)}\n${err.stack}`, {
+      //   timestamp: true,
+      //   error: err,
+      // })
       serverEmitter.emit('error', err as unknown as Error)
     })
 
     // If already listening, activate immediately
     if (isListening) {
-      activatePort(safePort, rawPort)
+      activatePort(safePort, rawPort, clientId)
     }
+  }
+
+  /**
+   * Get or create a MessageChannelClient wrapper for a safe port
+   */
+  function getPortClient(safePort: SafeMessagePort, clientId?: string): MessageChannelClient {
+    if (!clientsMap.has(safePort)) {
+      const client: MessageChannelClient = {
+        send: (...args: unknown[]) => {
+          let payload: HotPayload
+          if (typeof args[0] === 'string') {
+            payload = {
+              type: 'custom',
+              event: args[0],
+              data: args[1],
+            }
+          } else {
+            payload = args[0] as HotPayload
+          }
+          safePort.postMessage(payload)
+        },
+        port: safePort.raw
+      }
+      if (clientId !== undefined) {
+        client.clientId = clientId
+      }
+      clientsMap.set(safePort, client)
+    }
+    return clientsMap.get(safePort)!
   }
 
   // Create the MessageChannelServer instance
@@ -362,7 +364,7 @@ export function createMessageChannelServer(
       isListening = true
       // Activate any ports registered before listen()
       for (const safePort of safePorts) {
-        activatePort(safePort, safePort.port)
+        activatePort(safePort, safePort.raw)
       }
     },
 

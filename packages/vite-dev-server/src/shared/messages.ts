@@ -18,12 +18,18 @@
 // ---- Web Worker setup protocol ----
 
 /**
- * Main Thread → Web Worker: Initialize worker with config.
+ * Main Thread -> Web Worker: Initialize worker with config.
  * Sent after `new Worker()` to trigger `setupWorker()`.
  */
 export interface SetupWorkerMessage {
   type: 'V_WW_SETUP'
+  /**
+   * Vite config object. Contents depend on the consumer's needs.
+   */
   config: Record<string, unknown>
+  /**
+   * Intialize web worker
+   */
   options?: Record<string, unknown>
   /**
    * Initial files to populate the virtual filesystem (@vrowser/fs).
@@ -33,17 +39,17 @@ export interface SetupWorkerMessage {
 }
 
 /**
- * Web Worker → Main Thread: Worker initialization complete (ACK).
+ * Web Worker -> Main Thread: Worker initialization complete (ACK).
  * Sent after `setupWorker()` completes successfully.
  */
 export interface SetupWorkerAckMessage {
   type: 'V_WW_SETUP_ACK'
 }
 
-// ---- Service Worker ↔ Web Worker MessageChannel connection protocol ----
+// ---- Service Worker <-> Web Worker MessageChannel connection protocol ----
 
 /**
- * Main Thread → Service Worker: Accept a MessagePort for Web Worker communication.
+ * Main Thread -> Service Worker: Accept a MessagePort for Web Worker communication.
  * The port is transferred via postMessage's transfer list.
  * Service Worker receives this via SvcWorkerServer's `connection` event.
  */
@@ -52,7 +58,7 @@ export interface ConnectWebWorkerPortMessage {
 }
 
 /**
- * Main Thread → Web Worker: Accept a MessagePort for Service Worker communication.
+ * Main Thread -> Web Worker: Accept a MessagePort for Service Worker communication.
  * The port is transferred via postMessage's transfer list.
  */
 export interface ConnectServiceWorkerPortMessage {
@@ -60,17 +66,20 @@ export interface ConnectServiceWorkerPortMessage {
 }
 
 /**
- * Service Worker ↔ Web Worker: Channel establishment confirmation (sent over the MessagePort).
+ * Service Worker <-> Web Worker: Channel establishment confirmation (sent over the MessagePort).
  * Both sides send this to confirm the port is ready.
  * After both sides receive this, the port is switched to birpc.
  */
 export interface WebWorkerServiceWorkerChannelReadyMessage {
   type: 'V_WW_SW_CHANNEL_READY'
+  /**
+   * Source of the message, 'sw' (Service Worker) or 'ww' (Web Worker)
+   */
   source: 'sw' | 'ww'
 }
 
 /**
- * Service Worker → Main Thread: Service Worker completed channel-ready handshake with Web Worker.
+ * Service Worker -> Main Thread: Service Worker completed channel-ready handshake with Web Worker.
  * Sent via `clients.get(clientId).postMessage()` to the originating client only.
  */
 export interface ConnectWebWorkerPortAckMessage {
@@ -78,7 +87,7 @@ export interface ConnectWebWorkerPortAckMessage {
 }
 
 /**
- * Web Worker → Main Thread: Web Worker completed channel-ready handshake with Service Worker.
+ * Web Worker -> Main Thread: Web Worker completed channel-ready handshake with Service Worker.
  * Sent via `self.postMessage()`.
  */
 export interface ConnectServiceWorkerPortAckMessage {
@@ -86,12 +95,27 @@ export interface ConnectServiceWorkerPortAckMessage {
 }
 
 /**
- * Service Worker → Web Worker (via SW↔WW MessagePort):
+ * iframe -> Service Worker -> Web Worker (via Service Worker <-> Web Worker MessagePort):
  * Forward iframe's HMR MessagePort to Web Worker.
  * The port is transferred via postMessage's transfer list.
  */
 export interface WebWorkerHmrPortMessage {
   type: 'V_WW_HMR_PORT'
+  /**
+   * Client ID of the iframe sending the HMR (via 'vite:mc:init' message)
+   */
+  clientId?: string
+}
+
+/**
+ * iframe -> Web Worker: Initialize HMR MessagePort connection.
+ */
+export interface ViteMessageChannelInitMessage {
+  type: 'vite:mc:init'
+  /**
+   * Client ID of the iframe sending the HMR
+   */
+  clientId?: string
 }
 
 // ---- Protocol message type constants ----
@@ -104,3 +128,4 @@ export const V_WW_SW_CHANNEL_READY = 'V_WW_SW_CHANNEL_READY' as const
 export const V_WW_CONNECT_PORT_ACK = 'V_WW_CONNECT_PORT_ACK' as const
 export const V_SW_CONNECT_PORT_ACK = 'V_SW_CONNECT_PORT_ACK' as const
 export const V_WW_HMR_PORT = 'V_WW_HMR_PORT' as const
+export const MC_INIT_EVENT = 'vite:mc:init' as const
