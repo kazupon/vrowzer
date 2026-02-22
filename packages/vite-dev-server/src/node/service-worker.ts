@@ -625,45 +625,55 @@ export function createServer(
       httpServer.emit('error', err as Error)
     }
 
-    // Listen for V_WW_CONNECT_PORT connections from Main Thread.
-    // When a MessagePort for Web Worker communication arrives,
-    // perform the V_WW_SW_CHANNEL_READY handshake, then create
-    // a birpc RPC client for delegating transform requests to the WW.
+    // Listen for connections from Main Thread.
+    // Handles two types:
+    // 1. V_WW_CONNECT_PORT: MessagePort for Web Worker birpc communication
+    // 2. vite:mc:init: iframe HMR port, forwarded to WW via the birpc port
+    let swWwPort: MessagePort | null = null
+
     httpServer.on('connection', (event) => {
-      if (event.data?.type !== 'V_WW_CONNECT_PORT' || !event.ports[0]) {
+      // V_WW_CONNECT_PORT: birpc handshake with Web Worker
+      if (event.data?.type === 'V_WW_CONNECT_PORT' && event.ports[0]) {
+        const port = event.ports[0]
+        swWwPort = port
+        const clientId = event.clientId
+        debug?.('Worker port received via connection event')
+
+        // Phase 1: Handshake — wait for WW's channel-ready before creating birpc
+        port.onmessage = async (e: MessageEvent<WebWorkerServiceWorkerChannelReadyMessage>) => {
+          if (e.data.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'ww') {
+            // Reply with SW's channel-ready
+            port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'sw' })
+
+            // Notify the originating client that the connection is established
+            if (clientId) {
+              const client = await serviceWorkerScope.clients.get(clientId)
+              client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
+            }
+
+            // Phase 2: Replace onmessage with birpc
+            workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
+              {
+                // ServiceWorkerFunctions handlers (currently empty, future: HMR relay etc.)
+              },
+              {
+                post: rpcData => port.postMessage(rpcData),
+                on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
+                timeout: 30_000,
+              }
+            )
+
+            debug?.('Worker RPC established via birpc')
+          }
+        }
         return
       }
 
-      const port = event.ports[0]
-      const clientId = event.clientId
-      debug?.('Worker port received via connection event')
-
-      // Phase 1: Handshake — wait for WW's channel-ready before creating birpc
-      port.onmessage = async (e: MessageEvent<WebWorkerServiceWorkerChannelReadyMessage>) => {
-        if (e.data.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'ww') {
-          // Reply with SW's channel-ready
-          port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'sw' })
-
-          // Notify the originating client that the connection is established
-          if (clientId) {
-            const client = await serviceWorkerScope.clients.get(clientId)
-            client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
-          }
-
-          // Phase 2: Replace onmessage with birpc
-          workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
-            {
-              // ServiceWorkerFunctions handlers (currently empty, future: HMR relay etc.)
-            },
-            {
-              post: rpcData => port.postMessage(rpcData),
-              on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
-              timeout: 30_000,
-            }
-          )
-
-          debug?.('Worker RPC established via birpc')
-        }
+      // vite:mc:init: iframe HMR port — forward to WW via the birpc MessagePort
+      if (event.data?.type === 'vite:mc:init' && event.ports[0] && swWwPort) {
+        debug?.('HMR port received from iframe, forwarding to WW')
+        swWwPort.postMessage({ type: 'V_WW_HMR_PORT' }, [event.ports[0]])
+        return
       }
     })
 

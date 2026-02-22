@@ -100,6 +100,7 @@ export function createServer(
 
   // State: set after V_WW_SETUP completes
   let server: ViteDevServerForWorker | null = null
+  let ws: import('./server/ws').MessageChannelServer | null = null
 
   // Register onmessage immediately (lightweight, no WASM)
   workerScope.onmessage = async (event: MessageEvent<InternalWorkerMessage>) => {
@@ -114,7 +115,9 @@ export function createServer(
           const transformer = await import('./transformer')
 
           debug?.('transformer loaded, initializing...')
-          const { config, environments } = await transformer.setupWorker(event.data.config, event.data.options, event.data.files)
+          const result = await transformer.setupWorker(event.data.config, event.data.options, event.data.files)
+          const { config, environments } = result
+          ws = result.ws
           const clientEnv = environments.client
           const devHtmlTransformFn = transformer.createDevHtmlTransformFn(config)
 
@@ -175,6 +178,10 @@ export function createServer(
         await connectServiceWorkerPort(port, {
           transformRequest: (url, opts) => server!.transformRequest(url, opts),
           transformIndexHtml: (url, html, originalUrl) => server!.transformIndexHtml(url, html, originalUrl),
+          warmupRequest: (url) => server!.warmupRequest(url),
+        }, (hmrPort) => {
+          debug?.('HMR port received from SW, connecting to MessageChannelServer')
+          ws!.handlePort(hmrPort)
         })
 
         workerScope.postMessage({ type: 'V_SW_CONNECT_PORT_ACK' })

@@ -85,6 +85,15 @@ export interface ConnectServiceWorkerPortAckMessage {
   type: 'V_SW_CONNECT_PORT_ACK'
 }
 
+/**
+ * Service Worker → Web Worker (via SW↔WW MessagePort):
+ * Forward iframe's HMR MessagePort to Web Worker.
+ * The port is transferred via postMessage's transfer list.
+ */
+export interface WebWorkerHmrPortMessage {
+  type: 'V_WW_HMR_PORT'
+}
+
 // ---- Protocol message type constants ----
 
 export const V_WW_SETUP = 'V_WW_SETUP' as const
@@ -94,3 +103,4 @@ export const V_SW_CONNECT_PORT = 'V_SW_CONNECT_PORT' as const
 export const V_WW_SW_CHANNEL_READY = 'V_WW_SW_CHANNEL_READY' as const
 export const V_WW_CONNECT_PORT_ACK = 'V_WW_CONNECT_PORT_ACK' as const
 export const V_SW_CONNECT_PORT_ACK = 'V_SW_CONNECT_PORT_ACK' as const
+export const V_WW_HMR_PORT = 'V_WW_HMR_PORT' as const

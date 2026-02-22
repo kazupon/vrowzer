@@ -549,7 +549,7 @@ export function createServer(
     )
 
     // Create MessageChannel server for HMR
-    const ws = createMessageChannelServer(httpServer, config)
+    const ws = createMessageChannelServer(config)
 
     const publicFiles = await initPublicFilesPromise
     const { publicDir } = config

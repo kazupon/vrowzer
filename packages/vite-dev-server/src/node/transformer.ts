@@ -20,7 +20,7 @@ import { createBirpc } from 'birpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { DevEnvironment } from './server/environment'
-import { createNoopMessageChannelServer } from './server/ws'
+import { createMessageChannelServer } from './server/ws'
 import { createDebugger } from './utils'
 import {
   createNoopWatcher,
@@ -58,6 +58,7 @@ export type ViteDevServerForWorker = Pick<ViteDevServer,
 export interface SetupWorkerResult {
   config: ResolvedConfig
   environments: Record<string, DevEnvironment>
+  ws: import('./server/ws').MessageChannelServer
 }
 
 export interface SetupWorkerOptions {
@@ -134,15 +135,17 @@ export async function setupWorker(
   )
 
   // Create MessageChannel server for HMR
-  // TODO(kazupon): Replace with real MessageChannel server when HMR is implemented
-  const ws = createNoopMessageChannelServer()
+  const ws = createMessageChannelServer(config)
 
+  // Initialize public directory and files
   const publicFiles = await initPublicFilesPromise
   const { publicDir } = config
   debug?.('publicDir:', publicDir, 'publicFiles:', publicFiles)
 
+  // Create a watcher that DevEnvironment can use for file watching (e.g. for plugins that watch files).
   const watcher = createNoopWatcher(resolvedWatchOptions)
 
+  // Create DevEnvironment for each configured environment
   const environments: Record<string, DevEnvironment> = {}
   await Promise.all(
     Object.entries(config.environments).map(
@@ -159,12 +162,14 @@ export async function setupWorker(
         const previousInstance =
           options.previousEnvironments?.[environment.name]
         await environment.init({ watcher, previousInstance })
+        // Start HMR channel listening (equivalent to environment.listen() but without ViteDevServer)
+        environment.hot.listen()
       },
     ),
   )
   debug?.('Created environments:', environments)
 
-  return { config, environments }
+  return { config, environments, ws }
 }
 
 function setupVirtualFiles(files?: Record<string, string>): void {
@@ -207,13 +212,18 @@ function setupVirtualFiles(files?: Record<string, string>): void {
  * Performs the V_WW_SW_CHANNEL_READY handshake on the port, then
  * creates a birpc RPC server that handles transform requests from the SW.
  *
+ * After birpc is established, the same port is also used to receive
+ * V_WW_HMR_PORT messages (iframe HMR ports forwarded from SW).
+ *
  * @param port - MessagePort received via V_SW_CONNECT_PORT message
  * @param handlers - WorkerFunctions handlers (transformRequest, transformIndexHtml)
+ * @param onHmrPort - Callback when an iframe HMR port is received via V_WW_HMR_PORT
  * @returns Promise that resolves with the birpc instance after handshake completes
  */
 export function connectServiceWorkerPort(
   port: MessagePort,
   handlers: WorkerFunctions,
+  onHmrPort?: (port: MessagePort) => void,
 ): Promise<BirpcReturn<ServiceWorkerFunctions, WorkerFunctions>> {
   return new Promise((resolve) => {
     // Phase 1: Handshake — wait for SW's channel-ready before creating birpc
@@ -221,12 +231,23 @@ export function connectServiceWorkerPort(
       if (e.data.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'sw') {
         debug?.('SW channel ready, creating birpc')
 
-        // Phase 2: Replace onmessage with birpc
+        // Phase 2: Replace onmessage with birpc + HMR port intercept
         const rpc = createBirpc<ServiceWorkerFunctions, WorkerFunctions>(
           handlers,
           {
             post: data => port.postMessage(data),
-            on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
+            on: fn => {
+              port.onmessage = (ev: MessageEvent) => {
+                // Intercept: HMR port forwarded from SW
+                if (ev.data?.type === 'V_WW_HMR_PORT' && ev.ports?.[0]) {
+                  debug?.('HMR port received from SW')
+                  onHmrPort?.(ev.ports[0])
+                  return
+                }
+                // Normal birpc message
+                fn(ev.data)
+              }
+            },
           }
         )
 

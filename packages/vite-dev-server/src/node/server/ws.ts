@@ -1,8 +1,9 @@
 import type { ErrorPayload, FullReloadPayload, HotPayload } from '#types/hmrPayload'
 import { Emitter } from '@kazupon/jts-utils/event'
 import { safeMessagePort } from '@kazupon/jts-utils/message/port'
-import type { ConnectionEvent } from '@vrowser/service-worker-server'
-import type { HttpServer } from '.'
+// NOTE(kazupon): HttpServer and ConnectionEvent imports removed.
+// createMessageChannelServer no longer depends on httpServer.
+// Ports are accepted via handlePort() instead.
 import type { InferCustomEventPayload } from '..'
 import type { ResolvedConfig } from '../config'
 import type { NormalizedHotChannel, NormalizedHotChannelClient } from './hmr'
@@ -93,7 +94,13 @@ export interface MessageChannelServer extends NormalizedHotChannel {
     (event: string, listener: Function): void
   }
   /**
-   * Listen on port and host
+   * Accept a MessagePort from an external source (e.g. forwarded from SW).
+   * Equivalent to WebSocket's `wss.on('connection', socket)`.
+   */
+  handlePort(port: MessagePort): void
+  /**
+   * Start accepting connections. Activates any ports registered via handlePort() before listen().
+   * Equivalent to WebSocket's `wsHttpServer.listen(port, host)`.
    */
   listen(): void
   /**
@@ -160,6 +167,7 @@ export function createNoopMessageChannelServer(): MessageChannelServer {
         stack: new Error().stack,
       },
     }),
+    handlePort: noop,
     listen: noop,
     send: noop,
   }
@@ -168,15 +176,17 @@ export function createNoopMessageChannelServer(): MessageChannelServer {
 /**
  * Create a MessageChannel-based server.
  *
- * This function provides MessageChannel-based HMR for Service Worker environments,
- * inspired by Vite's `createWebSocketServer` function.
+ * This function provides MessageChannel-based HMR for both Service Worker and
+ * Web Worker environments, inspired by Vite's `createWebSocketServer` function.
  *
- * @param server - The HttpServer (SvcWorkerServer) instance
+ * Unlike the original WebSocket-based server, this does not depend on an HTTP server.
+ * Ports are accepted via `handlePort()` (equivalent to `wss.on('connection', socket)`),
+ * and `listen()` activates the server to accept connections.
+ *
  * @param config - The resolved Vite config
  * @returns A MessageChannelServer instance
  */
 export function createMessageChannelServer(
-  server: HttpServer,
   config: ResolvedConfig,
 ): MessageChannelServer {
   // Return noop server if HMR is disabled
@@ -185,6 +195,7 @@ export function createMessageChannelServer(
   }
 
   // Internal state
+  let isListening = false
   const safePorts = new Set<SafeMessagePort>()
   const clientsMap = new WeakMap<SafeMessagePort, MessageChannelClient>()
   const customListeners = new Map<string, Set<MessageChannelCustomListener<any>>>()
@@ -194,8 +205,6 @@ export function createMessageChannelServer(
   // sends the error payload before the client connection is established.
   // If we have no open clients, buffer the error and send it to the next
   // connected client.
-  // The same thing may happen when the optimizer runs fast enough to
-  // finish the bundling before the client connects.
   let bufferedMessage: ErrorPayload | FullReloadPayload | null = null
 
   /**
@@ -238,7 +247,9 @@ export function createMessageChannelServer(
     clientId?: string,
   ) {
     const listeners = customListeners.get(event)
-    if (!listeners?.size) { return }
+    if (!listeners?.size) {
+      return
+    }
 
     const client = getPortClient(safePort, clientId)
     for (const listener of listeners) {
@@ -247,46 +258,11 @@ export function createMessageChannelServer(
   }
 
   /**
-   * Handle incoming connection from client
+   * Activate a port: send handshake messages and buffered payloads
    */
-  function handleConnection(event: ConnectionEvent<unknown>) {
-    // Only process vite:mc:init events with a port
-    const data = event.data as { type?: string } | undefined
-    if (data?.type !== MC_INIT_EVENT || !event.ports[0]) {
-      return
-    }
-
-    const rawPort = event.ports[0]
-    const clientId = event.clientId
-
-    // Wrap the raw port with safeMessagePort for safer event handling
-    const safePort = safeMessagePort(rawPort)
-
-    // Track the safe port
-    safePorts.add(safePort)
-
-    // Set up message handler using safeMessagePort's on method
-    safePort.on('message', (msgEvent: MessageEvent) => {
-      const data = msgEvent.data as HotPayload
-
-      // Ignore ping messages (used for keep-alive)
-      if (data?.type === 'ping') { return }
-
-      // Handle custom events
-      if (data?.type === 'custom' && data?.event) {
-        emitCustomEvent(data.event, data.data, safePort, clientId)
-      }
-    })
-
-    // Set up error handler using safeMessagePort's on method
-    safePort.on('messageerror', (err: MessageEvent) => {
-      console.error(`[vrowser] MessageChannel error:`, err)
-      serverEmitter.emit('error', err as unknown as Error)
-    })
-
-    // Emit connection event (emit with raw port for backward compatibility)
+  function activatePort(safePort: SafeMessagePort, rawPort: MessagePort) {
     serverEmitter.emit('connection', rawPort)
-    emitCustomEvent('vite:client:connect', undefined, safePort, clientId)
+    emitCustomEvent('vite:client:connect', undefined, safePort)
 
     // Echo back the init event for handshake confirmation
     safePort.postMessage({ type: MC_INIT_EVENT })
@@ -300,11 +276,41 @@ export function createMessageChannelServer(
     }
   }
 
-  // Register connection handler on server
-  server.on('connection', handleConnection)
+  /**
+   * Accept a MessagePort from an external source.
+   * Equivalent to WebSocket's `wss.on('connection', socket)`.
+   */
+  function handlePort(rawPort: MessagePort) {
+    const safePort = safeMessagePort(rawPort)
+    safePorts.add(safePort)
+
+    // Set up message handler
+    safePort.on('message', (msgEvent: MessageEvent) => {
+      const data = msgEvent.data as HotPayload
+      if (data?.type === 'ping') {
+        return
+      }
+      if (data?.type === 'custom' && data?.event) {
+        emitCustomEvent(data.event, data.data, safePort)
+      }
+    })
+
+    // Set up error handler
+    safePort.on('messageerror', (err: MessageEvent) => {
+      console.error(`[vrowser] MessageChannel error:`, err)
+      serverEmitter.emit('error', err as unknown as Error)
+    })
+
+    // If already listening, activate immediately
+    if (isListening) {
+      activatePort(safePort, rawPort)
+    }
+  }
 
   // Create the MessageChannelServer instance
-  const mcServer: MessageChannelServer = {
+  const messageChannelServer: MessageChannelServer = {
+    handlePort,
+
     send(payload: HotPayload) {
       // Buffer error/full-reload if no clients connected
       if (
@@ -323,7 +329,6 @@ export function createMessageChannelServer(
 
     on: ((event: string, fn: (...args: unknown[]) => void) => {
       if (serverEvents.includes(event)) {
-        // Type-safe event handling for server events
         if (event === 'connection') {
           serverEmitter.on('connection', fn as (port: MessagePort) => void)
         } else if (event === 'close') {
@@ -341,7 +346,6 @@ export function createMessageChannelServer(
 
     off: ((event: string, fn: Function) => {
       if (serverEvents.includes(event)) {
-        // Type-safe event handling for server events
         if (event === 'connection') {
           serverEmitter.off('connection', fn as (port: MessagePort) => void)
         } else if (event === 'close') {
@@ -355,7 +359,11 @@ export function createMessageChannelServer(
     }) as MessageChannelServer['off'],
 
     listen() {
-      server.listenConnections()
+      isListening = true
+      // Activate any ports registered before listen()
+      for (const safePort of safePorts) {
+        activatePort(safePort, safePort.port)
+      }
     },
 
     async close() {
@@ -371,16 +379,8 @@ export function createMessageChannelServer(
       }
       safePorts.clear()
 
-      // Remove server listener
-      server.off('connection', handleConnection)
-
       // Emit close event
       serverEmitter.emit('close')
-
-      // Close server connections
-      return new Promise<void>((resolve) => {
-        server.closeConnections(() => resolve())
-      })
     },
 
     setInvokeHandler: noop,
@@ -399,7 +399,7 @@ export function createMessageChannelServer(
     },
   }
 
-  return mcServer
+  return messageChannelServer
 }
 
 //
