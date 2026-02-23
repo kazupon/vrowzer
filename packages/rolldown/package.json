@@ -28,6 +28,16 @@
       "import": "./dist/browser/experimental.js",
       "default": "./dist/browser/experimental.js"
     },
+    "./parseAst": {
+      "types": "./dist/parseAst.d.ts",
+      "import": "./dist/parseAst.js",
+      "default": "./dist/parseAst.js"
+    },
+    "./browser/parseAst": {
+      "types": "./dist/browser/parseAst.d.ts",
+      "import": "./dist/browser/parseAst.js",
+      "default": "./dist/browser/parseAst.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -41,6 +51,8 @@
   "devDependencies": {
     "@playwright/test": "catalog:",
     "@vrowser/node-polyfill": "workspace:*",
+    "@vrowser/service-worker": "workspace:*",
+    "@vrowser/unplugin-service-worker": "workspace:*",
     "buffer": "catalog:",
     "get-port-please": "catalog:",
     "pathe": "catalog:",

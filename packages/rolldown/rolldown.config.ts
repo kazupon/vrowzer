@@ -112,6 +112,25 @@ const useSharedFsSingletonPlugin: Plugin = {
   }
 }
 
+/**
+ * Redirect CJS binding to browser binding.
+ *
+ * `parse-ast-index.mjs` imports `rolldown-binding.wasi.cjs` (Node.js CJS),
+ * which contains `require('node:fs')` etc. Redirect to the browser binding
+ * (`rolldown-binding.wasi-browser.js`) which uses WASM instead.
+ */
+const redirectCjsBindingToBrowserPlugin: Plugin = {
+  name: 'redirect-cjs-binding-to-browser',
+  resolveId: {
+    filter: { id: /rolldown-binding\.wasi\.cjs$/ },
+    handler(_id, importer) {
+      if (!importer) {return null}
+      const dir = dirname(importer)
+      return { id: join(dir, '..', 'rolldown-binding.wasi-browser.js'), external: false }
+    }
+  }
+}
+
 const replaceNodeGlobalsPlugin: Plugin = {
   name: 'replace-node-globals',
   transform: {
@@ -224,6 +243,12 @@ const postBuildPlugin: Plugin = {
       ].join('\n')
     )
 
+    // Generate type declarations for parseAst (variant 1)
+    writeFileSync(
+      join(distDir, 'parseAst.d.ts'),
+      `export { parseAst, parseAstAsync, type ParseResult, type ParserOptions } from '@rolldown/browser/parseAst'\n`
+    )
+
     // Generate type declarations for variant 2 (bundled @vrowser/fs)
     mkdirSync(join(distDir, 'browser'), { recursive: true })
     writeFileSync(
@@ -233,6 +258,11 @@ const postBuildPlugin: Plugin = {
     writeFileSync(
       join(distDir, 'browser', 'experimental.d.ts'),
       `export { memfs, parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'\n`
+    )
+    // Generate type declarations for parseAst (variant 2)
+    writeFileSync(
+      join(distDir, 'browser', 'parseAst.d.ts'),
+      `export { parseAst, parseAstAsync, type ParseResult, type ParserOptions } from '@rolldown/browser/parseAst'\n`
     )
   }
 }
@@ -286,11 +316,13 @@ export default defineConfig([
   {
     input: {
       index: join(rolldownDist, 'index.browser.mjs'),
-      experimental: join(rolldownDist, 'experimental-index.browser.mjs')
+      experimental: join(rolldownDist, 'experimental-index.browser.mjs'),
+      parseAst: join(rolldownDist, 'parse-ast-index.mjs')
     },
     platform: 'browser',
     resolve: commonResolve,
     plugins: [
+      redirectCjsBindingToBrowserPlugin,
       useSharedFsSingletonPlugin,
       replaceWasmRuntimeFsExternalPlugin,
       replaceNodeGlobalsPlugin,
@@ -312,11 +344,13 @@ export default defineConfig([
   {
     input: {
       index: join(rolldownDist, 'index.browser.mjs'),
-      experimental: join(rolldownDist, 'experimental-index.browser.mjs')
+      experimental: join(rolldownDist, 'experimental-index.browser.mjs'),
+      parseAst: join(rolldownDist, 'parse-ast-index.mjs')
     },
     platform: 'browser',
     resolve: bundledResolve,
     plugins: [
+      redirectCjsBindingToBrowserPlugin,
       useSharedFsSingletonPlugin,
       replaceWasmRuntimeFsBundledPlugin,
       replaceNodeGlobalsPlugin,
