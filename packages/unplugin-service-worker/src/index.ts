@@ -48,6 +48,7 @@ interface ServiceWorkerBundlerConfig {
 interface BundleServiceWorkerOptions {
   minify?: boolean | undefined
   sourcemap?: boolean | 'inline' | undefined
+  format?: 'iife' | 'esm' | undefined
   define?: Record<string, string> | undefined
   alias?: Record<string, string> | undefined
   plugins?: import('rolldown').Plugin[] | undefined
@@ -266,13 +267,12 @@ function resolveProductionPlugins(
 }
 
 /**
- * Default defines for Service Worker bundling.
- * Service Workers are bundled into IIFE format where import.meta is not available,
- * so we need to provide fallback values for import.meta and import.meta.env.
- * These are ordered from most specific to least specific to ensure correct replacement.
+ * Defines for import.meta.env.* replacement.
+ * Vite's import.meta.env is not available in Service Worker scope,
+ * so we need to provide fallback values.
+ * Ordered from most specific to least specific to ensure correct replacement.
  */
-const DEFAULT_SERVICE_WORKER_DEFINES: Record<string, string> = {
-  // Specific environment variables first
+const SERVICE_WORKER_ENV_DEFINES: Record<string, string> = {
   'import.meta.env.VITE_DEBUG_FILTER': 'undefined',
   'import.meta.env.DEBUG': 'undefined',
   'import.meta.env.DEV': 'false',
@@ -280,8 +280,16 @@ const DEFAULT_SERVICE_WORKER_DEFINES: Record<string, string> = {
   'import.meta.env.SSR': 'false',
   'import.meta.env.MODE': '"production"',
   'import.meta.env.BASE_URL': '"/"',
-  // Then the object replacements (less specific)
-  'import.meta.env': '{}',
+  'import.meta.env': '{}'
+}
+
+/**
+ * Default defines for IIFE format Service Worker bundling.
+ * In IIFE format, import.meta itself is not available,
+ * so we replace it entirely along with import.meta.env.*.
+ */
+const DEFAULT_SERVICE_WORKER_DEFINES: Record<string, string> = {
+  ...SERVICE_WORKER_ENV_DEFINES,
   'import.meta': '{}'
 }
 
@@ -632,13 +640,15 @@ async function bundleServiceWorkerWithRolldown(
   options: BundleServiceWorkerOptions = {}
 ): Promise<{ code: string } | null> {
   const { rolldown } = await import('rolldown')
+  const format = options.format ?? 'iife'
 
-  // Merge user-provided defines with default Service Worker defines
-  // User defines take precedence over defaults
-  const mergedDefines = {
-    ...DEFAULT_SERVICE_WORKER_DEFINES,
-    ...options.define
-  }
+  // ESM format preserves import.meta and import.meta.url, but import.meta.env
+  // (Vite-specific) is not available in SW scope and must be replaced.
+  // IIFE format requires import.meta itself to be replaced entirely.
+  const mergedDefines =
+    format === 'esm'
+      ? { ...SERVICE_WORKER_ENV_DEFINES, ...options.define }
+      : { ...DEFAULT_SERVICE_WORKER_DEFINES, ...options.define }
 
   // Check if user explicitly provided wasmUrlPlugin (for production builds).
   // When wasmUrlPlugin is present, skip wasmInlinePlugin to avoid conflicts:
@@ -646,6 +656,8 @@ async function bundleServiceWorkerWithRolldown(
   // `new URL("*.wasm", self.location.href)`, which prevents inlineWasmInCode
   // from matching the pattern in the post-processing step.
   // In dev mode, wasmUrlPlugin should already be filtered out by the caller.
+  // In ESM format with wasmUrlPlugin, the plugin is also skipped since
+  // import.meta.url is available natively.
   const hasWasmUrlPlugin = options.plugins?.some(
     p => (p as { name?: string }).name === 'unplugin-service-worker:wasm-url'
   )
@@ -670,7 +682,10 @@ async function bundleServiceWorkerWithRolldown(
   })
 
   const { output } = await bundle.generate({
-    format: 'iife',
+    format,
+    // ESM format: inline dynamic imports to produce a single file.
+    // Modules marked as external are preserved as import() calls.
+    ...(format === 'esm' && { inlineDynamicImports: true }),
     sourcemap: options.sourcemap ? 'inline' : false,
     minify: options.minify ?? false
   })
@@ -684,7 +699,9 @@ async function bundleServiceWorkerWithRolldown(
 
   // Post-process: inline WASM files as base64 data URLs.
   // This runs after bundle.generate() because rolldown's transform.define
-  // replaces `import.meta.url` with `{}.url` before plugin transform hooks.
+  // replaces `import.meta.url` with `{}.url` before plugin transform hooks (IIFE only).
+  // In ESM format, `import.meta.url` is preserved, so inlineWasmInCode matches
+  // the original pattern directly.
   // Skipped when wasmUrlPlugin is used (WASM served as separate files in production).
   let code = chunk.code
   if (wasmPlugin) {
@@ -1040,9 +1057,9 @@ function createViteConfigureServer(ctx: PluginContext, options: OptionsResolved)
         const result = await bundleServiceWorkerWithRolldown(filePath, {
           minify: false,
           sourcemap: 'inline',
+          format: options.format,
           define: ctx.bundlerConfig.define,
           alias: ctx.bundlerConfig.alias,
-
           plugins: devPlugins
         })
 
@@ -1105,9 +1122,9 @@ function createViteRenderChunk(
         const result = await bundleServiceWorkerWithRolldown(swPath, {
           minify: ctx.viteConfig.build.minify !== false,
           sourcemap: ctx.viteConfig.build.sourcemap ? 'inline' : false,
+          format: options.format,
           define: ctx.bundlerConfig.define,
           alias: ctx.bundlerConfig.alias,
-
           plugins: resolveProductionPlugins(options, ctx.bundlerConfig.plugins)
         })
 

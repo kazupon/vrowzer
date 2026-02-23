@@ -59,6 +59,16 @@ export interface Options {
    * @default undefined
    */
   assets?: ServiceWorkerAssetConfig[] | undefined
+  /**
+   * Output format for the Service Worker bundle.
+   * - `'iife'`: Immediately Invoked Function Expression (default, broadest compatibility)
+   * - `'esm'`: ES Module format (requires browser ESM Service Worker support, Chrome 91+).
+   *   ESM format preserves `import.meta.url` and dynamic `import()`, which is necessary
+   *   when the Service Worker imports modules that contain top-level await (e.g. WASM).
+   *
+   * @default 'iife'
+   */
+  format?: 'iife' | 'esm' | undefined
 }
 
 /**
@@ -79,7 +89,7 @@ type Overwrite<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U
 
 export type OptionsResolved = Overwrite<
   Required<Options>,
-  Pick<Options, 'enforce' | 'serviceWorkerAllowed' | 'plugins' | 'assets'>
+  Pick<Options, 'enforce' | 'serviceWorkerAllowed' | 'plugins' | 'assets' | 'format'>
 >
 
 export function resolveOptions(options: Options): OptionsResolved {
@@ -90,6 +100,7 @@ export function resolveOptions(options: Options): OptionsResolved {
     enforce: 'enforce' in options ? options.enforce : 'pre',
     serviceWorkerAllowed: options.serviceWorkerAllowed,
     plugins: options.plugins,
-    assets: options.assets
+    assets: options.assets,
+    format: options.format
   }
 }
