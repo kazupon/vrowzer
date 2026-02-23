@@ -31,8 +31,18 @@ SOFTWARE.
 
 import type { FSWatcher } from '#dep-types/chokidar'
 import type { RawSourceMap } from '@jridgewell/remapping'
-import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
+import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping'
 import type { Program } from '@oxc-project/types'
+// NOTE: Dynamic import to avoid top-level await (WASM) in Service Worker bundles.
+// @vrowser/rolldown/parseAst contains WASM top-level await which breaks SW bundling.
+let _rolldownParseAst: typeof import('@vrowser/rolldown/parseAst').parseAst | undefined
+async function loadParseAst() {
+  if (!_rolldownParseAst) {
+    const mod = await import('@vrowser/rolldown/parseAst')
+    _rolldownParseAst = mod.parseAst
+  }
+  return _rolldownParseAst
+}
 // NOTE(kazupon): disalbe for now, because we move to web worker.
 // import { parseSync } from '@vrowser/oxc-parser'
 import MagicString from 'magic-string'
@@ -159,6 +169,9 @@ export async function createEnvironmentPluginContainer<
   watcher?: FSWatcher,
   autoStart = true,
 ): Promise<EnvironmentPluginContainer<Env>> {
+  // Preload parseAst before creating plugin container
+  await loadParseAst()
+
   const container = new EnvironmentPluginContainer(
     environment,
     plugins,
@@ -769,10 +782,13 @@ class PluginContext
   // fs: RollupFsModule = fsModule
 
   parse(code: string, opts: any): Program {
-    return {} as Program
+    // return {} as Program
     //return parseSync(code, opts).program
     // NOTE(kazupon): commented out for maintaining sync from original repo codes as background context
-    // return rolldownParseAst(code, opts)
+    if (!_rolldownParseAst) {
+      throw new Error('parseAst not loaded. Ensure environment.init() is called before parse().')
+    }
+    return _rolldownParseAst(code, opts)
   }
 
   async resolve(

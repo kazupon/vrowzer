@@ -208,6 +208,7 @@ export function transformMiddleware(
         return c.body(null, 504)
       }
       if (e?.code === ERR_CLOSED_SERVER) {
+        //if (e?.code === ERR_CLOSED_SERVER) {
         // We don't need to log an error in this case, the request
         // is outdated because new dependencies were discovered and
         // the new pre-bundle dependencies have changed.

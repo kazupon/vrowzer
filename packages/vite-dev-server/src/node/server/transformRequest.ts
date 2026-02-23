@@ -80,8 +80,7 @@ export function transformRequest(
   url: string,
   options: TransformOptionsInternal = {},
 ): Promise<TransformResult | null> {
-  if (environment._closing && environment.config.dev.recoverable)
-    {throwClosedServerError()}
+  if (environment._closing && environment.config.dev.recoverable) { throwClosedServerError() }
 
   // This module may get invalidated while we are processing it. For example
   // when a full page reload is needed after the re-processing of pre-bundled
@@ -164,7 +163,7 @@ async function doTransform(
       module,
       timestamp,
     )
-    if (cached) {return cached}
+    if (cached) { return cached }
   }
 
   const resolved = module
@@ -185,7 +184,7 @@ async function doTransform(
       module,
       timestamp,
     )
-    if (cached) {return cached}
+    if (cached) { return cached }
   }
 
   const result = loadAndTransform(
@@ -319,7 +318,7 @@ async function loadAndTransform(
   if (code == null) {
     const isPublicFile = checkPublicFile(url, environment.getTopLevelConfig())
     let publicDirName = path.relative(config.root, config.publicDir)
-    if (publicDirName[0] !== '.') {publicDirName = '/' + publicDirName}
+    if (publicDirName[0] !== '.') { publicDirName = '/' + publicDirName }
     const msg = isPublicFile
       ? `This file is in ${publicDirName} and will be copied as-is during ` +
       `build without going through the plugin transforms, and therefore ` +
@@ -343,8 +342,7 @@ async function loadAndTransform(
     }
   }
 
-  if (environment._closing && environment.config.dev.recoverable)
-    {throwClosedServerError()}
+  if (environment._closing && environment.config.dev.recoverable) { throwClosedServerError() }
 
   // ensure module in graph after successful load
   mod ??= await moduleGraph._ensureEntryFromUrl(url, undefined, resolved)
@@ -413,8 +411,7 @@ async function loadAndTransform(
     }
   }
 
-  if (environment._closing && environment.config.dev.recoverable)
-    {throwClosedServerError()}
+  if (environment._closing && environment.config.dev.recoverable) { throwClosedServerError() }
 
   const topLevelConfig = environment.getTopLevelConfig()
   const result = environment.config.dev.moduleRunnerTransform
@@ -435,8 +432,7 @@ async function loadAndTransform(
 
   // Only cache the result if the module wasn't invalidated while it was
   // being processed, so it is re-processed next time if it is stale
-  if (timestamp > mod.lastInvalidationTimestamp)
-    {moduleGraph.updateModuleTransformResult(mod, result)}
+  if (timestamp > mod.lastInvalidationTimestamp) { moduleGraph.updateModuleTransformResult(mod, result) }
 
   return result
 }
@@ -459,7 +455,7 @@ async function handleModuleSoftInvalidation(
   mod.invalidationState = undefined
 
   // Skip if not soft-invalidated
-  if (!transformResult || transformResult === 'HARD_INVALIDATED') {return}
+  if (!transformResult || transformResult === 'HARD_INVALIDATED') { return }
 
   if (mod.transformResult) {
     throw new Error(
@@ -481,7 +477,7 @@ async function handleModuleSoftInvalidation(
 
     for (const imp of imports) {
       let rawUrl = source.slice(imp.s, imp.e)
-      if (rawUrl === 'import.meta') {continue}
+      if (rawUrl === 'import.meta') { continue }
 
       const hasQuotes = rawUrl[0] === '"' || rawUrl[0] === "'"
       if (hasQuotes) {
@@ -497,7 +493,7 @@ async function handleModuleSoftInvalidation(
         ),
       )
       for (const importedMod of mod.importedModules) {
-        if (importedMod.url !== hmrUrl) {continue}
+        if (importedMod.url !== hmrUrl) { continue }
         if (importedMod.lastHMRTimestamp > 0) {
           const replacedUrl = injectQuery(
             urlWithoutTimestamp,
@@ -531,8 +527,7 @@ async function handleModuleSoftInvalidation(
 
   // Only cache the result if the module wasn't invalidated while it was
   // being processed, so it is re-processed next time if it is stale
-  if (timestamp > mod.lastInvalidationTimestamp)
-    {environment.moduleGraph.updateModuleTransformResult(mod, result)}
+  if (timestamp > mod.lastInvalidationTimestamp) { environment.moduleGraph.updateModuleTransformResult(mod, result) }
 
   return result
 }

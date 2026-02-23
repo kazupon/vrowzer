@@ -207,21 +207,34 @@ const webWorkerConfig = defineConfig({
     },
   },
   plugins: [
-    // Rewrite rolldown WASM/Worker URLs for transformer.js output location.
-    // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm),
-    // but transformer.js is output directly to dist/node/ (no chunks), so URLs must be rewritten to ./
+    // Rewrite rolldown WASM/Worker URLs for output location.
+    // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm).
+    // - For entry chunks (dist/node/*.js): rewrite to ./ since WASM/worker are in dist/node/
+    // - For sub-chunks (dist/node/worker-chunks/*.js): keep ../ since WASM/worker are one level up
     {
       name: 'rewrite-rolldown-urls',
-      renderChunk(code) {
-        const replaced = code
-          .replace(
-            /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
-          )
-          .replace(
+      renderChunk(code, chunk) {
+        const isSubChunk = chunk.fileName.includes('/')
+        let replaced: string
+        if (isSubChunk) {
+          // Sub-chunks (worker-chunks/, sw-chunks/): WASM path ../ is correct,
+          // but worker.js needs renaming to rolldown-worker.js
+          replaced = code.replace(
             /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('./rolldown-worker.js', '' + import.meta.url)`
+            `new URL('../rolldown-worker.js', '' + import.meta.url)`
           )
+        } else {
+          // Entry chunks (dist/node/): rewrite ../ to ./
+          replaced = code
+            .replace(
+              /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+              `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
+            )
+            .replace(
+              /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+              `new URL('./rolldown-worker.js', '' + import.meta.url)`
+            )
+        }
         if (replaced === code) { return null }
         return { code: replaced }
       }
@@ -256,6 +269,41 @@ const serviceWorkerConfig = defineConfig({
   input: {
     'service-worker': path.resolve(__dirname, 'src/node/service-worker.ts'),
   },
+  plugins: [
+    // Stub out modules that contain WASM or heavy dependencies not needed in SW.
+    // These modules are only used by DevEnvironment (Web Worker side).
+    // In SW, pluginContainer.ts is included transitively but its WASM-dependent
+    // code paths (parseAst, es-module-lexer) are never executed.
+    {
+      name: 'stub-sw-unused-modules',
+      resolveId: {
+        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown\/parseAst$/ },
+        handler(id) {
+          return { id: `\0stub:${id}`, external: false }
+        }
+      },
+      load: {
+        filter: { id: /^\0stub:/ },
+        handler(id) {
+          // es-module-lexer exports init() and parse()
+          if (id.includes('es-module-lexer')) {
+            return {
+              code: 'export const init = () => Promise.resolve(); export const parse = () => [[], [], false, false];',
+              moduleType: 'js'
+            }
+          }
+          // @vrowser/rolldown/parseAst exports parseAst() and parseAstAsync()
+          if (id.includes('parseAst')) {
+            return {
+              code: 'export const parseAst = () => { throw new Error("parseAst is not available in Service Worker") }; export const parseAstAsync = parseAst;',
+              moduleType: 'js'
+            }
+          }
+          return { code: 'export {}', moduleType: 'js' }
+        }
+      }
+    },
+  ],
 })
 
 const moduleRunnerConfig = defineConfig({
