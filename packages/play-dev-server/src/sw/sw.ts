@@ -174,27 +174,4 @@ self.addEventListener('activate', _event => {
   )
 })
 
-/**
- * Get content type based on file extension
- */
-function _getContentType(pathname: string): string {
-  console.log('[SW] Getting content type for:', pathname)
-  if (pathname.endsWith('.js') || pathname.endsWith('.mjs')) {
-    return 'application/javascript'
-  }
-  if (pathname.endsWith('.ts')) {
-    return 'application/javascript'
-  }
-  if (pathname.endsWith('.css')) {
-    return 'text/css'
-  }
-  if (pathname.endsWith('.html')) {
-    return 'text/html'
-  }
-  if (pathname.endsWith('.json')) {
-    return 'application/json'
-  }
-  return 'text/plain'
-}
-
 export {}

@@ -418,6 +418,12 @@ importers:
       '@vrowser/node-polyfill':
         specifier: workspace:*
         version: link:../node-polyfill
+      '@vrowser/service-worker':
+        specifier: workspace:*
+        version: link:../service-worker
+      '@vrowser/unplugin-service-worker':
+        specifier: workspace:*
+        version: link:../unplugin-service-worker
       buffer:
         specifier: 'catalog:'
         version: 6.0.3

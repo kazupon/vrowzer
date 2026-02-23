@@ -48,7 +48,8 @@ export default defineConfig({
     }),
     vue(),
     ServiceWorker({
-      serviceWorkerAllowed: '/'
+      serviceWorkerAllowed: '/',
+      format: 'esm'
     }),
     // Copy rolldown WASM binary and sub-worker for production builds.
     // The Worker chunk is output to dist/assets/ and references WASM via
