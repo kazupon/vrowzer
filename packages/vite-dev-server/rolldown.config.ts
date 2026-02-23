@@ -207,34 +207,21 @@ const webWorkerConfig = defineConfig({
     },
   },
   plugins: [
-    // Rewrite rolldown WASM/Worker URLs for output location.
-    // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm).
-    // - For entry chunks (dist/node/*.js): rewrite to ./ since WASM/worker are in dist/node/
-    // - For sub-chunks (dist/node/worker-chunks/*.js): keep ../ since WASM/worker are one level up
+    // Rewrite rolldown WASM/Worker URLs for transformer.js output location.
+    // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm),
+    // but transformer.js is output directly to dist/node/ (no chunks), so URLs must be rewritten to ./
     {
       name: 'rewrite-rolldown-urls',
-      renderChunk(code, chunk) {
-        const isSubChunk = chunk.fileName.includes('/')
-        let replaced: string
-        if (isSubChunk) {
-          // Sub-chunks (worker-chunks/, sw-chunks/): WASM path ../ is correct,
-          // but worker.js needs renaming to rolldown-worker.js
-          replaced = code.replace(
-            /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('../rolldown-worker.js', '' + import.meta.url)`
+      renderChunk(code) {
+        const replaced = code
+          .replace(
+            /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+            `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
           )
-        } else {
-          // Entry chunks (dist/node/): rewrite ../ to ./
-          replaced = code
-            .replace(
-              /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-              `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
-            )
-            .replace(
-              /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-              `new URL('./rolldown-worker.js', '' + import.meta.url)`
-            )
-        }
+          .replace(
+            /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+            `new URL('./rolldown-worker.js', '' + import.meta.url)`
+          )
         if (replaced === code) { return null }
         return { code: replaced }
       }
