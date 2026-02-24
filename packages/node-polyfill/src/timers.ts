@@ -57,3 +57,15 @@ export const clearImmediate: (id: number) => void =
 export function active(..._args: unknown[]): void {}
 export function unenroll(..._args: unknown[]): void {}
 export function enroll(..._args: unknown[]): void {}
+
+export default {
+  setTimeout,
+  clearTimeout,
+  setInterval,
+  clearInterval,
+  setImmediate,
+  clearImmediate,
+  active,
+  unenroll,
+  enroll
+}

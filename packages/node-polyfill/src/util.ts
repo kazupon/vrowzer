@@ -51,3 +51,9 @@ const ansiRegex =
 export function stripVTControlCharacters(str: string): string {
   return str.replace(ansiRegex, '')
 }
+
+export default {
+  promisify,
+  inspect,
+  stripVTControlCharacters
+}

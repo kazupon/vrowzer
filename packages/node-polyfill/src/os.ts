@@ -148,3 +148,29 @@ export function userInfo(_options?: { encoding?: string }): UserInfo {
     shell: null
   }
 }
+
+export default {
+  endianness,
+  hostname,
+  loadavg,
+  uptime,
+  freemem,
+  totalmem,
+  cpus,
+  type,
+  release,
+  networkInterfaces,
+  arch,
+  platform,
+  tmpdir,
+  homedir,
+  EOL,
+  availableParallelism,
+  version,
+  machine,
+  devNull,
+  constants,
+  getPriority,
+  setPriority,
+  userInfo
+}

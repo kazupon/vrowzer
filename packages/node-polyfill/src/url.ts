@@ -73,3 +73,9 @@ export function pathToFileURL(path: string): URL {
 }
 
 export const URL = globalThis.URL
+
+export default {
+  fileURLToPath,
+  pathToFileURL,
+  URL
+}

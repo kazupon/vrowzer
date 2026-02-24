@@ -112,3 +112,18 @@ export function timerify<T extends Function>(fn: T): T {
  * Stub for perf_hooks constants.
  */
 export const constants = Object.freeze({})
+
+export default {
+  performance,
+  PerformanceEntry,
+  PerformanceMark,
+  PerformanceMeasure,
+  PerformanceObserver,
+  PerformanceObserverEntryList,
+  PerformanceResourceTiming,
+  monitorEventLoopDelay,
+  createHistogram,
+  eventLoopUtilization,
+  timerify,
+  constants
+}
