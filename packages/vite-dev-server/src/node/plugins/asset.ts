@@ -1,0 +1,6 @@
+// TODO: fill in code ...
+
+export const noInlineRE: RegExp = /[?&]no-inline\b/
+export const inlineRE: RegExp = /[?&]inline\b/
+
+// TODO: fill in code ...

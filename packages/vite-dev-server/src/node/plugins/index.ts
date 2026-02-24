@@ -2,6 +2,9 @@ import type { ResolverFunction } from '@rollup/plugin-alias'
 import aliasPlugin from '@rollup/plugin-alias'
 import type { ObjectHook } from 'rolldown'
 import type { PluginHookUtils, ResolvedConfig } from '../config'
+import { jsonPlugin } from './json'
+// NOTE(kazupon): disable for now
+// import { viteAliasPlugin as nativeAliasPlugin } from '@vrowser/rolldown/experimental'
 import type {
   HookHandler,
   Plugin,
@@ -119,7 +122,7 @@ export async function resolvePlugins(
     // cssPlugin(config),
     // esbuildBannerFooterCompatPlugin(config),
     config.oxc !== false ? oxcPlugin(config) : null,
-    // jsonPlugin(config.json, isBuild, enableNativePluginV1),
+    jsonPlugin(config.json, isBuild, enableNativePluginV1),
     // wasmHelperPlugin(config),
     // webWorkerPlugin(config),
     // assetPlugin(config),
