@@ -36,7 +36,9 @@ export function baseMiddleware(
   return async function viteBaseMiddleware(c, next) {
     console.log('[base] viteBaseMiddleware called for:', c.req.url)
 
-    const url = c.req.path
+    // Include query string — Vite's middleware pipeline needs ?import, ?t=xxx etc.
+    const parsedUrl = new URL(c.req.url)
+    const url = parsedUrl.pathname + parsedUrl.search
     const pathname = cleanUrl(url)
     const base = rawBase
 

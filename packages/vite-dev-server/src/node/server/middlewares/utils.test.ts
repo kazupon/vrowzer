@@ -5,15 +5,15 @@ import type { Context } from 'hono'
 
 // Mock context factory
 function createMockContext(options: {
-  path: string
+  url: string
   rewrittenUrl?: string
 }): Context {
   return {
     req: {
-      path: options.path
+      url: options.url
     },
     get: vi.fn((key: string) => {
-      if (key === 'rewrittenUrl') {return options.rewrittenUrl}
+      if (key === 'rewrittenUrl') { return options.rewrittenUrl }
       return undefined
     })
   } as unknown as Context
@@ -22,33 +22,60 @@ function createMockContext(options: {
 describe('getRequestPath', () => {
   test('should return rewrittenUrl when set by baseMiddleware', () => {
     const c = createMockContext({
-      path: '/app/page',
+      url: 'http://localhost:5173/__preview__/page',
       rewrittenUrl: '/page'
     })
 
-    const result = getRequestPath(c)
-
-    expect(result).toBe('/page')
+    expect(getRequestPath(c)).toBe('/page')
   })
 
-  test('should return original path when rewrittenUrl is not set', () => {
+  test('should return rewrittenUrl with query when set by baseMiddleware', () => {
     const c = createMockContext({
-      path: '/page'
+      url: 'http://localhost:5173/__preview__/config.json?import',
+      rewrittenUrl: '/config.json?import'
     })
 
-    const result = getRequestPath(c)
+    expect(getRequestPath(c)).toBe('/config.json?import')
+  })
 
-    expect(result).toBe('/page')
+  test('should return path with query string when rewrittenUrl is not set', () => {
+    const c = createMockContext({
+      url: 'http://localhost:5173/main.js?t=123'
+    })
+
+    expect(getRequestPath(c)).toBe('/main.js?t=123')
+  })
+
+  test('should return path without query when no query exists', () => {
+    const c = createMockContext({
+      url: 'http://localhost:5173/page'
+    })
+
+    expect(getRequestPath(c)).toBe('/page')
   })
 
   test('should return rewrittenUrl even when it equals root', () => {
     const c = createMockContext({
-      path: '/app',
+      url: 'http://localhost:5173/__preview__/',
       rewrittenUrl: '/'
     })
 
-    const result = getRequestPath(c)
+    expect(getRequestPath(c)).toBe('/')
+  })
 
-    expect(result).toBe('/')
+  test('should include ?import query for module requests', () => {
+    const c = createMockContext({
+      url: 'http://localhost:5173/@id/config.json?import'
+    })
+
+    expect(getRequestPath(c)).toBe('/@id/config.json?import')
+  })
+
+  test('should include multiple query parameters', () => {
+    const c = createMockContext({
+      url: 'http://localhost:5173/main.js?import&t=1234567890'
+    })
+
+    expect(getRequestPath(c)).toBe('/main.js?import&t=1234567890')
   })
 })

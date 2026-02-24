@@ -264,7 +264,7 @@ const serviceWorkerConfig = defineConfig({
     {
       name: 'stub-sw-unused-modules',
       resolveId: {
-        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$/ },
+        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$/ },
         handler(id) {
           return { id: `\0stub:${id}`, external: false }
         }
@@ -279,6 +279,13 @@ const serviceWorkerConfig = defineConfig({
               moduleType: 'js'
             }
           }
+          // @vrowser/rolldown main entry exports rolldown(), VERSION
+          if (id.endsWith('stub:@vrowser/rolldown')) {
+            return {
+              code: 'export const rolldown = () => { throw new Error("rolldown is not available in Service Worker") }; export const VERSION = "stub";',
+              moduleType: 'js'
+            }
+          }
           // @vrowser/rolldown/parseAst exports parseAst() and parseAstAsync()
           if (id.includes('parseAst')) {
             return {
@@ -286,10 +293,20 @@ const serviceWorkerConfig = defineConfig({
               moduleType: 'js'
             }
           }
-          // @vrowser/rolldown/experimental exports transformSync, viteTransformPlugin, etc.
+          // @vrowser/rolldown/experimental exports transformSync, viteTransformPlugin,
+          // viteJsonPlugin, viteWasmFallbackPlugin, etc.
+          // Stub all as noop/error — these are only used by DevEnvironment (Web Worker side).
           if (id.includes('experimental')) {
             return {
-              code: 'export const transformSync = () => { throw new Error("transformSync is not available in Service Worker") }; export const viteTransformPlugin = () => ({ name: "stub" });',
+              code: [
+                'const stubFn = () => { throw new Error("Not available in Service Worker") }',
+                'const stubPlugin = (opts) => ({ name: "stub" })',
+                'export const transformSync = stubFn',
+                'export const viteTransformPlugin = stubPlugin',
+                'export const viteJsonPlugin = stubPlugin',
+                'export const viteWasmFallbackPlugin = stubPlugin',
+                'export const viteAliasPlugin = stubPlugin',
+              ].join('; '),
               moduleType: 'js'
             }
           }

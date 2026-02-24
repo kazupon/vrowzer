@@ -2,6 +2,7 @@ import type { ResolverFunction } from '@rollup/plugin-alias'
 import aliasPlugin from '@rollup/plugin-alias'
 import type { ObjectHook } from 'rolldown'
 import type { PluginHookUtils, ResolvedConfig } from '../config'
+import { importAnalysisPlugin } from './importAnalysis'
 import { jsonPlugin } from './json'
 // NOTE(kazupon): disable for now
 // import { viteAliasPlugin as nativeAliasPlugin } from '@vrowser/rolldown/experimental'
@@ -144,13 +145,13 @@ export async function resolvePlugins(
     ...buildPlugins.post,
 
     // internal server-only plugins are always applied after everything else
-    // ...(isBundled
-    //   ? []
-    //   : [
-    //     clientInjectionsPlugin(config),
-    //     cssAnalysisPlugin(config),
-    //     importAnalysisPlugin(config),
-    //   ]),
+    ...(isBundled
+      ? []
+      : [
+        // clientInjectionsPlugin(config),
+        // cssAnalysisPlugin(config),
+        importAnalysisPlugin(config),
+      ]),
   ].filter(Boolean) as Plugin[]
 }
 

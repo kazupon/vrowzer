@@ -1,4 +1,12 @@
 import type { DepsOptimizerEsbuildOptions } from '#types/internal/esbuildOptions'
+import {
+  rolldown
+} from '@vrowser/rolldown'
+// NOTE(kazupon): commented out for maintaining sync from original repo codes as background context
+// import {
+//   rolldown
+// } from 'rolldown'
+import { init, parse } from 'es-module-lexer'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -6,14 +14,17 @@ import { promisify } from 'node:util'
 import colors from 'picocolors'
 import type {
   RolldownOptions,
-  OutputOptions as RolldownOutputOptions
+  OutputOptions as RolldownOutputOptions,
 } from 'rolldown'
 import type { ResolvedConfig } from '../config'
 import {
   METADATA_FILENAME
 } from '../constants'
 import type { Environment } from '../environment'
+import { transformWithOxc } from '../plugins/oxc'
 import {
+  arraify,
+  asyncFlatten,
   createDebugger,
   flattenId,
   getHash,
@@ -1080,8 +1091,6 @@ function stringifyDepsOptimizerMetadata(
   )
 }
 
-/*
- NOTE(kazupon): disable now, because vite optimize complexity is high.
 export async function extractExportsData(
   environment: Environment,
   filePath: string,
@@ -1192,7 +1201,6 @@ function needsInterop(
   }
   return false
 }
-  */
 
 function isSingleDefaultExport(exports: readonly string[]) {
   return exports.length === 1 && exports[0] === 'default'
@@ -1379,9 +1387,6 @@ function findOptimizedDepInfoInRecord(
   }
 }
 
-/*
- NOTE(kazupon): disable now, because vite optimize complexity is high.
-
 export async function optimizedDepNeedsInterop(
   environment: Environment,
   metadata: DepOptimizationMetadata,
@@ -1398,7 +1403,6 @@ export async function optimizedDepNeedsInterop(
   }
   return depInfo?.needsInterop
 }
-  */
 
 const MAX_TEMP_DIR_AGE_MS = 24 * 60 * 60 * 1000
 export async function cleanupDepsCacheStaleDirs(
@@ -1457,11 +1461,11 @@ const safeRename = promisify(function gracefulRename(
     ) {
       setTimeout(function () {
         fs.stat(to, function (stater, _st) {
-          if (stater && stater.code === 'ENOENT') {fs.rename(from, to, CB)}
-          else {CB(er)}
+          if (stater && stater.code === 'ENOENT') { fs.rename(from, to, CB) }
+          else { CB(er) }
         })
       }, backoff)
-      if (backoff < 100) {backoff += 10}
+      if (backoff < 100) { backoff += 10 }
       return
     }
     cb(er)
