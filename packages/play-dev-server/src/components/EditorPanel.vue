@@ -7,6 +7,9 @@ const emit = defineEmits<{
 }>()
 
 const defaultCode = `// Counter + Fetch request handle on Vite like dev server example
+import config from './config.json'
+import { add } from './calculate.ts'
+
 let count = 0
 let serverMessage = ''
 
@@ -23,13 +26,14 @@ async function fetchHello() {
 function render() {
   document.getElementById('app').innerHTML = \`
     <div style="text-align: center; padding: 20px;">
-      <h2>Vite like dev server Response:</h2>
+      <h2>\${config.title}</h2>
       <p style="color: #646cff; font-weight: bold;">\${serverMessage}</p>
       <hr style="margin: 20px 0; border-color: #333;">
       <h1>Counter: \${count}</h1>
       <button id="increment">+1</button>
       <button id="decrement">-1</button>
       <button id="refresh" style="margin-left: 10px;">Fetch /hello</button>
+      <p style="margin-top: 10px; color: #888;">v\${config.version} | 1 + 2 = \${add(1, 2)}</p>
     </div>
   \`
 
@@ -49,7 +53,22 @@ function render() {
 render()
 `
 
-const files = ref<Map<string, string>>(new Map([['/main.js', defaultCode]]))
+const defaultConfigJson = `{
+  "title": "Vite like dev server Response:",
+  "version": "0.1.0"
+}
+`
+
+const defaultCalculateTs = `export function add(a: number, b: number): number {
+  return a + b
+}
+`
+
+const files = ref<Map<string, string>>(new Map([
+  ['/main.js', defaultCode],
+  ['/config.json', defaultConfigJson],
+  ['/calculate.ts', defaultCalculateTs]
+]))
 const activeFile = ref('/main.js')
 
 defineExpose({ files })
