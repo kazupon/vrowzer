@@ -8,6 +8,7 @@ export {
   resolveConfig,
   sortUserPlugins
 } from './config'
+export { perEnvironmentPlugin } from './plugin'
 
 export type {
   DevEnvironment,

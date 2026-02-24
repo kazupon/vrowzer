@@ -28,7 +28,6 @@ import { getRequestPath } from './utils'
 
 import type { Context, MiddlewareHandler } from 'hono'
 import type { ViteDevServer } from '..'
-import type { ResolvedConfig } from '../../config'
 import type { ViteEnv } from '../index'
 
 const debugCache = createDebugger('vite:cache')
@@ -46,18 +45,21 @@ function isDocumentFetchDest(c: Context<ViteEnv>) {
   return fetchDest !== undefined && documentFetchDests.has(fetchDest)
 }
 
+// NOTE(kazupon):
+// move to transformer.ts, because web-worker.ts don't want to bundler plugin and other heavy modules.
+// keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
 // TODO: consolidate this regex pattern with the url, raw, and inline checks in plugins
-const urlRE = /[?&]url\b/
-const rawRE = /[?&]raw\b/
-const inlineRE = /[?&]inline\b/
-const svgRE = /\.svg\b/
-
-export function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
-  if (rawRE.test(id) || urlRE.test(id) || inlineRE.test(id) || svgRE.test(id)) {
-    return checkLoadingAccess(config, id) !== 'allowed'
-  }
-  return false
-}
+// const urlRE = /[?&]url\b/
+// const rawRE = /[?&]raw\b/
+// const inlineRE = /[?&]inline\b/
+// const svgRE = /\.svg\b/
+//
+// export function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
+//   if (rawRE.test(id) || urlRE.test(id) || inlineRE.test(id) || svgRE.test(id)) {
+//     return checkLoadingAccess(config, id) !== 'allowed'
+//   }
+//   return false
+// }
 
 // TODO: fill in later ...
 

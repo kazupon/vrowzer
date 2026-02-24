@@ -20,6 +20,7 @@ import { createBirpc } from 'birpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { DevEnvironment } from './server/environment'
+import { checkLoadingAccess } from './server/middlewares/static'
 import { createMessageChannelServer } from './server/ws'
 import { createDebugger } from './utils'
 import {
@@ -74,6 +75,18 @@ export interface SetupWorkerOptions {
    * @internal
    */
   previousEnvironments?: Record<string, DevEnvironment>
+}
+
+const urlRE = /[?&]url\b/
+const rawRE = /[?&]raw\b/
+const inlineRE = /[?&]inline\b/
+const svgRE = /\.svg\b/
+
+export function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
+  if (rawRE.test(id) || urlRE.test(id) || inlineRE.test(id) || svgRE.test(id)) {
+    return checkLoadingAccess(config, id) !== 'allowed'
+  }
+  return false
 }
 
 /**

@@ -7,6 +7,7 @@ import type {
   Plugin,
   PluginWithRequiredHook,
 } from '../plugin'
+import { oxcPlugin } from './oxc'
 import type { PluginFilter, TransformHookFilter } from './pluginFilter'
 import {
   createFilterForTransform,
@@ -117,7 +118,7 @@ export async function resolvePlugins(
     // htmlInlineProxyPlugin(config),
     // cssPlugin(config),
     // esbuildBannerFooterCompatPlugin(config),
-    // config.oxc !== false ? oxcPlugin(config) : null,
+    config.oxc !== false ? oxcPlugin(config) : null,
     // jsonPlugin(config.json, isBuild, enableNativePluginV1),
     // wasmHelperPlugin(config),
     // webWorkerPlugin(config),
@@ -158,8 +159,7 @@ export function createPluginHookUtils(
   function getSortedPlugins<K extends keyof Plugin>(
     hookName: K,
   ): PluginWithRequiredHook<K>[] {
-    if (sortedPluginsCache.has(hookName))
-      {return sortedPluginsCache.get(hookName) as PluginWithRequiredHook<K>[]}
+    if (sortedPluginsCache.has(hookName)) { return sortedPluginsCache.get(hookName) as PluginWithRequiredHook<K>[] }
     const sorted = getSortedPluginsByHook(hookName, plugins)
     sortedPluginsCache.set(hookName, sorted)
     return sorted

@@ -264,7 +264,7 @@ const serviceWorkerConfig = defineConfig({
     {
       name: 'stub-sw-unused-modules',
       resolveId: {
-        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown\/parseAst$/ },
+        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$/ },
         handler(id) {
           return { id: `\0stub:${id}`, external: false }
         }
@@ -283,6 +283,13 @@ const serviceWorkerConfig = defineConfig({
           if (id.includes('parseAst')) {
             return {
               code: 'export const parseAst = () => { throw new Error("parseAst is not available in Service Worker") }; export const parseAstAsync = parseAst;',
+              moduleType: 'js'
+            }
+          }
+          // @vrowser/rolldown/experimental exports transformSync, viteTransformPlugin, etc.
+          if (id.includes('experimental')) {
+            return {
+              code: 'export const transformSync = () => { throw new Error("transformSync is not available in Service Worker") }; export const viteTransformPlugin = () => ({ name: "stub" });',
               moduleType: 'js'
             }
           }
@@ -317,8 +324,19 @@ const moduleRunnerConfig = defineConfig({
 
 // Lightweight Web Worker entry — does NOT bundle ./worker (transformer).
 // Dynamic import('./worker') at runtime resolves to the webWorkerConfig output (dist/node/worker.js).
+// Lightweight Web Worker entry — does NOT bundle ./transformer (rolldown/WASM).
+// Dynamic import('./transformer') at runtime resolves to the webWorkerConfig output.
+// NOTE: needs node:path alias because utils.ts (imported for createDebugger) uses node:path.
 const webWorkerEntryConfig = defineConfig({
   ...sharedNodeOptions,
+  resolve: {
+    ...sharedNodeOptions.resolve,
+    alias: {
+      ...sharedNodeOptions.resolve?.alias,
+      'node:path': 'pathe',
+      path: 'pathe',
+    }
+  },
   input: {
     'web-worker': path.resolve(__dirname, 'src/node/web-worker.ts'),
   },

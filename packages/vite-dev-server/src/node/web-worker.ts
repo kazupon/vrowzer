@@ -18,7 +18,6 @@
  * @license MIT
  */
 
-import { isServerAccessDeniedForTransform } from './server/middlewares/transform'
 import { createDebugger } from './utils'
 
 // NOTE(kazupon): Only type-only imports from heavy modules.
@@ -137,7 +136,7 @@ export function createServer(
                 allowId(id: string) {
                   return (
                     id[0] === '\0' ||
-                    !isServerAccessDeniedForTransform((server as ViteDevServer).config, id)
+                    !transformer.isServerAccessDeniedForTransform((server as ViteDevServer).config, id)
                   )
                 },
               } as TransformOptionsInternal) || Promise.resolve(null)
