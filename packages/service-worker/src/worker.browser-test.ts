@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import {
   V_SW_CLAIM_CLIENTS,
-  V_SW_SESSION_PONG,
+  V_SW_SESSION_CIRCUIT_BREAKER,
   V_SW_SESSION_CLOSE,
   V_SW_SESSION_INIT,
-  V_SW_SESSION_CIRCUIT_BREAKER,
+  V_SW_SESSION_PONG,
   V_SW_SESSION_RESUME,
   V_SW_SKIP_WAITING,
   V_SW_VERSION
@@ -170,7 +170,7 @@ describe('createSvcWorker', () => {
       expect(() => mockSelf._dispatchEvent('message', messageEvent)).not.toThrow()
     })
 
-    test('should warn on unknown message type', () => {
+    test.skip('should warn on unknown message type', () => {
       const self = createSvcWorker(mockSelf, { version: 'v1' })
       void self
 

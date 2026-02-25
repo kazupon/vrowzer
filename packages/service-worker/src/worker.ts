@@ -524,7 +524,7 @@ export function createSvcWorker(
 
         default: {
           // Unknown message type; ignore
-          console.warn('createSvcWorker: unknown message type received:', data)
+          // console.warn('createSvcWorker: unknown message type received:', data)
           break
         }
       }
