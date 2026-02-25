@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { existsSync, readFileSync, vol } from '../index.ts'
+import fs, { existsSync, readFileSync, vol } from '../index.ts'
 import { createFileSystemSubscriber } from './subscriber.ts'
+import { createVirtualFSWatcher } from './virtual.ts'
 
 describe('FileSystemSubscriber', () => {
   beforeEach(() => {
@@ -9,7 +10,7 @@ describe('FileSystemSubscriber', () => {
 
   describe('V_FS_WRITE', () => {
     test('new file writes to vol and fires watcher "add" event', () => {
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('add', handler)
 
@@ -26,7 +27,7 @@ describe('FileSystemSubscriber', () => {
 
     test('existing file overwrites vol and fires watcher "change" event', () => {
       vol.fromJSON({ '/main.js': 'old content' })
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const changeHandler = vi.fn()
       const addHandler = vi.fn()
       watcher.on('change', changeHandler)
@@ -45,7 +46,7 @@ describe('FileSystemSubscriber', () => {
     })
 
     test('encoding: "binary" writes as Uint8Array to vol', () => {
-      const { handleMessage } = createFileSystemSubscriber()
+      const { handleMessage } = createFileSystemSubscriber(fs)
       const buffer = new ArrayBuffer(4)
       new Uint8Array(buffer).set([1, 2, 3, 4])
 
@@ -59,7 +60,7 @@ describe('FileSystemSubscriber', () => {
     })
 
     test('auto-creates parent directories if they do not exist', () => {
-      const { handleMessage } = createFileSystemSubscriber()
+      const { handleMessage } = createFileSystemSubscriber(fs)
 
       handleMessage({
         type: 'V_FS_WRITE',
@@ -76,7 +77,7 @@ describe('FileSystemSubscriber', () => {
   describe('V_FS_UNLINK', () => {
     test('existing file is deleted from vol and fires watcher "unlink" event', () => {
       vol.fromJSON({ '/to-delete.js': 'content' })
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('unlink', handler)
 
@@ -87,7 +88,7 @@ describe('FileSystemSubscriber', () => {
     })
 
     test('non-existent file does not fire event', () => {
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('unlink', handler)
 
@@ -99,7 +100,7 @@ describe('FileSystemSubscriber', () => {
 
   describe('V_FS_MKDIR', () => {
     test('creates directory and fires watcher "addDir" event', () => {
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('addDir', handler)
 
@@ -110,7 +111,7 @@ describe('FileSystemSubscriber', () => {
     })
 
     test('creates deeply nested paths recursively', () => {
-      const { handleMessage } = createFileSystemSubscriber()
+      const { handleMessage } = createFileSystemSubscriber(fs)
 
       handleMessage({ type: 'V_FS_MKDIR', path: '/a/b/c' })
 
@@ -120,7 +121,7 @@ describe('FileSystemSubscriber', () => {
 
   describe('V_FS_INIT', () => {
     test('text files are written to vol and each fires "add" event', () => {
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('add', handler)
 
@@ -138,7 +139,7 @@ describe('FileSystemSubscriber', () => {
     })
 
     test('binaryFiles are written as Uint8Array to vol and each fires "add" event', () => {
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('add', handler)
       const buffer = new ArrayBuffer(2)
@@ -156,7 +157,7 @@ describe('FileSystemSubscriber', () => {
     })
 
     test('mixed text and binary files are both processed', () => {
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('add', handler)
       const buffer = new ArrayBuffer(1)
@@ -173,9 +174,92 @@ describe('FileSystemSubscriber', () => {
     })
   })
 
+  describe('options', () => {
+    test('custom fs instance is used for vol operations', () => {
+      const mockFs = {
+        existsSync: vi.fn(() => false),
+        writeFileSync: vi.fn(),
+        unlinkSync: vi.fn(),
+        mkdirSync: vi.fn()
+      }
+      const { handleMessage } = createFileSystemSubscriber(mockFs)
+
+      handleMessage({ type: 'V_FS_WRITE', path: '/test.js', encoding: 'text', content: 'code' })
+
+      expect(mockFs.existsSync).toHaveBeenCalledWith('/test.js')
+      expect(mockFs.writeFileSync).toHaveBeenCalledWith('/test.js', 'code', { encoding: 'utf8' })
+    })
+
+    test('custom fs is used for unlink operations', () => {
+      const mockFs = {
+        existsSync: vi.fn(() => true),
+        writeFileSync: vi.fn(),
+        unlinkSync: vi.fn(),
+        mkdirSync: vi.fn()
+      }
+      const { handleMessage } = createFileSystemSubscriber(mockFs)
+
+      handleMessage({ type: 'V_FS_UNLINK', path: '/test.js' })
+
+      expect(mockFs.unlinkSync).toHaveBeenCalledWith('/test.js')
+    })
+
+    test('custom fs is used for mkdir operations', () => {
+      const mockFs = {
+        existsSync: vi.fn(() => false),
+        writeFileSync: vi.fn(),
+        unlinkSync: vi.fn(),
+        mkdirSync: vi.fn()
+      }
+      const { handleMessage } = createFileSystemSubscriber(mockFs)
+
+      handleMessage({ type: 'V_FS_MKDIR', path: '/dir' })
+
+      expect(mockFs.mkdirSync).toHaveBeenCalledWith('/dir', { recursive: true })
+    })
+
+    test('external watcher is used instead of creating a new one', () => {
+      const externalWatcher = createVirtualFSWatcher()
+      const handler = vi.fn()
+      externalWatcher.on('add', handler)
+
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs, {
+        watcher: externalWatcher
+      })
+
+      expect(watcher).toBe(externalWatcher)
+
+      handleMessage({ type: 'V_FS_WRITE', path: '/test.js', encoding: 'text', content: 'x' })
+
+      expect(handler).toHaveBeenCalledWith('/test.js')
+    })
+
+    test('both custom fs and external watcher can be used together', () => {
+      const mockFs = {
+        existsSync: vi.fn(() => false),
+        writeFileSync: vi.fn(),
+        unlinkSync: vi.fn(),
+        mkdirSync: vi.fn()
+      }
+      const externalWatcher = createVirtualFSWatcher()
+      const handler = vi.fn()
+      externalWatcher.on('add', handler)
+
+      const { watcher, handleMessage } = createFileSystemSubscriber(mockFs, {
+        watcher: externalWatcher
+      })
+
+      handleMessage({ type: 'V_FS_WRITE', path: '/test.js', encoding: 'text', content: 'code' })
+
+      expect(watcher).toBe(externalWatcher)
+      expect(mockFs.writeFileSync).toHaveBeenCalled()
+      expect(handler).toHaveBeenCalledWith('/test.js')
+    })
+  })
+
   describe('watcher integration', () => {
     test('subscriber.watcher is a VirtualFSWatcher', () => {
-      const { watcher } = createFileSystemSubscriber()
+      const { watcher } = createFileSystemSubscriber(fs)
       expect(watcher).toBeDefined()
       expect(watcher.notify).toBeTypeOf('function')
       expect(watcher.on).toBeTypeOf('function')
@@ -184,7 +268,7 @@ describe('FileSystemSubscriber', () => {
 
     test('watcher.on("change") receives V_FS_WRITE change events', () => {
       vol.fromJSON({ '/existing.js': 'old' })
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const handler = vi.fn()
       watcher.on('change', handler)
 
@@ -194,7 +278,7 @@ describe('FileSystemSubscriber', () => {
     })
 
     test('watcher.on("all") receives all events', () => {
-      const { watcher, handleMessage } = createFileSystemSubscriber()
+      const { watcher, handleMessage } = createFileSystemSubscriber(fs)
       const allHandler = vi.fn()
       watcher.on('all', allHandler)
 
