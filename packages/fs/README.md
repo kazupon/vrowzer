@@ -8,6 +8,7 @@ Browser-compatible filesystem using memfs for vrowser.
 - Browser/Service Worker ready
 - `node:fs` and `node:fs/promises` compatible entry points
 - Dynamic `process.cwd()` / `process.chdir()` support
+- Virtual filesystem watcher with Pub-Sub sync protocol
 - TypeScript support with full type definitions
 
 ## 💿 Installation
@@ -94,12 +95,91 @@ await writeFile('/path/to/output', 'Hello World')
 - `resetCwd()` - Reset cwd to '/'
 - `process` - Custom process polyfill with cwd/chdir support
 
+### Watcher (Pub-Sub Filesystem Sync)
+
+Synchronize file operations from a Main Thread to Service Worker / Web Worker via `postMessage`, with chokidar-compatible watcher events.
+
+```mermaid
+graph TB
+    subgraph MainThread["Main Thread (Publisher)"]
+        Editor["Editor<br/>(File operations)"]
+        Publisher["FileSystemPublisher"]
+        Editor -->|"writeFile / unlink / mkdir"| Publisher
+    end
+
+    Publisher -->|"V_FS_WRITE<br/>V_FS_UNLINK<br/>V_FS_MKDIR<br/>V_FS_INIT"| SWSub
+    Publisher -->|"V_FS_WRITE<br/>V_FS_UNLINK<br/>V_FS_MKDIR<br/>V_FS_INIT"| WWSub
+
+    subgraph ServiceWorker["Service Worker (Subscriber)"]
+        SWSub["FileSystemSubscriber"]
+        SWVol["@vrowser/fs (memfs vol)"]
+        SWWatcher["VirtualFSWatcher<br/>(chokidar I/F)"]
+        SWSub -->|"update vol"| SWVol
+        SWSub -->|"notify(event, path)"| SWWatcher
+    end
+
+    subgraph WebWorker["Web Worker (Subscriber)"]
+        WWSub["FileSystemSubscriber"]
+        WWVol["@vrowser/fs (memfs vol)"]
+        WWWatcher["VirtualFSWatcher<br/>(chokidar I/F)"]
+        WWSub -->|"update vol"| WWVol
+        WWSub -->|"notify(event, path)"| WWWatcher
+    end
+```
+
+#### Publisher (Main Thread)
+
+```ts
+import { createFileSystemPublisher } from '@vrowser/fs/watcher'
+
+const publisher = createFileSystemPublisher([worker])
+
+// node:fs-like API
+publisher.writeFile('/main.js', 'export const x = 1') // text
+publisher.writeFile('/image.png', arrayBuffer) // binary (zero-copy transfer)
+publisher.unlink('/old-file.js')
+publisher.mkdir('/new-dir')
+publisher.initFiles({ '/main.js': 'code' }) // bulk init
+```
+
+#### Subscriber (Worker)
+
+```ts
+import { createFileSystemSubscriber } from '@vrowser/fs/watcher'
+
+const { watcher, handleMessage } = createFileSystemSubscriber()
+
+// Handle V_FS_* messages from Main Thread
+self.addEventListener('message', event => {
+  handleMessage(event.data)
+})
+
+// watcher is chokidar-compatible - use with DevEnvironment
+watcher.on('change', path => console.log('changed:', path))
+watcher.on('add', path => console.log('added:', path))
+watcher.on('all', (event, path) => console.log(event, path))
+```
+
+#### VirtualFSWatcher
+
+```ts
+import { createVirtualFSWatcher } from '@vrowser/fs/watcher'
+
+const watcher = createVirtualFSWatcher()
+
+watcher.on('change', path => {
+  /* ... */
+})
+watcher.notify('change', '/main.js') // triggers 'change' + 'all' events
+```
+
 ### Entry Points
 
 | Entry Point            | Description                                        |
 | ---------------------- | -------------------------------------------------- |
 | `@vrowser/fs`          | Main entry with all exports, `node:fs` compatibles |
 | `@vrowser/fs/promises` | `node:fs/promises` compatible                      |
+| `@vrowser/fs/watcher`  | Virtual filesystem watcher + Pub-Sub sync          |
 | `@vrowser/fs/process`  | Custom process polyfill                            |
 
 ## 🤝 Sponsors

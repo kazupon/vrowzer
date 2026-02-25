@@ -54,6 +54,16 @@
       "import": "./dist/browser/promises.js",
       "default": "./dist/browser/promises.js"
     },
+    "./watcher": {
+      "types": "./dist/watcher/index.d.mts",
+      "import": "./dist/watcher/index.mjs",
+      "default": "./dist/watcher/index.mjs"
+    },
+    "./browser/watcher": {
+      "types": "./dist/browser/watcher/index.d.ts",
+      "import": "./dist/browser/watcher/index.js",
+      "default": "./dist/browser/watcher/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

@@ -3,14 +3,14 @@ import { defineConfig } from 'tsdown'
 const config: ReturnType<typeof defineConfig> = defineConfig([
   {
     platform: 'node',
-    entry: ['./src/index.ts', './src/promises.ts'],
+    entry: ['./src/index.ts', './src/promises.ts', './src/watcher/index.ts'],
     format: ['esm'],
     dts: true
     // publint: true,
   },
   {
     platform: 'browser',
-    entry: ['./src/index.ts', './src/promises.ts'],
+    entry: ['./src/index.ts', './src/promises.ts', './src/watcher/index.ts'],
     outDir: './dist/browser',
     format: ['esm'],
     dts: true,

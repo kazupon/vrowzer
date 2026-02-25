@@ -5,7 +5,7 @@ export default {
    * typedoc options
    * ref: https://typedoc.org/documents/Options.html
    */
-  entryPoints: ['./src/index.ts', './src/promises.ts'],
+  entryPoints: ['./src/index.ts', './src/promises.ts', './src/watcher/index.ts'],
   out: 'docs',
   plugin: ['typedoc-plugin-markdown'],
   readme: 'none',
