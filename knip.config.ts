@@ -2,9 +2,6 @@ import type { KnipConfig } from 'knip'
 
 const config: KnipConfig = {
   workspaces: {
-    'packages/playground': {
-      entry: ['src/main.ts', 'src/preview/*.ts', 'src/worker/*.ts']
-    },
     'packages/service-worker': {
       entry: ['src/**/*.ts', 'e2e/**/*.ts'],
       ignore: ['test-public/**', 'playground/**']
