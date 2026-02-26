@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 
 // Import from lightweight entry (no rolldown WASM, no top-level await)
+import { createFileSystemSubscriber, createVirtualFSWatcher } from '@vrowser/fs/watcher'
+import type { FileSystemSyncMessage } from '@vrowser/fs/watcher'
 import { createServer } from '@vrowser/vite-dev-server/web-worker'
 
 import type { BundleResultMessage, MainToWorkerMessage } from './types.ts'
@@ -9,24 +11,28 @@ declare const self: DedicatedWorkerGlobalScope
 
 console.log('[Rolldown Worker] initialized')
 
-// Create server — registers self.onmessage immediately (lightweight)
-// V_WW_SETUP and V_SW_CONNECT_PORT are handled internally by createServer.
-// App-specific messages (e.g. 'bundle', 'file-change') are forwarded to onUnhandledMessage.
-const server = createServer(self, {
-  onUnhandledMessage: async (event: MessageEvent<MainToWorkerMessage>) => {
-    switch (event.data.type) {
-      case 'file-change': {
-        const { path, content } = event.data
-        // Use transformer's @vrowser/fs instance (same instance used by DevEnvironment)
-        const { updateFile } = await import('@vrowser/vite-dev-server/transformer')
-        updateFile(path, content)
-        break
-      }
+// Create watcher early so it can be passed to DevEnvironment via createServer.
+// Subscriber is created later with transformer's fs to share the same vol.
+const watcher = createVirtualFSWatcher()
+let subscriber: ReturnType<typeof createFileSystemSubscriber> | null = null
+const pendingMessages: FileSystemSyncMessage[] = []
 
+const server = createServer(self, {
+  watcher: watcher as any,
+  onUnhandledMessage: async (event: MessageEvent<MainToWorkerMessage>) => {
+    if (typeof event.data?.type === 'string' && event.data.type.startsWith('V_FS_')) {
+      if (subscriber) {
+        subscriber.handleMessage(event.data as FileSystemSyncMessage)
+      } else {
+        pendingMessages.push(event.data as FileSystemSyncMessage)
+      }
+      return
+    }
+
+    switch (event.data.type) {
       case 'bundle': {
         const { files, input } = event.data
         try {
-          // Dynamic import: heavy modules loaded only when needed
           const { bundle } = await import('@vrowser/vite-dev-server/transformer')
           const [code, fileName] = await bundle(files, input)
           const result: BundleResultMessage = {
@@ -51,7 +57,17 @@ const server = createServer(self, {
   }
 })
 
-// Wait for V_WW_SETUP message from Main Thread
-// This dynamically loads rolldown + DevEnvironment and initializes everything
+// Wait for V_WW_SETUP — loads transformer + DevEnvironment
 await server.listen()
 console.log('[Rolldown Worker] server ready')
+
+// Create subscriber with transformer's fs (same vol as DevEnvironment)
+// and the watcher that was already passed to DevEnvironment.
+const { fs: transformerFs } = await import('@vrowser/vite-dev-server/transformer')
+subscriber = createFileSystemSubscriber(transformerFs, { watcher })
+
+// Process queued V_FS_* messages
+for (const msg of pendingMessages) {
+  subscriber.handleMessage(msg)
+}
+pendingMessages.length = 0

@@ -51,6 +51,10 @@ function render() {
 }
 
 render()
+
+if (import.meta.hot) {
+  import.meta.hot.accept()
+}
 `
 
 const defaultConfigJson = `{
@@ -64,11 +68,13 @@ const defaultCalculateTs = `export function add(a: number, b: number): number {
 }
 `
 
-const files = ref<Map<string, string>>(new Map([
-  ['/main.js', defaultCode],
-  ['/config.json', defaultConfigJson],
-  ['/calculate.ts', defaultCalculateTs]
-]))
+const files = ref<Map<string, string>>(
+  new Map([
+    ['/main.js', defaultCode],
+    ['/config.json', defaultConfigJson],
+    ['/calculate.ts', defaultCalculateTs]
+  ])
+)
 const activeFile = ref('/main.js')
 
 defineExpose({ files })

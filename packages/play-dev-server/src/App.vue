@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createFileSystemPublisher } from '@vrowser/fs/watcher'
 import { onMounted, onUnmounted, useTemplateRef } from 'vue'
 import EditorPanel from './components/EditorPanel.vue'
 import PreviewPanel from './components/PreviewPanel.vue'
@@ -6,7 +7,6 @@ import { getServiceWorker, initServiceWorker } from './sw/controller.ts'
 
 import type {
   BundleRequestMessage,
-  FileChangeMessage,
   ServiceWorkerToMainMessage,
   WorkerToMainMessage
 } from './types.ts'
@@ -14,6 +14,7 @@ import type {
 const previewBase = '/__preview__/'
 
 let rolldownWorker: Worker | null = null
+const publisher = createFileSystemPublisher()
 const editorPanel = useTemplateRef<InstanceType<typeof EditorPanel>>('editorPanel')
 const previewPanel = useTemplateRef<InstanceType<typeof PreviewPanel>>('previewPanel')
 
@@ -22,6 +23,7 @@ onMounted(async () => {
   rolldownWorker = new Worker(new URL('./worker.ts', import.meta.url), {
     type: 'module'
   })
+  publisher.addTarget(rolldownWorker)
 
   // Set up message handler for web worker responses
   rolldownWorker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
@@ -87,6 +89,7 @@ onMounted(async () => {
       }
     },
     options: { basePath: previewBase },
+    // Initial files for WW's setupVirtualFiles() — processed by setupWorker()
     files: initialFiles
   })
 
@@ -106,6 +109,16 @@ onMounted(async () => {
 
   // Both ready — establish MessageChannel between service worker and web worker
   if (serviceWorkerController) {
+    // Add SW as publisher target for V_FS_* messages
+    const sw = getServiceWorker()
+    if (sw) {
+      publisher.addTarget({
+        postMessage: (msg: any, transfer?: any) => sw.postMessage(msg, transfer ?? [])
+      })
+      // Send initial files to SW too
+      publisher.initFiles(initialFiles)
+    }
+
     await establishChannel()
     // Load preview iframe after birpc channel is established
     // so that transformIndexHtml can delegate to WW
@@ -177,14 +190,7 @@ async function establishChannel() {
 }
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
-  const message: FileChangeMessage = {
-    type: 'file-change',
-    path,
-    content
-  }
-  // Send to both Service Worker and Web Worker
-  getServiceWorker()?.postMessage(message)
-  rolldownWorker?.postMessage(message)
+  publisher.writeFile(path, content)
 }
 </script>
 

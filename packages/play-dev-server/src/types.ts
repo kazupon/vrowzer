@@ -15,6 +15,7 @@ import type {
   SetupWorkerMessage,
   WebWorkerServiceWorkerChannelReadyMessage
 } from '@vrowser/vite-dev-server/web-worker'
+import type { FileSystemSyncMessage } from '@vrowser/fs/watcher'
 
 // Re-export for consumers
 export type {
@@ -22,21 +23,13 @@ export type {
   ConnectServiceWorkerPortMessage,
   ConnectWebWorkerPortAckMessage,
   ConnectWebWorkerPortMessage,
+  FileSystemSyncMessage,
   SetupWorkerAckMessage,
   SetupWorkerMessage,
   WebWorkerServiceWorkerChannelReadyMessage
 }
 
 // ---- App-specific message types ----
-
-/**
- * File change notification (Main Thread → Service Worker, Main Thread → Web Worker)
- */
-export interface FileChangeMessage {
-  type: 'file-change'
-  path: string
-  content: string
-}
 
 /**
  * Main Thread -> Web Worker: Bundle request
@@ -60,14 +53,14 @@ export interface BundleResultMessage {
 
 // ---- Union types for message routing ----
 
-export type MainToServiceWorkerMessage = FileChangeMessage | ConnectWebWorkerPortMessage
+export type MainToServiceWorkerMessage = FileSystemSyncMessage | ConnectWebWorkerPortMessage
 
 export type ServiceWorkerToMainMessage = ConnectWebWorkerPortAckMessage
 
 export type MainToWorkerMessage =
   | SetupWorkerMessage
   | BundleRequestMessage
-  | FileChangeMessage
+  | FileSystemSyncMessage
   | ConnectServiceWorkerPortMessage
 
 export type WorkerToMainMessage =

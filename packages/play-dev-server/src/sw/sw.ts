@@ -1,11 +1,13 @@
 /// <reference lib="webworker" />
 
-import { fs, vol, watch } from '@vrowser/fs'
+import { fs, vol } from '@vrowser/fs'
+import { createFileSystemSubscriber } from '@vrowser/fs/watcher'
+import type { FileSystemSyncMessage } from '@vrowser/fs/watcher'
 import client from '@vrowser/vite-dev-server/dist/client/client.mjs?raw'
 import env from '@vrowser/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer, getRequestPath } from '@vrowser/vite-dev-server/service-worker'
 
-import type { FileChangeMessage, MainToServiceWorkerMessage } from '../types.ts'
+import type { MainToServiceWorkerMessage } from '../types.ts'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -13,6 +15,8 @@ const SW_VERSION = 'play-dev-server-v1'
 console.log('[SW] Service Worker loaded, version:', SW_VERSION)
 
 setupVolume(vol)
+
+const subscriber = createFileSystemSubscriber(fs)
 
 const previewBase = '/__preview__/'
 
@@ -66,20 +70,9 @@ const listen = createServer(
   {
     version: SW_VERSION,
     basePath: previewBase,
-    // @ts-expect-error -- FIXME
-    watcherFactory: (targets: string[], options) => {
-      console.log('[SW] Creating FSWatcher :', targets, options)
-      const first = targets.pop()
-      if (!first) {
-        throw new Error('No watch targets specified')
-      }
-      const watcher = watch(first, options)
-      console.log('[SW] FSWatcher created.', watcher)
-      for (const _target of targets) {
-        // TODO:
-      }
-      return watcher
-    }
+    // Use subscriber's VirtualFSWatcher as the watcher
+    // VirtualFSWatcher is structurally compatible with FSWatcher (FSWatcher extends VirtualFSWatcher)
+    watcherFactory: () => subscriber.watcher as any
   }
 )
 
@@ -135,25 +128,12 @@ self.addEventListener('message', event => {
     return
   }
 
-  console.log('[SW] Received message:', message.type)
-
-  switch (message.type) {
-    case 'file-change': {
-      handleFileChange(message as FileChangeMessage)
-      break
-    }
+  // V_FS_* messages: update virtual FS via subscriber
+  if (typeof message?.type === 'string' && message.type.startsWith('V_FS_')) {
+    subscriber.handleMessage(event.data as FileSystemSyncMessage)
+    return
   }
 })
-
-/**
- * Handle file change from editor
- */
-function handleFileChange(message: FileChangeMessage) {
-  const { path, content } = message
-  console.log('[SW] File changed:', path)
-  fs.writeFileSync(path, content, { encoding: 'utf8' })
-  console.log('[SW] File updated in virtual FS:', vol.toTree())
-}
 
 /**
  * Service Worker Activate Event - Wait for server to be ready
