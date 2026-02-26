@@ -235,7 +235,7 @@ export function createMessageChannelServer(
     // Echo back the init event for handshake confirmation
     safePort.postMessage({ type: MC_INIT_EVENT, clientId })
     // Send connected message
-    safePort.postMessage({ type: 'connected' })
+    safePort.postMessage({ type: 'connected', clientId })
 
     // Send any buffered message
     if (bufferedMessage) {

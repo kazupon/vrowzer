@@ -11,6 +11,8 @@ export type HotPayload =
 
 export interface ConnectedPayload {
   type: 'connected'
+  // NOTE(kazupon): for console debug for vrowser, we need clientId to identify which client is connected.
+  clientId?: string
 }
 
 export interface PingPayload {

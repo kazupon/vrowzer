@@ -24,7 +24,8 @@ import { searchForWorkspaceRoot } from './searchRoot'
 //   defaultAllowedOrigins
 // } from '../constants'
 import {
-  CLIENT_DIR
+  CLIENT_DIR,
+  DEFAULT_DEV_PORT
 } from '../constants'
 import { warnFutureDeprecation } from '../deprecations'
 import type { CommonServerOptions } from '../http'
@@ -37,6 +38,7 @@ import type { BindCLIShortcutsOptions, ShortcutsState } from '../shortcuts'
 import type { RequiredExceptFor } from '../typeUtils'
 import {
   createDebugger,
+  diffDnsOrderChange,
   isInNodeModules,
   isParentDirectory,
   mergeWithDefaults,
@@ -979,8 +981,8 @@ export function createServer(
     let initingServer: Promise<void> | undefined
     let serverInited = false
     const initServer = async (onListen: boolean) => {
-      if (serverInited) {return}
-      if (initingServer) {return initingServer}
+      if (serverInited) { return }
+      if (initingServer) { return initingServer }
 
       initingServer = (async function () {
         await startServer(
@@ -1225,4 +1227,115 @@ export function resolveServerOptions(
   }
 
   return server
+}
+
+/**
+ * NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
+async function restartServer(server: ViteDevServer) {
+  global.__vite_start_time = performance.now()
+
+  let inlineConfig = server.config.inlineConfig
+  if (server._forceOptimizeOnRestart) {
+    inlineConfig = mergeConfig(inlineConfig, {
+      forceOptimizeDeps: true,
+    })
+  }
+
+  // Reinit the server by creating a new instance using the same inlineConfig
+  // This will trigger a reload of the config file and re-create the plugins and
+  // middlewares. We then assign all properties of the new server to the existing
+  // server instance and set the user instance to be used in the new server.
+  // This allows us to keep the same server instance for the user.
+  {
+    let newServer: ViteDevServer | null = null
+    try {
+      // delay ws server listen
+      newServer = await _createServer(inlineConfig, {
+        listen: false,
+        previousEnvironments: server.environments,
+        previousShortcutsState: server._shortcutsState,
+      })
+    } catch (err: any) {
+      server.config.logger.error(err.message, {
+        timestamp: true,
+      })
+      server.config.logger.error('server restart failed', { timestamp: true })
+      return
+    }
+
+    // Detach readline so close handler skips it. Reused to avoid stdin issues
+    server._shortcutsState = undefined
+
+    await server.close()
+
+    // Assign new server props to existing server instance
+    const middlewares = server.middlewares
+    newServer._configServerPort = server._configServerPort
+    newServer._currentServerPort = server._currentServerPort
+    Object.assign(server, newServer)
+
+    // Keep the same connect instance so app.use(vite.middlewares) works
+    // after a restart in middlewareMode (.route is always '/')
+    middlewares.stack = newServer.middlewares.stack
+    server.middlewares = middlewares
+
+    // Rebind internal server variable so functions reference the user server
+    newServer._setInternalServer(server)
+  }
+
+  const {
+    logger,
+    server: { port, middlewareMode },
+  } = server.config
+  if (!middlewareMode) {
+    await server.listen(port, true)
+  } else {
+    await Promise.all(
+      Object.values(server.environments).map((e) => e.listen(server)),
+    )
+  }
+  logger.info('server restarted.', { timestamp: true })
+
+  if (
+    (server._shortcutsState as ShortcutsState<ViteDevServer> | undefined)
+      ?.options
+  ) {
+    bindCLIShortcuts(
+      server,
+      { print: false },
+      // Skip environment checks since shortcuts were bound before restart
+      true,
+    )
+  }
+}
+*/
+
+/**
+ * Internal function to restart the Vite server and print URLs if changed
+ */
+export async function restartServerWithUrls(
+  server: ViteDevServer,
+): Promise<void> {
+  if (server.config.server.middlewareMode) {
+    await server.restart()
+    return
+  }
+
+  const { port: prevPort, host: prevHost } = server.config.server
+  const prevUrls = server.resolvedUrls
+
+  await server.restart()
+
+  const {
+    logger,
+    server: { port, host },
+  } = server.config
+  if (
+    (port ?? DEFAULT_DEV_PORT) !== (prevPort ?? DEFAULT_DEV_PORT) ||
+    host !== prevHost ||
+    diffDnsOrderChange(prevUrls, server.resolvedUrls)
+  ) {
+    logger.info('')
+    server.printUrls()
+  }
 }

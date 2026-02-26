@@ -4,6 +4,7 @@ import type {
 } from '#types/internal/esbuildOptions'
 import type { SourceMap } from 'rolldown'
 import type { ResolvedConfig } from '../config'
+import type { ViteDevServer } from '../server'
 import {
   createDebugger
 } from '../utils'
@@ -73,4 +74,43 @@ export async function loadTsconfigJsonForFile(
   //   ignoreNodeModules: true,
   // })
   return { tsconfigFile: '', tsconfig: {} }
+}
+
+export async function reloadOnTsconfigChange(
+  server: ViteDevServer,
+  changedFile: string,
+): Promise<void> {
+  // any tsconfig.json that's added in the workspace could be closer to a code file than a previously cached one
+  // any json file in the tsconfig cache could have been used to compile ts
+  if (changedFile.endsWith('.json')) {
+    // NOTE(kazupon): disable tsconfig loading, because 'tsconfck' package seem hard to resolve in browser environment
+    // const cache = getTSConfckCache(server.config)
+    // if (
+    //   changedFile.endsWith('/tsconfig.json') ||
+    //   cache.hasParseResult(changedFile)
+    // ) {
+    //   server.config.logger.info(
+    //     `changed tsconfig file detected: ${changedFile} - Clearing cache and forcing full-reload to ensure TypeScript is compiled with updated config values.`,
+    //     { clear: server.config.clearScreen, timestamp: true },
+    //   )
+
+    //   // TODO: more finegrained invalidation than the nuclear option below
+
+    //   // clear module graph to remove code compiled with outdated config
+    //   for (const environment of Object.values(server.environments)) {
+    //     environment.moduleGraph.invalidateAll()
+    //   }
+
+    //   // reset tsconfck cache so that recompile works with up2date configs
+    //   cache.clear()
+
+    //   // reload environments
+    //   for (const environment of Object.values(server.environments)) {
+    //     environment.hot.send({
+    //       type: 'full-reload',
+    //       path: '*',
+    //     })
+    //   }
+    // }
+  }
 }

@@ -3,21 +3,16 @@
 // https://github.com/paulmillr/chokidar/blob/3.6.0/types/index.d.ts
 // MIT Licensed https://github.com/paulmillr/chokidar/blob/3.6.0/LICENSE
 
-// NOTE(kazupon): Remove node:fs, node:events dependencies for browser env (Service Worker)
+import type { VirtualFSWatcher } from '@vrowser/fs/watcher'
 import type { Matcher } from './anymatch'
 
-export class FSWatcher {
+export interface FSWatcher extends VirtualFSWatcher {
   options: WatchOptions
-
-  constructor(options?: WatchOptions)
-
+  // Override return types to `this` for method chaining (covariant return)
   ref(): this
   unref(): this
   add(paths: string | ReadonlyArray<string>): this
   unwatch(paths: string | ReadonlyArray<string>): this
-  getWatched(): { [directory: string]: string[] }
-  close(): Promise<void>
-
   on(event: 'add' | 'addDir' | 'change', listener: (path: string, stats?: any) => void): this
   on(event: 'all', listener: (eventName: 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir', path: string, stats?: any) => void): this
   on(event: 'error', listener: (error: Error) => void): this
@@ -118,6 +113,8 @@ export class FSWatcher {
 //   on(event: string, listener: (...args: any[]) => void): this
 // }
 
+// NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
+// export interface WatchOptions extends VirtualWatchOptions {
 export interface WatchOptions {
   /**
    * Indicates whether the process should continue to run as long as files are being watched. If

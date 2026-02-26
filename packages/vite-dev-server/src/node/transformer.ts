@@ -18,11 +18,16 @@ import { rolldown } from '@vrowser/rolldown'
 import { memfs } from '@vrowser/rolldown/experimental'
 import { createBirpc } from 'birpc'
 import { isResolvedConfig, resolveConfig } from './config'
+import { reloadOnTsconfigChange } from './plugins/esbuild'
 import { initPublicFiles } from './publicDir'
 import { DevEnvironment } from './server/environment'
+import { handleHMRUpdate } from './server/hmr'
 import { checkLoadingAccess } from './server/middlewares/static'
+import { ModuleGraph } from './server/mixedModuleGraph'
 import { createMessageChannelServer } from './server/ws'
-import { createDebugger } from './utils'
+import {
+  createDebugger, normalizePath
+} from './utils'
 import {
   createNoopWatcher,
   getResolvedOutDirs,
@@ -30,6 +35,7 @@ import {
   resolveEmptyOutDir
 } from './watch'
 
+import type { FSWatcher } from '#dep-types/chokidar'
 import type { BirpcReturn } from 'birpc'
 import type { WebWorkerHmrPortMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
@@ -48,6 +54,8 @@ const debug = createDebugger('vrowser:transformer')
 export type ViteDevServerForWorker = Pick<ViteDevServer,
   | 'config'
   | 'environments'
+  | 'moduleGraph'
+  | 'watcher'
   | 'transformRequest'
   | 'warmupRequest'
   | 'transformIndexHtml'
@@ -59,6 +67,8 @@ export type ViteDevServerForWorker = Pick<ViteDevServer,
 export interface SetupWorkerResult {
   config: ResolvedConfig
   environments: Record<string, DevEnvironment>
+  moduleGraph: ModuleGraph
+  watcher: FSWatcher
   ws: import('./server/ws').MessageChannelServer
 }
 
@@ -113,15 +123,22 @@ export async function setupWorker(
   },
   options: SetupWorkerOptions = {},
   files?: Record<string, string>,
+  externalWatcher?: import('#dep-types/chokidar').FSWatcher,
 ): Promise<SetupWorkerResult> {
+  // Inject client base fix plugin for HMR module re-imports
+  if (!isResolvedConfig(inlineConfig)) {
+    inlineConfig.plugins = [
+      ...(inlineConfig.plugins as any[] ?? []),
+      clientBasePlugin(),
+    ]
+  }
+
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
   debug?.('config:', config)
 
   setupVirtualFiles(files)
-
-  const initPublicFilesPromise = initPublicFiles(config)
 
   const { root } = config
   const basePath = options.basePath || '/'
@@ -150,16 +167,12 @@ export async function setupWorker(
   // Create MessageChannel server for HMR
   const ws = createMessageChannelServer(config)
 
-  // Initialize public directory and files
-  const publicFiles = await initPublicFilesPromise
-  const { publicDir } = config
-  debug?.('publicDir:', publicDir, 'publicFiles:', publicFiles)
-
-  // Create a watcher that DevEnvironment can use for file watching (e.g. for plugins that watch files).
-  const watcher = createNoopWatcher(resolvedWatchOptions)
+  // Use external watcher if provided (e.g. VirtualFSWatcher from subscriber),
+  // otherwise fall back to NoopWatcher.
+  const watcher = externalWatcher ?? createNoopWatcher(resolvedWatchOptions)
 
   // Create DevEnvironment for each configured environment
-  const environments: Record<string, DevEnvironment> = {}
+  const environments = {} as Record<'client' | 'ssr', DevEnvironment>
   await Promise.all(
     Object.entries(config.environments).map(
       async ([name, environmentOptions]) => {
@@ -170,7 +183,7 @@ export async function setupWorker(
             ws,
           },
         )
-        environments[name] = environment
+        environments[(name as 'client' | 'ssr')] = environment
 
         const previousInstance =
           options.previousEnvironments?.[environment.name]
@@ -182,7 +195,145 @@ export async function setupWorker(
   )
   debug?.('Created environments:', environments)
 
-  return { config, environments, ws }
+  // Backward compatibility
+
+  let moduleGraph = new ModuleGraph({
+    client: () => environments.client.moduleGraph,
+    ssr: () => environments.ssr.moduleGraph,
+  })
+  // const hostname = await resolveHostname(config.server.host)
+  // const resolvedUrls = resolveServerUrls(
+  //   httpServer,
+  //   config.server,
+  //   hostname,
+  //   httpsOptions,
+  //   config,
+  // )
+  return { config, environments, moduleGraph, watcher, ws }
+}
+
+/**
+ * Vite plugin that fixes @vite/client's base path for HMR module re-imports.
+ *
+ * The pre-built client has `const base = "/"` hardcoded,
+ * but HMR re-import URLs need the correct base (e.g. "/__preview__/").
+ *
+ * @internal
+ */
+function clientBasePlugin() {
+  let resolvedBase = '/'
+
+  return {
+    name: 'vrowser:client-base',
+    configResolved(config: ResolvedConfig) {
+      resolvedBase = config.base
+    },
+    transform(code: string, id: string) {
+      if (id.includes('/dist/client/client.mjs') && resolvedBase !== '/') {
+        return {
+          // Replace only `const base = "/"` (not `base$1` etc. used by overlay)
+          code: code.replace(
+            /const base = "\/";/,
+            `const base = ${JSON.stringify(resolvedBase)};`
+          ),
+          map: null,
+        }
+      }
+    },
+  }
+}
+
+/**
+ * Connect watcher events to HMR pipeline.
+ *
+ * Simplified version of Vite's server/index.ts watcher setup.
+ * Handles 'change', 'add', and 'unlink' events from the watcher
+ * to trigger module graph invalidation and HMR updates.
+ *
+ * @see https://github.com/vitejs/vite/blob/main/packages/vite/src/node/server/index.ts
+ */
+export async function setupHMR(server: ViteDevServer): Promise<void> {
+  const { watcher, environments, config } = server
+  const { server: serverConfig } = config
+
+  const initPublicFilesPromise = initPublicFiles(config)
+  const publicFiles = await initPublicFilesPromise
+  const { publicDir } = config
+  debug?.('publicDir:', publicDir, 'publicFiles:', publicFiles)
+
+  const onHMRUpdate = async (
+    type: 'create' | 'delete' | 'update',
+    file: string,
+  ) => {
+    if (serverConfig.hmr !== false) {
+      await handleHMRUpdate(type, file, server)
+    }
+  }
+
+  const onFileAddUnlink = async (file: string, isUnlink: boolean) => {
+    file = normalizePath(file)
+    reloadOnTsconfigChange(server, file)
+
+    await Promise.all(
+      Object.values(server.environments).map((environment) =>
+        environment.pluginContainer.watchChange(file, {
+          event: isUnlink ? 'delete' : 'create',
+        }),
+      ),
+    )
+
+    if (publicDir && publicFiles) {
+      if (file.startsWith(publicDir)) {
+        const path = file.slice(publicDir.length)
+        publicFiles[isUnlink ? 'delete' : 'add'](path)
+        if (!isUnlink) {
+          const clientModuleGraph = server.environments.client.moduleGraph
+          const moduleWithSamePath =
+            await clientModuleGraph.getModuleByUrl(path)
+          const etag = moduleWithSamePath?.transformResult?.etag
+          if (etag) {
+            // The public file should win on the next request over a module with the
+            // same path. Prevent the transform etag fast path from serving the module
+            clientModuleGraph.etagToModuleMap.delete(etag)
+          }
+        }
+      }
+    }
+    if (isUnlink) {
+      // invalidate module graph cache on file change
+      for (const environment of Object.values(server.environments)) {
+        environment.moduleGraph.onFileDelete(file)
+      }
+    }
+    await onHMRUpdate(isUnlink ? 'delete' : 'create', file)
+  }
+
+  watcher.on('change', async (file) => {
+    debug?.('watcher change:', file)
+
+    file = normalizePath(file)
+    reloadOnTsconfigChange(server, file)
+
+    await Promise.all(
+      Object.values(environments).map(environment =>
+        environment.pluginContainer.watchChange(file, { event: 'update' }),
+      ),
+    )
+
+    for (const environment of Object.values(environments)) {
+      environment.moduleGraph.onFileChange(file)
+    }
+
+    await onHMRUpdate('update', file)
+  })
+
+  watcher.on('add', async (file) => {
+    onFileAddUnlink(file, false)
+  })
+
+  watcher.on('unlink', async (file) => {
+    onFileAddUnlink(file, true)
+  })
 }
 
 function setupVirtualFiles(files?: Record<string, string>): void {
@@ -312,6 +463,9 @@ export async function bundle(files: Record<string, string>, input: string): Prom
 
   return [output[0].code, output[0].fileName]
 }
+
+// === Virtual FS (shared instance for subscriber injection) ===
+export { fs, vol }
 
 // === DevEnvironment ===
 export type { DevEnvironmentContext } from './server/environment'

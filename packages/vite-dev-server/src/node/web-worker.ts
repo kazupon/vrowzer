@@ -49,6 +49,11 @@ export interface CreateServerOptions {
    */
   basePath?: string
   /**
+   * External FSWatcher to use for DevEnvironment (e.g. VirtualFSWatcher from subscriber).
+   * If not provided, a NoopWatcher is used.
+   */
+  watcher?: import('#dep-types/chokidar').FSWatcher
+  /**
    * Callback for messages not handled by the server protocol.
    * Use this for app-specific messages (e.g. 'bundle').
    */
@@ -114,8 +119,8 @@ export function createServer(
           const transformer = await import('./transformer')
 
           debug?.('transformer loaded, initializing...')
-          const result = await transformer.setupWorker(event.data.config, event.data.options, event.data.files)
-          const { config, environments } = result
+          const result = await transformer.setupWorker(event.data.config, event.data.options, event.data.files, options.watcher)
+          const { config, environments, watcher, moduleGraph } = result
           ws = result.ws
           const clientEnv = environments.client
           const devHtmlTransformFn = transformer.createDevHtmlTransformFn(config)
@@ -124,6 +129,8 @@ export function createServer(
           server = {
             config,
             environments,
+            moduleGraph,
+            watcher,
             transformRequest: (url, options) => {
               debug?.('transformRequest:', url, options)
               if (server == null) {
@@ -151,9 +158,12 @@ export function createServer(
             },
           }
 
+          // Setup HMR after server is ready
+          await transformer.setupHMR(server as ViteDevServer)
+
+          // Send ACK to Main Thread with config and environment info
           workerScope.postMessage({ type: 'V_WW_SETUP_ACK' })
           debug?.('setup complete')
-
           setupResolve?.(server!)
         } catch (error) {
           debug?.('V_WW_SETUP failed:', error)

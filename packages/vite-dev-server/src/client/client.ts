@@ -259,13 +259,13 @@ const hmrClient = new HMRClient(
     },
 )
 
-console.log('[vrowser] connecting to HMR server...')
+console.log('[vrowser] connecting to HMR MessageChannel server...')
 transport.connect!(createHMRHandler(handleMessage))
 
 async function handleMessage(payload: HotPayload) {
   switch (payload.type) {
     case 'connected':
-      console.debug(`[vrowser] connected.`)
+      console.debug(`[vrowser] ${payload.clientId} connected.`)
       // NOTE(kazupon): for console debug for vrowser
       // console.debug(`[vite] connected.`)
       break

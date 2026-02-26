@@ -1,5 +1,5 @@
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-// NOTE(kazupon): Remove node:events dependency for browser env (Service Worker)
+// NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
 // import { EventEmitter } from 'node:events'
 import path from 'node:path'
 import colors from 'picocolors'
@@ -15,7 +15,7 @@ export function getResolvedOutDirs(
   outputOptions: OutputOptions[] | OutputOptions | undefined,
 ): Set<string> {
   const resolvedOutDir = path.resolve(root, outDir)
-  if (!outputOptions) {return new Set([resolvedOutDir])}
+  if (!outputOptions) { return new Set([resolvedOutDir]) }
 
   return new Set(
     arraify(outputOptions).map(({ dir }) =>
@@ -30,7 +30,7 @@ export function resolveEmptyOutDir(
   outDirs: Set<string>,
   logger?: Logger,
 ): boolean {
-  if (emptyOutDir != null) {return emptyOutDir}
+  if (emptyOutDir != null) { return emptyOutDir }
 
   for (const outDir of outDirs) {
     if (!normalizePath(outDir).startsWith(withTrailingSlash(root))) {
@@ -82,7 +82,7 @@ export function resolveChokidarOptions(
 export function convertToNotifyOptions(
   options: WatchOptions | undefined,
 ): WatcherOptions['notify'] {
-  if (!options) {return}
+  if (!options) { return }
 
   return {
     pollInterval: options.usePolling ? (options.interval ?? 100) : undefined,
@@ -90,6 +90,7 @@ export function convertToNotifyOptions(
 }
 
 // NOTE(kazupon): Remove EventEmitter inheritance for browser env (Service Worker)
+// Implements FSWatcher which extends VirtualFSWatcher from @vrowser/fs/watcher
 class NoopWatcher implements FSWatcher {
   options: WatchOptions
 
@@ -97,33 +98,33 @@ class NoopWatcher implements FSWatcher {
     this.options = options
   }
 
-  on(_event: string, _listener: (...args: any[]) => void): this {
-    return this
-  }
+  // VirtualFSWatcher specific
+  notify() { }
 
-  add() {
-    return this
-  }
+  // chokidar FSWatcher interface
+  on(_event: string, _listener: (...args: any[]) => void): this { return this }
+  add() { return this }
+  unwatch() { return this }
+  getWatched() { return {} }
+  ref() { return this }
+  unref() { return this }
+  async close() { }
 
-  unwatch() {
-    return this
-  }
-
-  getWatched() {
-    return {}
-  }
-
-  ref() {
-    return this
-  }
-
-  unref() {
-    return this
-  }
-
-  async close() {
-    // noop
-  }
+  // EventEmitter I/F
+  off() { return this }
+  once() { return this }
+  emit() { return false }
+  removeListener() { return this }
+  removeAllListeners() { return this }
+  addListener() { return this }
+  listeners() { return [] }
+  listenerCount() { return 0 }
+  eventNames(): string[] { return [] }
+  getMaxListeners() { return Infinity }
+  setMaxListeners() { return this }
+  prependListener() { return this }
+  prependOnceListener() { return this }
+  rawListeners() { return [] }
 }
 
 export function createNoopWatcher(options: WatchOptions): FSWatcher {

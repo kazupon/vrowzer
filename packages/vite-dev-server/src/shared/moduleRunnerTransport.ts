@@ -289,6 +289,7 @@ export const createMessageChannelModuleRunnerTransport = (
       const clientId = nanoid()
 
       // Transfer `port2` to host via `postMessage`
+      console.log(`[vrowser] ${clientId} is connecting via MessageChannel...`)
       postMessage(
         { type: MC_INIT_EVENT, clientId },
         [channel.port2]

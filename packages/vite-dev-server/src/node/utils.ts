@@ -400,10 +400,10 @@ export function lookupFile(
   while (dir) {
     for (const fileName of fileNames) {
       const fullPath = path.join(dir, fileName)
-      if (tryStatSync(fullPath)?.isFile()) {return fullPath}
+      if (tryStatSync(fullPath)?.isFile()) { return fullPath }
     }
     const parentDir = path.dirname(dir)
-    if (parentDir === dir) {return}
+    if (parentDir === dir) { return }
 
     dir = parentDir
   }
@@ -445,7 +445,7 @@ type Pos = {
 }
 
 export function posToNumber(source: string, pos: number | Pos): number {
-  if (typeof pos === 'number') {return pos}
+  if (typeof pos === 'number') { return pos }
   const lines = source.split(splitRE)
   const { line, column } = pos
   let start = 0
@@ -457,7 +457,7 @@ export function posToNumber(source: string, pos: number | Pos): number {
 }
 
 export function numberToPos(source: string, offset: number | Pos): Pos {
-  if (typeof offset !== 'number') {return offset}
+  if (typeof offset !== 'number') { return offset }
   if (offset > source.length) {
     throw new Error(
       `offset is longer than source length! offset ${offset} > length ${source.length}`,
@@ -498,7 +498,7 @@ export function generateCodeFrame(
     count += lines[i].length
     if (count >= start) {
       for (let j = i - range; j <= i + range || end > count; j++) {
-        if (j < 0 || j >= lines.length) {continue}
+        if (j < 0 || j >= lines.length) { continue }
         const line = j + 1
         // @ts-expect-error -- FIXME(kazupon): fix me
         const lineLength = lines[j].length
@@ -690,7 +690,7 @@ function windowsMappedRealpathSync(path: string) {
   const realPath = fs.realpathSync.native(path)
   if (realPath.startsWith('\\\\')) {
     for (const [network, volume] of windowsNetworkMap) {
-      if (realPath.startsWith(network)) {return realPath.replace(network, volume)}
+      if (realPath.startsWith(network)) { return realPath.replace(network, volume) }
     }
   }
   return realPath
@@ -985,7 +985,136 @@ export async function resolveHostname(
   return { host, name }
 }
 
-// TODO: fill in code later ...
+/**
+ * NOTE(kazupon):
+ * disable codes, because browser environment does not need to extract hostnames from certs, and it also causes performance issue in some environment (like WSL2) when there are many certs in the system.
+ * keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
+ */
+// export function extractHostnamesFromCerts(
+//   certs: HttpsServerOptions['cert'] | undefined,
+// ): string[] {
+//   const certList = certs ? arraify(certs) : []
+//   if (certList.length === 0) { return [] }
+//
+//   const hostnames = certList
+//     .map((cert) => {
+//       try {
+//         return new crypto.X509Certificate(cert)
+//       } catch {
+//         return null
+//       }
+//     })
+//     .flatMap((cert) =>
+//       cert?.subjectAltName
+//         ? extractHostnamesFromSubjectAltName(cert.subjectAltName)
+//         : [],
+//     )
+//
+//   return unique(hostnames)
+// }
+//
+// export function resolveServerUrls(
+//   server: Server,
+//   options: CommonServerOptions,
+//   hostname: Hostname,
+//   httpsOptions: HttpsServerOptions | undefined,
+//   config: ResolvedConfig,
+// ): ResolvedServerUrls {
+//   const address = server.address()
+//
+//   const isAddressInfo = (x: any): x is AddressInfo => x?.address
+//   if (!isAddressInfo(address)) {
+//     return { local: [], network: [] }
+//   }
+//
+//   const local: string[] = []
+//   const network: string[] = []
+//   const protocol = options.https ? 'https' : 'http'
+//   const port = address.port
+//   const base =
+//     config.rawBase === './' || config.rawBase === '' ? '/' : config.rawBase
+//
+//   if (hostname.host !== undefined && !wildcardHosts.has(hostname.host)) {
+//     let hostnameName = hostname.name
+//     // ipv6 host
+//     if (hostnameName.includes(':')) {
+//       hostnameName = `[${hostnameName}]`
+//     }
+//     const address = `${protocol}://${hostnameName}:${port}${base}`
+//     if (loopbackHosts.has(hostname.host)) {
+//       local.push(address)
+//     } else {
+//       network.push(address)
+//     }
+//   } else {
+//     Object.values(os.networkInterfaces())
+//       .flatMap((nInterface) => nInterface ?? [])
+//       .filter((detail) => detail.address && detail.family === 'IPv4')
+//       .forEach((detail) => {
+//         let host = detail.address.replace('127.0.0.1', hostname.name)
+//         // ipv6 host
+//         if (host.includes(':')) {
+//           host = `[${host}]`
+//         }
+//         const url = `${protocol}://${host}:${port}${base}`
+//         if (detail.address.includes('127.0.0.1')) {
+//           local.push(url)
+//         } else {
+//           network.push(url)
+//         }
+//       })
+//   }
+//
+//   const hostnamesFromCert = extractHostnamesFromCerts(httpsOptions?.cert)
+//   if (hostnamesFromCert.length > 0) {
+//     const existings = new Set([...local, ...network])
+//     local.push(
+//       ...hostnamesFromCert
+//         .map((hostname) => `${protocol}://${hostname}:${port}${base}`)
+//         .filter((url) => !existings.has(url)),
+//     )
+//   }
+//
+//   return { local, network }
+// }
+//
+// export function extractHostnamesFromSubjectAltName(
+//   subjectAltName: string,
+// ): string[] {
+//   const hostnames: string[] = []
+//   let remaining = subjectAltName
+//   while (remaining) {
+//     const nameEndIndex = remaining.indexOf(':')
+//     const name = remaining.slice(0, nameEndIndex)
+//     remaining = remaining.slice(nameEndIndex + 1)
+//     if (!remaining) { break }
+//
+//     const isQuoted = remaining[0] === '"'
+//     let value: string
+//     if (isQuoted) {
+//       const endQuoteIndex = remaining.indexOf('"', 1)
+//       value = JSON.parse(remaining.slice(0, endQuoteIndex + 1))
+//       remaining = remaining.slice(endQuoteIndex + 1)
+//     } else {
+//       const maybeEndIndex = remaining.indexOf(',')
+//       const endIndex = maybeEndIndex === -1 ? remaining.length : maybeEndIndex
+//       value = remaining.slice(0, endIndex)
+//       remaining = remaining.slice(endIndex)
+//     }
+//     remaining = remaining.slice(/* for , */ 1).trimStart()
+//
+//     if (
+//       name === 'DNS' &&
+//       // [::1] might be included but skip it as it's already included as a local address
+//       value !== '[::1]' &&
+//       // skip *.IPv4 addresses, which is invalid
+//       !(value.startsWith('*.') && net.isIPv4(value.slice(2)))
+//     ) {
+//       hostnames.push(value.replace('*', 'vite'))
+//     }
+//   }
+//   return hostnames
+// }
 
 export function arraify<T>(target: T | T[]): T[] {
   return Array.isArray(target) ? target : [target]
@@ -1002,7 +1131,7 @@ export const blankReplacer = (match: string): string => ' '.repeat(match.length)
 export function getHash(text: Buffer | string, length = 8): string {
   const data = typeof text === 'string' ? utf8ToBytes(text) : new Uint8Array(text)
   const h = bytesToHex(sha256(data)).substring(0, length)
-  if (length <= 64) {return h}
+  if (length <= 64) { return h }
   return h.padEnd(length, '_')
 }
 // NOTE(kazupon): comment out, because we need to keep the maintainance from vite original code
@@ -1094,7 +1223,7 @@ function mergeWithDefaultsRecursively<
   for (const key in values) {
     const value = values[key]
     // let null to set the value (e.g. `server.watch: null`)
-    if (value === undefined) {continue}
+    if (value === undefined) { continue }
 
     const existing = merged[key]
     if (existing === undefined) {
@@ -1224,7 +1353,7 @@ function mergeConfigRecursively(
     if (key === 'rollupOptions' && rollupOptionsRootPaths.has(rootPath)) {
       // if both rollupOptions and rolldownOptions are present,
       // ignore rollupOptions and use rolldownOptions
-      if (overrides.rolldownOptions) {continue}
+      if (overrides.rolldownOptions) { continue }
       existing = merged.rolldownOptions
     }
 
@@ -1300,8 +1429,8 @@ export function mergeAlias(
   a?: AliasOptions,
   b?: AliasOptions,
 ): AliasOptions | undefined {
-  if (!a) {return b}
-  if (!b) {return a}
+  if (!a) { return b }
+  if (!b) { return a }
   if (isObject(a) && isObject(b)) {
     return { ...a, ...b }
   }
@@ -1394,7 +1523,7 @@ const windowsDrivePathPrefixRE = /^[A-Za-z]:[/\\]/
  * this function returns false for them but true for absolute paths (e.g. C:/something)
  */
 export const isNonDriveRelativeAbsolutePath = (p: string): boolean => {
-  if (!isWindows) {return p[0] === '/'}
+  if (!isWindows) { return p[0] === '/' }
   return windowsDrivePathPrefixRE.test(p)
 }
 
@@ -1404,7 +1533,7 @@ export const isNonDriveRelativeAbsolutePath = (p: string): boolean => {
  */
 export function shouldServeFile(filePath: string, root: string): boolean {
   // can skip case check on Linux
-  if (!isCaseInsensitiveFS) {return true}
+  if (!isCaseInsensitiveFS) { return true }
 
   return hasCorrectCase(filePath, root)
 }
@@ -1414,7 +1543,7 @@ export function shouldServeFile(filePath: string, root: string): boolean {
  * symlinks.
  */
 function hasCorrectCase(file: string, assets: string): boolean {
-  if (file === assets) {return true}
+  if (file === assets) { return true }
 
   const parent = path.dirname(file)
 
@@ -1451,10 +1580,10 @@ export function stripBase(path: string, base: string): string {
 }
 
 export function arrayEqual(a: any[], b: any[]): boolean {
-  if (a === b) {return true}
-  if (a.length !== b.length) {return false}
+  if (a === b) { return true }
+  if (a.length !== b.length) { return false }
   for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {return false}
+    if (a[i] !== b[i]) { return false }
   }
   return true
 }
@@ -1470,7 +1599,7 @@ export function evalValue<T = any>(rawValue: string): T {
 export function getNpmPackageName(importPath: string): string | null {
   const parts = importPath.split('/')
   if (parts[0][0] === '@') {
-    if (!parts[1]) {return null}
+    if (!parts[1]) { return null }
     return `${parts[0]}/${parts[1]}`
   } else {
     return parts[0]
@@ -1579,7 +1708,7 @@ export function displayTime(time: number): string {
  * Encodes the URI path portion (ignores part after ? or #)
  */
 export function encodeURIPath(uri: string): string {
-  if (uri.startsWith('data:')) {return uri}
+  if (uri.startsWith('data:')) { return uri }
   const filePath = cleanUrl(uri)
   const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
   return encodeURI(filePath) + postfix
@@ -1590,7 +1719,7 @@ export function encodeURIPath(uri: string): string {
  * that can handle un-encoded URIs, where `%` is the only ambiguous character.
  */
 export function partialEncodeURIPath(uri: string): string {
-  if (uri.startsWith('data:')) {return uri}
+  if (uri.startsWith('data:')) { return uri }
   const filePath = cleanUrl(uri)
   const postfix = filePath !== uri ? uri.slice(filePath.length) : ''
   return filePath.replaceAll('%', '%25') + postfix
