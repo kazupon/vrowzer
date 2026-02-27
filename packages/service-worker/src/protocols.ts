@@ -514,6 +514,7 @@ export type SvcWorkerMessage =
   | SvcWorkerVersionMessage
   | SvcWorkerSkipWaitingMessage
   | SvcWorkerSessionInitMessage
+  | SvcWorkerClaimClientsMessage
 
 /**
  * Reason why the service worker was terminated.

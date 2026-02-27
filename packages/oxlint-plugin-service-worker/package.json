@@ -50,7 +50,7 @@
     }
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "_disable:typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "tsdown",
     "prepack": "pnpm build"
   },

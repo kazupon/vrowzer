@@ -5,7 +5,6 @@
   "packageManager": "pnpm@10.30.0",
   "type": "module",
   "scripts": {
-    "_typecheck": "tsgo --noEmit --diagnostics --project ./tsconfig.typecheck.json",
     "build:dev-server": "pnpm --filter play-dev-server build",
     "build:docs": "pnpm -r run build:docs",
     "build:fs": "pnpm --filter fs build",
@@ -58,7 +57,7 @@
     "test:unit:vite": "pnpm run --color \"/^test:unit:vite:/\"",
     "test:unit:vite:browser": "vitest run --project vite-dev-server:unit:browser",
     "test:unit:vite:node": "vitest run --project vite-dev-server:unit:node",
-    "typecheck": "pnpm -r --no-bail typecheck"
+    "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@eslint/markdown": "^7.5.1",
