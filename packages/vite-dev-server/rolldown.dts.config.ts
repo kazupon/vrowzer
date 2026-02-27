@@ -17,17 +17,19 @@ const external = [
   /^rolldown\//,
   /^#types\//,
   ...Object.keys(pkg.dependencies),
+  ...Object.keys(pkg.devDependencies),
   ...Object.keys(pkg.peerDependencies || {})
 ]
 
 export default defineConfig({
   input: {
-    index: './src/node/index.ts',
-    'service-worker': './src/node/service-worker.ts',
-    'web-worker': './src/node/web-worker.ts',
-    transformer: './src/node/transformer.ts',
+    // NOTE(kazupon): commented out, this entry isn't used for vrowser, but we keep to maintain the code structure for later use.
+    // index: './src/node/index.ts',
     'module-runner': './src/module-runner/index.ts',
-    internal: './src/node/internalIndex.ts'
+    internal: './src/node/internalIndex.ts',
+    'service-worker': './src/node/service-worker.ts',
+    transformer: './src/node/transformer.ts',
+    'web-worker': './src/node/web-worker.ts',
   },
   output: {
     dir: './dist/node',
@@ -236,7 +238,7 @@ function validateChunkImports(
   chunk: RenderedChunk,
   importBindings: ImportBindings[]
 ) {
-  const deps = Object.keys(pkg.dependencies)
+  const deps = [...Object.keys(pkg.dependencies), ...Object.keys(pkg.devDependencies)]
   for (const { id, bindings } of importBindings) {
     if (
       !id.startsWith('./') &&

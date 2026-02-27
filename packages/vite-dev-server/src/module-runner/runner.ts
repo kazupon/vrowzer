@@ -1,3 +1,7 @@
+export {
+  createNodeImportMeta
+} from './createImportMeta';
+
 // TODO: fill in later ...
 
 export class ModuleRunner {

@@ -41,7 +41,7 @@ function createHMROptions(
   if (environment.config.server.hmr === false || options.hmr === false) {
     return false
   }
-  if (!('api' in environment.hot)) {return false}
+  if (!('api' in environment.hot)) { return false }
   return {
     logger: options.hmr?.logger,
   }

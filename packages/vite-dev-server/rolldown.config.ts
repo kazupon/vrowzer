@@ -5,12 +5,10 @@ import { fileURLToPath } from 'node:url'
 // import MagicString from 'magic-string'
 // import type { Plugin } from 'rolldown'
 import { defineConfig } from 'rolldown'
+import pkg from './package.json' with { type: 'json' }
 // import { init, parse } from 'es-module-lexer'
 // import licensePlugin from './rollupLicensePlugin'
 
-// const pkg = JSON.parse(
-//   readFileSync(new URL('./package.json', import.meta.url)).toString(),
-// )
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 // const disableSourceMap = !!process.env.DEBUG_DISABLE_SOURCE_MAP
 
@@ -42,19 +40,6 @@ const clientConfig = defineConfig({
 
 const sharedNodeOptions = defineConfig({
   platform: 'browser',
-  resolve: {
-    alias: {
-      // TODO(kazupon): don't do polyfill here
-      // 'node:path': 'pathe',
-      // 'path': 'pathe',
-      // 'node:fs': '@vrowser/fs',
-      // 'node:fs/promises': '@vrowser/fs/promises',
-      // 'fs': '@vrowser/fs',
-      // 'fs/promises': '@vrowser/fs/promises',
-      // 'node:url': '@kazupon/jts-utils/url',
-      // 'url': '@kazupon/jts-utils/url',
-    }
-  },
   transform: {
     define: {
       'process.platform': JSON.stringify('browser') // for `tinyglobby` polyfill
@@ -92,23 +77,25 @@ const sharedNodeOptions = defineConfig({
 const nodeConfig = defineConfig({
   ...sharedNodeOptions,
   input: {
-    index: path.resolve(__dirname, 'src/node/index.ts'),
+    // NOTE(kazupon): commented out, this entry isn't used for vrowser, but we keep to maintain the code structure for later use.
+    // index: path.resolve(__dirname, 'src/node/index.ts'),
     cli: path.resolve(__dirname, 'src/node/cli.ts'),
     internal: path.resolve(__dirname, 'src/node/internalIndex.ts')
-  }
-  // external: [
-  //   /^vite\//,
-  //   'fsevents',
-  //   /^rolldown\//,
-  //   /^tsx\//,
-  //   /^#/,
-  //   'sugarss', // postcss-import -> sugarss
-  //   'supports-color',
-  //   'utf-8-validate', // ws
-  //   'bufferutil', // ws
-  //   ...Object.keys(pkg.dependencies),
-  //   ...Object.keys(pkg.peerDependencies),
-  // ],
+  },
+  external: [
+    // /^vite\//,
+    // 'fsevents',
+    // /^rolldown\//,
+    // /^tsx\//,
+    // /^#/,
+    // 'sugarss', // postcss-import -> sugarss
+    // 'supports-color',
+    // 'utf-8-validate', // ws
+    // 'bufferutil', // ws
+    ...Object.keys(pkg.dependencies),
+    ...Object.keys(pkg.devDependencies),
+    ...Object.keys(pkg.peerDependencies || {}),
+  ],
   // plugins: [
   //   shimDepsPlugin({
   //     'postcss-load-config/src/req.js': [
@@ -154,16 +141,137 @@ const nodeConfig = defineConfig({
   // ],
 })
 
+/**
+ * NOTE(kazupon):
+ * The service-worker output contains unresolved `node:*` and prefix-less
+ * Node.js built-in imports (fs, path, url, etc.). These are intentionally left
+ * as external so that the consumer (facade package) can resolve them via
+ * `resolve.alias` in their own bundler config. For example:
+ *
+ *   resolve: {
+ *     alias: {
+ *       'node:fs': '@vrowser/fs',
+ *       'node:path': 'pathe',
+ *       'fs': '@vrowser/fs',
+ *       'path': 'pathe',
+ *       // ... other polyfills
+ *     }
+ *   }
+ *
+ * This allows the consumer to choose the appropriate polyfills for their
+ * target environment (Service Worker, Web Worker, browser, etc.).
+ */
+const serviceWorkerConfig = defineConfig({
+  ...sharedNodeOptions,
+  output: {
+    ...sharedNodeOptions.output,
+    // Use separate chunk directory to avoid conflicting with nodeConfig's and webWorkerConfig's chunks
+    chunkFileNames: 'node/service-worker-chunks/[name]-[hash].js',
+  },
+  input: {
+    'service-worker': path.resolve(__dirname, 'src/node/service-worker.ts'),
+  },
+  external: [
+    /^node:/,
+    // prefix-less node builtins used by dependencies (e.g. tinyglobby)
+    'fs', 'path', 'url', 'util', 'os', 'crypto', 'stream', 'events', 'buffer', 'dns',
+  ],
+  plugins: [
+    // Stub out modules that contain WASM or heavy dependencies not needed in SW.
+    // These modules are only used by DevEnvironment (Web Worker side).
+    // In SW, pluginContainer.ts is included transitively but its WASM-dependent
+    // code paths (parseAst, es-module-lexer) are never executed.
+    {
+      name: 'stub-sw-unused-modules',
+      resolveId: {
+        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$/ },
+        handler(id) {
+          return { id: `\0stub:${id}`, external: false }
+        }
+      },
+      load: {
+        filter: { id: /^\0stub:/ },
+        handler(id) {
+          // es-module-lexer exports init() and parse()
+          if (id.includes('es-module-lexer')) {
+            return {
+              code: 'export const init = () => Promise.resolve(); export const parse = () => [[], [], false, false];',
+              moduleType: 'js'
+            }
+          }
+          // @vrowser/rolldown main entry exports rolldown(), VERSION
+          if (id.endsWith('stub:@vrowser/rolldown')) {
+            return {
+              code: 'export const rolldown = () => { throw new Error("rolldown is not available in Service Worker") }; export const VERSION = "stub";',
+              moduleType: 'js'
+            }
+          }
+          // @vrowser/rolldown/parseAst exports parseAst() and parseAstAsync()
+          if (id.includes('parseAst')) {
+            return {
+              code: 'export const parseAst = () => { throw new Error("parseAst is not available in Service Worker") }; export const parseAstAsync = parseAst;',
+              moduleType: 'js'
+            }
+          }
+          // @vrowser/rolldown/experimental exports transformSync, viteTransformPlugin,
+          // viteJsonPlugin, viteWasmFallbackPlugin, etc.
+          // Stub all as noop/error — these are only used by DevEnvironment (Web Worker side).
+          if (id.includes('experimental')) {
+            return {
+              code: [
+                'const stubFn = () => { throw new Error("Not available in Service Worker") }',
+                'const stubPlugin = (opts) => ({ name: "stub" })',
+                'export const transformSync = stubFn',
+                'export const viteTransformPlugin = stubPlugin',
+                'export const viteJsonPlugin = stubPlugin',
+                'export const viteWasmFallbackPlugin = stubPlugin',
+                'export const viteAliasPlugin = stubPlugin',
+              ].join('; '),
+              moduleType: 'js'
+            }
+          }
+          return { code: 'export {}', moduleType: 'js' }
+        }
+      }
+    },
+  ],
+})
+
+const moduleRunnerConfig = defineConfig({
+  ...sharedNodeOptions,
+  input: {
+    'module-runner': path.resolve(__dirname, 'src/module-runner/index.ts')
+  },
+  external: [
+    /^node:/,
+    // 'fsevents',
+    // 'lightningcss',
+    // /^rolldown\//,
+    ...Object.keys(pkg.dependencies),
+    ...Object.keys(pkg.devDependencies),
+    ...Object.keys(pkg.peerDependencies || {}),
+  ],
+  // plugins: [bundleSizeLimit(54), enableSourceMapsInWatchModePlugin()],
+  // output: {
+  //   ...sharedNodeOptions.output,
+  //   minify: {
+  //     compress: true,
+  //     mangle: false,
+  //     codegen: false,
+  //   },
+  // },
+})
+
 // Resolve @vrowser/rolldown dist paths for WASM/Worker file copying
 const rolldownPkgDir = path.dirname(fileURLToPath(import.meta.resolve('@vrowser/rolldown/package.json')))
 const rolldownDistDir = path.resolve(rolldownPkgDir, 'dist')
 
-const webWorkerConfig = defineConfig({
+const transformerConfig = defineConfig({
   ...sharedNodeOptions,
   output: {
     ...sharedNodeOptions.output,
     // Use separate chunk directory to avoid conflicting with nodeConfig's chunks
-    chunkFileNames: 'node/worker-chunks/[name]-[hash].js',
+    chunkFileNames: 'node/transformer-chunks/[name]-[hash].js',
   },
   input: {
     transformer: path.resolve(__dirname, 'src/node/transformer.ts'),
@@ -180,6 +288,7 @@ const webWorkerConfig = defineConfig({
       'node:util': '@vrowser/node-polyfill/util',
       'node:readline': '@vrowser/node-polyfill/readline',
       'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
+      'node:dns': '@vrowser/node-polyfill/dns',
       events: '@vrowser/node-polyfill/events',
       path: 'pathe',
       stream: 'readable-stream/lib/stream',
@@ -246,120 +355,42 @@ const webWorkerConfig = defineConfig({
   ],
 })
 
-const serviceWorkerConfig = defineConfig({
-  ...sharedNodeOptions,
-  output: {
-    ...sharedNodeOptions.output,
-    // Use separate chunk directory to avoid conflicting with nodeConfig's and webWorkerConfig's chunks
-    chunkFileNames: 'node/sw-chunks/[name]-[hash].js',
-  },
-  input: {
-    'service-worker': path.resolve(__dirname, 'src/node/service-worker.ts'),
-  },
-  plugins: [
-    // Stub out modules that contain WASM or heavy dependencies not needed in SW.
-    // These modules are only used by DevEnvironment (Web Worker side).
-    // In SW, pluginContainer.ts is included transitively but its WASM-dependent
-    // code paths (parseAst, es-module-lexer) are never executed.
-    {
-      name: 'stub-sw-unused-modules',
-      resolveId: {
-        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$/ },
-        handler(id) {
-          return { id: `\0stub:${id}`, external: false }
-        }
-      },
-      load: {
-        filter: { id: /^\0stub:/ },
-        handler(id) {
-          // es-module-lexer exports init() and parse()
-          if (id.includes('es-module-lexer')) {
-            return {
-              code: 'export const init = () => Promise.resolve(); export const parse = () => [[], [], false, false];',
-              moduleType: 'js'
-            }
-          }
-          // @vrowser/rolldown main entry exports rolldown(), VERSION
-          if (id.endsWith('stub:@vrowser/rolldown')) {
-            return {
-              code: 'export const rolldown = () => { throw new Error("rolldown is not available in Service Worker") }; export const VERSION = "stub";',
-              moduleType: 'js'
-            }
-          }
-          // @vrowser/rolldown/parseAst exports parseAst() and parseAstAsync()
-          if (id.includes('parseAst')) {
-            return {
-              code: 'export const parseAst = () => { throw new Error("parseAst is not available in Service Worker") }; export const parseAstAsync = parseAst;',
-              moduleType: 'js'
-            }
-          }
-          // @vrowser/rolldown/experimental exports transformSync, viteTransformPlugin,
-          // viteJsonPlugin, viteWasmFallbackPlugin, etc.
-          // Stub all as noop/error — these are only used by DevEnvironment (Web Worker side).
-          if (id.includes('experimental')) {
-            return {
-              code: [
-                'const stubFn = () => { throw new Error("Not available in Service Worker") }',
-                'const stubPlugin = (opts) => ({ name: "stub" })',
-                'export const transformSync = stubFn',
-                'export const viteTransformPlugin = stubPlugin',
-                'export const viteJsonPlugin = stubPlugin',
-                'export const viteWasmFallbackPlugin = stubPlugin',
-                'export const viteAliasPlugin = stubPlugin',
-              ].join('; '),
-              moduleType: 'js'
-            }
-          }
-          return { code: 'export {}', moduleType: 'js' }
-        }
-      }
-    },
-  ],
-})
-
-const moduleRunnerConfig = defineConfig({
-  ...sharedNodeOptions,
-  input: {
-    'module-runner': path.resolve(__dirname, 'src/module-runner/index.ts')
-  }
-  // external: [
-  //   'fsevents',
-  //   'lightningcss',
-  //   /^rolldown\//,
-  //   ...Object.keys(pkg.dependencies),
-  // ],
-  // plugins: [bundleSizeLimit(54), enableSourceMapsInWatchModePlugin()],
-  // output: {
-  //   ...sharedNodeOptions.output,
-  //   minify: {
-  //     compress: true,
-  //     mangle: false,
-  //     codegen: false,
-  //   },
-  // },
-})
-
-// Lightweight Web Worker entry — does NOT bundle ./worker (transformer).
-// Dynamic import('./worker') at runtime resolves to the webWorkerConfig output (dist/node/worker.js).
-// Lightweight Web Worker entry — does NOT bundle ./transformer (rolldown/WASM).
-// Dynamic import('./transformer') at runtime resolves to the webWorkerConfig output.
-// NOTE: needs node:path alias because utils.ts (imported for createDebugger) uses node:path.
-const webWorkerEntryConfig = defineConfig({
+/**
+ * NOTE(kazupon):
+ * Lightweight Web Worker entry — does NOT bundle ./transformer (rolldown/WASM).
+ * Dynamic import('./transformer') at runtime resolves to the transformerConfig output (dist/node/transformer.js).
+ *
+ * Like serviceWorkerConfig, the web-worker output contains unresolved `node:*`
+ * and prefix-less Node.js built-in imports. The consumer (facade package) must
+ * resolve them via `resolve.alias` in their own bundler config. For example:
+ *
+ *   resolve: {
+ *     alias: {
+ *       'node:fs': '@vrowser/fs',
+ *       'node:path': 'pathe',
+ *       'fs': '@vrowser/fs',
+ *       'path': 'pathe',
+ *       // ... other polyfills
+ *     }
+ *   }
+ */
+const webWorkerConfig = defineConfig({
   ...sharedNodeOptions,
   resolve: {
     ...sharedNodeOptions.resolve,
     alias: {
       ...sharedNodeOptions.resolve?.alias,
-      'node:path': 'pathe',
-      path: 'pathe',
     }
   },
   input: {
     'web-worker': path.resolve(__dirname, 'src/node/web-worker.ts'),
   },
   // Mark ./transformer as external so it's not bundled into web-worker.js.
+  // node:* and prefix-less builtins are resolved by the consumer (facade package).
   external: [
     /^\.\/transformer$/,
+    /^node:/,
+    'fs', 'path', 'url', 'util', 'os', 'crypto', 'stream', 'events', 'buffer', 'dns',
   ],
   plugins: [
     // Fix external import path: rolldown resolves `./transformer` relative to source dir,
@@ -371,14 +402,22 @@ const webWorkerEntryConfig = defineConfig({
           /await import\(["']\.\.\/transformer["']\)/g,
           'await import("./transformer.js")'
         )
-        if (replaced === code) {return null}
+        if (replaced === code) { return null }
         return { code: replaced }
       }
     }
   ],
 })
 
-export default defineConfig([envConfig, clientConfig, nodeConfig, serviceWorkerConfig, webWorkerConfig, webWorkerEntryConfig, moduleRunnerConfig])
+export default defineConfig([
+  envConfig,
+  clientConfig,
+  nodeConfig,
+  serviceWorkerConfig,
+  transformerConfig,
+  webWorkerConfig,
+  moduleRunnerConfig
+])
 
 // #region Plugins
 
