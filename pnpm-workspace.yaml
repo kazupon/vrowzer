@@ -4,10 +4,10 @@ packages:
 catalog:
   '@kazupon/jts-utils': ^0.17.0
   '@playwright/test': 1.57.0
-  '@types/node': ^25.2.3
+  '@types/node': ^25.3.0
   get-port-please: ^3.2.0
   magic-string: ^0.30.21
-  oxlint: ^1.48.0
+  oxlint: ^1.50.0
   playwright: 1.57.0
   publint: ^0.3.17
   rolldown: 1.0.0-rc.1
