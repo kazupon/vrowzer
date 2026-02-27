@@ -33,9 +33,13 @@
     "docs"
   ],
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+    "./preview": {
+      "types": "./dist/preview.d.ts",
+      "import": "./dist/preview.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.mts",
+      "import": "./dist/vite.mjs"
     },
     "./package.json": "./package.json"
   },
@@ -65,6 +69,7 @@
     "readable-stream": "catalog:",
     "tsdown": "catalog:",
     "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:"
+    "typedoc-plugin-markdown": "catalog:",
+    "vite": "catalog:"
   }
 }

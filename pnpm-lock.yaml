@@ -648,6 +648,9 @@ importers:
       typedoc-plugin-markdown:
         specifier: 'catalog:'
         version: 4.10.0(typedoc@0.28.17(typescript@5.9.3))
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
 packages:
 
