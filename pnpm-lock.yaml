@@ -24,6 +24,9 @@ catalogs:
     magic-string:
       specifier: ^0.30.21
       version: 0.30.21
+    obug:
+      specifier: ^2.1.1
+      version: 2.1.1
     oxlint:
       specifier: ^1.50.0
       version: 1.50.0
@@ -565,7 +568,7 @@ importers:
         specifier: ^5.1.6
         version: 5.1.6
       obug:
-        specifier: ^2.1.1
+        specifier: 'catalog:'
         version: 2.1.1
       oxc-parser:
         specifier: 0.111.0
@@ -574,7 +577,7 @@ importers:
         specifier: ^8.0.0
         version: 8.0.0
       pathe:
-        specifier: ^2.0.3
+        specifier: 'catalog:'
         version: 2.0.3
       picocolors:
         specifier: ^1.1.1
@@ -610,35 +613,58 @@ importers:
         specifier: 'catalog:'
         version: 8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/vrowser:
-    devDependencies:
+  packages/vite-plugin:
+    dependencies:
       '@vrowser/fs':
         specifier: workspace:*
         version: link:../fs
       '@vrowser/node-polyfill':
         specifier: workspace:*
         version: link:../node-polyfill
-      '@vrowser/service-worker':
+      '@vrowser/rolldown':
         specifier: workspace:*
-        version: link:../service-worker
+        version: link:../rolldown
       '@vrowser/unplugin-service-worker':
         specifier: workspace:*
         version: link:../unplugin-service-worker
-      '@vrowser/vite-dev-server':
-        specifier: workspace:*
-        version: link:../vite-dev-server
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
+      obug:
+        specifier: 'catalog:'
+        version: 2.1.1
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
-      publint:
-        specifier: 'catalog:'
-        version: 0.3.17
       readable-stream:
         specifier: 'catalog:'
         version: 4.7.0
+    devDependencies:
+      publint:
+        specifier: 'catalog:'
+        version: 0.3.17
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.18.4(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(publint@0.3.17)(synckit@0.11.11)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/vrowser:
+    dependencies:
+      '@vrowser/fs':
+        specifier: workspace:*
+        version: link:../fs
+      '@vrowser/service-worker':
+        specifier: workspace:*
+        version: link:../service-worker
+      '@vrowser/vite-dev-server':
+        specifier: workspace:*
+        version: link:../vite-dev-server
+    devDependencies:
+      publint:
+        specifier: 'catalog:'
+        version: 0.3.17
       tsdown:
         specifier: 'catalog:'
         version: 0.18.4(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(publint@0.3.17)(synckit@0.11.11)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
@@ -648,9 +674,6 @@ importers:
       typedoc-plugin-markdown:
         specifier: 'catalog:'
         version: 4.10.0(typedoc@0.28.17(typescript@5.9.3))
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
 packages:
 

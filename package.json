@@ -18,6 +18,7 @@
     "build:vite": "pnpm --filter vite-dev-server build",
     "build:vite:type": "pnpm --filter vite-dev-server build-types-roll",
     "build:vrowser": "pnpm --filter vrowser build",
+    "build:vrowser-vite": "pnpm --filter vite-plugin build",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",
     "dev:vite": "pnpm --filter vite-dev-server dev",
     "dev:vrowser": "pnpm --filter vrowser dev",

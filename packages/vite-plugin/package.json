@@ -1,0 +1,68 @@
+{
+  "name": "@vrowser/vite-plugin",
+  "description": "Vite plugin for vrowser",
+  "version": "0.0.1",
+  "author": {
+    "name": "kazuya kawaguchi",
+    "email": "kawakazu80@gmail.com"
+  },
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/kazupon",
+  "bugs": {
+    "url": "https://github.com/kazupon/vrowser/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazupon/vrowser.git",
+    "directory": "packages/vite-plugin-vrowser"
+  },
+  "keywords": [
+    "vrowser",
+    "vite"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 20.19.0"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./index": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*",
+        "./*"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "pnpm build",
+    "typecheck": "tsgo --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vrowser/fs": "workspace:*",
+    "@vrowser/node-polyfill": "workspace:*",
+    "@vrowser/rolldown": "workspace:*",
+    "@vrowser/unplugin-service-worker": "workspace:*",
+    "buffer": "catalog:",
+    "obug": "catalog:",
+    "pathe": "catalog:",
+    "readable-stream": "catalog:"
+  },
+  "devDependencies": {
+    "publint": "catalog:",
+    "tsdown": "catalog:",
+    "vite": "catalog:"
+  }
+}
