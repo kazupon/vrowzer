@@ -30,7 +30,8 @@ const alias = targets.reduce(
     if (target === '') {
       const entryPath = path.resolve(__dirname, './dist/node/index.js')
       if (!fs.existsSync(entryPath)) {
-        throw new Error(`Build entry not found: ${entryPath}`)
+        // Skip if index.js doesn't exist (nodeConfig's index entry is commented out)
+        return acc
       }
       acc['@vrowser/vite-dev-server'] = entryPath
       return acc
