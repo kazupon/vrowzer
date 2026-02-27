@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "typecheck": "tsgo --noEmit -p tsconfig.app.json",
     "dev": "vite",
     "build": "vue-tsc -b && vite build --minify false",
     "preview": "vite preview"

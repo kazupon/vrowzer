@@ -42,7 +42,8 @@
   },
   "scripts": {
     "build": "rolldown -c rolldown.config.ts",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@rolldown/browser": "^1.0.0-beta.54",

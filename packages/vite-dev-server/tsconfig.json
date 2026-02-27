@@ -7,9 +7,10 @@
     "lib": ["ESNext", "DOM", "WebWorker"],
 
     "paths": {
-      "vite/module-runner": ["./src/module-runner/runner.ts"],
+      "vite/module-runner": ["./src/module-runner/runner.ts"]
     },
 
     "allowImportingTsExtensions": false
-  }
+  },
+  "include": ["src"]
 }

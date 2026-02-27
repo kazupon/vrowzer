@@ -48,6 +48,7 @@
     }
   },
   "scripts": {
+    "typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "tsdown",
     "build:docs": "typedoc --excludeInternal",
     "prepack": "pnpm build"

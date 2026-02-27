@@ -86,7 +86,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "devDependencies": {
     "@types/readable-stream": "^4.0.23",

@@ -5,6 +5,6 @@
     "target": "esnext",
     "moduleResolution": "bundler",
     "lib": ["DOM", "ESNext", "WebWorker"]
-  }
-  // "include": ["src", "e2e", "tsdown.config.ts"]
+  },
+  "include": ["src"]
 }
