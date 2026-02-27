@@ -60,7 +60,6 @@
     "**/__screenshots__",
     "packages/**/docs/**",
     "refers/**",
-    "packages/play-dev-server/**",
-    "packages/vrowser/src/**"
+    "packages/play-dev-server/**"
   ]
 }

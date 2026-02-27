@@ -1,24 +1,70 @@
 {
   "name": "vrowser",
   "description": "Preview with Vite HMR flavor for the browser",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "build": "vue-tsc -b && vite build",
-    "dev": "vite",
-    "preview": "vite preview"
+  "version": "0.0.1",
+  "author": {
+    "name": "kazuya kawaguchi",
+    "email": "kawakazu80@gmail.com"
   },
-  "dependencies": {
-    "consola": "^3.2.4",
-    "oxc-parser": "latest",
-    "oxc-transform": "latest",
-    "vue": "^3.5.24"
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/kazupon",
+  "bugs": {
+    "url": "https://github.com/kazupon/vrowser/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazupon/vrowser.git",
+    "directory": "packages/vrowser"
+  },
+  "keywords": [
+    "preview",
+    "hmr",
+    "vite"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 20.19.0"
+  },
+  "type": "module",
+  "files": [
+    "dist",
+    "docs"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*",
+        "./*"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "build:docs": "typedoc --excludeInternal",
+    "prepack": "pnpm build",
+    "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.3",
-    "esbuild": "^0.27.2",
-    "rolldown": "1.0.0-beta.56",
-    "vite": "catalog:",
-    "vue-tsc": "^3.1.4"
+    "@vrowser/fs": "workspace:*",
+    "@vrowser/node-polyfill": "workspace:*",
+    "@vrowser/service-worker": "workspace:*",
+    "@vrowser/unplugin-service-worker": "workspace:*",
+    "@vrowser/vite-dev-server": "workspace:*",
+    "buffer": "catalog:",
+    "pathe": "catalog:",
+    "publint": "catalog:",
+    "readable-stream": "catalog:",
+    "tsdown": "catalog:",
+    "typedoc": "catalog:",
+    "typedoc-plugin-markdown": "catalog:"
   }
 }
