@@ -20,6 +20,7 @@ import { handle } from 'hono/service-worker'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
+import { crossOriginMiddleware } from './server/middlewares/crossOrigin'
 import { errorMiddleware } from './server/middlewares/error'
 import { htmlFallbackMiddleware } from './server/middlewares/htmlFallback'
 import {
@@ -482,6 +483,9 @@ export function createServer(
     if (import.meta.env.DEBUG) {
       middlewares.use(timeMiddleware(root))
     }
+
+    // Cross-origin isolation headers (CORP/COEP/COOP) for credentialless iframe + SW
+    middlewares.use(crossOriginMiddleware())
 
     // TODO(kazupon): disable middlewares, after implementing them
     // middlewares.use(rejectInvalidRequestMiddleware())

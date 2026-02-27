@@ -43,18 +43,6 @@ const listen = createServer(
       {
         name: 'play-dev-server:middlewares',
         configureServer(server) {
-          // pre-hook: registered before transformMiddleware
-
-          // Cross-origin isolation headers for COEP compatibility.
-          // The main page sets COEP: require-corp, so all responses (including
-          // service worker served iframe content) must include CORP headers.
-          server.middlewares.use(async (c, next) => {
-            c.header('Cross-Origin-Resource-Policy', 'same-origin')
-            c.header('Cross-Origin-Embedder-Policy', 'require-corp')
-            c.header('Cross-Origin-Opener-Policy', 'same-origin')
-            await next()
-          })
-
           // /hello API endpoint
           server.middlewares.use(async (c, next) => {
             const path = getRequestPath(c)
