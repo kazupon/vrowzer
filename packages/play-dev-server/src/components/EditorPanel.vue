@@ -6,33 +6,19 @@ const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
-const defaultCode = `// Counter + Fetch request handle on Vite like dev server example
+const defaultCode = `// Counter example on Vite like dev server
 import config from './config.json'
 import { add } from './calculate.ts'
 
 let count = 0
-let serverMessage = ''
-
-async function fetchHello() {
-  try {
-    const res = await fetch('/__preview__/hello')
-    serverMessage = await res.text()
-  } catch (e) {
-    serverMessage = 'Error: ' + e.message
-  }
-  render()
-}
 
 function render() {
   document.getElementById('app').innerHTML = \`
     <div style="text-align: center; padding: 20px;">
       <h2>\${config.title}</h2>
-      <p style="color: #646cff; font-weight: bold;">\${serverMessage}</p>
-      <hr style="margin: 20px 0; border-color: #333;">
       <h1>Counter: \${count}</h1>
       <button id="increment">+1</button>
       <button id="decrement">-1</button>
-      <button id="refresh" style="margin-left: 10px;">Fetch /hello</button>
       <p style="margin-top: 10px; color: #888;">v\${config.version} | 1 + 2 = \${add(1, 2)}</p>
     </div>
   \`
@@ -46,8 +32,6 @@ function render() {
     count--
     render()
   })
-
-  document.getElementById('refresh')?.addEventListener('click', fetchHello)
 }
 
 render()
@@ -58,7 +42,7 @@ if (import.meta.hot) {
 `
 
 const defaultConfigJson = `{
-  "title": "Vite like dev server Response:",
+  "title": "Hello from Vrowser!",
   "version": "0.1.0"
 }
 `

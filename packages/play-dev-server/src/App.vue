@@ -1,62 +1,17 @@
 <script setup lang="ts">
-import { createFileSystemPublisher } from '@vrowser/fs/watcher'
-import { onMounted, onUnmounted, useTemplateRef } from 'vue'
+import { Vrowser } from 'vrowser'
+import { onMounted, ref, useTemplateRef } from 'vue'
 import EditorPanel from './components/EditorPanel.vue'
-import PreviewPanel from './components/PreviewPanel.vue'
-import { getServiceWorker, initServiceWorker } from './sw/controller.ts'
 
-import type {
-  BundleRequestMessage,
-  ServiceWorkerToMainMessage,
-  WorkerToMainMessage
-} from './types.ts'
-
-const previewBase = '/__preview__/'
-
-let rolldownWorker: Worker | null = null
-const publisher = createFileSystemPublisher()
 const editorPanel = useTemplateRef<InstanceType<typeof EditorPanel>>('editorPanel')
-const previewPanel = useTemplateRef<InstanceType<typeof PreviewPanel>>('previewPanel')
+const previewContainer = useTemplateRef<HTMLElement>('previewContainer')
+const isReady = ref(false)
+const statusText = ref('Loading...')
+
+const vrowser = Vrowser({ basePath: '/__preview__/' })
 
 onMounted(async () => {
-  // Create Web Worker
-  rolldownWorker = new Worker(new URL('./worker.ts', import.meta.url), {
-    type: 'module'
-  })
-  publisher.addTarget(rolldownWorker)
-
-  // Set up message handler for web worker responses
-  rolldownWorker.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
-    if (event.data.type === 'bundle-result') {
-      const { success, code, fileName, error } = event.data
-      if (success) {
-        console.log('[App] Bundle success:', fileName, code?.slice(0, 100) + '...')
-      } else {
-        console.error('[App] Bundle failed:', error)
-      }
-    }
-  }
-
-  rolldownWorker.onerror = error => {
-    console.error('[App] Rolldown Worker error:', error)
-  }
-
-  // web worker  ready promise: send V_WW_SETUP and wait for V_WW_SETUP_ACK
-  const webWorkerReady = new Promise<void>(resolve => {
-    const prevHandler = rolldownWorker!.onmessage
-    rolldownWorker!.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
-      if (event.data.type === 'V_WW_SETUP_ACK') {
-        console.log('[App] WW setup complete')
-        rolldownWorker!.onmessage = prevHandler
-        resolve()
-        return
-      }
-      // Forward other messages to the previous handler
-      prevHandler?.call(rolldownWorker!, event)
-    }
-  })
-
-  // Collect initial files from EditorPanel to sync with Web Worker's virtual FS
+  // Collect initial files from EditorPanel
   const initialFiles: Record<string, string> = {}
   if (editorPanel.value?.files) {
     for (const [path, content] of editorPanel.value.files) {
@@ -64,133 +19,30 @@ onMounted(async () => {
     }
   }
 
-  // Import dist client files
-  const { default: client } = await import('@vrowser/vite-dev-server/dist/client/client.mjs?raw')
-  initialFiles['/dist/client/client.mjs'] = client
-  const { default: env } = await import('@vrowser/vite-dev-server/dist/client/env.mjs?raw')
-  initialFiles['/dist/client/env.mjs'] = env
+  // Initialize preview system
+  statusText.value = 'Initializing...'
+  const ready = await vrowser.ready({ files: initialFiles })
 
-  console.log('[App] Sending V_WW_SETUP to worker...')
-  rolldownWorker.postMessage({
-    type: 'V_WW_SETUP',
-    config: {
-      root: '/',
-      base: previewBase,
-      publicDir: 'public',
-      optimizeDeps: { disabled: true },
-      experimental: {
-        importGlobRestoreExtension: false,
-        // NOTE: renderBuiltUrl is a function and cannot be cloned via postMessage.
-        // It will be set to the default value in the worker's setupWorker().
-        // renderBuiltUrl: () => undefined,
-        hmrPartialAccept: false,
-        enableNativePlugin: 'v2',
-        bundledDev: false
-      }
-    },
-    options: { basePath: previewBase },
-    // Initial files for WW's setupVirtualFiles() — processed by setupWorker()
-    files: initialFiles
-  })
-
-  // Initialize service worker and web worker  in parallel
-  const [serviceWorkerController] = await Promise.all([
-    initServiceWorker()
-      .then(controller => {
-        console.log('[App] SW ready:', controller.state)
-        return controller
-      })
-      .catch(error => {
-        console.error('[App] SW init failed:', error)
-        return null
-      }),
-    webWorkerReady
-  ])
-
-  // Both ready — establish MessageChannel between service worker and web worker
-  if (serviceWorkerController) {
-    // Add SW as publisher target for V_FS_* messages
-    const sw = getServiceWorker()
-    if (sw) {
-      publisher.addTarget({
-        postMessage: (msg: any, transfer?: any) => sw.postMessage(msg, transfer ?? [])
-      })
-      // Send initial files to SW too
-      publisher.initFiles(initialFiles)
-    }
-
-    await establishChannel()
-    // Load preview iframe after birpc channel is established
-    // so that transformIndexHtml can delegate to WW
-    previewPanel.value?.loadIframe()
-  }
-
-  // Test bundle after setup
-  const testMessage: BundleRequestMessage = {
-    type: 'bundle',
-    files: {
-      '/src/index.js': 'import { add } from "./math.js"\nconsole.log(add(1, 2))',
-      '/src/math.js': 'export function add(a, b) { return a + b }'
-    },
-    input: '/src/index.js'
-  }
-  rolldownWorker.postMessage(testMessage)
-})
-
-onUnmounted(() => {
-  rolldownWorker?.terminate()
-  rolldownWorker = null
-})
-
-/**
- * Establish MessageChannel between service worker and web worker .
- * Creates a MessageChannel, sends one port to each side,
- * and waits for both ACKs (handshake + birpc ready).
- */
-async function establishChannel() {
-  const serviceWorker = getServiceWorker()
-  if (!serviceWorker || !rolldownWorker) {
-    console.error('[App] Cannot establish channel: missing SW or WW')
+  if (!ready) {
+    statusText.value = 'Failed to initialize'
     return
   }
 
-  const channel = new MessageChannel()
+  // Mount preview iframe
+  if (previewContainer.value) {
+    await vrowser.mount(previewContainer.value)
+  }
 
-  // Wait for service worker's ACK (via navigator.serviceWorker message)
-  const serviceWorkerAck = new Promise<void>(resolve => {
-    const handler = (event: MessageEvent<ServiceWorkerToMainMessage>) => {
-      if (event.data?.type === 'V_WW_CONNECT_PORT_ACK') {
-        navigator.serviceWorker.removeEventListener('message', handler)
-        resolve()
-      }
-    }
-    navigator.serviceWorker.addEventListener('message', handler)
-  })
-
-  // Wait for web worker 's ACK (via worker.onmessage)
-  const webWorkerAck = new Promise<void>(resolve => {
-    const prevHandler = rolldownWorker!.onmessage
-    rolldownWorker!.onmessage = (event: MessageEvent<WorkerToMainMessage>) => {
-      if (event.data.type === 'V_SW_CONNECT_PORT_ACK') {
-        rolldownWorker!.onmessage = prevHandler
-        resolve()
-        return
-      }
-      prevHandler?.call(rolldownWorker!, event)
-    }
-  })
-
-  // Transfer ports
-  serviceWorker.postMessage({ type: 'V_WW_CONNECT_PORT' }, [channel.port1])
-  rolldownWorker.postMessage({ type: 'V_SW_CONNECT_PORT' }, [channel.port2])
-
-  // Wait for both sides to complete handshake + birpc setup
-  await Promise.all([serviceWorkerAck, webWorkerAck])
-  console.log('[App] SW<->WW MessageChannel fully established')
-}
+  isReady.value = true
+  statusText.value = 'Ready'
+})
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
-  publisher.writeFile(path, content)
+  vrowser.updateFile(path, content)
+}
+
+function handleReload() {
+  vrowser.reloadPreview()
 }
 </script>
 
@@ -202,7 +54,24 @@ function handleFileChange({ path, content }: { path: string; content: string }) 
     </header>
     <main class="app-main">
       <EditorPanel ref="editorPanel" @file-change="handleFileChange" />
-      <PreviewPanel ref="previewPanel" />
+      <div class="preview-panel">
+        <div class="preview-header">
+          <span>Preview</span>
+          <div class="status-container">
+            <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
+              Reload
+            </button>
+            <span :class="['status-dot', { ready: isReady }]" title="Service Worker"></span>
+            <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
+          </div>
+        </div>
+        <div class="preview-content">
+          <div v-if="!isReady" class="loading-overlay">
+            <p>{{ statusText }}</p>
+          </div>
+          <div ref="previewContainer" class="preview-iframe-container" />
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -248,5 +117,138 @@ function handleFileChange({ path, content }: { path: string; content: string }) 
   display: grid;
   grid-template-columns: 1fr 1fr;
   overflow: hidden;
+}
+
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #ffffff;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #242424 0%, #1a1a1a 100%);
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #646cff33;
+}
+
+.status-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+  transition: all 0.3s ease;
+}
+
+.status-dot.ready {
+  background: #41d1ff;
+  box-shadow: 0 0 8px #41d1ff88;
+}
+
+.reload-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #646cff44;
+  background: #646cff22;
+  color: #646cff;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+
+.reload-btn:hover {
+  background: #646cff44;
+  border-color: #646cff;
+}
+
+.status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status.loading {
+  background: #646cff22;
+  color: #646cff;
+  border: 1px solid #646cff44;
+}
+
+.status.ready {
+  background: linear-gradient(135deg, #41d1ff22 0%, #bd34fe22 100%);
+  color: #41d1ff;
+  border: 1px solid #41d1ff44;
+}
+
+.preview-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #888;
+  z-index: 5;
+  gap: 16px;
+}
+
+.loading-overlay p {
+  font-size: 14px;
+  color: #646cff;
+}
+
+.loading-overlay::before {
+  content: '';
+  width: 40px;
+  height: 40px;
+  border: 3px solid #646cff33;
+  border-top-color: #646cff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.preview-iframe-container {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-iframe-container :deep(iframe) {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
 }
 </style>
