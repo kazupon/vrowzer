@@ -51,7 +51,6 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       // ignores for node-polyfill integration test files
       'packages/node-polyfill/integration/**',
       'packages/oxlint-plugin-service-worker/**',
-      'packages/oxc-parser/**',
       'packages/vite-plugin/**',
       'packages/vrowser/**',
       'packages/rolldown/e2e/**'

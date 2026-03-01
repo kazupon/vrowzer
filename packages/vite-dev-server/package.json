@@ -110,7 +110,6 @@
     "@types/picomatch": "^4.0.2",
     "@vrowser/fs": "workspace:*",
     "@vrowser/node-polyfill": "workspace:*",
-    "@vrowser/oxc-parser": "workspace:*",
     "@vrowser/rolldown": "workspace:*",
     "@vrowser/service-worker": "workspace:*",
     "@vrowser/service-worker-server": "workspace:*",

@@ -31,7 +31,6 @@ test-results
 
 # for projects
 packages/unplugin-service-worker/e2e/playground/add.wasm
-packages/oxc-parser/target
 
 .notes
 .todo.md

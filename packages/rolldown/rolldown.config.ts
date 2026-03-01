@@ -124,7 +124,9 @@ const redirectCjsBindingToBrowserPlugin: Plugin = {
   resolveId: {
     filter: { id: /rolldown-binding\.wasi\.cjs$/ },
     handler(_id, importer) {
-      if (!importer) {return null}
+      if (!importer) {
+        return null
+      }
       const dir = dirname(importer)
       return { id: join(dir, '..', 'rolldown-binding.wasi-browser.js'), external: false }
     }
