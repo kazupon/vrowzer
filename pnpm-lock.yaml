@@ -247,61 +247,28 @@ importers:
 
   packages/play-dev-server:
     dependencies:
-      '@kazupon/jts-utils':
-        specifier: 'catalog:'
-        version: 0.17.0(@vue/reactivity@3.5.26)
-      '@vrowser/fs':
-        specifier: workspace:*
-        version: link:../fs
-      '@vrowser/service-worker':
-        specifier: workspace:*
-        version: link:../service-worker
-      '@vrowser/vite-dev-server':
-        specifier: workspace:*
-        version: link:../vite-dev-server
-      hono:
-        specifier: ^4.7.10
-        version: 4.11.4
       monaco-editor:
         specifier: ^0.55.1
         version: 0.55.1
+      vrowser:
+        specifier: workspace:*
+        version: link:../vrowser
       vue:
         specifier: ^3.5.24
         version: 3.5.26(typescript@5.9.3)
     devDependencies:
-      '@rollup/plugin-inject':
-        specifier: ^5.0.5
-        version: 5.0.5(rollup@4.55.1)
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.1
       '@vitejs/plugin-vue':
         specifier: ^6.0.1
         version: 6.0.3(vite@8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.26(typescript@5.9.3))
-      '@vrowser/node-polyfill':
+      '@vrowser/vite-plugin':
         specifier: workspace:*
-        version: link:../node-polyfill
-      '@vrowser/oxc-parser':
-        specifier: workspace:*
-        version: link:../oxc-parser
-      '@vrowser/rolldown':
-        specifier: workspace:*
-        version: link:../rolldown
-      '@vrowser/unplugin-service-worker':
-        specifier: workspace:*
-        version: link:../unplugin-service-worker
+        version: link:../vite-plugin
       '@vue/tsconfig':
         specifier: ^0.8.1
         version: 0.8.1(typescript@5.9.3)(vue@3.5.26(typescript@5.9.3))
-      buffer:
-        specifier: 'catalog:'
-        version: 6.0.3
-      pathe:
-        specifier: 'catalog:'
-        version: 2.0.3
-      readable-stream:
-        specifier: 'catalog:'
-        version: 4.7.0
       vite:
         specifier: 'catalog:'
         version: 8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
@@ -615,6 +582,9 @@ importers:
 
   packages/vite-plugin:
     dependencies:
+      '@rollup/plugin-inject':
+        specifier: ^5.0.5
+        version: 5.0.5(rollup@4.55.1)
       '@vrowser/fs':
         specifier: workspace:*
         version: link:../fs
@@ -649,6 +619,9 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.18(@types/node@25.3.1)(@vitest/browser-playwright@4.0.18)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/vrowser:
     dependencies:
@@ -662,6 +635,15 @@ importers:
         specifier: workspace:*
         version: link:../vite-dev-server
     devDependencies:
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.57.0
+      '@vrowser/vite-plugin':
+        specifier: workspace:*
+        version: link:../vite-plugin
+      get-port-please:
+        specifier: 'catalog:'
+        version: 3.2.0
       publint:
         specifier: 'catalog:'
         version: 0.3.17
@@ -674,6 +656,9 @@ importers:
       typedoc-plugin-markdown:
         specifier: 'catalog:'
         version: 4.10.0(typedoc@0.28.17(typescript@5.9.3))
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.0-beta.12(@types/node@25.3.1)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2)
 
 packages:
 

@@ -156,6 +156,28 @@ export default defineConfig({
           testTimeout: 60000,
           hookTimeout: 120000
         }
+      },
+      {
+        extends: './packages/vite-plugin/vitest.config.ts',
+        test: {
+          name: 'vite-plugin:unit',
+          include: ['./packages/vite-plugin/src/**/*.test.ts']
+        }
+      },
+      {
+        extends: './packages/vrowser/vitest.config.ts',
+        test: {
+          name: 'vrowser:unit',
+          include: ['./packages/vrowser/src/**/*.test.ts']
+        }
+      },
+      {
+        test: {
+          name: 'vrowser:e2e',
+          include: ['./packages/vrowser/e2e/**/*.e2e-test.ts'],
+          testTimeout: 60000,
+          hookTimeout: 120000
+        }
       }
     ]
   }
