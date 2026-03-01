@@ -36,6 +36,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./web-worker": "./dist/web-worker.ts",
+    "./service-worker": "./dist/service-worker.ts",
     "./package.json": "./package.json"
   },
   "typesVersions": {
@@ -58,9 +60,13 @@
     "@vrowser/vite-dev-server": "workspace:*"
   },
   "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@vrowser/vite-plugin": "workspace:*",
+    "get-port-please": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:"
+    "typedoc-plugin-markdown": "catalog:",
+    "vite": "catalog:"
   }
 }

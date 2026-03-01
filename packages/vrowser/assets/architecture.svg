@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 820" font-family="system-ui, -apple-system, sans-serif" font-size="12">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#666"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#4a90d9"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#9b59b6"/>
+    </marker>
+    <marker id="arrow-violet" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#7a4ad9"/>
+    </marker>
+  </defs>
+
+  <!-- Main Thread -->
+  <rect x="40" y="20" width="840" height="110" rx="8" fill="#f0f4ff" stroke="#4a90d9" stroke-width="1.5"/>
+  <text x="460" y="40" text-anchor="middle" font-weight="bold" font-size="14" fill="#333">Main Thread</text>
+
+  <rect x="80" y="55" width="140" height="55" rx="6" fill="#fff" stroke="#4a90d9" stroke-width="1"/>
+  <text x="150" y="76" text-anchor="middle" font-weight="600" fill="#333">vrowser</text>
+  <text x="150" y="98" text-anchor="middle" font-size="10" fill="#888">Vrowser()</text>
+
+  <rect x="310" y="55" width="220" height="55" rx="6" fill="#fff" stroke="#4a90d9" stroke-width="1"/>
+  <text x="420" y="76" text-anchor="middle" font-weight="600" fill="#333">FileSystemPublisher</text>
+  <text x="420" y="98" text-anchor="middle" font-size="10" fill="#888">@vrowser/fs/watcher</text>
+
+  <rect x="620" y="55" width="220" height="55" rx="6" fill="#fff" stroke="#4a90d9" stroke-width="1"/>
+  <text x="730" y="76" text-anchor="middle" font-weight="600" fill="#333">SvcWorkerController</text>
+  <text x="730" y="98" text-anchor="middle" font-size="10" fill="#888">@vrowser/service-worker</text>
+
+
+  <!-- Service Worker -->
+  <rect x="40" y="200" width="410" height="360" rx="8" fill="#fff5f0" stroke="#d97a4a" stroke-width="1.5"/>
+  <text x="245" y="222" text-anchor="middle" font-weight="bold" font-size="14" fill="#333">Service Worker</text>
+
+  <!-- SW: Subscriber + memfs vol (top) -->
+  <rect x="70" y="240" width="160" height="45" rx="6" fill="#fff" stroke="#d97a4a" stroke-width="1"/>
+  <text x="150" y="256" text-anchor="middle" font-weight="600" font-size="11" fill="#333">Subscriber + Watcher</text>
+  <text x="150" y="276" text-anchor="middle" font-size="10" fill="#888">@vrowser/fs/watcher</text>
+
+  <rect x="260" y="240" width="160" height="45" rx="6" fill="#fff" stroke="#d97a4a" stroke-width="1"/>
+  <text x="340" y="260" text-anchor="middle" font-weight="600" font-size="11" fill="#333">memfs vol</text>
+  <text x="340" y="276" text-anchor="middle" font-size="10" fill="#888">@vrowser/fs</text>
+
+  <!-- SW: entry -->
+  <rect x="70" y="310" width="350" height="45" rx="6" fill="#fff" stroke="#d97a4a" stroke-width="1"/>
+  <text x="245" y="330" text-anchor="middle" font-weight="600" font-size="11" fill="#333">vrowser/service-worker</text>
+  <text x="245" y="346" text-anchor="middle" font-size="10" fill="#888">SW entry point</text>
+
+  <!-- SW: vite-dev-server -->
+  <rect x="70" y="380" width="350" height="45" rx="6" fill="#fff" stroke="#d97a4a" stroke-width="1"/>
+  <text x="245" y="400" text-anchor="middle" font-weight="600" font-size="11" fill="#333">@vrowser/vite-dev-server/service-worker</text>
+  <text x="245" y="416" text-anchor="middle" font-size="10" fill="#888">Vite Dev Server (fetch handler)</text>
+
+  <!-- SW: service-worker-server -->
+  <rect x="70" y="450" width="350" height="45" rx="6" fill="#fff" stroke="#d97a4a" stroke-width="1"/>
+  <text x="245" y="470" text-anchor="middle" font-weight="600" font-size="11" fill="#333">@vrowser/service-worker-server</text>
+  <text x="245" y="486" text-anchor="middle" font-size="10" fill="#888">SvcWorkerServer</text>
+
+
+  <!-- Web Worker -->
+  <rect x="470" y="200" width="410" height="360" rx="8" fill="#f0fff4" stroke="#4a9d5c" stroke-width="1.5"/>
+  <text x="675" y="222" text-anchor="middle" font-weight="bold" font-size="14" fill="#333">Web Worker</text>
+
+  <!-- WW: Subscriber + Watcher + memfs vol (top) -->
+  <rect x="500" y="240" width="180" height="45" rx="6" fill="#fff" stroke="#4a9d5c" stroke-width="1"/>
+  <text x="590" y="256" text-anchor="middle" font-weight="600" font-size="11" fill="#333">Subscriber + Watcher</text>
+  <text x="590" y="276" text-anchor="middle" font-size="10" fill="#888">@vrowser/fs/watcher</text>
+
+  <rect x="700" y="240" width="150" height="45" rx="6" fill="#fff" stroke="#4a9d5c" stroke-width="1"/>
+  <text x="775" y="260" text-anchor="middle" font-weight="600" font-size="11" fill="#333">memfs vol</text>
+  <text x="775" y="276" text-anchor="middle" font-size="10" fill="#888">@vrowser/fs</text>
+
+  <!-- WW: entry -->
+  <rect x="500" y="310" width="350" height="45" rx="6" fill="#fff" stroke="#4a9d5c" stroke-width="1"/>
+  <text x="675" y="330" text-anchor="middle" font-weight="600" font-size="11" fill="#333">vrowser/web-worker</text>
+  <text x="675" y="346" text-anchor="middle" font-size="10" fill="#888">WW entry point</text>
+
+  <!-- WW: vite-dev-server/web-worker -->
+  <rect x="500" y="380" width="350" height="45" rx="6" fill="#fff" stroke="#4a9d5c" stroke-width="1"/>
+  <text x="675" y="400" text-anchor="middle" font-weight="600" font-size="11" fill="#333">@vrowser/vite-dev-server/web-worker</text>
+  <text x="675" y="416" text-anchor="middle" font-size="10" fill="#888">Worker server</text>
+
+  <!-- WW: transformer -->
+  <rect x="500" y="450" width="350" height="45" rx="6" fill="#fff" stroke="#4a9d5c" stroke-width="1"/>
+  <text x="675" y="466" text-anchor="middle" font-weight="600" font-size="11" fill="#333">@vrowser/vite-dev-server/transformer</text>
+  <text x="675" y="486" text-anchor="middle" font-size="10" fill="#888">DevEnvironment</text>
+
+
+  <!-- Preview Iframe -->
+  <rect x="220" y="630" width="480" height="60" rx="8" fill="#f5f0ff" stroke="#7a4ad9" stroke-width="1.5"/>
+  <text x="460" y="666" text-anchor="middle" font-weight="bold" font-size="14" fill="#333">Preview Iframe</text>
+
+  <!-- === Cross-component arrows === -->
+
+  <!-- Publisher → SW Subscriber (V_FS_*) -->
+  <path d="M 370 110 L 370 150 L 150 150 L 150 200" fill="none" stroke="#4a90d9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-blue)"/>
+  <text x="260" y="163" text-anchor="middle" font-size="10" fill="#4a90d9" font-weight="600">V_FS_*</text>
+
+  <!-- Publisher → WW Subscriber (V_FS_*) -->
+  <path d="M 470 110 L 470 150 L 590 150 L 590 200" fill="none" stroke="#4a90d9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-blue)"/>
+  <text x="530" y="163" text-anchor="middle" font-size="10" fill="#4a90d9" font-weight="600">V_FS_*</text>
+
+  <!-- Controller → SvcWorkerServer (register/claim) -->
+  <path d="M 730 110 L 730 160 L 350 160 L 350 200" fill="none" stroke="#d97a4a" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="545" y="175" text-anchor="middle" font-size="10" fill="#d97a4a" font-weight="600">register / claim</text>
+
+  <!-- birpc (SW ↔ WW) -->
+  <line x1="420" y1="466" x2="496" y2="466" stroke="#9b59b6" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <line x1="496" y1="474" x2="420" y2="474" stroke="#9b59b6" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <text x="458" y="460" text-anchor="middle" font-size="10" fill="#9b59b6" font-weight="600">birpc</text>
+  <text x="458" y="490" text-anchor="middle" font-size="9" fill="#9b59b6">(MessageChannel)</text>
+
+  <!-- SW → Iframe (HTML/JS/CSS) -->
+  <path d="M 245 560 L 245 600 L 390 600 L 390 626" fill="none" stroke="#7a4ad9" stroke-width="1.5" marker-end="url(#arrow-violet)"/>
+  <text x="300" y="613" text-anchor="middle" font-size="10" fill="#7a4ad9" font-weight="600">HTML / JS / CSS</text>
+
+  <!-- Iframe → SW (fetch) -->
+  <path d="M 530 630 L 530 600 L 330 600 L 330 560" fill="none" stroke="#7a4ad9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-violet)"/>
+  <text x="450" y="593" text-anchor="middle" font-size="10" fill="#7a4ad9">fetch /__preview__/</text>
+</svg>
