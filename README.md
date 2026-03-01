@@ -13,7 +13,8 @@ Run Vite HMR flavor on the browser
 | Package                                                                          | Description                                                                                                                     |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | [vrowser](./packages/vrowser)                                                    | Preview with Vite HMR flavor for the browser                                                                                    |
-| [@vrowser/vite-dev-server](./packages/vite-dev-server)                           | Vite dev server for Vrowser                                                                                                     |
+| [@vrowser/vite-plugin](./packages/vite-plugin)                                   | Vite plugin for vrowser                                                                                                         |
+| [@vrowser/vite-dev-server](./packages/vite-dev-server)                           | Vite dev server for vrowser                                                                                                     |
 | [@vrowser/rolldown](./packages/rolldown)                                         | Pre-bundled @rolldown/browser for easy browser usage                                                                            |
 | [@vrowser/fs](./packages/fs)                                                     | Browser-compatible filesystem using memfs for vrowser                                                                           |
 | [@vrowser/node-polyfill](./packages/node-polyfill)                               | Browser-compatible Node.js module polyfills for vrowser                                                                         |
