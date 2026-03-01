@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-export interface VrowserPluginOptions {
+export interface VrowserOptions {
   /**
    * The base path for the preview system location, which is used to serve the preview files via service worker of Vrowser.
    *
@@ -28,15 +28,27 @@ export interface VrowserPluginOptions {
    * @default 'SEVICE_WORKER_VERSION'
    */
   serviceWorkerVersion?: string
-  // TODO(kazupon): add some options, if we need
-  // ...
+  /**
+   * Explicit Service Worker entry file path.
+   * When specified, `unplugin-service-worker` will bundle this file directly
+   * instead of scanning source code for `createSvcWorkerController()` calls.
+   *
+   * This is required when using a library-provided Service Worker (e.g. `vrowser/service-worker`)
+   * that is in `node_modules` and excluded from code scanning.
+   *
+   * @example 'vrowser/service-worker'
+   * @default undefined
+   */
+  serviceWorkerEntry?: string
 }
 
-export type ResolvedVrowserPluginOptions = Required<VrowserPluginOptions>
+export type ResolvedVrowserOptions = Required<VrowserOptions>
 
-export function resolveOptions(options: VrowserPluginOptions): ResolvedVrowserPluginOptions {
-  // TODO: resolve options with default values here
-  // ...
-
-  return {} as ResolvedVrowserPluginOptions
+export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions {
+  return {
+    basePath: options.basePath ?? '/__preview__/',
+    serviceWorkerScope: options.serviceWorkerScope ?? '/',
+    serviceWorkerVersion: options.serviceWorkerVersion ?? 'SEVICE_WORKER_VERSION',
+    serviceWorkerEntry: options.serviceWorkerEntry ?? ''
+  }
 }

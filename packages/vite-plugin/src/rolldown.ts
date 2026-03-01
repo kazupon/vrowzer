@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { createDebug } from 'obug'
 
 import type { Plugin } from 'vite'
-import type { ResolvedVrowserPluginOptions } from './options.ts'
+import type { ResolvedVrowserOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowser:rolldown')
 
@@ -26,9 +26,14 @@ const rolldownDistDir = path.resolve(
 )
 debug('rolldownDistDir ', rolldownDistDir)
 
-export function rolldownPlugin(_options: ResolvedVrowserPluginOptions): Plugin {
+export function rolldownPlugin(_options: ResolvedVrowserOptions): Plugin {
+  let resolvedOutDir = ''
+
   return {
     name: 'vrowser:rolldown',
+    configResolved(config) {
+      resolvedOutDir = path.resolve(config.root, config.build.outDir)
+    },
     /**
      * NOTE(kazupon):
      * Copy rolldown WASM binary and sub-worker for production builds.
@@ -37,7 +42,7 @@ export function rolldownPlugin(_options: ResolvedVrowserPluginOptions): Plugin {
      * so the WASM file must be in dist/assets/ alongside the Worker chunk.
      */
     writeBundle() {
-      const assetsDir = path.resolve(fileURLToPath(import.meta.url), '../dist/assets')
+      const assetsDir = path.resolve(resolvedOutDir, 'assets')
       debug('copy-rolldown-wasm: assetsDir ', assetsDir)
 
       const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')

@@ -13,7 +13,7 @@ import { createDebug } from 'obug'
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
-import type { ResolvedVrowserPluginOptions } from './options.ts'
+import type { ResolvedVrowserOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowser:server')
 
@@ -43,7 +43,7 @@ function previewGuardMiddleware(previewBase: string = '/__preview__') {
   }
 }
 
-export function serverMiddlewarePlugin(options: ResolvedVrowserPluginOptions): Plugin {
+export function serverMiddlewarePlugin(options: ResolvedVrowserOptions): Plugin {
   const middleware = previewGuardMiddleware(normalizeBasePath(options.basePath))
   return {
     name: 'vrowser:server-middleware',

@@ -14,7 +14,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kazupon/vrowser.git",
-    "directory": "packages/vite-plugin-vrowser"
+    "directory": "packages/vite-plugin"
   },
   "keywords": [
     "vrowser",
@@ -31,7 +31,7 @@
     "dist"
   ],
   "exports": {
-    "./index": {
+    ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
@@ -51,6 +51,7 @@
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@rollup/plugin-inject": "^5.0.5",
     "@vrowser/fs": "workspace:*",
     "@vrowser/node-polyfill": "workspace:*",
     "@vrowser/rolldown": "workspace:*",
@@ -63,6 +64,7 @@
   "devDependencies": {
     "publint": "catalog:",
     "tsdown": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

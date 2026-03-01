@@ -12,18 +12,27 @@
 import { createDebug } from 'obug'
 
 import type { Plugin } from 'vite'
-import type { ResolvedVrowserPluginOptions } from './options.ts'
+import type { ResolvedVrowserOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowser:core')
 
-export function corePlugin(options: ResolvedVrowserPluginOptions): Plugin {
+export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
   return {
     name: 'vrowser:core',
-    config(config, env) {
-      // TODO(kazupon): need to inject polyfill with rolldown builtin inject feature?
-      // inject({
-      //   process: '@vrowser/node-polyfill/process'
-      // }),
+    // Rolldown native inject: inject `process` global for browser/Worker environments.
+    // This replaces bare `process` references with an import from the polyfill.
+    options(inputOptions) {
+      inputOptions.transform ??= {}
+      ;(inputOptions.transform as Record<string, unknown>).inject = {
+        ...(((inputOptions.transform as Record<string, unknown>).inject as Record<
+          string,
+          string
+        >) ?? {}),
+        process: '@vrowser/node-polyfill/process'
+      }
+      debug('options hook: inputOptions.transform.inject ', inputOptions.transform.inject)
+    },
+    config(_config, _env) {
       return {
         define: {
           'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
@@ -63,6 +72,7 @@ export function corePlugin(options: ResolvedVrowserPluginOptions): Plugin {
         },
         server: {
           headers: {
+            'Service-Worker-Allowed': '/',
             'Cross-Origin-Opener-Policy': 'same-origin',
             'Cross-Origin-Embedder-Policy': 'credentialless'
           }
