@@ -5,10 +5,12 @@ unplugin for `@vrowser/service-worker`
 ## ✨ Features
 
 - **Automatic bundling** - Detects `createSvcWorkerController()` calls and automatically bundles Service Workers
+- **Explicit entry** - Supports `entry` option for library-provided Service Worker files (e.g. from `node_modules`)
 - **Multi-bundler support** - Works with Vite, Rollup, Rolldown, esbuild, Webpack, Rspack, Farm, and Bun
 - **Zero-config** - Works out of the box with sensible defaults
 - **Dev mode support** - Hot reload support in Vite development mode
 - **Content hashing** - Generates hashed filenames for cache busting
+- **ESM format** - Supports ES Module Service Workers (Chrome 91+) via `format: 'esm'`
 
 ## 💿 Installation
 
@@ -20,7 +22,7 @@ npm install -D @vrowser/unplugin-service-worker
 pnpm add -D @vrowser/unplugin-service-worker
 
 # yarn
-yarn add -D @vrowser/unpluign-service-worker
+yarn add -D @vrowser/unplugin-service-worker
 
 # bun
 bun add -D @vrowser/unplugin-service-worker
@@ -159,12 +161,14 @@ The plugin detects `createSvcWorkerController()` calls with `new URL()` pattern 
 import { createSvcWorkerController } from '@vrowser/service-worker/controller'
 
 // The plugin detects this pattern and bundles './sw.ts' as a separate entry
-const controller = createSvcWorkerController(new URL('./sw.ts', import.meta.url))
+const controller = createSvcWorkerController({
+  scriptURL: new URL('./sw.ts', import.meta.url)
+})
 ```
 
 **How it works:**
 
-1. Scans source files for `createSvcWorkerController(new URL(...))` pattern
+1. Scans source files for `createSvcWorkerController({ scriptURL: new URL(...) })` pattern
 2. Resolves the Service Worker file path (supports `.js`, `.ts`, etc.)
 3. Bundles the Service Worker as a separate output file
 4. Replaces the URL reference with the correct output path
@@ -172,14 +176,32 @@ const controller = createSvcWorkerController(new URL('./sw.ts', import.meta.url)
 **Before (source):**
 
 ```ts
-createSvcWorkerController(new URL('./sw.ts', import.meta.url))
+createSvcWorkerController({ scriptURL: new URL('./sw.ts', import.meta.url) })
 ```
 
 **After (bundled):**
 
 ```ts
-createSvcWorkerController(new URL('/assets/sw-a1b2c3d4.js', import.meta.url))
+createSvcWorkerController({ scriptURL: new URL('/assets/sw-a1b2c3d4.js', import.meta.url) })
 ```
+
+### Explicit Entry
+
+When the Service Worker entry file is provided by a library (e.g. in `node_modules`), the automatic detection via `createSvcWorkerController()` won't work because `node_modules` is excluded from scanning by default. The `entry` option solves this by explicitly specifying the Service Worker file path.
+
+```ts
+ServiceWorker({
+  entry: './node_modules/vrowser/dist/service-worker.ts'
+})
+```
+
+When `entry` is specified, the plugin:
+
+1. Bundles the entry file as a Service Worker
+2. Scans all files (including `node_modules`) for `new URL()` references to the entry file
+3. Rewrites those references to point to the bundled output
+
+This works correctly with pnpm workspace symlinks — the plugin resolves symlinks when comparing paths.
 
 ### Dev Mode Support (Vite)
 
@@ -330,6 +352,10 @@ ServiceWorker({
 
 ```ts
 ServiceWorker({
+  // Explicit Service Worker entry file path
+  // Default: undefined
+  entry: './node_modules/vrowser/dist/service-worker.ts',
+
   // Files to include for Service Worker processing
   // Default: [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]
   include: [/\.tsx?$/],
@@ -346,6 +372,10 @@ ServiceWorker({
   // Default: undefined
   serviceWorkerAllowed: '/',
 
+  // Output format for the Service Worker bundle
+  // Default: 'iife'
+  format: 'esm',
+
   // Additional rolldown plugins for the Service Worker bundler
   // Default: undefined
   plugins: [myRolldownPlugin()],
@@ -361,10 +391,12 @@ ServiceWorker({
 
 | Option                 | Type                                      | Default                                      | Description                                                                                                                                                                     |
 | ---------------------- | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entry`                | `string \| undefined`                     | `undefined`                                  | Explicit Service Worker entry file path. When specified, bundles this file without scanning for `createSvcWorkerController()`. See [Explicit Entry](#explicit-entry).           |
 | `include`              | `FilterPattern`                           | `[/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]` | Files to include for processing                                                                                                                                                 |
 | `exclude`              | `FilterPattern`                           | `[/node_modules/]`                           | Files to exclude from processing                                                                                                                                                |
 | `enforce`              | `'pre' \| 'post' \| undefined`            | `'pre'`                                      | Plugin enforcement phase                                                                                                                                                        |
 | `serviceWorkerAllowed` | `string \| undefined`                     | `undefined`                                  | Set `Service-Worker-Allowed` header in Vite dev server. Allows registering a Service Worker with a scope broader than the script location. Only takes effect during `vite dev`. |
+| `format`               | `'iife' \| 'esm' \| undefined`            | `'iife'`                                     | Output format. `'esm'` preserves `import.meta.url` and dynamic `import()`, required when the SW uses top-level await or WASM imports. Requires Chrome 91+.                      |
 | `plugins`              | `Plugin[] \| undefined`                   | `undefined`                                  | Additional rolldown plugins for the Service Worker bundler. Merged with plugins from the parent bundler.                                                                        |
 | `assets`               | `ServiceWorkerAssetConfig[] \| undefined` | `undefined`                                  | Additional assets to emit alongside the Service Worker bundle. See [Assets](#assets) below.                                                                                     |
 

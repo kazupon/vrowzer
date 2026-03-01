@@ -10,6 +10,20 @@ import type { FilterPattern } from 'unplugin'
  */
 export interface Options {
   /**
+   * Explicit Service Worker entry file path.
+   *
+   * When specified, the plugin will bundle this file as a Service Worker
+   * without scanning source code for `createSvcWorkerController()` calls.
+   *
+   * This is useful when the Service Worker entry is provided by a library
+   * (e.g. `vrowser`) that is in `node_modules` and excluded from scanning.
+   *
+   * @example './src/my-service-worker.ts'
+   * @example 'vrowser/service-worker'
+   * @default undefined
+   */
+  entry?: string | undefined
+  /**
    * Files to include for Service Worker processing.
    *
    * @default [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]
@@ -89,11 +103,12 @@ type Overwrite<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U
 
 export type OptionsResolved = Overwrite<
   Required<Options>,
-  Pick<Options, 'enforce' | 'serviceWorkerAllowed' | 'plugins' | 'assets' | 'format'>
+  Pick<Options, 'entry' | 'enforce' | 'serviceWorkerAllowed' | 'plugins' | 'assets' | 'format'>
 >
 
 export function resolveOptions(options: Options): OptionsResolved {
   return {
+    entry: options.entry,
     // Include JS/TS files and Vue/Svelte SFC files by default
     include: options.include || [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/],
     exclude: options.exclude || [/node_modules/],

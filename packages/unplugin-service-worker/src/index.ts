@@ -3,6 +3,7 @@
  * @license MIT
  */
 
+import { realpathSync } from 'node:fs'
 import MagicString from 'magic-string'
 import path from 'node:path'
 import { createUnplugin } from 'unplugin'
@@ -119,6 +120,102 @@ function generatePlaceholderHash(filePath: string): string {
     hash = hash & hash
   }
   return Math.abs(hash).toString(36).slice(0, 8)
+}
+
+/**
+ * Rewrite `new URL('./entry-path', import.meta.url)` references to the entry Service Worker.
+ *
+ * When `entry` option is specified, library code (e.g. in node_modules) may contain
+ * `new URL()` references to the SW file that need to be rewritten.
+ * This function scans for those patterns and replaces them with either:
+ * - A placeholder (for Vite/Webpack build) that will be resolved in renderChunk
+ * - A ROLLUP_FILE_URL reference (for Rollup/Rolldown)
+ *
+ * @param code - Source code
+ * @param id - Source file ID
+ * @param entryPath - Resolved absolute path of the entry SW file
+ * @param root - Project root directory
+ * @param mode - Replacement mode: 'placeholder' or 'rollup'
+ * @param emitFile - Rollup emitFile function (required for 'rollup' mode)
+ * @param rollupReferenceIds - Map to store rollup reference IDs (required for 'rollup' mode)
+ */
+function safeRealpath(p: string): string {
+  try {
+    return path.normalize(realpathSync(p))
+  } catch {
+    return path.normalize(p)
+  }
+}
+
+function rewriteEntryUrls(
+  code: string,
+  id: string,
+  entryPath: string,
+  root: string,
+  mode: 'placeholder' | 'rollup',
+  emitFile?: (file: { type: 'chunk'; id: string; name: string }) => string,
+  rollupReferenceIds?: Map<string, string>
+): { code: string; map: ReturnType<MagicString['generateMap']> } | null {
+  const urlPatternRE =
+    /new\s+URL\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*(?:['"`]\s*\+\s*)?import\.meta\.url\s*\)/g
+  let urlMatch: RegExpExecArray | null
+  const s = new MagicString(code)
+  let hasReplacement = false
+
+  while ((urlMatch = urlPatternRE.exec(code))) {
+    const urlPath = urlMatch[2]
+    if (!urlPath) {
+      continue
+    }
+
+    const resolvedPath = urlPath.startsWith('.')
+      ? path.resolve(path.dirname(id), urlPath)
+      : urlPath.startsWith('/')
+        ? path.resolve(root, urlPath)
+        : null
+
+    // Use realpathSync to resolve symlinks (e.g. pnpm workspace symlinks)
+    // so that paths like `node_modules/vrowser/dist/sw.ts` (symlink)
+    // and `packages/vrowser/dist/sw.ts` (actual) are correctly matched.
+    if (resolvedPath && safeRealpath(resolvedPath) === safeRealpath(entryPath)) {
+      if (mode === 'rollup' && emitFile && rollupReferenceIds) {
+        // Rollup/Rolldown: emit chunk and use ROLLUP_FILE_URL
+        let refId = rollupReferenceIds.get(entryPath)
+        if (!refId) {
+          refId = emitFile({
+            type: 'chunk',
+            id: entryPath,
+            name: path.basename(entryPath, path.extname(entryPath))
+          })
+          rollupReferenceIds.set(entryPath, refId)
+        }
+        s.update(
+          urlMatch.index,
+          urlMatch.index + urlMatch[0].length,
+          `new URL(import.meta.ROLLUP_FILE_URL_${refId})`
+        )
+      } else {
+        // Vite/Webpack: use placeholder
+        const hashStr = generatePlaceholderHash(entryPath)
+        const placeholder = `${SW_ASSET_PREFIX}${hashStr}${SW_ASSET_SUFFIX}`
+        s.update(
+          urlMatch.index,
+          urlMatch.index + urlMatch[0].length,
+          `new URL(/* @vite-ignore */ ${JSON.stringify(placeholder)}, '' + import.meta.url)`
+        )
+      }
+      hasReplacement = true
+    }
+  }
+
+  if (!hasReplacement) {
+    return null
+  }
+
+  return {
+    code: s.toString(),
+    map: s.generateMap({ source: id, file: `${id}.map`, includeContent: true })
+  }
 }
 
 /**
@@ -1631,17 +1728,67 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
         if (isRollupLike || isWebpackLike || isFarm) {
           ctx.isBuild = true
         }
+
+        // If explicit entry is specified, add it to pending Service Workers.
+        // This allows bundling SW files from node_modules (e.g. vrowser/service-worker)
+        // that are excluded from code scanning.
+        if (options.entry) {
+          const entryPath = path.isAbsolute(options.entry)
+            ? options.entry
+            : path.resolve(ctx.viteConfig?.root || process.cwd(), options.entry)
+          ctx.pendingServiceWorkers.set(entryPath, {
+            detected: {
+              fullMatch: '',
+              urlExpression: '',
+              urlPath: options.entry,
+              startIndex: 0,
+              endIndex: 0
+            },
+            filePath: entryPath,
+            urlPath: options.entry
+          })
+        }
       },
 
       // Common transform for Vite (dev mode handled here)
       transform: isRollupLike
         ? undefined // Rollup/Rolldown uses framework-specific transform
         : {
-            filter: {
-              id: { include: options.include, exclude: options.exclude },
-              code: SW_CONTROLLER_FILTER_RE
-            },
+            filter: options.entry
+              ? {
+                  // When entry is specified, also scan node_modules for new URL() references
+                  // to the entry file. This allows rewriting URLs in library code (e.g. vrowser).
+                  id: {
+                    include: [
+                      /\.[cm]?[jt]sx?$/,
+                      ...((Array.isArray(options.include)
+                        ? options.include
+                        : options.include
+                          ? [options.include]
+                          : []) as RegExp[])
+                    ]
+                  },
+                  code: /new\s+URL\s*\(/
+                }
+              : {
+                  id: { include: options.include, exclude: options.exclude },
+                  code: SW_CONTROLLER_FILTER_RE
+                },
             handler(code, id) {
+              // When entry is specified, rewrite new URL() references to the entry file
+              // in ANY file (including node_modules).
+              if (options.entry && ctx.isBuild) {
+                const entryPath = path.isAbsolute(options.entry)
+                  ? options.entry
+                  : path.resolve(ctx.viteConfig?.root || process.cwd(), options.entry)
+                const root = ctx.viteConfig?.root || process.cwd()
+                const result = rewriteEntryUrls(code, id, entryPath, root, 'placeholder')
+                if (result) {
+                  return result
+                }
+              }
+
+              // Standard detection: scan for createSvcWorkerController() calls
               const resolved = detectAndResolveServiceWorkers(code, id)
               if (resolved.length === 0) {
                 return null
@@ -1715,11 +1862,28 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
           }
         },
         transform: {
-          filter: {
-            id: options.include,
-            code: SW_CONTROLLER_FILTER_RE
-          },
+          filter: options.entry
+            ? { id: /\.[cm]?[jt]sx?$/, code: /new\s+URL\s*\(/ }
+            : { id: options.include, code: SW_CONTROLLER_FILTER_RE },
           handler(code, id) {
+            // When entry is specified, rewrite new URL() references (including in node_modules)
+            if (options.entry) {
+              const entryPath = path.isAbsolute(options.entry)
+                ? options.entry
+                : path.resolve(process.cwd(), options.entry)
+              const result = rewriteEntryUrls(
+                code,
+                id,
+                entryPath,
+                process.cwd(),
+                'rollup',
+                this.emitFile.bind(this),
+                ctx.rollupReferenceIds
+              )
+              if (result) {
+                return result
+              }
+            }
             return transformForRollup.call(this, code, id, ctx)
           }
         },
@@ -1755,11 +1919,29 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
           }
         },
         transform: {
-          filter: {
-            id: options.include,
-            code: SW_CONTROLLER_FILTER_RE
-          },
+          filter: options.entry
+            ? { id: /\.[cm]?[jt]sx?$/, code: /new\s+URL\s*\(/ }
+            : { id: options.include, code: SW_CONTROLLER_FILTER_RE },
           handler(code: string, id: string) {
+            // When entry is specified, rewrite new URL() references (including in node_modules)
+            if (options.entry) {
+              const entryPath = path.isAbsolute(options.entry)
+                ? options.entry
+                : path.resolve(process.cwd(), options.entry)
+              const emitFile = (this as unknown as RollupTransformContext).emitFile.bind(this)
+              const result = rewriteEntryUrls(
+                code,
+                id,
+                entryPath,
+                process.cwd(),
+                'rollup',
+                emitFile,
+                ctx.rollupReferenceIds
+              )
+              if (result) {
+                return result
+              }
+            }
             return transformForRollup.call(this as unknown as RollupTransformContext, code, id, ctx)
           }
         },
