@@ -1,13 +1,13 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [controller](../index.md) / SvcWorkerControllerState
 
 # Type Alias: SvcWorkerControllerState
 
 ```ts
-type SvcWorkerControllerState =
+type SvcWorkerControllerState = 
   | "installing"
   | "waiting"
   | "activating"
@@ -22,7 +22,6 @@ Note that while it's similar to the state provided by ServiceWorkerState \| serv
 It has been adjusted to be easier for the Service worker controller to handle the expected service worker.
 
 State changes timings:
-
 - `'installing'`: When expected service worker is detected in installing state
 - `'waiting'`: When expected service worker is detected in waiting state, or when installing → waiting transition occurs
 - `'activating'`: When installing service worker skips waiting and transitions directly to activating state
@@ -35,7 +34,6 @@ State changes timings:
 - `'terminated'`: Service worker has been unregistered (hard kill / circuit breaker tripped)
 
 State transitions:
-
 - `activated` → `suspended`: suspend() called (soft kill / circuit breaker engaged)
 - `activated` → `terminated`: terminate() called (hard kill / circuit breaker tripped)
 - `suspended` → `activated`: resume() called (circuit breaker disengaged)

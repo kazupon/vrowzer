@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionResumeMessage
 
@@ -14,8 +14,8 @@ Type guard for resume messages.
 
 ## Parameters
 
-| Parameter | Type      | Description          |
-| --------- | --------- | -------------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `message` | `unknown` | The message to check |
 
 ## Returns

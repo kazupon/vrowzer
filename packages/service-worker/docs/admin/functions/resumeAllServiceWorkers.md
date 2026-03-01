@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [admin](../index.md) / resumeAllServiceWorkers
 
@@ -17,8 +17,8 @@ restoring their functionality.
 
 ## Parameters
 
-| Parameter | Type          | Description                                   |
-| --------- | ------------- | --------------------------------------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `signal?` | `AbortSignal` | Optional abort signal to cancel the operation |
 
 ## Returns

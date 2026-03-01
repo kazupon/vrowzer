@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionResponse
 
@@ -11,14 +11,14 @@ Session response structure.
 ## Type Parameters
 
 | Type Parameter | Default type |
-| -------------- | ------------ |
-| `T`            | `unknown`    |
+| ------ | ------ |
+| `T` | `unknown` |
 
 ## Properties
 
-| Property                       | Type      |
-| ------------------------------ | --------- |
-| <a id="data"></a> `data?`      | `T`       |
-| <a id="error"></a> `error?`    | `string`  |
-| <a id="id"></a> `id`           | `string`  |
-| <a id="success"></a> `success` | `boolean` |
+| Property | Type |
+| ------ | ------ |
+| <a id="property-data"></a> `data?` | `T` |
+| <a id="property-error"></a> `error?` | `string` |
+| <a id="property-id"></a> `id` | `string` |
+| <a id="property-success"></a> `success` | `boolean` |

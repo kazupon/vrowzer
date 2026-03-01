@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [admin](../index.md) / TerminateOptions
 
@@ -10,7 +10,7 @@ Options for terminate operations.
 
 ## Properties
 
-| Property                                | Type          | Description                                    |
-| --------------------------------------- | ------------- | ---------------------------------------------- |
-| <a id="clearcaches"></a> `clearCaches?` | `boolean`     | Whether to clear all caches when terminating.  |
-| <a id="signal"></a> `signal?`           | `AbortSignal` | Optional abort signal to cancel the operation. |
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| <a id="property-clearcaches"></a> `clearCaches?` | `boolean` | Whether to clear all caches when terminating. |
+| <a id="property-signal"></a> `signal?` | `AbortSignal` | Optional abort signal to cancel the operation. |

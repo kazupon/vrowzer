@@ -29,6 +29,8 @@ Virtual filesystem watcher with Pub-Sub sync protocol.
 
 | Interface | Description |
 | ------ | ------ |
+| [CreateFileSystemSubscriberOptions](interfaces/CreateFileSystemSubscriberOptions.md) | Options for [createFileSystemSubscriber](functions/createFileSystemSubscriber.md). |
+| [FileSystemInterfaces](interfaces/FileSystemInterfaces.md) | Minimal fs interface required by FileSystemSubscriber. |
 | [FileSystemPublisher](interfaces/FileSystemPublisher.md) | Publisher for broadcasting filesystem operations to Workers. |
 | [FileSystemPublisherTarget](interfaces/FileSystemPublisherTarget.md) | A postMessage target compatible like Service Worker and Web Worker APIs. |
 | [FileSystemSubscriber](interfaces/FileSystemSubscriber.md) | Subscriber for processing filesystem sync messages in Workers. |

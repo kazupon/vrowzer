@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [admin](../index.md) / resumeServiceWorker
 
@@ -8,8 +8,8 @@
 
 ```ts
 function resumeServiceWorker(
-   scriptURL,
-   version,
+   scriptURL, 
+   version, 
 signal?): Promise<SvcWorkerSessionResumeResult>;
 ```
 
@@ -19,11 +19,11 @@ This disengages the circuit breaker, restoring service worker functionality.
 
 ## Parameters
 
-| Parameter   | Type              | Description                                   |
-| ----------- | ----------------- | --------------------------------------------- |
-| `scriptURL` | `string` \| `URL` | The service worker script URL                 |
-| `version`   | `string`          | The service worker version                    |
-| `signal?`   | `AbortSignal`     | Optional abort signal to cancel the operation |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `scriptURL` | `URL` | The service worker script URL (must be a URL object) |
+| `version` | `string` | The service worker version |
+| `signal?` | `AbortSignal` | Optional abort signal to cancel the operation |
 
 ## Returns
 
@@ -41,6 +41,6 @@ Error if controller is not found
 import { resumeServiceWorker } from '@vrowser/service-worker/admin'
 
 // Resume a specific service worker
-const result = await resumeServiceWorker('/sw.js', 'v1.0.0')
+const result = await resumeServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')
 console.log('Resumed successfully')
 ```

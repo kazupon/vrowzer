@@ -1,13 +1,13 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionMessage
 
 # Type Alias: SvcWorkerSessionMessage
 
 ```ts
-type SvcWorkerSessionMessage =
+type SvcWorkerSessionMessage = 
   | SvcWorkerSessionCloseMessage
   | SvcWorkerSessionPingMessage
   | SvcWorkerSessionPongMessage

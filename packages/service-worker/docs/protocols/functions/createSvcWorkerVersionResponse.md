@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerVersionResponse
 
@@ -10,12 +10,12 @@
 function createSvcWorkerVersionResponse(version): SvcWorkerVersionResponse;
 ```
 
-Create a [service worker 'V_SW_VERSION' response](../interfaces/SvcWorkerVersionResponse.md).
+Create a [service worker 'V\_SW\_VERSION' response](../interfaces/SvcWorkerVersionResponse.md).
 
 ## Parameters
 
-| Parameter | Type     | Description                              |
-| --------- | -------- | ---------------------------------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `version` | `string` | The version string of the service worker |
 
 ## Returns

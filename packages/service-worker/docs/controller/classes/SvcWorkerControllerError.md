@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [controller](../index.md) / SvcWorkerControllerError
 
@@ -22,10 +22,10 @@ new SvcWorkerControllerError(message, cause?): SvcWorkerControllerError;
 
 #### Parameters
 
-| Parameter | Type     |
-| --------- | -------- |
+| Parameter | Type |
+| ------ | ------ |
 | `message` | `string` |
-| `cause?`  | `Error`  |
+| `cause?` | `Error` |
 
 #### Returns
 
@@ -40,6 +40,8 @@ Error.constructor
 ## Methods
 
 ### captureStackTrace()
+
+#### Call Signature
 
 ```ts
 static captureStackTrace(targetObject, constructorOpt?): void;
@@ -89,26 +91,53 @@ function c() {
 a();
 ```
 
-#### Parameters
+##### Parameters
 
-| Parameter         | Type       |
-| ----------------- | ---------- |
-| `targetObject`    | `object`   |
+| Parameter | Type |
+| ------ | ------ |
+| `targetObject` | `object` |
 | `constructorOpt?` | `Function` |
 
-#### Returns
+##### Returns
 
 `void`
 
-#### Inherited from
+##### Inherited from
 
 ```ts
 Error.captureStackTrace
 ```
 
----
+#### Call Signature
+
+```ts
+static captureStackTrace(targetObject, constructorOpt?): void;
+```
+
+Create .stack property on a target object
+
+##### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `targetObject` | `object` |
+| `constructorOpt?` | `Function` |
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Error.captureStackTrace
+```
+
+***
 
 ### isError()
+
+#### Call Signature
 
 ```ts
 static isError(error): error is Error;
@@ -116,23 +145,49 @@ static isError(error): error is Error;
 
 Indicates whether the argument provided is a built-in Error instance or not.
 
-#### Parameters
+##### Parameters
 
-| Parameter | Type      |
-| --------- | --------- |
-| `error`   | `unknown` |
+| Parameter | Type |
+| ------ | ------ |
+| `error` | `unknown` |
 
-#### Returns
+##### Returns
 
 `error is Error`
 
-#### Inherited from
+##### Inherited from
 
 ```ts
 Error.isError
 ```
 
----
+#### Call Signature
+
+```ts
+static isError(value): value is Error;
+```
+
+Check if a value is an instance of Error
+
+##### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `value` | `unknown` | The value to check |
+
+##### Returns
+
+`value is Error`
+
+True if the value is an instance of Error, false otherwise
+
+##### Inherited from
+
+```ts
+Error.isError
+```
+
+***
 
 ### prepareStackTrace()
 
@@ -142,9 +197,9 @@ static prepareStackTrace(err, stackTraces): any;
 
 #### Parameters
 
-| Parameter     | Type         |
-| ------------- | ------------ |
-| `err`         | `Error`      |
+| Parameter | Type |
+| ------ | ------ |
+| `err` | `Error` |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns
@@ -163,10 +218,10 @@ Error.prepareStackTrace
 
 ## Properties
 
-| Property                                       | Modifier | Type      | Default value                | Description                                                                                                                                                                                                                                                                                                                                                                                                                                       | Overrides    | Inherited from          |
-| ---------------------------------------------- | -------- | --------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------- |
-| <a id="cause"></a> `cause?`                    | `public` | `unknown` | `undefined`                  | -                                                                                                                                                                                                                                                                                                                                                                                                                                                 | -            | `Error.cause`           |
-| <a id="message"></a> `message`                 | `public` | `string`  | `undefined`                  | -                                                                                                                                                                                                                                                                                                                                                                                                                                                 | -            | `Error.message`         |
-| <a id="name"></a> `name`                       | `public` | `string`  | `'SvcWorkerControllerError'` | -                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `Error.name` | -                       |
-| <a id="stack"></a> `stack?`                    | `public` | `string`  | `undefined`                  | -                                                                                                                                                                                                                                                                                                                                                                                                                                                 | -            | `Error.stack`           |
-| <a id="stacktracelimit"></a> `stackTraceLimit` | `static` | `number`  | `undefined`                  | The `Error.stackTraceLimit` property specifies the number of stack frames collected by a stack trace (whether generated by `new Error().stack` or `Error.captureStackTrace(obj)`). The default value is `10` but may be set to any valid JavaScript number. Changes will affect any stack trace captured _after_ the value has been changed. If set to a non-number value, or set to a negative number, stack traces will not capture any frames. | -            | `Error.stackTraceLimit` |
+| Property | Modifier | Type | Default value | Description | Overrides | Inherited from |
+| ------ | ------ | ------ | ------ | ------ | ------ | ------ |
+| <a id="property-cause"></a> `cause?` | `public` | `unknown` | `undefined` | The cause of the error. | - | `Error.cause` |
+| <a id="property-message"></a> `message` | `public` | `string` | `undefined` | - | - | `Error.message` |
+| <a id="property-name"></a> `name` | `public` | `string` | `'SvcWorkerControllerError'` | - | `Error.name` | - |
+| <a id="property-stack"></a> `stack?` | `public` | `string` | `undefined` | - | - | `Error.stack` |
+| <a id="property-stacktracelimit"></a> `stackTraceLimit` | `static` | `number` | `undefined` | The `Error.stackTraceLimit` property specifies the number of stack frames collected by a stack trace (whether generated by `new Error().stack` or `Error.captureStackTrace(obj)`). The default value is `10` but may be set to any valid JavaScript number. Changes will affect any stack trace captured _after_ the value has been changed. If set to a non-number value, or set to a negative number, stack traces will not capture any frames. | - | `Error.stackTraceLimit` |

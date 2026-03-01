@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionCircuitBreakerResponse
 
@@ -8,9 +8,9 @@
 
 ```ts
 function createSvcWorkerSessionCircuitBreakerResponse<T>(
-   id,
-   success,
-value): SvcWorkerSessionGenericResponse<T>;
+   id, 
+   success, 
+value?): SvcWorkerSessionGenericResponse<T>;
 ```
 
 Create a circuit breaker response message.
@@ -18,18 +18,18 @@ Create a circuit breaker response message.
 ## Type Parameters
 
 | Type Parameter | Default type |
-| -------------- | ------------ |
-| `T`            | `unknown`    |
+| ------ | ------ |
+| `T` | `unknown` |
 
 ## Parameters
 
-| Parameter      | Type                                    | Description                     |
-| -------------- | --------------------------------------- | ------------------------------- |
-| `id`           | `string`                                | The request ID                  |
-| `success`      | `boolean`                               | Whether the operation succeeded |
-| `value`        | \{ `data?`: `T`; `error?`: `string`; \} | Optional data or error message  |
-| `value.data?`  | `T`                                     | -                               |
-| `value.error?` | `string`                                | -                               |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `id` | `string` | The request ID |
+| `success` | `boolean` | Whether the operation succeeded |
+| `value` | \{ `data?`: `T`; `error?`: `string`; \} | Optional data or error message |
+| `value.data?` | `T` | - |
+| `value.error?` | `string` | - |
 
 ## Returns
 

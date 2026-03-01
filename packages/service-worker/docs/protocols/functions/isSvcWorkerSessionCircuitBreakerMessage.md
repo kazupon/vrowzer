@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionCircuitBreakerMessage
 
@@ -14,8 +14,8 @@ Type guard for circuit breaker messages
 
 ## Parameters
 
-| Parameter | Type      | Description          |
-| --------- | --------- | -------------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `message` | `unknown` | The message to check |
 
 ## Returns

@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionInitMessage
 
@@ -15,6 +15,6 @@ Sent with a MessagePort to establish a persistent session.
 
 ## Properties
 
-| Property                 | Type                  | Overrides                                                                                |
-| ------------------------ | --------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="type"></a> `type` | `"V_SW_SESSION_INIT"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property | Type | Overrides |
+| ------ | ------ | ------ |
+| <a id="property-type"></a> `type` | `"V_SW_SESSION_INIT"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |

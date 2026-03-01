@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [controller](../index.md) / createSvcWorkerController
 
@@ -18,8 +18,8 @@ If the options differ (excluding debug), it throws an error.
 
 ## Parameters
 
-| Parameter | Type                                                                        | Description                                                                      |
-| --------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `options` | [`SvcWorkerControllerOptions`](../interfaces/SvcWorkerControllerOptions.md) | [Service worker controller options](../interfaces/SvcWorkerControllerOptions.md) |
 
 ## Returns

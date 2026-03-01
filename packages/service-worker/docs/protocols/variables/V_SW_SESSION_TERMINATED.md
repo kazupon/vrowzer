@@ -1,10 +1,10 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V_SW_SESSION_TERMINATED
+[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_SESSION\_TERMINATED
 
-# Variable: V_SW_SESSION_TERMINATED
+# Variable: V\_SW\_SESSION\_TERMINATED
 
 ```ts
 const V_SW_SESSION_TERMINATED: "V_SW_SESSION_TERMINATED" = 'V_SW_SESSION_TERMINATED';

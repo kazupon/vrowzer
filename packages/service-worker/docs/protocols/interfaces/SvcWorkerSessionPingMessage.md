@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionPingMessage
 
@@ -14,7 +14,7 @@ PING message (Service Worker -> Page via session MessagePort).
 
 ## Properties
 
-| Property                 | Type                  | Overrides                                                                                |
-| ------------------------ | --------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="id"></a> `id`     | `string`              | -                                                                                        |
-| <a id="type"></a> `type` | `"V_SW_SESSION_PING"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property | Type | Overrides |
+| ------ | ------ | ------ |
+| <a id="property-id"></a> `id` | `string` | - |
+| <a id="property-type"></a> `type` | `"V_SW_SESSION_PING"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |

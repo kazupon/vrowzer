@@ -1,10 +1,10 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V_SW_SESSION_CLOSE
+[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_SESSION\_CLOSE
 
-# Variable: V_SW_SESSION_CLOSE
+# Variable: V\_SW\_SESSION\_CLOSE
 
 ```ts
 const V_SW_SESSION_CLOSE: "V_SW_SESSION_CLOSE" = 'V_SW_SESSION_CLOSE';

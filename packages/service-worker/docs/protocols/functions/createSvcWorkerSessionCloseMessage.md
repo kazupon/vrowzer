@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionCloseMessage
 
@@ -10,7 +10,7 @@
 function createSvcWorkerSessionCloseMessage(): SvcWorkerSessionCloseMessage;
 ```
 
-Create a [service worker 'V_SW_SESSION_CLOSE' message](../interfaces/SvcWorkerSessionCloseMessage.md).
+Create a [service worker 'V\_SW\_SESSION\_CLOSE' message](../interfaces/SvcWorkerSessionCloseMessage.md).
 
 ## Returns
 

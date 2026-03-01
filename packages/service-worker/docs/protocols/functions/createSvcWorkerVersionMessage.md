@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerVersionMessage
 
@@ -10,7 +10,7 @@
 function createSvcWorkerVersionMessage(): SvcWorkerVersionMessage;
 ```
 
-Create a [service worker 'V_SW_VERSION' message](../interfaces/SvcWorkerVersionMessage.md).
+Create a [service worker 'V\_SW\_VERSION' message](../interfaces/SvcWorkerVersionMessage.md).
 
 ## Returns
 

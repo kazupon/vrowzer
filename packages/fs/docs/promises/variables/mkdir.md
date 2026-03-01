@@ -15,7 +15,7 @@ const mkdir: (path, options?) => Promise<string | undefined>;
 | Parameter | Type |
 | ------ | ------ |
 | `path` | `PathLike` |
-| `options?` | `TMode` \| `IMkdirOptions` |
+| `options?` | `IMkdirOptions` \| `TMode` |
 
 ## Returns
 

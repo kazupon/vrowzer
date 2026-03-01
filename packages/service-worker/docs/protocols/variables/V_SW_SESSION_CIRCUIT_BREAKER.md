@@ -1,10 +1,10 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V_SW_SESSION_CIRCUIT_BREAKER
+[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_SESSION\_CIRCUIT\_BREAKER
 
-# Variable: V_SW_SESSION_CIRCUIT_BREAKER
+# Variable: V\_SW\_SESSION\_CIRCUIT\_BREAKER
 
 ```ts
 const V_SW_SESSION_CIRCUIT_BREAKER: "V_SW_SESSION_CIRCUIT_BREAKER" = 'V_SW_SESSION_CIRCUIT_BREAKER';

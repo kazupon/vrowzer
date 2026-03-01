@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerVersionMessage
 
@@ -14,6 +14,6 @@ VERSION request message (Page -> Service Worker).
 
 ## Properties
 
-| Property                 | Type             | Overrides                                                                                |
-| ------------------------ | ---------------- | ---------------------------------------------------------------------------------------- |
-| <a id="type"></a> `type` | `"V_SW_VERSION"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property | Type | Overrides |
+| ------ | ------ | ------ |
+| <a id="property-type"></a> `type` | `"V_SW_VERSION"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |

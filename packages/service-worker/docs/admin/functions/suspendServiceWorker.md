@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [admin](../index.md) / suspendServiceWorker
 
@@ -8,8 +8,8 @@
 
 ```ts
 function suspendServiceWorker(
-   scriptURL,
-   version,
+   scriptURL, 
+   version, 
 options?): Promise<SvcWorkerSessionCircuitBreakerResult>;
 ```
 
@@ -20,11 +20,11 @@ without unregistering it.
 
 ## Parameters
 
-| Parameter   | Type                                                | Description                   |
-| ----------- | --------------------------------------------------- | ----------------------------- |
-| `scriptURL` | `string` \| `URL`                                   | The service worker script URL |
-| `version`   | `string`                                            | The service worker version    |
-| `options?`  | [`SuspendOptions`](../interfaces/SuspendOptions.md) | Suspend options               |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `scriptURL` | `URL` | The service worker script URL (must be a URL object) |
+| `version` | `string` | The service worker version |
+| `options?` | [`SuspendOptions`](../interfaces/SuspendOptions.md) | Suspend options |
 
 ## Returns
 
@@ -42,6 +42,6 @@ Error if controller is not found
 import { suspendServiceWorker } from '@vrowser/service-worker/admin'
 
 // Suspend a specific service worker
-const result = await suspendServiceWorker('/sw.js', 'v1.0.0')
+const result = await suspendServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')
 console.log(`Suspended: ${result.mode === 'suspend'}`)
 ```

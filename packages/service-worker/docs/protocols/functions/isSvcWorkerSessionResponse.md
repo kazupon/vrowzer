@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionResponse
 
@@ -15,13 +15,13 @@ Type guard for [SvcWorkerSessionResponse](../interfaces/SvcWorkerSessionResponse
 ## Type Parameters
 
 | Type Parameter |
-| -------------- |
-| `T`            |
+| ------ |
+| `T` |
 
 ## Parameters
 
-| Parameter | Type      | Description          |
-| --------- | --------- | -------------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `message` | `unknown` | The message to check |
 
 ## Returns

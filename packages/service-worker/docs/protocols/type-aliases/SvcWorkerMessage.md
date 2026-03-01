@@ -1,16 +1,17 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerMessage
 
 # Type Alias: SvcWorkerMessage
 
 ```ts
-type SvcWorkerMessage =
+type SvcWorkerMessage = 
   | SvcWorkerVersionMessage
   | SvcWorkerSkipWaitingMessage
-  | SvcWorkerSessionInitMessage;
+  | SvcWorkerSessionInitMessage
+  | SvcWorkerClaimClientsMessage;
 ```
 
 Union type of all messages from Page to Service Worker (via postMessage)

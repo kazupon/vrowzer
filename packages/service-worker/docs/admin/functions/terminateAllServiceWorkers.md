@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [admin](../index.md) / terminateAllServiceWorkers
 
@@ -17,8 +17,8 @@ to unregister themselves. This is a destructive operation.
 
 ## Parameters
 
-| Parameter  | Type                                                    | Description       |
-| ---------- | ------------------------------------------------------- | ----------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `options?` | [`TerminateOptions`](../interfaces/TerminateOptions.md) | Terminate options |
 
 ## Returns

@@ -1,10 +1,10 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V_SW_SESSION_RESUME
+[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_SESSION\_RESUME
 
-# Variable: V_SW_SESSION_RESUME
+# Variable: V\_SW\_SESSION\_RESUME
 
 ```ts
 const V_SW_SESSION_RESUME: "V_SW_SESSION_RESUME" = 'V_SW_SESSION_RESUME';

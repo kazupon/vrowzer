@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionPongMessage
 
@@ -10,13 +10,13 @@
 function createSvcWorkerSessionPongMessage(id): SvcWorkerSessionPongMessage;
 ```
 
-Create a [service worker 'V_SW_SESSION_PONG' message](../interfaces/SvcWorkerSessionPongMessage.md).
+Create a [service worker 'V\_SW\_SESSION\_PONG' message](../interfaces/SvcWorkerSessionPongMessage.md).
 
 ## Parameters
 
-| Parameter | Type     | Description                              |
-| --------- | -------- | ---------------------------------------- |
-| `id`      | `string` | The ID of the PING message to respond to |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `id` | `string` | The ID of the PING message to respond to |
 
 ## Returns
 

@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionInitMessage
 
@@ -10,7 +10,7 @@
 function createSvcWorkerSessionInitMessage(): SvcWorkerSessionInitMessage;
 ```
 
-Create a [service worker 'V_SW_SESSION_INIT' message](../interfaces/SvcWorkerSessionInitMessage.md).
+Create a [service worker 'V\_SW\_SESSION\_INIT' message](../interfaces/SvcWorkerSessionInitMessage.md).
 
 ## Returns
 

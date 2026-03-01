@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [admin](../index.md) / terminateServiceWorker
 
@@ -8,8 +8,8 @@
 
 ```ts
 function terminateServiceWorker(
-   scriptURL,
-   version,
+   scriptURL, 
+   version, 
 options?): Promise<SvcWorkerSessionCircuitBreakerResult>;
 ```
 
@@ -20,11 +20,11 @@ itself. This is a destructive operation.
 
 ## Parameters
 
-| Parameter   | Type                                                    | Description                   |
-| ----------- | ------------------------------------------------------- | ----------------------------- |
-| `scriptURL` | `string` \| `URL`                                       | The service worker script URL |
-| `version`   | `string`                                                | The service worker version    |
-| `options?`  | [`TerminateOptions`](../interfaces/TerminateOptions.md) | Terminate options             |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `scriptURL` | `URL` | The service worker script URL (must be a URL object) |
+| `version` | `string` | The service worker version |
+| `options?` | [`TerminateOptions`](../interfaces/TerminateOptions.md) | Terminate options |
 
 ## Returns
 
@@ -42,6 +42,6 @@ Error if controller is not found or session is not established
 import { terminateServiceWorker } from '@vrowser/service-worker/admin'
 
 // Terminate a specific service worker
-const result = await terminateServiceWorker('/sw.js', 'v1.0.0', { clearCaches: true })
+const result = await terminateServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0', { clearCaches: true })
 console.log(`Terminated: ${result.terminated}`)
 ```

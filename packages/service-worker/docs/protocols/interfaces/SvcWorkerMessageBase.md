@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerMessageBase
 
@@ -13,6 +13,7 @@ Base message structure for all protocol messages.
 - [`SvcWorkerVersionMessage`](SvcWorkerVersionMessage.md)
 - [`SvcWorkerVersionResponse`](SvcWorkerVersionResponse.md)
 - [`SvcWorkerSkipWaitingMessage`](SvcWorkerSkipWaitingMessage.md)
+- [`SvcWorkerClaimClientsMessage`](SvcWorkerClaimClientsMessage.md)
 - [`SvcWorkerSessionInitMessage`](SvcWorkerSessionInitMessage.md)
 - [`SvcWorkerSessionCloseMessage`](SvcWorkerSessionCloseMessage.md)
 - [`SvcWorkerSessionPingMessage`](SvcWorkerSessionPingMessage.md)
@@ -23,6 +24,6 @@ Base message structure for all protocol messages.
 
 ## Properties
 
-| Property                 | Type     |
-| ------------------------ | -------- |
-| <a id="type"></a> `type` | `string` |
+| Property | Type |
+| ------ | ------ |
+| <a id="property-type"></a> `type` | `string` |

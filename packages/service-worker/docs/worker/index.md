@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../index.md)
 
----
+***
 
 [@vrowser/service-worker](../index.md) / worker
 
@@ -13,12 +13,10 @@ Service Worker Module
 > It cannot be used in regular JavaScript applications.
 
 This module provides a Proxy-based wrapper for Service Workers that:
-
 - Transparently passes through all native ServiceWorkerGlobalScope APIs
 - Handles protocol messages defined in `protocols` module
 
 ## Features
-
 - Service Worker version management
 - Optional execution of `skipWaiting`
 - Session management with MessagePort-based communication
@@ -26,7 +24,6 @@ This module provides a Proxy-based wrapper for Service Workers that:
 - Heartbeat monitoring and stale session cleanup
 
 ## Usage
-
 ```ts
 const sw = createSvcWorker(self, { version: '1.0.0' })
 
@@ -48,19 +45,19 @@ console.log(sw.sessionCount) // 0
 
 ## Functions
 
-| Function                                        | Description                                                         |
-| ----------------------------------------------- | ------------------------------------------------------------------- |
+| Function | Description |
+| ------ | ------ |
 | [createSvcWorker](functions/createSvcWorker.md) | Create a Service Worker wrapper with Proxy-based transparent access |
 
 ## Classes
 
-| Class                                       | Description          |
-| ------------------------------------------- | -------------------- |
+| Class | Description |
+| ------ | ------ |
 | [SvcWorkerError](classes/SvcWorkerError.md) | Service Worker Error |
 
 ## Interfaces
 
-| Interface                                          | Description                                                                |
-| -------------------------------------------------- | -------------------------------------------------------------------------- |
-| [SvcWorker](interfaces/SvcWorker.md)               | Service Worker interface that extends ServiceWorkerGlobalScope             |
+| Interface | Description |
+| ------ | ------ |
+| [SvcWorker](interfaces/SvcWorker.md) | Service Worker interface that extends ServiceWorkerGlobalScope |
 | [SvcWorkerOptions](interfaces/SvcWorkerOptions.md) | Service Worker options for [createSvcWorker](functions/createSvcWorker.md) |

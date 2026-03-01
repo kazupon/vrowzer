@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionGenericResponse
 
@@ -16,15 +16,15 @@ Response matching is done by the `id` field.
 ## Type Parameters
 
 | Type Parameter | Default type |
-| -------------- | ------------ |
-| `T`            | `unknown`    |
+| ------ | ------ |
+| `T` | `unknown` |
 
 ## Properties
 
-| Property                       | Type      | Description                             |
-| ------------------------------ | --------- | --------------------------------------- |
-| <a id="data"></a> `data?`      | `T`       | Response data if successful             |
-| <a id="error"></a> `error?`    | `string`  | Error message if failed                 |
-| <a id="id"></a> `id`           | `string`  | The request ID for response matching    |
-| <a id="success"></a> `success` | `boolean` | Whether the operation succeeded         |
-| <a id="type"></a> `type`       | `string`  | The message type (same as request type) |
+| Property | Type | Description |
+| ------ | ------ | ------ |
+| <a id="property-data"></a> `data?` | `T` | Response data if successful |
+| <a id="property-error"></a> `error?` | `string` | Error message if failed |
+| <a id="property-id"></a> `id` | `string` | The request ID for response matching |
+| <a id="property-success"></a> `success` | `boolean` | Whether the operation succeeded |
+| <a id="property-type"></a> `type` | `string` | The message type (same as request type) |

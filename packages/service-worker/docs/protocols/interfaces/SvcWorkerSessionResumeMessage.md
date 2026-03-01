@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionResumeMessage
 
@@ -16,7 +16,7 @@ Used to restore functionality after a suspend operation.
 
 ## Properties
 
-| Property                 | Type                    | Description                      | Overrides                                                                                |
-| ------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
-| <a id="id"></a> `id`     | `string`                | Request ID for response matching | -                                                                                        |
-| <a id="type"></a> `type` | `"V_SW_SESSION_RESUME"` | -                                | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
+| Property | Type | Description | Overrides |
+| ------ | ------ | ------ | ------ |
+| <a id="property-id"></a> `id` | `string` | Request ID for response matching | - |
+| <a id="property-type"></a> `type` | `"V_SW_SESSION_RESUME"` | - | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |

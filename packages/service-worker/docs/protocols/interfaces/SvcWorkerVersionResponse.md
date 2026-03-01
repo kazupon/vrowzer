@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerVersionResponse
 
@@ -14,7 +14,7 @@ VERSION response message (Service Worker -> Page via MessagePort).
 
 ## Properties
 
-| Property                       | Type             | Overrides                                                                                |
-| ------------------------------ | ---------------- | ---------------------------------------------------------------------------------------- |
-| <a id="type"></a> `type`       | `"V_SW_VERSION"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#type) |
-| <a id="version"></a> `version` | `string`         | -                                                                                        |
+| Property | Type | Overrides |
+| ------ | ------ | ------ |
+| <a id="property-type"></a> `type` | `"V_SW_VERSION"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |
+| <a id="property-version"></a> `version` | `string` | - |

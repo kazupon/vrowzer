@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [admin](../index.md) / suspendAllServiceWorkers
 
@@ -17,8 +17,8 @@ their functionality without unregistering them.
 
 ## Parameters
 
-| Parameter  | Type                                                | Description     |
-| ---------- | --------------------------------------------------- | --------------- |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
 | `options?` | [`SuspendOptions`](../interfaces/SuspendOptions.md) | Suspend options |
 
 ## Returns

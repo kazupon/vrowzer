@@ -1,6 +1,6 @@
 [**@vrowser/service-worker**](../../index.md)
 
----
+***
 
 [@vrowser/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionTerminatedMessage
 
@@ -14,9 +14,9 @@ Create a [SvcWorkerSessionTerminatedMessage](../interfaces/SvcWorkerSessionTermi
 
 ## Parameters
 
-| Parameter | Type           | Description                |
-| --------- | -------------- | -------------------------- |
-| `reason`  | `"unregister"` | The reason for termination |
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `reason` | `"unregister"` | The reason for termination |
 
 ## Returns
 
