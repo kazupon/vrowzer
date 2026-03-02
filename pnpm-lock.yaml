@@ -223,7 +223,7 @@ importers:
         specifier: 'catalog:'
         version: 0.18.4(@typescript/native-preview@7.0.0-dev.20260103.1)(oxc-resolver@11.16.2)(publint@0.3.17)(synckit@0.11.11)(typescript@5.9.3)(vue-tsc@3.2.1(typescript@5.9.3))
 
-  packages/play-dev-server:
+  packages/play-vrowser:
     dependencies:
       monaco-editor:
         specifier: ^0.55.1
@@ -7957,7 +7957,7 @@ snapshots:
 
   '@types/http-proxy@1.17.17':
     dependencies:
-      '@types/node': 25.2.3
+      '@types/node': 25.3.1
 
   '@types/json-schema@7.0.15': {}
 
@@ -9617,7 +9617,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 25.2.3
+      '@types/node': 25.3.1
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -11325,7 +11325,7 @@ snapshots:
 
   vite@7.3.1(@types/node@25.3.1)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
-      esbuild: 0.27.2
+      esbuild: 0.27.3
       fdir: 6.5.0(patch_hash=05b05d91bdaa123ed552e3aff1ea1bb4b09892a14347297148f300df23446f64)(picomatch@4.0.3)
       picomatch: 4.0.3
       postcss: 8.5.6

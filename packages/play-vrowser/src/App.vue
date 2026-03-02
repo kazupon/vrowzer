@@ -49,14 +49,14 @@ function handleReload() {
 <template>
   <div class="app">
     <header class="app-header">
-      <h1>play-dev-server</h1>
-      <span class="subtitle">@vrowser/vite-dev-server playground</span>
+      <h1>Vrowser Playground</h1>
+      <span class="subtitle">Vite Dev Server on the Service Worker</span>
     </header>
     <main class="app-main">
       <EditorPanel ref="editorPanel" @file-change="handleFileChange" />
       <div class="preview-panel">
         <div class="preview-header">
-          <span>Preview</span>
+          <span>Preview by MessageChannel base HMR</span>
           <div class="status-container">
             <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
               Reload

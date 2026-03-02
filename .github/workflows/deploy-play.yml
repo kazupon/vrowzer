@@ -29,7 +29,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm --filter play-dev-server... run build
+        run: pnpm --filter play-vrowser... run build
 
       - name: Create cloudflare pages project (if not exists)
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
@@ -44,4 +44,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy packages/play-dev-server/dist --project-name=vrowser-playground --commit-dirty=true
+          command: pages deploy packages/play-vrowser/dist --project-name=vrowser-playground --commit-dirty=true
