@@ -7,7 +7,8 @@
     "typecheck": "tsgo --noEmit -p tsconfig.app.json",
     "dev": "vite",
     "build": "vue-tsc -b && vite build --minify false",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:wrangler": "wrangler pages dev dist --port 8788"
   },
   "dependencies": {
     "monaco-editor": "^0.55.1",
@@ -20,6 +21,7 @@
     "@vrowser/vite-plugin": "workspace:*",
     "@vue/tsconfig": "^0.8.1",
     "vite": "catalog:",
-    "vue-tsc": "^3.1.4"
+    "vue-tsc": "^3.1.4",
+    "wrangler": "^4.69.0"
   }
 }

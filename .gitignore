@@ -28,6 +28,7 @@ test-results
 .output
 .output-shared
 .playwright-cli
+.wrangler
 
 # for projects
 packages/unplugin-service-worker/e2e/playground/add.wasm
