@@ -6,57 +6,45 @@ const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
-const defaultCode = `// Counter example on Vite like dev server
-import config from './config.json'
-import { add } from './calculate.ts'
+const defaultMainJs = `import { setupCounter } from './counter.js'
 
-let count = 0
-
-function render() {
-  document.getElementById('app').innerHTML = \`
-    <div style="text-align: center; padding: 20px;">
-      <h2>\${config.title}</h2>
-      <h1>Counter: \${count}</h1>
-      <button id="increment">+1</button>
-      <button id="decrement">-1</button>
-      <p style="margin-top: 10px; color: #888;">v\${config.version} | 1 + 2 = \${add(1, 2)}</p>
+document.querySelector('#app').innerHTML = \`
+  <div>
+    <h1>Vite + JavaScript</h1>
+    <div class="card">
+      <button id="counter" type="button"></button>
     </div>
-  \`
+    <p class="read-the-docs">
+      Edit files and see HMR in action
+    </p>
+  </div>
+\`
 
-  document.getElementById('increment')?.addEventListener('click', () => {
-    count++
-    render()
-  })
-
-  document.getElementById('decrement')?.addEventListener('click', () => {
-    count--
-    render()
-  })
-}
-
-render()
+setupCounter(document.querySelector('#counter'))
 
 if (import.meta.hot) {
   import.meta.hot.accept()
 }
 `
 
-const defaultConfigJson = `{
-  "title": "Hello from Vrowser!",
-  "version": "0.1.0"
-}
-`
+const defaultCounterJs = [
+  'export function setupCounter(element) {',
+  '  let counter = 0',
+  '  const setCounter = (count) => {',
+  '    counter = count',
+  '    element.innerHTML = `count is ${counter}`',
+  '  }',
+  "  element.addEventListener('click', () => setCounter(counter + 1))",
+  '  setCounter(0)',
+  '}',
+  ''
+].join('\n')
 
-const defaultCalculateTs = `export function add(a: number, b: number): number {
-  return a + b
-}
-`
 
 const files = ref<Map<string, string>>(
   new Map([
-    ['/main.js', defaultCode],
-    ['/config.json', defaultConfigJson],
-    ['/calculate.ts', defaultCalculateTs]
+    ['/main.js', defaultMainJs],
+    ['/counter.js', defaultCounterJs]
   ])
 )
 const activeFile = ref('/main.js')
