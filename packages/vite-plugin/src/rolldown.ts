@@ -35,11 +35,8 @@ export function rolldownPlugin(_options: ResolvedVrowserOptions): Plugin {
       resolvedOutDir = path.resolve(config.root, config.build.outDir)
     },
     /**
-     * NOTE(kazupon):
      * Copy rolldown WASM binary and sub-worker for production builds.
-     * The Worker chunk is output to dist/assets/ and references WASM via
-     * `new URL("./rolldown-binding.wasm32-wasi.wasm", import.meta.url)`,
-     * so the WASM file must be in dist/assets/ alongside the Worker chunk.
+     * Both the chunk and WASM/worker files end up in dist/assets/.
      */
     writeBundle() {
       const assetsDir = path.resolve(resolvedOutDir, 'assets')

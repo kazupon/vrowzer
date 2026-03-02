@@ -324,45 +324,48 @@ const transformerConfig = defineConfig({
     },
   },
   plugins: [
-    // Rewrite rolldown WASM/Worker URLs to correct relative paths.
+    // Rewrite rolldown WASM/Worker URLs to always use './'.
     // @vrowser/rolldown's build outputs URLs relative to its chunks/ dir (e.g. ../rolldown-binding.wasm32-wasi.wasm).
-    // The WASM and worker files are copied to dist/node/ by the copy-rolldown-assets plugin.
-    // Since chunks may be output to subdirectories (e.g. node/transformer-chunks/),
-    // we compute the correct relative path from each chunk's location to dist/node/.
+    // We normalize these to './' and copy WASM/worker files alongside each chunk directory,
+    // so the URLs work regardless of where the chunk ends up (including when re-bundled by consumers).
     {
       name: 'rewrite-rolldown-urls',
-      renderChunk(code, chunk) {
-        // chunk.fileName is relative to output.dir (e.g. 'node/transformer.js' or 'node/transformer-chunks/foo-hash.js')
-        const chunkDir = path.dirname(chunk.fileName) // e.g. 'node' or 'node/transformer-chunks'
-        const wasmDir = 'node' // WASM/worker files are in dist/node/
-        const relPath = path.posix.relative(chunkDir, wasmDir) || '.' // e.g. '.' or '..'
+      renderChunk(code) {
         const replaced = code
           .replace(
             /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('${relPath}/rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
+            `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
           )
           .replace(
             /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('${relPath}/rolldown-worker.js', '' + import.meta.url)`
+            `new URL('./rolldown-worker.js', '' + import.meta.url)`
           )
         if (replaced === code) { return null }
         return { code: replaced }
       }
     },
-    // Copy rolldown WASM binary and sub-worker to dist/node/
+    // Copy rolldown WASM binary and sub-worker to all output directories.
+    // Files are placed in both dist/node/ and dist/node/transformer-chunks/
+    // so that './rolldown-binding.wasm32-wasi.wasm' resolves correctly
+    // from any chunk location.
     {
       name: 'copy-rolldown-assets',
-      writeBundle() {
-        const destDir = path.resolve(__dirname, 'dist/node')
-        // Copy WASM binary
-        const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
-        if (existsSync(wasmSrc)) {
-          copyFileSync(wasmSrc, path.resolve(destDir, 'rolldown-binding.wasm32-wasi.wasm'))
+      writeBundle(_options, bundle) {
+        const outputDirs = new Set<string>()
+        for (const chunk of Object.values(bundle)) {
+          if (chunk.type === 'chunk') {
+            outputDirs.add(path.resolve(__dirname, 'dist', path.dirname(chunk.fileName)))
+          }
         }
-        // Copy sub-worker (renamed to avoid conflict with worker.js entry)
+        const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
         const workerSrc = path.resolve(rolldownDistDir, 'worker.js')
-        if (existsSync(workerSrc)) {
-          copyFileSync(workerSrc, path.resolve(destDir, 'rolldown-worker.js'))
+        for (const dir of outputDirs) {
+          if (existsSync(wasmSrc)) {
+            copyFileSync(wasmSrc, path.resolve(dir, 'rolldown-binding.wasm32-wasi.wasm'))
+          }
+          if (existsSync(workerSrc)) {
+            copyFileSync(workerSrc, path.resolve(dir, 'rolldown-worker.js'))
+          }
         }
       }
     }
