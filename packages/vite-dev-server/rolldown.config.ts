@@ -42,7 +42,8 @@ const sharedNodeOptions = defineConfig({
   platform: 'browser',
   transform: {
     define: {
-      'process.platform': JSON.stringify('browser') // for `tinyglobby` polyfill
+      'process.platform': JSON.stringify('browser'), // for `tinyglobby` polyfill
+      '__VROWSER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
     }
   },
   treeshake: {
@@ -170,6 +171,13 @@ const serviceWorkerConfig = defineConfig({
   },
   input: {
     'service-worker': path.resolve(__dirname, 'src/node/service-worker.ts'),
+  },
+  transform: {
+    ...sharedNodeOptions.transform,
+    define: {
+      ...sharedNodeOptions.transform?.define,
+      '__VROWSER_SERVICE_WORKER__': 'true',
+    },
   },
   external: [
     /^node:/,
@@ -316,20 +324,26 @@ const transformerConfig = defineConfig({
     },
   },
   plugins: [
-    // Rewrite rolldown WASM/Worker URLs for transformer.js output location.
-    // @vrowser/rolldown's build outputs URLs relative to chunks/ (e.g. ../rolldown-binding.wasm32-wasi.wasm),
-    // but transformer.js is output directly to dist/node/ (no chunks), so URLs must be rewritten to ./
+    // Rewrite rolldown WASM/Worker URLs to correct relative paths.
+    // @vrowser/rolldown's build outputs URLs relative to its chunks/ dir (e.g. ../rolldown-binding.wasm32-wasi.wasm).
+    // The WASM and worker files are copied to dist/node/ by the copy-rolldown-assets plugin.
+    // Since chunks may be output to subdirectories (e.g. node/transformer-chunks/),
+    // we compute the correct relative path from each chunk's location to dist/node/.
     {
       name: 'rewrite-rolldown-urls',
-      renderChunk(code) {
+      renderChunk(code, chunk) {
+        // chunk.fileName is relative to output.dir (e.g. 'node/transformer.js' or 'node/transformer-chunks/foo-hash.js')
+        const chunkDir = path.dirname(chunk.fileName) // e.g. 'node' or 'node/transformer-chunks'
+        const wasmDir = 'node' // WASM/worker files are in dist/node/
+        const relPath = path.posix.relative(chunkDir, wasmDir) || '.' // e.g. '.' or '..'
         const replaced = code
           .replace(
             /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
+            `new URL('${relPath}/rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
           )
           .replace(
             /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('./rolldown-worker.js', '' + import.meta.url)`
+            `new URL('${relPath}/rolldown-worker.js', '' + import.meta.url)`
           )
         if (replaced === code) { return null }
         return { code: replaced }

@@ -1,24 +1,16 @@
 import type { ResolverFunction } from '@rollup/plugin-alias'
-import aliasPlugin from '@rollup/plugin-alias'
 import type { ObjectHook } from 'rolldown'
 import type { PluginHookUtils, ResolvedConfig } from '../config'
-import { importAnalysisPlugin } from './importAnalysis'
-import { jsonPlugin } from './json'
-// NOTE(kazupon): disable for now
-// import { viteAliasPlugin as nativeAliasPlugin } from '@vrowser/rolldown/experimental'
 import type {
   HookHandler,
   Plugin,
   PluginWithRequiredHook,
 } from '../plugin'
-import { oxcPlugin } from './oxc'
 import type { PluginFilter, TransformHookFilter } from './pluginFilter'
 import {
   createFilterForTransform,
   createIdFilter,
 } from './pluginFilter'
-import { preAliasPlugin } from './preAlias'
-import { resolvePlugin } from './resolve'
 
 export async function resolvePlugins(
   config: ResolvedConfig,
@@ -36,52 +28,63 @@ export async function resolvePlugins(
   const enableNativePlugin = config.nativePluginEnabledLevel >= 0
   const enableNativePluginV1 = config.nativePluginEnabledLevel >= 1
 
-  // TODO(kazupon): fill in later ...
-  return [
-    // !isBundled ? optimizedDepsPlugin() : null,
-    // !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
-    !isBundled ? preAliasPlugin(config) : null,
-    aliasPlugin({
-      // @ts-expect-error aliasPlugin receives rollup types
-      entries: config.resolve.alias,
-      customResolver: viteAliasCustomResolver,
-    }),
-    // NOTE(kazupon): commented out, we need to implement native plugin system later.
-    // isBundled &&
-    //   enableNativePluginV1 &&
-    //   !config.resolve.alias.some((v) => v.customResolver)
-    //   ? nativeAliasPlugin({
-    //     entries: config.resolve.alias.map((item) => {
-    //       return {
-    //         find: item.find,
-    //         replacement: item.replacement,
-    //       }
-    //     }),
-    //   })
-    //   : aliasPlugin({
-    //     // @ts-expect-error aliasPlugin receives rollup types
-    //     entries: config.resolve.alias,
-    //     customResolver: viteAliasCustomResolver,
-    //   }),
+  if (__VROWSER_SERVICE_WORKER__) {
+    return [
+      ...prePlugins,
+      ...normalPlugins,
+      ...postPlugins,
+    ].filter(Boolean) as Plugin[]
+  } else {
+    // Transform pipeline plugins: only loaded for Web Worker (not Service Worker).
+    // In Service Worker, all transform operations are delegated to Web Worker via birpc RPC.
+    // Using dynamic import() guarded by __VROWSER_SERVICE_WORKER__ build-time constant
+    // enables rolldown DCE to eliminate these plugins and their heavy dependencies
+    // (postcss, oxc-parser, es-module-lexer, etc.) from the Service Worker bundle.
+    let preAliasPluginFn: typeof import('./preAlias').preAliasPlugin | null = null
+    let aliasPluginFn: typeof import('@rollup/plugin-alias').default | null = null
+    let resolvePluginFn: typeof import('./resolve').resolvePlugin | null = null
+    let oxcPluginFn: typeof import('./oxc').oxcPlugin | null = null
+    let jsonPluginFn: typeof import('./json').jsonPlugin | null = null
+    let importAnalysisPluginFn: typeof import('./importAnalysis').importAnalysisPlugin | null = null
+    const [preAliasMod, aliasMod, resolveMod, oxcMod, jsonMod, importAnalysisMod] = await Promise.all([
+      import('./preAlias'),
+      import('@rollup/plugin-alias'),
+      import('./resolve'),
+      import('./oxc'),
+      import('./json'),
+      import('./importAnalysis'),
+    ])
+    preAliasPluginFn = preAliasMod.preAliasPlugin
+    aliasPluginFn = aliasMod.default
+    resolvePluginFn = resolveMod.resolvePlugin
+    oxcPluginFn = oxcMod.oxcPlugin
+    jsonPluginFn = jsonMod.jsonPlugin
+    importAnalysisPluginFn = importAnalysisMod.importAnalysisPlugin
 
-    ...prePlugins,
+    return [
+      // !isBundled ? optimizedDepsPlugin() : null,
+      // !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
+      !isBundled && preAliasPluginFn ? preAliasPluginFn(config) : null,
+      aliasPluginFn ? aliasPluginFn({
+        // @ts-expect-error aliasPlugin receives rollup types
+        entries: config.resolve.alias,
+        customResolver: viteAliasCustomResolver,
+      }) : null,
 
-    {
-      name: 'vite:placeholder-plugin',
-      transform(code: string, id: string) {
-        console.log(`[placeholder-plugin] transforming ${id}`, code)
-        return {
-          code,
-          map: null,
+      ...prePlugins,
+
+      {
+        name: 'vite:placeholder-plugin',
+        transform(code: string, id: string) {
+          console.log(`[placeholder-plugin] transforming ${id}`, code)
+          return {
+            code,
+            map: null,
+          }
         }
-      }
-    },
+      },
 
-    // modulePreload !== false && modulePreload.polyfill
-    //   ? modulePreloadPolyfillPlugin(config)
-    //   : null,
-    ...[
-      resolvePlugin({
+      resolvePluginFn ? resolvePluginFn({
         root: config.root,
         isProduction: config.isProduction,
         isBuild,
@@ -89,70 +92,70 @@ export async function resolvePlugins(
         asSrc: true,
         optimizeDeps: true,
         externalize: true,
-      }),
-    ],
-    // TODO(kazupon): implement oxcResolvePlugin later ...
-    // ...(enableNativePlugin
-    //   ? oxcResolvePlugin(
-    //     {
-    //       root: config.root,
-    //       isProduction: config.isProduction,
-    //       isBuild,
-    //       packageCache: config.packageCache,
-    //       asSrc: true,
-    //       optimizeDeps: true,
-    //       externalize: true,
-    //       legacyInconsistentCjsInterop: config.legacy?.inconsistentCjsInterop,
-    //     },
-    //     isWorker
-    //       ? { ...config, consumer: 'client', optimizeDepsPluginNames: [] }
-    //       : undefined,
-    //   )
-    //   : [
-    //     resolvePlugin({
-    //       root: config.root,
-    //       isProduction: config.isProduction,
-    //       isBuild,
-    //       packageCache: config.packageCache,
-    //       asSrc: true,
-    //       optimizeDeps: true,
-    //       externalize: true,
-    //     }),
-    //   ]),
-    // htmlInlineProxyPlugin(config),
-    // cssPlugin(config),
-    // esbuildBannerFooterCompatPlugin(config),
-    config.oxc !== false ? oxcPlugin(config) : null,
-    jsonPlugin(config.json, isBuild, enableNativePluginV1),
-    // wasmHelperPlugin(config),
-    // webWorkerPlugin(config),
-    // assetPlugin(config),
+      }) : null,
+      // TODO(kazupon): implement oxcResolvePlugin later ...
+      // ...(enableNativePlugin
+      //   ? oxcResolvePlugin(
+      //     {
+      //       root: config.root,
+      //       isProduction: config.isProduction,
+      //       isBuild,
+      //       packageCache: config.packageCache,
+      //       asSrc: true,
+      //       optimizeDeps: true,
+      //       externalize: true,
+      //       legacyInconsistentCjsInterop: config.legacy?.inconsistentCjsInterop,
+      //     },
+      //     isWorker
+      //       ? { ...config, consumer: 'client', optimizeDepsPluginNames: [] }
+      //       : undefined,
+      //   )
+      //   : [
+      //     resolvePlugin({
+      //       root: config.root,
+      //       isProduction: config.isProduction,
+      //       isBuild,
+      //       packageCache: config.packageCache,
+      //       asSrc: true,
+      //       optimizeDeps: true,
+      //       externalize: true,
+      //     }),
+      //   ]),
+      // htmlInlineProxyPlugin(config),
+      // cssPlugin(config),
+      // esbuildBannerFooterCompatPlugin(config),
+      config.oxc !== false && oxcPluginFn ? oxcPluginFn(config) : null,
+      jsonPluginFn ? jsonPluginFn(config.json, isBuild, enableNativePluginV1) : null,
+      // wasmHelperPlugin(config),
+      // webWorkerPlugin(config),
+      // assetPlugin(config),
 
-    ...normalPlugins,
+      ...normalPlugins,
 
-    // wasmFallbackPlugin(config),
-    // definePlugin(config),
-    // cssPostPlugin(config),
-    // isBundled && buildHtmlPlugin(config),
-    // workerImportMetaUrlPlugin(config),
-    // assetImportMetaUrlPlugin(config),
-    // ...buildPlugins.pre,
-    // dynamicImportVarsPlugin(config),
-    // importGlobPlugin(config),
+      // wasmFallbackPlugin(config),
+      // definePlugin(config),
+      // cssPostPlugin(config),
+      // isBundled && buildHtmlPlugin(config),
+      // workerImportMetaUrlPlugin(config),
+      // assetImportMetaUrlPlugin(config),
+      // ...buildPlugins.pre,
+      // dynamicImportVarsPlugin(config),
+      // importGlobPlugin(config),
 
-    ...postPlugins,
+      ...postPlugins,
 
-    ...buildPlugins.post,
+      ...buildPlugins.post,
 
-    // internal server-only plugins are always applied after everything else
-    ...(isBundled
-      ? []
-      : [
-        // clientInjectionsPlugin(config),
-        // cssAnalysisPlugin(config),
-        importAnalysisPlugin(config),
-      ]),
-  ].filter(Boolean) as Plugin[]
+      // internal server-only plugins are always applied after everything else
+      ...(isBundled
+        ? []
+        : [
+          // clientInjectionsPlugin(config),
+          // cssAnalysisPlugin(config),
+          importAnalysisPluginFn ? importAnalysisPluginFn(config) : null,
+        ]),
+    ].filter(Boolean) as Plugin[]
+  }
 }
 
 export function createPluginHookUtils(
