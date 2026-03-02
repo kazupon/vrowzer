@@ -18,7 +18,7 @@
     "build:vite:type": "pnpm --filter vite-dev-server build-types-roll",
     "build:vrowser": "pnpm --filter vrowser build",
     "build:vrowser-vite": "pnpm --filter vite-plugin build",
-    "deploy:demo": "pnpm --filter play-dev-server... run build && wrangler pages deploy packages/play-dev-server/dist --project-name=vrowser-playground",
+    "deploy:play": "pnpm --filter play-dev-server... run build && wrangler pages deploy packages/play-dev-server/dist --project-name=vrowser-playground --commit-dirty=true",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",
     "dev:vite": "pnpm --filter vite-dev-server dev",
     "dev:vrowser": "pnpm --filter vrowser dev",
