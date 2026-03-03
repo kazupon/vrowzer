@@ -54,6 +54,7 @@ export async function resolvePlugins(
     const resolvePlugin = resolveMod.resolvePlugin
     const cssPlugin = cssMod.cssPlugin
     const cssPostPlugin = cssMod.cssPostPlugin
+    const cssAnalysisPlugin = cssMod.cssAnalysisPlugin
     const oxcPlugin = oxcMod.oxcPlugin
     const jsonPlugin = jsonMod.jsonPlugin
     const importAnalysisPlugin = importAnalysisMod.importAnalysisPlugin
@@ -61,12 +62,12 @@ export async function resolvePlugins(
     return [
       // !isBundled ? optimizedDepsPlugin() : null,
       // !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
-      !isBundled && preAliasPlugin ? preAliasPlugin(config) : null,
-      aliasPlugin ? aliasPlugin({
+      !isBundled && preAliasPlugin(config),
+      aliasPlugin({
         // @ts-expect-error aliasPlugin receives rollup types
         entries: config.resolve.alias,
         customResolver: viteAliasCustomResolver,
-      }) : null,
+      }),
 
       ...prePlugins,
 
@@ -81,7 +82,7 @@ export async function resolvePlugins(
         }
       },
 
-      resolvePlugin ? resolvePlugin({
+      resolvePlugin({
         root: config.root,
         isProduction: config.isProduction,
         isBuild,
@@ -89,12 +90,12 @@ export async function resolvePlugins(
         asSrc: true,
         optimizeDeps: true,
         externalize: true,
-      }) : null,
+      }),
       // htmlInlineProxyPlugin(config),
-      cssPlugin ? cssPlugin(config) : null,
+      cssPlugin(config),
       // esbuildBannerFooterCompatPlugin(config),
-      config.oxc !== false && oxcPlugin ? oxcPlugin(config) : null,
-      jsonPlugin ? jsonPlugin(config.json, isBuild, enableNativePluginV1) : null,
+      config.oxc !== false && oxcPlugin(config),
+      jsonPlugin(config.json, isBuild, enableNativePluginV1),
       // wasmHelperPlugin(config),
       // webWorkerPlugin(config),
       // assetPlugin(config),
@@ -103,7 +104,7 @@ export async function resolvePlugins(
 
       // wasmFallbackPlugin(config),
       // definePlugin(config),
-      cssPostPlugin ? cssPostPlugin(config) : null,
+      cssPostPlugin(config),
       // isBundled && buildHtmlPlugin(config),
       // workerImportMetaUrlPlugin(config),
       // assetImportMetaUrlPlugin(config),
@@ -120,8 +121,8 @@ export async function resolvePlugins(
         ? []
         : [
           // clientInjectionsPlugin(config),
-          // cssAnalysisPlugin(config),
-          importAnalysisPlugin ? importAnalysisPlugin(config) : null,
+          cssAnalysisPlugin(config),
+          importAnalysisPlugin(config)
         ]),
     ].filter(Boolean) as Plugin[]
   }

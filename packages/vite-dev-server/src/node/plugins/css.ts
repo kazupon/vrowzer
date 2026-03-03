@@ -33,6 +33,9 @@ import { NULL_BYTE_PLACEHOLDER } from '../../shared/constants'
 import { cleanUrl, isWindows, slash } from '../../shared/utils'
 import { PartialEnvironment } from '../baseEnvironment'
 import type { LibraryOptions } from '../build'
+import type { DevEnvironment } from '..'
+import type { TransformPluginContext } from '../server/pluginContainer'
+import type { EnvironmentModuleNode } from '../server/moduleGraph'
 import {
   createToImportMetaURLBasedRelativeRuntime,
   resolveUserExternal,
@@ -1121,7 +1124,57 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
   }
 }
 
-// TODO: fill in later ...
+export function cssAnalysisPlugin(config: ResolvedConfig): Plugin {
+  return {
+    name: 'vite:css-analysis',
+
+    transform: {
+      filter: {
+        id: {
+          include: CSS_LANGS_RE,
+          exclude: [commonjsProxyRE, SPECIAL_QUERY_RE],
+        },
+      },
+      async handler(_, id) {
+        const { moduleGraph } = this.environment as DevEnvironment
+        const thisModule = moduleGraph.getModuleById(id)
+
+        // Handle CSS @import dependency HMR and other added modules via this.addWatchFile.
+        // JS-related HMR is handled in the import-analysis plugin.
+        if (thisModule) {
+          // CSS modules cannot self-accept since it exports values
+          const isSelfAccepting =
+            !cssModulesCache.get(config)?.get(id) &&
+            !inlineRE.test(id) &&
+            !htmlProxyRE.test(id)
+          // attached by pluginContainer.addWatchFile
+          const pluginImports = (this as unknown as TransformPluginContext)
+            ._addedImports
+          if (pluginImports) {
+            // record deps in the module graph so edits to @import css can trigger
+            // main import to hot update
+            const depModules = new Set<string | EnvironmentModuleNode>()
+            for (const file of pluginImports) {
+              depModules.add(moduleGraph.createFileOnlyEntry(file))
+            }
+            moduleGraph.updateModuleInfo(
+              thisModule,
+              depModules,
+              null,
+              // The root CSS proxy module is self-accepting and should not
+              // have an explicit accept list
+              new Set(),
+              null,
+              isSelfAccepting,
+            )
+          } else {
+            thisModule.isSelfAccepting = isSelfAccepting
+          }
+        }
+      },
+    },
+  }
+}
 
 function isCssScopeToRendered(
   cssScopeTo: Exclude<CustomPluginOptionsVite['cssScopeTo'], undefined>,
