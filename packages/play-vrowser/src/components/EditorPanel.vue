@@ -6,7 +6,8 @@ const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
-const defaultMainJs = `import { setupCounter } from './counter.js'
+const defaultMainJs = `import './style.css'
+import { setupCounter } from './counter.js'
 
 document.querySelector('#app').innerHTML = \`
   <div>
@@ -40,11 +41,57 @@ const defaultCounterJs = [
   ''
 ].join('\n')
 
+const defaultStyleCss = `:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+#app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+`
 
 const files = ref<Map<string, string>>(
   new Map([
     ['/main.js', defaultMainJs],
-    ['/counter.js', defaultCounterJs]
+    ['/counter.js', defaultCounterJs],
+    ['/style.css', defaultStyleCss]
   ])
 )
 const activeFile = ref('/main.js')
