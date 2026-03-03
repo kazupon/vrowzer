@@ -280,7 +280,7 @@ describe('test-stream-writable-destroy', () => {
     }
     Object.setPrototypeOf(MyWritable.prototype, Writable.prototype)
     Object.setPrototypeOf(MyWritable, Writable)
-    ;new (MyWritable as any)()
+    new (MyWritable as any)()
   })
 
   it('destroy and destroy callback after already destroyed', () => {

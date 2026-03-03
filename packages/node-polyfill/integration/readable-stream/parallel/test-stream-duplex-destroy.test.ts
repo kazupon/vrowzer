@@ -214,7 +214,7 @@ describe('test-stream-duplex-destroy', () => {
     }
     Object.setPrototypeOf(MyDuplex.prototype, Duplex.prototype)
     Object.setPrototypeOf(MyDuplex, Duplex)
-    ;new (MyDuplex as any)()
+    new (MyDuplex as any)()
   })
 
   it('autoDestroy with writable false', () =>

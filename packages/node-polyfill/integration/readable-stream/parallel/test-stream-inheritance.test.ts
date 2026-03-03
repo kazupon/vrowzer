@@ -49,7 +49,7 @@ describe('test-stream-inheritance', () => {
     }
     Object.setPrototypeOf(CustomWritable, Writable)
     Object.setPrototypeOf(CustomWritable.prototype, Writable.prototype)
-    ;new (CustomWritable as any)()
+    new (CustomWritable as any)()
 
     expect(() => (CustomWritable as any)()).toThrow()
 

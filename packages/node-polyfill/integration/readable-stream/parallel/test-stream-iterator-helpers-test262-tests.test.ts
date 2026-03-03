@@ -117,7 +117,7 @@ describe('test-stream-iterator-helpers-test262-tests', () => {
       Readable.from([]).every(() => {})
       expect(() => {
         const r = Readable.from([])
-        ;new (r.every as unknown as new (fn: () => void) => unknown)(() => {})
+        new (r.every as unknown as new (fn: () => void) => unknown)(() => {})
       }).toThrow(TypeError)
     })
 

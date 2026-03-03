@@ -195,7 +195,7 @@ describe('test-stream-readable-destroy', () => {
     }
     Object.setPrototypeOf(MyReadable.prototype, Readable.prototype)
     Object.setPrototypeOf(MyReadable, Readable)
-    ;new (MyReadable as any)()
+    new (MyReadable as any)()
   })
 
   it('destroy and destroy callback', () =>
