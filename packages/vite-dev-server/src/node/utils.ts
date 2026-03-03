@@ -150,10 +150,12 @@ export function isOptimizable(
 export const bareImportRE: RegExp = /^(?![a-zA-Z]:)[\w@](?!.*:\/\/)/
 export const deepImportRE: RegExp = /^([^@][^/]*)\/|^(@[^/]+\/[^/]+)\//
 
+export const _dirname = '/'
 // NOTE(kazupon): disable now
 // export const _dirname: string = path.dirname(
 //   fileURLToPath(/** #__KEEP__ */ import.meta.url),
 // )
+console.log(`[import.meta.url] __dirname: ${path.dirname(/** #__KEEP__ */ import.meta.url)}`)
 
 // https://github.com/rolldown/rolldown/blob/62fba31428af244f871f0e119ed43936ee5d01fd/packages/rolldown/src/log/logger.ts#L64
 export const rollupVersion = '4.23.0'
@@ -308,6 +310,11 @@ export const isJSRequest = (url: string): boolean => {
 export const isCSSRequest = (request: string): boolean =>
   CSS_LANGS_RE.test(request)
 
+// NOTE(kazupon): pickup from cssPlugin, because servcie worker needs to tree-shake cssPlugin
+export const cssDirectRequestRE = /[?&]direct\b/
+export const isDirectCSSRequest = (request: string): boolean =>
+  CSS_LANGS_RE.test(request) && cssDirectRequestRE.test(request)
+
 const importQueryRE = /(\?|&)import=?(?:&|$)/
 const directRequestRE = /(\?|&)direct=?(?:&|$)/
 const internalPrefixes = [
@@ -349,7 +356,22 @@ export function removeTimestampQuery(url: string): string {
   return url.replace(timestampRE, '').replace(trailingSeparatorRE, '')
 }
 
-// TODO: fill in code later ...
+export async function asyncReplace(
+  input: string,
+  re: RegExp,
+  replacer: (match: RegExpExecArray) => string | Promise<string>,
+): Promise<string> {
+  let match: RegExpExecArray | null
+  let remaining = input
+  let rewritten = ''
+  while ((match = re.exec(remaining))) {
+    rewritten += remaining.slice(0, match.index)
+    rewritten += await replacer(match)
+    remaining = remaining.slice(match.index + match[0].length)
+  }
+  rewritten += remaining
+  return rewritten
+}
 
 export function timeFrom(start: number, subtract = 0): string {
   const time = performance.now() - start - subtract

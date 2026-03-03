@@ -75,7 +75,7 @@
     "eslint-plugin-yml": "^1.19.1",
     "knip": "^5.85.0",
     "lint-staged": "^16.2.7",
-    "oxfmt": "^0.24.0",
+    "oxfmt": "^0.35.0",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "^0.10.1",
     "tsx": "^4.21.0",

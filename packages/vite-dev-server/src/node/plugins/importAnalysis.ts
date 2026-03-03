@@ -75,8 +75,8 @@ import {
   timeFrom,
   transformStableResult,
   urlRE,
+  isDirectCSSRequest,
 } from '../utils'
-import { isDirectCSSRequest } from './css'
 import { serializeDefine } from './define'
 import { throwOutdatedRequest } from './optimizedDeps'
 import { getAliasPatternMatcher } from './preAlias'

@@ -2,8 +2,8 @@ import { extname } from 'node:path'
 import type { ModuleInfo, PartialResolvedId } from 'rolldown'
 import { cleanUrl } from '../../shared/utils'
 import { FS_PREFIX } from '../constants'
-import { isDirectCSSRequest } from '../plugins/css'
 import {
+  isDirectCSSRequest,
   monotonicDateNow,
   normalizePath,
   removeImportQuery,

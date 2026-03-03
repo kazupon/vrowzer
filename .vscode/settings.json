@@ -2,12 +2,12 @@
   "oxc.requireConfig": true,
   "oxc.trace.server": "messages",
   "oxc.typeAware": true,
+  "oxc.fmt.configPath": "node_modules/@kazupon/prettier-config/index.json",
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
   "editor.formatOnType": true,
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "always",
     "source.fixAll.oxc": "always",
     "source.fixAll.eslint": "explicit"
   },
@@ -29,5 +29,5 @@
   "recommendations": ["Vue.volar"],
   "typescript.referencesCodeLens.enabled": true,
   "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.experimental.useTsgo": false
+  "typescript.experimental.useTsgo": true
 }

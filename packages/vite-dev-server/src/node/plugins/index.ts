@@ -38,34 +38,31 @@ export async function resolvePlugins(
     // Transform pipeline plugins: only loaded for Web Worker (not Service Worker).
     // In Service Worker, all transform operations are delegated to Web Worker via birpc RPC.
     // Using dynamic import() guarded by __VROWSER_SERVICE_WORKER__ build-time constant
-    // enables rolldown DCE to eliminate these plugins and their heavy dependencies
+    // enables rolldown DCE(Dead Code Elimination) to eliminate these plugins and their heavy dependencies
     // (postcss, oxc-parser, es-module-lexer, etc.) from the Service Worker bundle.
-    let preAliasPluginFn: typeof import('./preAlias').preAliasPlugin | null = null
-    let aliasPluginFn: typeof import('@rollup/plugin-alias').default | null = null
-    let resolvePluginFn: typeof import('./resolve').resolvePlugin | null = null
-    let oxcPluginFn: typeof import('./oxc').oxcPlugin | null = null
-    let jsonPluginFn: typeof import('./json').jsonPlugin | null = null
-    let importAnalysisPluginFn: typeof import('./importAnalysis').importAnalysisPlugin | null = null
-    const [preAliasMod, aliasMod, resolveMod, oxcMod, jsonMod, importAnalysisMod] = await Promise.all([
+    const [preAliasMod, aliasMod, resolveMod, cssMod, oxcMod, jsonMod, importAnalysisMod] = await Promise.all([
       import('./preAlias'),
       import('@rollup/plugin-alias'),
       import('./resolve'),
+      import('./css'),
       import('./oxc'),
       import('./json'),
       import('./importAnalysis'),
     ])
-    preAliasPluginFn = preAliasMod.preAliasPlugin
-    aliasPluginFn = aliasMod.default
-    resolvePluginFn = resolveMod.resolvePlugin
-    oxcPluginFn = oxcMod.oxcPlugin
-    jsonPluginFn = jsonMod.jsonPlugin
-    importAnalysisPluginFn = importAnalysisMod.importAnalysisPlugin
+    const preAliasPlugin = preAliasMod.preAliasPlugin
+    const aliasPlugin = aliasMod.default
+    const resolvePlugin = resolveMod.resolvePlugin
+    const cssPlugin = cssMod.cssPlugin
+    const cssPostPlugin = cssMod.cssPostPlugin
+    const oxcPlugin = oxcMod.oxcPlugin
+    const jsonPlugin = jsonMod.jsonPlugin
+    const importAnalysisPlugin = importAnalysisMod.importAnalysisPlugin
 
     return [
       // !isBundled ? optimizedDepsPlugin() : null,
       // !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
-      !isBundled && preAliasPluginFn ? preAliasPluginFn(config) : null,
-      aliasPluginFn ? aliasPluginFn({
+      !isBundled && preAliasPlugin ? preAliasPlugin(config) : null,
+      aliasPlugin ? aliasPlugin({
         // @ts-expect-error aliasPlugin receives rollup types
         entries: config.resolve.alias,
         customResolver: viteAliasCustomResolver,
@@ -84,7 +81,7 @@ export async function resolvePlugins(
         }
       },
 
-      resolvePluginFn ? resolvePluginFn({
+      resolvePlugin ? resolvePlugin({
         root: config.root,
         isProduction: config.isProduction,
         isBuild,
@@ -93,39 +90,11 @@ export async function resolvePlugins(
         optimizeDeps: true,
         externalize: true,
       }) : null,
-      // TODO(kazupon): implement oxcResolvePlugin later ...
-      // ...(enableNativePlugin
-      //   ? oxcResolvePlugin(
-      //     {
-      //       root: config.root,
-      //       isProduction: config.isProduction,
-      //       isBuild,
-      //       packageCache: config.packageCache,
-      //       asSrc: true,
-      //       optimizeDeps: true,
-      //       externalize: true,
-      //       legacyInconsistentCjsInterop: config.legacy?.inconsistentCjsInterop,
-      //     },
-      //     isWorker
-      //       ? { ...config, consumer: 'client', optimizeDepsPluginNames: [] }
-      //       : undefined,
-      //   )
-      //   : [
-      //     resolvePlugin({
-      //       root: config.root,
-      //       isProduction: config.isProduction,
-      //       isBuild,
-      //       packageCache: config.packageCache,
-      //       asSrc: true,
-      //       optimizeDeps: true,
-      //       externalize: true,
-      //     }),
-      //   ]),
       // htmlInlineProxyPlugin(config),
-      // cssPlugin(config),
+      cssPlugin ? cssPlugin(config) : null,
       // esbuildBannerFooterCompatPlugin(config),
-      config.oxc !== false && oxcPluginFn ? oxcPluginFn(config) : null,
-      jsonPluginFn ? jsonPluginFn(config.json, isBuild, enableNativePluginV1) : null,
+      config.oxc !== false && oxcPlugin ? oxcPlugin(config) : null,
+      jsonPlugin ? jsonPlugin(config.json, isBuild, enableNativePluginV1) : null,
       // wasmHelperPlugin(config),
       // webWorkerPlugin(config),
       // assetPlugin(config),
@@ -134,7 +103,7 @@ export async function resolvePlugins(
 
       // wasmFallbackPlugin(config),
       // definePlugin(config),
-      // cssPostPlugin(config),
+      cssPostPlugin ? cssPostPlugin(config) : null,
       // isBundled && buildHtmlPlugin(config),
       // workerImportMetaUrlPlugin(config),
       // assetImportMetaUrlPlugin(config),
@@ -152,7 +121,7 @@ export async function resolvePlugins(
         : [
           // clientInjectionsPlugin(config),
           // cssAnalysisPlugin(config),
-          importAnalysisPluginFn ? importAnalysisPluginFn(config) : null,
+          importAnalysisPlugin ? importAnalysisPlugin(config) : null,
         ]),
     ].filter(Boolean) as Plugin[]
   }

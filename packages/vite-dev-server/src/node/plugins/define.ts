@@ -1,10 +1,10 @@
 // NOTE(kazupon): commented out, we need to transform-sync for vrowser
 // import { transformSync } from 'rolldown/experimental'
-import type { ResolvedConfig } from '../config'
-import type { Environment } from '../environment'
-import type { Plugin } from '../plugin'
-import { escapeRegex, isCSSRequest } from '../utils'
-import { isHTMLRequest } from './html'
+import type { ResolvedConfig } from '../config';
+import type { Environment } from '../environment';
+import type { Plugin } from '../plugin';
+import { escapeRegex, isCSSRequest } from '../utils';
+import { isHTMLRequest } from './html';
 
 const nonJsRe = /\.json(?:$|\?)/
 const isNonJsRequest = (request: string): boolean => nonJsRe.test(request)

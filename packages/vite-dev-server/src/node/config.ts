@@ -66,10 +66,6 @@ import {
   resolvePlugins,
 } from './plugins'
 import type { CSSOptions, ResolvedCSSOptions } from './plugins/css'
-import {
-  cssConfigDefaults,
-  resolveCSSOptions,
-} from './plugins/css'
 import type { ESBuildOptions } from './plugins/esbuild'
 import type { JsonOptions } from './plugins/json'
 import type { OxcOptions } from './plugins/oxc'
@@ -758,7 +754,11 @@ const configDefaults = Object.freeze({
   html: {
     cspNonce: undefined,
   },
-  css: cssConfigDefaults,
+  css: {
+    transformer: 'postcss',
+    preprocessorMaxWorkers: true,
+    devSourcemap: false,
+  } satisfies CSSOptions,
   json: {
     namedExports: true,
     stringify: 'auto',
@@ -1853,7 +1853,9 @@ export async function resolveConfig(
     bundleChain: [],
     isProduction,
     plugins: userPlugins, // placeholder to be replaced
-    css: resolveCSSOptions(config.css),
+    css: !__VROWSER_SERVICE_WORKER__
+      ? (await import('./plugins/css')).resolveCSSOptions(config.css)
+      : (configDefaults.css as ResolvedCSSOptions),
     json: mergeWithDefaults(configDefaults.json, config.json ?? {}),
     // preserve esbuild for buildEsbuildPlugin
     esbuild:

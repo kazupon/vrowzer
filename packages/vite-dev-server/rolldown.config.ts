@@ -2,8 +2,8 @@
 import { copyFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-// import MagicString from 'magic-string'
-// import type { Plugin } from 'rolldown'
+import MagicString from 'magic-string'
+import type { Plugin } from 'rolldown'
 import { defineConfig } from 'rolldown'
 import pkg from './package.json' with { type: 'json' }
 // import { init, parse } from 'es-module-lexer'
@@ -185,6 +185,10 @@ const serviceWorkerConfig = defineConfig({
     'fs', 'path', 'url', 'util', 'os', 'crypto', 'stream', 'events', 'buffer', 'dns',
   ],
   plugins: [
+    // NOTE: PostCSS shimDepsPlugin is NOT needed here because __VROWSER_SERVICE_WORKER__ DCE
+    // eliminates css.ts and its postcss-load-config dependency from the SW bundle.
+    // shimDepsPlugin for PostCSS is only in transformerConfig (WW bundle).
+
     // Stub out modules that contain WASM or heavy dependencies not needed in SW.
     // These modules are only used by DevEnvironment (Web Worker side).
     // In SW, pluginContainer.ts is included transitively but its WASM-dependent
@@ -297,6 +301,7 @@ const transformerConfig = defineConfig({
       'node:readline': '@vrowser/node-polyfill/readline',
       'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
       'node:dns': '@vrowser/node-polyfill/dns',
+      'node:os': '@vrowser/node-polyfill/os',
       events: '@vrowser/node-polyfill/events',
       path: 'pathe',
       stream: 'readable-stream/lib/stream',
@@ -307,6 +312,7 @@ const transformerConfig = defineConfig({
       util: '@vrowser/node-polyfill/util',
       'readline': '@vrowser/node-polyfill/readline',
       'perf_hooks': '@vrowser/node-polyfill/perf_hooks',
+      os: '@vrowser/node-polyfill/os',
       // NOTE(kazupon):
       // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
       'process/': '@vrowser/node-polyfill/process',
@@ -324,6 +330,46 @@ const transformerConfig = defineConfig({
     },
   },
   plugins: [
+    // Stub postcss-load-config: vrowser doesn't load PostCSS config from filesystem.
+    // Config is always provided inline. This eliminates jiti and node:module dependencies.
+    {
+      name: 'stub-postcss-load-config',
+      resolveId: {
+        filter: { id: /^postcss-load-config$/ },
+        handler(id) {
+          return { id: `\0stub:${id}`, external: false }
+        }
+      },
+      load: {
+        filter: { id: /^\0stub:postcss-load-config$/ },
+        handler() {
+          return {
+            code: 'export default () => Promise.resolve({ plugins: [], options: {} })',
+            moduleType: 'js'
+          }
+        }
+      }
+    },
+    // Shim PostCSS dependencies that use Node.js-specific patterns
+    // (ported from refers/vite/packages/vite/rolldown.config.ts)
+    shimDepsPlugin({
+      'postcss-import/index.js': [
+        {
+          src: 'const resolveId = require("./lib/resolve-id")',
+          replacement: 'const resolveId = (id) => id',
+        },
+        {
+          src: 'const loadContent = require("./lib/load-content")',
+          replacement: 'const loadContent = () => ""',
+        },
+      ],
+      'postcss-import/lib/parse-styles.js': [
+        {
+          src: 'const resolveId = require("./resolve-id")',
+          replacement: 'const resolveId = (id) => id',
+        },
+      ],
+    }),
     // Rewrite rolldown WASM/Worker URLs to always use './'.
     // @vrowser/rolldown's build outputs URLs relative to its chunks/ dir (e.g. ../rolldown-binding.wasm32-wasi.wasm).
     // We normalize these to './' and copy WASM/worker files alongside each chunk directory,
@@ -438,6 +484,83 @@ export default defineConfig([
 
 // #region Plugins
 
-// TODO(kazupon): if we need these plugins, we should bring codes from `refers/vite/packages/vite/rolldown.config.ts`
+// Ported from `refers/vite/packages/vite/rolldown.config.ts`
+// Shim problematic dependencies that use Node.js-specific patterns
+// (e.g. __filename, require()) which don't work in browser/Worker environments.
+interface ShimOptions {
+  src?: string
+  replacement: string
+  pattern?: RegExp
+}
+
+function shimDepsPlugin(deps: Record<string, ShimOptions[]>): Plugin {
+  const transformed: Record<string, boolean> = {}
+
+  return {
+    name: 'shim-deps',
+    transform: {
+      filter: {
+        id: new RegExp(`(?:${Object.keys(deps).join('|')})$`),
+      },
+      handler(code, id) {
+        const file = Object.keys(deps).find((file) =>
+          id.replace(/\\/g, '/').endsWith(file),
+        )
+        if (!file) {return}
+
+        for (const { src, replacement, pattern } of deps[file]) {
+          const magicString = new MagicString(code)
+
+          if (src) {
+            const pos = code.indexOf(src)
+            if (pos < 0) {
+              this.error(
+                `Could not find expected src "${src}" in file "${file}"`,
+              )
+            }
+            transformed[file] = true
+            magicString.overwrite(pos, pos + src.length, replacement)
+          }
+
+          if (pattern) {
+            let match
+            while ((match = pattern.exec(code))) {
+              transformed[file] = true
+              const start = match.index
+              const end = start + match[0].length
+              let _replacement = replacement
+              for (let i = 1; i <= match.length; i++) {
+                _replacement = _replacement.replace(`$${i}`, match[i] || '')
+              }
+              magicString.overwrite(start, end, _replacement)
+            }
+            if (!transformed[file]) {
+              this.error(
+                `Could not find{return}ted pattern "${pattern}" in file "${file}"`,
+              )
+            }
+          }
+
+          code = magicString.toString()
+        }
+
+        return code
+      },
+    },
+    buildEnd(err) {
+      if (this.meta.watchMode) {return}
+
+      if (!err) {
+        for (const file in deps) {
+          if (!transformed[file]) {
+            this.error(
+              `Did not find "${file}" which is supposed to be shimmed, was the file renamed?`,
+            )
+          }
+        }
+      }
+    },
+  }
+}
 
 // #endregion

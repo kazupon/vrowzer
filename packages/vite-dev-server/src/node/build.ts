@@ -1,34 +1,39 @@
-import type { RollupCommonJSOptions } from '#dep-types/commonjs'
-import type { RollupDynamicImportVarsOptions } from '#dep-types/dynamicImportVars'
-import type { EsbuildTarget } from '#types/internal/esbuildOptions'
+import type { RollupCommonJSOptions } from '#dep-types/commonjs';
+import type { RollupDynamicImportVarsOptions } from '#dep-types/dynamicImportVars';
+import type { EsbuildTarget } from '#types/internal/esbuildOptions';
+import path from 'node:path';
 import type {
-  InputOption,
-  ModuleFormat,
-  RolldownOptions,
-  RolldownOutput,
-  RolldownWatcher,
-  WatcherOptions
-} from 'rolldown'
-import { BaseEnvironment } from './baseEnvironment'
+    ExternalOption,
+    InputOption,
+    InternalModuleFormat,
+    ModuleFormat,
+    RolldownOptions,
+    RolldownOutput,
+    RolldownWatcher,
+    WatcherOptions
+} from 'rolldown';
+import type { PartialEnvironment } from './baseEnvironment';
+import { BaseEnvironment } from './baseEnvironment';
 import type {
-  EnvironmentOptions,
-  ResolvedConfig,
-  ResolvedEnvironmentOptions
-} from './config'
+    EnvironmentOptions,
+    ResolvedConfig,
+    ResolvedEnvironmentOptions
+} from './config';
 import {
-  DEFAULT_ASSETS_INLINE_LIMIT,
-  ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET
-} from './constants'
-import type { Logger } from './logger'
-import type { MinimalPluginContextWithoutEnvironment } from './plugin'
-import type { LicenseOptions } from './plugins/license'
-import type { TerserOptions } from './plugins/terser'
+    DEFAULT_ASSETS_INLINE_LIMIT,
+    ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET
+} from './constants';
+import type { Logger } from './logger';
+import type { MinimalPluginContextWithoutEnvironment, Plugin } from './plugin';
+import type { LicenseOptions } from './plugins/license';
+import type { TerserOptions } from './plugins/terser';
 import {
-  mergeConfig,
-  mergeWithDefaults,
-  setupRollupOptionCompat,
-  unique
-} from './utils'
+    joinUrlSegments,
+    mergeConfig,
+    mergeWithDefaults,
+    setupRollupOptionCompat,
+    unique
+} from './utils';
 
 // TODO: fill in later
 
@@ -483,6 +488,31 @@ export async function resolveBuildPlugins(config: ResolvedConfig): Promise<{
 
 // TODO: fill in later
 
+export function resolveUserExternal(
+  user: ExternalOption,
+  id: string,
+  parentId: string | undefined,
+  isResolved: boolean,
+): boolean | null | void {
+  if (typeof user === 'function') {
+    return user(id, parentId, isResolved)
+  } else if (Array.isArray(user)) {
+    return user.some((test) => isExternal(id, test))
+  } else {
+    return isExternal(id, user)
+  }
+}
+
+function isExternal(id: string, test: string | RegExp) {
+  if (typeof test === 'string') {
+    return id === test
+  } else {
+    return test.test(id)
+  }
+}
+
+// TODO: fill in later
+
 export type RenderBuiltAssetUrl = (
   filename: string,
   type: {
@@ -493,8 +523,99 @@ export type RenderBuiltAssetUrl = (
   },
 ) => string | { relative?: boolean; runtime?: string } | undefined
 
+export function toOutputFilePathInJS(
+  environment: PartialEnvironment,
+  filename: string,
+  type: 'asset' | 'public',
+  hostId: string,
+  hostType: 'js' | 'css' | 'html',
+  toRelative: (
+    filename: string,
+    hostType: string,
+  ) => string | { runtime: string },
+): string | { runtime: string } {
+  const { experimental, base, decodedBase } = environment.config
+  const ssr = environment.config.consumer === 'server' // was !!environment.config.build.ssr
+  const { renderBuiltUrl } = experimental
+  let relative = base === '' || base === './'
+  if (renderBuiltUrl) {
+    const result = renderBuiltUrl(filename, {
+      hostId,
+      hostType,
+      type,
+      ssr,
+    })
+    if (typeof result === 'object') {
+      if (result.runtime) {
+        return { runtime: result.runtime }
+      }
+      if (typeof result.relative === 'boolean') {
+        relative = result.relative
+      }
+    } else if (result) {
+      return result
+    }
+  }
+  if (relative && !ssr) {
+    return toRelative(filename, hostId)
+  }
+  return joinUrlSegments(decodedBase, filename)
+}
 
-// TODO: fill in later
+export function createToImportMetaURLBasedRelativeRuntime(
+  format: InternalModuleFormat,
+  isWorker: boolean,
+): (filename: string, importer: string) => { runtime: string } {
+  const formatLong = isWorker && format === 'iife' ? 'worker-iife' : format
+  const toRelativePath = customRelativeUrlMechanisms[formatLong]
+  return (filename, importer) => ({
+    runtime: toRelativePath(
+      path.posix.relative(path.dirname(importer), filename),
+    ),
+  })
+}
+
+export function toOutputFilePathWithoutRuntime(
+  filename: string,
+  type: 'asset' | 'public',
+  hostId: string,
+  hostType: 'js' | 'css' | 'html',
+  config: ResolvedConfig,
+  toRelative: (filename: string, hostId: string) => string,
+): string {
+  const { renderBuiltUrl } = config.experimental
+  let relative = config.base === '' || config.base === './'
+  if (renderBuiltUrl) {
+    const result = renderBuiltUrl(filename, {
+      hostId,
+      hostType,
+      type,
+      ssr: !!config.build.ssr,
+    })
+    if (typeof result === 'object') {
+      if (result.runtime) {
+        throw new Error(
+          `{ runtime: "${result.runtime}" } is not supported for assets in ${hostType} files: ${filename}`,
+        )
+      }
+      if (typeof result.relative === 'boolean') {
+        relative = result.relative
+      }
+    } else if (result) {
+      return result
+    }
+  }
+  if (relative && !config.build.ssr) {
+    return toRelative(filename, hostId)
+  } else {
+    return joinUrlSegments(config.decodedBase, filename)
+  }
+}
+
+export const toOutputFilePathInCss: typeof toOutputFilePathWithoutRuntime =
+  toOutputFilePathWithoutRuntime
+export const toOutputFilePathInHtml: typeof toOutputFilePathWithoutRuntime =
+  toOutputFilePathWithoutRuntime
 
 export class BuildEnvironment extends BaseEnvironment {
   mode = 'build' as const
@@ -566,7 +687,7 @@ export const builderOptionsDefaults: Readonly<Partial<BuilderOptions>> =
 export function resolveBuilderOptions(
   options: BuilderOptions | undefined,
 ): ResolvedBuilderOptions | undefined {
-  if (!options) {return}
+  if (!options) { return }
   return mergeWithDefaults(
     { ..._builderOptionsDefaults, buildApp: async () => { } },
     options,
