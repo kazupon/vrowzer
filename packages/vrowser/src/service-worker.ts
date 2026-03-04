@@ -61,8 +61,16 @@ const listen = createServer(
   }
 )
 
-// Track whether listen() has completed (listenConnections registered)
+// Start the Vite dev server at the top level (not inside activate event).
+// SW processes are ephemeral — the browser can terminate and restart them at any time.
+// The activate event only fires once during the SW lifecycle, so if the process restarts,
+// listen() would never be called again. By calling it at the top level, it runs
+// every time the SW script loads, ensuring the server is always initialized.
+const listenPromise = listen()
 let listenReady = false
+listenPromise.then(() => {
+  listenReady = true
+})
 
 // Message Handling from Main Thread
 self.addEventListener('message', event => {
@@ -94,19 +102,16 @@ self.addEventListener('message', event => {
 // Service Worker Activate Event
 // NOTE: clients.claim() is handled by createSvcWorker (inside createSvcWorkerServer)
 // via V_SW_CLAIM_CLIENTS message from controller.ready({ waitForController: true }).
+// listen() is called at top level, so we just wait for it here to keep the SW alive.
 self.addEventListener('activate', _event => {
   _event.waitUntil(
-    (async () => {
-      await listen()
-      listenReady = true
-      // Signal main thread that the server is ready to accept MessageChannel connections.
-      // This must be sent AFTER listen() completes, because listen() calls listenConnections()
-      // which registers the message handler for V_WW_CONNECT_PORT.
+    listenPromise.then(async () => {
+      // Signal main thread that the server is ready
       const clients = await self.clients.matchAll({ includeUncontrolled: true })
       for (const client of clients) {
         client.postMessage({ type: 'V_SW_LISTEN_READY' })
       }
-    })()
+    })
   )
 })
 
