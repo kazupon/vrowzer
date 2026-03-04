@@ -60,11 +60,11 @@ const ready = await vrowser.ready({
 
 if (ready) {
   // Mount preview iframe into a container element
-  await vrowser.mount(document.getElementById('preview-container'))
+  vrowser.mount(document.getElementById('preview-container'))
 }
 
 // Update files (triggers HMR)
-await vrowser.updateFile(
+vrowser.updateFile(
   '/main.js',
   `
   document.getElementById('app').innerHTML = '<h1>Updated!</h1>'
@@ -102,31 +102,31 @@ const ready = await vrowser.ready({
 })
 ```
 
-#### `mount(container): Promise<void>`
+#### `mount(container): void`
 
 Mounts a preview iframe into the given DOM element. The iframe uses `credentialless` and `sandbox="allow-scripts allow-same-origin"` attributes, and loads content via the Service Worker using a `srcdoc` bootstrap.
 
 ```ts
-await vrowser.mount(document.getElementById('preview'))
+vrowser.mount(document.getElementById('preview'))
 ```
 
-#### `updateFile(path, content): Promise<void>`
+#### `updateFile(path, content): void`
 
 Updates a file in the virtual filesystem. Triggers HMR if the preview supports it.
 
 ```ts
-await vrowser.updateFile('/main.js', 'console.log("updated")')
+vrowser.updateFile('/main.js', 'console.log("updated")')
 ```
 
 #### `addFile(path, content): void`
 
 Adds a new file to the virtual filesystem.
 
-#### `deleteFile(path): Promise<void>`
+#### `deleteFile(path): void`
 
 Deletes a file from the virtual filesystem.
 
-#### `reloadPreview(): Promise<void>`
+#### `reloadPreview(): void`
 
 Reloads the preview iframe.
 

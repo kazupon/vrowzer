@@ -19,11 +19,11 @@
  *
  * if (ready) {
  *   // Mount preview iframe into a container element
- *   await vrowser.mount(document.getElementById('preview-container'))
+ *   vrowser.mount(document.getElementById('preview-container'))
  * }
  *
  * // Update files (triggers HMR)
- * await vrowser.updateFile(
+ * vrowser.updateFile(
  *   '/main.js',
  *   `
  *   document.getElementById('app').innerHTML = '<h1>Updated!</h1>'
@@ -88,11 +88,11 @@ export interface Vrowser {
    *
    * @param container - A DOM element where the preview iframe will be mounted.
    */
-  mount(container: HTMLElement): Promise<void>
+  mount(container: HTMLElement): void
   /**
    * Reloads the preview iframe
    */
-  reloadPreview(): Promise<void>
+  reloadPreview(): void
   /**
    * Adds a new file to the preview environment with the specified content.
    *
@@ -105,12 +105,12 @@ export interface Vrowser {
    * @param filePath - The path of the file to be updated.
    * @param content - The new content for the file, which can be a string or an ArrayBuffer.
    */
-  updateFile(filePath: string, content: string | ArrayBuffer): Promise<void>
+  updateFile(filePath: string, content: string | ArrayBuffer): void
   /**
    * Deletes a specific file from the preview environment.
    * @param filePath - The path of the file to be deleted.
    */
-  deleteFile(filePath: string): Promise<void>
+  deleteFile(filePath: string): void
 }
 
 interface ResolvedVrowserOptions {
@@ -283,7 +283,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
       }
     },
 
-    async mount(container: HTMLElement): Promise<void> {
+    mount(container: HTMLElement): void {
       iframe = document.createElement('iframe')
       iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin')
       iframe.setAttribute('credentialless', '')
@@ -294,7 +294,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
       iframe.srcdoc = createBootstrapHtml(resolved.basePath)
     },
 
-    async reloadPreview(): Promise<void> {
+    reloadPreview(): void {
       if (iframe) {
         iframe.srcdoc = createBootstrapHtml(resolved.basePath)
       }
@@ -304,11 +304,11 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
       publisher.writeFile(filePath, content)
     },
 
-    async updateFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
+    updateFile(filePath: string, content: string | ArrayBuffer): void {
       publisher.writeFile(filePath, content)
     },
 
-    async deleteFile(filePath: string): Promise<void> {
+    deleteFile(filePath: string): void {
       publisher.unlink(filePath)
     }
   }

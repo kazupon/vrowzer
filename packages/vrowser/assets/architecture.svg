@@ -12,6 +12,9 @@
     <marker id="arrow-violet" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <path d="M0,0 L8,3 L0,6" fill="#7a4ad9"/>
     </marker>
+    <marker id="arrow-hmr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#e74c3c"/>
+    </marker>
   </defs>
 
   <!-- Main Thread -->
@@ -114,10 +117,15 @@
   <text x="458" y="490" text-anchor="middle" font-size="9" fill="#9b59b6">(MessageChannel)</text>
 
   <!-- SW → Iframe (HTML/JS/CSS) -->
-  <path d="M 245 560 L 245 600 L 390 600 L 390 626" fill="none" stroke="#7a4ad9" stroke-width="1.5" marker-end="url(#arrow-violet)"/>
-  <text x="300" y="613" text-anchor="middle" font-size="10" fill="#7a4ad9" font-weight="600">HTML / JS / CSS</text>
+  <path d="M 245 560 L 245 600 L 370 600 L 370 626" fill="none" stroke="#7a4ad9" stroke-width="1.5" marker-end="url(#arrow-violet)"/>
+  <text x="290" y="613" text-anchor="middle" font-size="10" fill="#7a4ad9" font-weight="600">HTML / JS / CSS</text>
 
   <!-- Iframe → SW (fetch) -->
-  <path d="M 530 630 L 530 600 L 330 600 L 330 560" fill="none" stroke="#7a4ad9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-violet)"/>
-  <text x="450" y="593" text-anchor="middle" font-size="10" fill="#7a4ad9">fetch /__preview__/</text>
+  <path d="M 460 630 L 460 600 L 330 600 L 330 560" fill="none" stroke="#7a4ad9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-violet)"/>
+  <text x="410" y="593" text-anchor="middle" font-size="10" fill="#7a4ad9">fetch /__preview__/</text>
+
+  <!-- HMR: SW → Iframe (MessageChannel) -->
+  <path d="M 620 560 L 620 600 L 550 600 L 550 626" fill="none" stroke="#e74c3c" stroke-width="1.5" marker-end="url(#arrow-hmr)"/>
+  <text x="620" y="613" text-anchor="middle" font-size="10" fill="#e74c3c" font-weight="600">HMR update</text>
+  <text x="620" y="625" text-anchor="middle" font-size="9" fill="#e74c3c">(MessageChannel)</text>
 </svg>
