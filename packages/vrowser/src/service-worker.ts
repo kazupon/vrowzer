@@ -27,29 +27,13 @@ declare const self: ServiceWorkerGlobalScope
 
 const SW_VERSION = 'vrowser-v1'
 
-// Initial volume setup: client files + index.html + public dir
+// Initial volume setup: client files + public dir
 vol.fromJSON({
   '/dist/client/client.mjs': client,
   '/dist/client/env.mjs': env
 })
 fs.mkdirSync('/public', { recursive: true })
 fs.writeFileSync('/public/.gitkeep', '', { encoding: 'utf8' })
-fs.writeFileSync(
-  '/index.html',
-  `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Preview</title>
-  </head>
-  <body>
-    <div id="app"><p>Loading...</p></div>
-    <script type="module" src="/main.ts"></script>
-  </body>
-</html>`,
-  { encoding: 'utf8' }
-)
 
 const subscriber = createFileSystemSubscriber(fs)
 const previewBase = '/__preview__/'

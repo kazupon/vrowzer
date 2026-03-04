@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor'
 import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
-import viteSvgRaw from '../../assets/vite.svg?raw'
-import tsSvgRaw from '../../assets/typescript.svg?raw'
+
+import indexHtmlRaw from '../../fixture/vite-vanilla/index.html?raw'
+import mainTsRaw from '../../fixture/vite-vanilla/main.ts?raw'
+import counterRaw from '../../fixture/vite-vanilla/counter.ts?raw'
+import styleRaw from '../../fixture/vite-vanilla/style.css?raw'
+import viteSvgRaw from '../../fixture/vite-vanilla/vite.svg?raw'
+import tsSvgRaw from '../../fixture/vite-vanilla/typescript.svg?raw'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
 const ts = (monaco.languages as any).typescript
@@ -11,124 +16,14 @@ const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
-const defaultMainTs = `import './style.css'
-import viteLogo from './vite.svg'
-import typescriptLogo from './typescript.svg'
-import { setupCounter } from './counter.ts'
-
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = \`
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="\${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="\${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-\`
-
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
-
-if (import.meta.hot) {
-  import.meta.hot.accept()
-}
-`
-
-const defaultCounterTs = [
-  'export function setupCounter(element: HTMLButtonElement) {',
-  '  let counter = 0',
-  '  const setCounter = (count: number) => {',
-  '    counter = count',
-  '    element.innerHTML = `count is ${counter}`',
-  '  }',
-  "  element.addEventListener('click', () => setCounter(counter + 1))",
-  '  setCounter(0)',
-  '}',
-  ''
-].join('\n')
-
-const defaultStyleCss = `:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vanilla:hover {
-  filter: drop-shadow(0 0 2em #3178c6aa);
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-`
-
 const files = ref<Map<string, string>>(
   new Map([
-    ['/main.ts', defaultMainTs],
-    ['/counter.ts', defaultCounterTs],
-    ['/style.css', defaultStyleCss],
+    ['/main.ts', mainTsRaw],
+    ['/counter.ts', counterRaw],
+    ['/style.css', styleRaw],
     ['/vite.svg', viteSvgRaw],
-    ['/typescript.svg', tsSvgRaw]
+    ['/typescript.svg', tsSvgRaw],
+    ['/index.html', indexHtmlRaw]
   ])
 )
 const activeFile = ref('/main.ts')
