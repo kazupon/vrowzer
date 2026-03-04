@@ -49,8 +49,9 @@ function handleReload() {
 <template>
   <div class="app">
     <header class="app-header">
+      <img src="/favicon.svg" alt="Vrowser" class="app-logo" />
       <h1>Vrowser Playground</h1>
-      <span class="subtitle">Vite Dev Server on the Service Worker</span>
+      <span class="subtitle">Vite Dev Server in the Browser</span>
     </header>
     <main class="app-main">
       <EditorPanel ref="editorPanel" @file-change="handleFileChange" />
@@ -87,10 +88,15 @@ function handleReload() {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 12px 20px;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   border-bottom: 1px solid #646cff33;
+}
+
+.app-logo {
+  width: 28px;
+  height: 28px;
 }
 
 .app-header h1 {

@@ -6,7 +6,7 @@ import indexHtmlRaw from '../../fixture/vite-vanilla/index.html?raw'
 import mainTsRaw from '../../fixture/vite-vanilla/main.ts?raw'
 import counterRaw from '../../fixture/vite-vanilla/counter.ts?raw'
 import styleRaw from '../../fixture/vite-vanilla/style.css?raw'
-import viteSvgRaw from '../../fixture/vite-vanilla/vite.svg?raw'
+import vrowserSvgRaw from '../../fixture/vite-vanilla/vrowser.svg?raw'
 import tsSvgRaw from '../../fixture/vite-vanilla/typescript.svg?raw'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
@@ -21,7 +21,7 @@ const files = ref<Map<string, string>>(
     ['/main.ts', mainTsRaw],
     ['/counter.ts', counterRaw],
     ['/style.css', styleRaw],
-    ['/vite.svg', viteSvgRaw],
+    ['/vrowser.svg', vrowserSvgRaw],
     ['/typescript.svg', tsSvgRaw],
     ['/index.html', indexHtmlRaw]
   ])
