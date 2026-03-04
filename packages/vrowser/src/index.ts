@@ -159,10 +159,6 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
    * Establish MessageChannel between Service Worker and Web Worker.
    * Creates a MessageChannel, sends one port to each side,
    * and waits for both ACKs (handshake + birpc ready).
-   *
-   * Retries with a new MessageChannel if the handshake times out,
-   * because the SW's listenConnections() may not be registered yet
-   * when the first attempt is made (race condition with SW activate + listen()).
    */
   async function establishChannel(): Promise<void> {
     const serviceWorker = getServiceWorker()
@@ -170,55 +166,42 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
       return
     }
 
-    const maxRetries = 3
-    const retryTimeout = 5000
+    const channel = new MessageChannel()
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      const channel = new MessageChannel()
-
-      // Wait for Service Worker's ACK
-      const serviceWorkerAck = new Promise<void>(resolve => {
-        const handler = (event: MessageEvent) => {
-          if (event.data?.type === 'V_WW_CONNECT_PORT_ACK') {
-            navigator.serviceWorker.removeEventListener('message', handler)
-            resolve()
-          }
+    // Wait for Service Worker's ACK
+    const serviceWorkerAck = new Promise<void>(resolve => {
+      const handler = (event: MessageEvent) => {
+        if (event.data?.type === 'V_WW_CONNECT_PORT_ACK') {
+          navigator.serviceWorker.removeEventListener('message', handler)
+          resolve()
         }
-        navigator.serviceWorker.addEventListener('message', handler)
-      })
-
-      // Wait for Web Worker's ACK
-      const webWorkerAck = new Promise<void>(resolve => {
-        const prevHandler = webWorker!.onmessage
-        webWorker!.onmessage = (event: MessageEvent) => {
-          if (event.data.type === 'V_SW_CONNECT_PORT_ACK') {
-            webWorker!.onmessage = prevHandler
-            resolve()
-            return
-          }
-          prevHandler?.call(webWorker!, event)
-        }
-      })
-
-      // Transfer ports
-      serviceWorker.postMessage({ type: 'V_WW_CONNECT_PORT' }, [channel.port1])
-      webWorker.postMessage({ type: 'V_SW_CONNECT_PORT' }, [channel.port2])
-
-      try {
-        await withTimeout(
-          Promise.all([serviceWorkerAck, webWorkerAck]),
-          retryTimeout,
-          `MessageChannel handshake (attempt ${attempt}/${maxRetries})`
-        )
-        return // success
-      } catch {
-        if (attempt === maxRetries) {
-          throw new Error(`MessageChannel handshake failed after ${maxRetries} attempts`)
-        }
-        // Wait briefly before retry to give SW's listen() more time to complete
-        await new Promise(r => setTimeout(r, 1000))
       }
-    }
+      navigator.serviceWorker.addEventListener('message', handler)
+    })
+
+    // Wait for Web Worker's ACK
+    const webWorkerAck = new Promise<void>(resolve => {
+      const prevHandler = webWorker!.onmessage
+      webWorker!.onmessage = (event: MessageEvent) => {
+        if (event.data.type === 'V_SW_CONNECT_PORT_ACK') {
+          webWorker!.onmessage = prevHandler
+          resolve()
+          return
+        }
+        prevHandler?.call(webWorker!, event)
+      }
+    })
+
+    // Transfer ports
+    serviceWorker.postMessage({ type: 'V_WW_CONNECT_PORT' }, [channel.port1])
+    webWorker.postMessage({ type: 'V_SW_CONNECT_PORT' }, [channel.port2])
+
+    // Wait for both sides to complete handshake + birpc setup
+    await withTimeout(
+      Promise.all([serviceWorkerAck, webWorkerAck]),
+      15000,
+      'MessageChannel handshake'
+    )
   }
 
   function createBootstrapHtml(previewUrl: string): string {
@@ -310,7 +293,35 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
           publisher.initFiles(allFiles)
         }
 
-        // 7. Establish MessageChannel (Service Worker ↔ Web Worker)
+        // 7. Wait for SW's listen() to complete (listenConnections registered)
+        // The SW sends V_SW_LISTEN_READY after listen() completes in the activate event.
+        // We listen for it via both navigator.serviceWorker message events
+        // AND poll by sending V_SW_LISTEN_READY_PING messages to the SW.
+        await withTimeout(
+          new Promise<void>(resolve => {
+            // Listen for the signal from SW
+            const handler = (event: MessageEvent) => {
+              if (event.data?.type === 'V_SW_LISTEN_READY') {
+                navigator.serviceWorker.removeEventListener('message', handler)
+                clearInterval(pollId)
+                resolve()
+              }
+            }
+            navigator.serviceWorker.addEventListener('message', handler)
+
+            // Also poll: send ping to SW, which responds with V_SW_LISTEN_READY if ready
+            const sw = getServiceWorker()
+            const pollId = setInterval(() => {
+              sw?.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
+            }, 500)
+            // Send first ping immediately
+            sw?.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
+          }),
+          30000,
+          'Service Worker listen ready'
+        )
+
+        // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
         await establishChannel()
 
         return true

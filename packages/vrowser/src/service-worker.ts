@@ -61,9 +61,23 @@ const listen = createServer(
   }
 )
 
+// Track whether listen() has completed (listenConnections registered)
+let listenReady = false
+
 // Message Handling from Main Thread
 self.addEventListener('message', event => {
   const message = event.data
+
+  // Respond to listen-ready ping from main thread
+  if (message?.type === 'V_SW_LISTEN_READY_PING' && listenReady) {
+    const clientId = (event.source as Client | null)?.id
+    if (clientId) {
+      self.clients.get(clientId).then(client => {
+        client?.postMessage({ type: 'V_SW_LISTEN_READY' })
+      })
+    }
+    return
+  }
 
   // Skip protocol messages handled by @vrowser/service-worker
   if (typeof message?.type === 'string' && message.type.startsWith('V_SW_')) {
@@ -78,8 +92,22 @@ self.addEventListener('message', event => {
 })
 
 // Service Worker Activate Event
+// NOTE: clients.claim() is handled by createSvcWorker (inside createSvcWorkerServer)
+// via V_SW_CLAIM_CLIENTS message from controller.ready({ waitForController: true }).
 self.addEventListener('activate', _event => {
-  _event.waitUntil(listen())
+  _event.waitUntil(
+    (async () => {
+      await listen()
+      listenReady = true
+      // Signal main thread that the server is ready to accept MessageChannel connections.
+      // This must be sent AFTER listen() completes, because listen() calls listenConnections()
+      // which registers the message handler for V_WW_CONNECT_PORT.
+      const clients = await self.clients.matchAll({ includeUncontrolled: true })
+      for (const client of clients) {
+        client.postMessage({ type: 'V_SW_LISTEN_READY' })
+      }
+    })()
+  )
 })
 
 export {}
