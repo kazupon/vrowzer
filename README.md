@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <em>/vraʊzər/ — Vite + Browser</em>
+  <em>/vraʊ.zɛr/ — Vite + Browser, inspired from French pronounce</em>
 </p>
 
 ## 🐱 Motivation
