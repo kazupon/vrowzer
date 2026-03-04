@@ -1,7 +1,7 @@
 <h1 align="center">Vrowser</h1>
 
 <p align="center">
-  <img src="./assets/og-image.png" alt="Vrowser" />
+  <img src="./assets/og-image.png" alt="Vrowser" with="80%" />
 </p>
 
 <p align="center">
