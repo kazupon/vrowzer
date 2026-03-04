@@ -1,4 +1,4 @@
-# Vrowser
+<h1 align="center">Vrowser</h1>
 
 <p align="center">
   <img src="./assets/og-image.png" alt="Vrowser" />
@@ -11,6 +11,13 @@
 <p align="center">
   <em>/vraʊ.zɛr/ — Vite + Browser, inspired from French pronounce</em>
 </p>
+
+<!-- eslint-disable markdown/no-missing-label-refs -->
+
+> [!WARNING]
+> This project is under active development and is not yet ready for production use. APIs and features may change without notice.
+
+<!-- eslint-enable markdown/no-missing-label-refs -->
 
 ## 🐱 Motivation
 
