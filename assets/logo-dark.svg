@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><rect x="0" y="0" width="256" height="256" fill="#000"/>
   <defs>
-    <linearGradient id="frame-grad" x1="0%" y1="10%" x2="60%" y2="80%">
+    <linearGradient id="frame-grad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="256" y2="0">
       <stop offset="0%" stop-color="#41D1FF"/>
       <stop offset="100%" stop-color="#BD34FE"/>
     </linearGradient>
@@ -18,18 +18,24 @@
     </linearGradient>
   </defs>
 
-  <!-- Browser frame with +2px radius -->
-  <rect x="20" y="36" width="216" height="196" rx="18" ry="18"
-        fill="none" stroke="url(#frame-grad)" stroke-width="6.050000000000001"/>
+  <!-- Frame: outer stroke edge touches canvas bounds -->
+  <rect x="2.75" y="2.75" width="250.50" height="250.50"
+        rx="18" ry="18"
+        fill="none" stroke="url(#frame-grad)" stroke-width="5.5"/>
 
-  <line x1="20" y1="72" x2="236" y2="72" stroke="url(#frame-grad)" stroke-width="3" opacity="0.6"/>
+  <!-- Header separator: full width, flush to frame sides -->
+  <line x1="2.75" y1="48.75" x2="253.25" y2="48.75"
+        stroke="url(#frame-grad)" stroke-width="5.5" stroke-linecap="butt" opacity="1.0"/>
 
-  <!-- Vite color dots -->
-  <circle cx="44" cy="54" r="5.2" fill="#41D1FF"/>
-  <circle cx="62" cy="54" r="5.2" fill="#BD34FE"/>
-  <circle cx="80" cy="54" r="5.2" fill="#FFEA83"/>
+  <!-- Window controls -->
+  <circle cx="28.75" cy="26.75" r="6.6" fill="#41D1FF"/><circle cx="50.75" cy="26.75" r="6.6" fill="#BD34FE"/><circle cx="72.75" cy="26.75" r="6.6" fill="#FFEA83"/>
 
   <!-- Lightning -->
-  <path d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z" transform="translate(42.500 90.250) scale(2.25)" fill="url(#bolt-outer)" />
-  <path d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z" transform="translate(57.050 103.425) scale(2.0250000000000004)" fill="url(#bolt-inner)" opacity="0.85" />
+  <path d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"
+        transform="translate(42.500 94.250) scale(2.25)"
+        fill="url(#bolt-outer)"/>
+
+  <path d="M40.151 45.71c-.663.844-2.02.374-2.02-.699V34.708a2.26 2.26 0 0 0-2.262-2.262H24.493c-.92 0-1.457-1.04-.92-1.788l7.479-10.471c1.07-1.498 0-3.578-1.842-3.578H15.443c-.92 0-1.456-1.04-.92-1.788l9.696-13.576c.213-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.376c.944 0 1.474 1.087.89 1.83L40.153 45.712z"
+        transform="translate(57.050 107.425) scale(2.0250000000000004)"
+        fill="url(#bolt-inner)" opacity="0.85"/>
 </svg>
