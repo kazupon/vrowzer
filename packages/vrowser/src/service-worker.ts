@@ -45,7 +45,7 @@ fs.writeFileSync(
   </head>
   <body>
     <div id="app"><p>Loading...</p></div>
-    <script type="module" src="/main.js"></script>
+    <script type="module" src="/main.ts"></script>
   </body>
 </html>`,
   { encoding: 'utf8' }

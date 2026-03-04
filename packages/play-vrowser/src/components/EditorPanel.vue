@@ -1,37 +1,47 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor'
 import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
+import viteSvgRaw from '../../assets/vite.svg?raw'
+import tsSvgRaw from '../../assets/typescript.svg?raw'
 
 const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
-const defaultMainJs = `import './style.css'
-import { setupCounter } from './counter.js'
+const defaultMainTs = `import './style.css'
+import viteLogo from './vite.svg'
+import typescriptLogo from './typescript.svg'
+import { setupCounter } from './counter.ts'
 
-document.querySelector('#app').innerHTML = \`
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = \`
   <div>
-    <h1>Vite + JavaScript</h1>
+    <a href="https://vite.dev" target="_blank">
+      <img src="\${viteLogo}" class="logo" alt="Vite logo" />
+    </a>
+    <a href="https://www.typescriptlang.org/" target="_blank">
+      <img src="\${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
+    </a>
+    <h1>Vite + TypeScript</h1>
     <div class="card">
       <button id="counter" type="button"></button>
     </div>
     <p class="read-the-docs">
-      Edit files and see HMR in action
+      Click on the Vite and TypeScript logos to learn more
     </p>
   </div>
 \`
 
-setupCounter(document.querySelector('#counter'))
+setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
 
 if (import.meta.hot) {
   import.meta.hot.accept()
 }
 `
 
-const defaultCounterJs = [
-  'export function setupCounter(element) {',
+const defaultCounterTs = [
+  'export function setupCounter(element: HTMLButtonElement) {',
   '  let counter = 0',
-  '  const setCounter = (count) => {',
+  '  const setCounter = (count: number) => {',
   '    counter = count',
   '    element.innerHTML = `count is ${counter}`',
   '  }',
@@ -51,6 +61,15 @@ const defaultStyleCss = `:root {
   background-color: #242424;
 }
 
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
@@ -61,6 +80,19 @@ h1 {
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.vanilla:hover {
+  filter: drop-shadow(0 0 2em #3178c6aa);
 }
 
 .card {
@@ -89,12 +121,14 @@ button:hover {
 
 const files = ref<Map<string, string>>(
   new Map([
-    ['/main.js', defaultMainJs],
-    ['/counter.js', defaultCounterJs],
-    ['/style.css', defaultStyleCss]
+    ['/main.ts', defaultMainTs],
+    ['/counter.ts', defaultCounterTs],
+    ['/style.css', defaultStyleCss],
+    ['/vite.svg', viteSvgRaw],
+    ['/typescript.svg', tsSvgRaw]
   ])
 )
-const activeFile = ref('/main.js')
+const activeFile = ref('/main.ts')
 
 defineExpose({ files })
 const editorContainer = useTemplateRef('editorContainer')
@@ -133,12 +167,22 @@ function getOrCreateModel(path: string, content: string): monaco.editor.ITextMod
       const value = model!.getValue()
       files.value.set(path, value)
       emit('file-change', { path, content: value })
+      // Update extra lib so other files see the latest content
+      if (/\.[cm]?[jt]sx?$/.test(path)) {
+        extraLibDisposables.get(path)?.dispose()
+        extraLibDisposables.set(
+          path,
+          monaco.languages.typescript.typescriptDefaults.addExtraLib(value, `file://${path}`)
+        )
+      }
     })
     disposables.push(disposable)
     models.set(path, model)
   }
   return model
 }
+
+const extraLibDisposables = new Map<string, monaco.IDisposable>()
 
 function switchTab(path: string) {
   if (!editor || !files.value.has(path)) {
@@ -193,6 +237,64 @@ function filename(path: string): string {
 onMounted(() => {
   if (!editorContainer.value) {
     return
+  }
+
+  // Configure TypeScript compiler options for Vite-like environment
+  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+    target: monaco.languages.typescript.ScriptTarget.ESNext,
+    module: monaco.languages.typescript.ModuleKind.ESNext,
+    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+    allowNonTsExtensions: true,
+    allowImportingTsExtensions: true,
+    allowJs: true,
+    strict: true,
+    noEmit: true,
+  })
+
+  // Add Vite-compatible type declarations for asset imports and import.meta
+  monaco.languages.typescript.typescriptDefaults.addExtraLib(
+    `declare module '*.svg' {
+  const src: string
+  export default src
+}
+declare module '*.png' {
+  const src: string
+  export default src
+}
+declare module '*.jpg' {
+  const src: string
+  export default src
+}
+declare module '*.css' {}
+
+interface ImportMetaEnv {
+  readonly DEV: boolean
+  readonly PROD: boolean
+  readonly MODE: string
+  readonly BASE_URL: string
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+  readonly hot?: {
+    accept(cb?: (mod: any) => void): void
+    accept(deps: string[], cb: (mods: any[]) => void): void
+    dispose(cb: (data: any) => void): void
+    invalidate(): void
+    readonly data: any
+  }
+}
+`,
+    'file:///vite-env.d.ts'
+  )
+
+  // Register all TS/JS files as extra libs so Monaco can resolve cross-file imports
+  for (const [path, content] of files.value) {
+    if (/\.[cm]?[jt]sx?$/.test(path)) {
+      extraLibDisposables.set(
+        path,
+        monaco.languages.typescript.typescriptDefaults.addExtraLib(content, `file://${path}`)
+      )
+    }
   }
 
   editor = monaco.editor.create(editorContainer.value, {
