@@ -4,6 +4,9 @@ import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 import viteSvgRaw from '../../assets/vite.svg?raw'
 import tsSvgRaw from '../../assets/typescript.svg?raw'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
+const ts = (monaco.languages as any).typescript
+
 const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
@@ -170,10 +173,7 @@ function getOrCreateModel(path: string, content: string): monaco.editor.ITextMod
       // Update extra lib so other files see the latest content
       if (/\.[cm]?[jt]sx?$/.test(path)) {
         extraLibDisposables.get(path)?.dispose()
-        extraLibDisposables.set(
-          path,
-          monaco.languages.typescript.typescriptDefaults.addExtraLib(value, `file://${path}`)
-        )
+        extraLibDisposables.set(path, ts.typescriptDefaults.addExtraLib(value, `file://${path}`))
       }
     })
     disposables.push(disposable)
@@ -240,19 +240,19 @@ onMounted(() => {
   }
 
   // Configure TypeScript compiler options for Vite-like environment
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    target: monaco.languages.typescript.ScriptTarget.ESNext,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+  ts.typescriptDefaults.setCompilerOptions({
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeJs,
     allowNonTsExtensions: true,
     allowImportingTsExtensions: true,
     allowJs: true,
     strict: true,
-    noEmit: true,
+    noEmit: true
   })
 
   // Add Vite-compatible type declarations for asset imports and import.meta
-  monaco.languages.typescript.typescriptDefaults.addExtraLib(
+  ts.typescriptDefaults.addExtraLib(
     `declare module '*.svg' {
   const src: string
   export default src
@@ -290,10 +290,7 @@ interface ImportMeta {
   // Register all TS/JS files as extra libs so Monaco can resolve cross-file imports
   for (const [path, content] of files.value) {
     if (/\.[cm]?[jt]sx?$/.test(path)) {
-      extraLibDisposables.set(
-        path,
-        monaco.languages.typescript.typescriptDefaults.addExtraLib(content, `file://${path}`)
-      )
+      extraLibDisposables.set(path, ts.typescriptDefaults.addExtraLib(content, `file://${path}`))
     }
   }
 
