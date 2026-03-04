@@ -127,6 +127,22 @@ function resolveVrowserOptions(options: VrowserOptions): ResolvedVrowserOptions 
   }
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    promise.then(
+      value => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      error => {
+        clearTimeout(timer)
+        reject(error)
+      }
+    )
+  })
+}
+
 /**
  * Factory function to create a {@link Vrowser} instance.
  * @param options - Configuration options for the Vrowser instance.
@@ -181,7 +197,11 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
     webWorker.postMessage({ type: 'V_SW_CONNECT_PORT' }, [channel.port2])
 
     // Wait for both sides to complete handshake + birpc setup
-    await Promise.all([serviceWorkerAck, webWorkerAck])
+    await withTimeout(
+      Promise.all([serviceWorkerAck, webWorkerAck]),
+      15000,
+      'MessageChannel handshake'
+    )
   }
 
   function createBootstrapHtml(previewUrl: string): string {
@@ -260,7 +280,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
             version: resolved.serviceWorkerVersion,
             scope: resolved.serviceWorkerScope
           }),
-          webWorkerReady
+          withTimeout(webWorkerReady, 30000, 'Web Worker setup')
         ])
 
         // 6. Add Service Worker as publisher target + send initial files

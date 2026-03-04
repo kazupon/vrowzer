@@ -13,6 +13,18 @@ async function init() {
 
     const ready = await vrowser.ready({
       files: {
+        '/index.html': `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview</title>
+  </head>
+  <body>
+    <div id="app"><p>Loading...</p></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>`,
         '/main.js': `
 document.getElementById('app').innerHTML = \`
   <h1>Hello from Vrowser!</h1>
