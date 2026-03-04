@@ -1,38 +1,46 @@
-import MagicString from 'magic-string'
-import * as mrmime from 'mrmime'
-import { Buffer } from 'node:buffer'
-import fsp from 'node:fs/promises'
 import path from 'node:path'
-import colors from 'picocolors'
+import fsp from 'node:fs/promises'
+import { Buffer } from 'node:buffer'
+import * as mrmime from 'mrmime'
 import type {
   NormalizedOutputOptions,
   PluginContext,
   RenderedChunk,
-} from 'rolldown';
+} from 'rolldown'
+import MagicString from 'magic-string'
+import colors from 'picocolors'
+import picomatch from 'picomatch'
+import { makeIdFiltersToMatchWithQuery } from 'rolldown/filter'
+import {
+  createToImportMetaURLBasedRelativeRuntime,
+  toOutputFilePathInJS,
+} from '../build'
+import type { Plugin } from '../plugin'
+import type { ResolvedConfig } from '../config'
+import { checkPublicFile } from '../publicDir'
+import {
+  encodeURIPath,
+  getHash,
+  injectQuery,
+  joinUrlSegments,
+  normalizePath,
+  rawRE,
+  removeLeadingSlash,
+  removeUrlQuery,
+  urlRE,
+} from '../utils'
+import {
+  DEFAULT_ASSETS_INLINE_LIMIT,
+  DEFAULT_ASSETS_RE,
+  FS_PREFIX,
+} from '../constants'
 import {
   cleanUrl,
   splitFileAndPostfix,
   withTrailingSlash,
 } from '../../shared/utils'
-import type { PartialEnvironment } from '../baseEnvironment'
-import {
-  createToImportMetaURLBasedRelativeRuntime,
-  toOutputFilePathInJS
-} from '../build'
-import type { ResolvedConfig } from '../config'
-import {
-  DEFAULT_ASSETS_INLINE_LIMIT,
-  FS_PREFIX
-} from '../constants'
 import type { Environment } from '../environment'
-import { checkPublicFile } from '../publicDir'
-import {
-  encodeURIPath,
-  getHash,
-  joinUrlSegments,
-  normalizePath,
-  removeLeadingSlash
-} from '../utils'
+import type { PartialEnvironment } from '../baseEnvironment'
 
 // referenceId is base64url but replaces - with $
 export const assetUrlRE: RegExp = /__VITE_ASSET__([\w$]+)__(?:\$_(.*?)__)?/g
@@ -137,7 +145,175 @@ export function renderAssetUrlInJS(
   return s
 }
 
-// TODO: fill in code ...
+/**
+ * Also supports loading plain strings with import text from './foo.txt?raw'
+ */
+export function assetPlugin(config: ResolvedConfig): Plugin {
+  registerCustomMime()
+
+  return {
+    name: 'vite:asset',
+
+    perEnvironmentStartEndDuringDev: true,
+
+    buildStart() {
+      assetCache.set(this.environment, new Map())
+      cssEntriesMap.set(this.environment, new Map())
+    },
+
+    resolveId: {
+      filter: {
+        id: [
+          urlRE,
+          DEFAULT_ASSETS_RE,
+          ...makeIdFiltersToMatchWithQuery(config.rawAssetsInclude).map((v) =>
+            typeof v === 'string' ? picomatch.makeRe(v, { dot: true }) : v,
+          ),
+        ],
+      },
+      handler(id) {
+        if (!config.assetsInclude(cleanUrl(id)) && !urlRE.test(id)) {
+          return
+        }
+        // imports to absolute urls pointing to files in /public
+        // will fail to resolve in the main resolver. handle them here.
+        const publicFile = checkPublicFile(id, config)
+        if (publicFile) {
+          return id
+        }
+      },
+    },
+
+    load: {
+      filter: {
+        id: {
+          include: [
+            rawRE,
+            urlRE,
+            DEFAULT_ASSETS_RE,
+            ...makeIdFiltersToMatchWithQuery(config.rawAssetsInclude),
+          ],
+          // Rollup convention, this id should be handled by the
+          // plugin that marked it with \0
+          exclude: /^\0/,
+        },
+      },
+      async handler(id) {
+        // raw requests, read from disk
+        if (rawRE.test(id)) {
+          const file = checkPublicFile(id, config) || cleanUrl(id)
+          this.addWatchFile(file)
+          // raw query, read file and return as string
+          return {
+            code: `export default ${JSON.stringify(
+              await fsp.readFile(file, 'utf-8'),
+            )}`,
+            moduleType: 'js', // NOTE: needs to be set to avoid double `export default` in `?raw&.txt`s
+          }
+        }
+
+        if (!urlRE.test(id) && !config.assetsInclude(cleanUrl(id))) {
+          return
+        }
+
+        id = removeUrlQuery(id)
+        let url = await fileToUrl(this, id)
+
+        // Inherit HMR timestamp if this asset was invalidated
+        if (!url.startsWith('data:') && this.environment.mode === 'dev') {
+          const mod = this.environment.moduleGraph.getModuleById(id)
+          if (mod && mod.lastHMRTimestamp > 0) {
+            url = injectQuery(url, `t=${mod.lastHMRTimestamp}`)
+          }
+        }
+
+        return {
+          code: `export default ${JSON.stringify(encodeURIPath(url))}`,
+          // Force rollup to keep this module from being shared between other entry points if it's an entrypoint.
+          // If the resulting chunk is empty, it will be removed in generateBundle.
+          moduleSideEffects:
+            config.command === 'build' && this.getModuleInfo(id)?.isEntry
+              ? 'no-treeshake'
+              : false,
+          meta: config.command === 'build' ? { 'vite:asset': true } : undefined,
+          moduleType: 'js', // NOTE: needs to be set to avoid double `export default` in `.txt`s
+        }
+      },
+    },
+
+    ...(config.command === 'build'
+      ? {
+          renderChunk(code, chunk, opts) {
+            const s = renderAssetUrlInJS(this, chunk, opts, code)
+
+            if (s) {
+              return {
+                code: s.toString(),
+                map: this.environment.config.build.sourcemap
+                  ? s.generateMap({ hires: 'boundary' })
+                  : null,
+              }
+            } else {
+              return null
+            }
+          },
+        }
+      : {}),
+
+    generateBundle(_, bundle) {
+      // Remove empty entry point file
+      let importedFiles: Set<string> | undefined
+      for (const file in bundle) {
+        const chunk = bundle[file]
+        if (
+          chunk.type === 'chunk' &&
+          chunk.isEntry &&
+          chunk.moduleIds.length === 1 &&
+          config.assetsInclude(chunk.moduleIds[0]) &&
+          this.getModuleInfo(chunk.moduleIds[0])?.meta['vite:asset']
+        ) {
+          if (!importedFiles) {
+            importedFiles = new Set()
+            for (const file in bundle) {
+              const chunk = bundle[file]
+              if (chunk.type === 'chunk') {
+                for (const importedFile of chunk.imports) {
+                  importedFiles.add(importedFile)
+                }
+                for (const importedFile of chunk.dynamicImports) {
+                  importedFiles.add(importedFile)
+                }
+              }
+            }
+          }
+          if (!importedFiles.has(file)) {
+            delete bundle[file]
+          }
+        }
+      }
+
+      // do not emit assets for SSR build
+      if (
+        config.command === 'build' &&
+        !this.environment.config.build.emitAssets
+      ) {
+        for (const file in bundle) {
+          if (
+            bundle[file].type === 'asset' &&
+            !file.endsWith('ssr-manifest.json') &&
+            !jsSourceMapRE.test(file)
+          ) {
+            delete bundle[file]
+          }
+        }
+      }
+    },
+
+    watchChange(id) {
+      assetCache.get(this.environment)?.delete(normalizePath(id))
+    },
+  }
+}
 
 export async function fileToUrl(
   pluginContext: PluginContext,
