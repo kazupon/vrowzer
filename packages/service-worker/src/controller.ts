@@ -290,6 +290,10 @@ export interface SvcWorkerController extends Emittable<SvcWorkerControllerEventM
    */
   readonly serviceWorker: ServiceWorker | null
   /**
+   * The {@link ServiceWorkerContainer | service worker container} used by this controller.
+   */
+  readonly container: ServiceWorkerContainer
+  /**
    * Ready for the expected service worker to become active.
    *
    * Calling this method internally checks the service worker's state using the API provided by `navigator.serviceWorker`.
@@ -852,6 +856,9 @@ export function createSvcWorkerController(
     },
     get serviceWorker() {
       return _serviceWorker
+    },
+    get container() {
+      return navigator.serviceWorker
     },
     get [SESSION_SYMBOL]() {
       return _session
