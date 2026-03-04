@@ -1,6 +1,6 @@
 {
   "name": "vrowser",
-  "description": "Preview with Vite HMR flavor for the browser",
+  "description": "Embeddable live preview system with HMR, powered by Vite dev server in the browser",
   "version": "0.0.1",
   "author": {
     "name": "kazuya kawaguchi",

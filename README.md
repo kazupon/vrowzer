@@ -1,6 +1,6 @@
 # Vrowser
 
-Run Vite HMR flavor on the browser
+Vite dev server in the browser
 
 ## 🐱 Motivation
 
@@ -12,7 +12,7 @@ Run Vite HMR flavor on the browser
 
 | Package                                                                          | Description                                                                                                                     |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| [vrowser](./packages/vrowser)                                                    | Preview with Vite HMR flavor for the browser                                                                                    |
+| [vrowser](./packages/vrowser)                                                    | Embeddable live preview system with HMR, powered by Vite dev server in the browser                                              |
 | [@vrowser/vite-plugin](./packages/vite-plugin)                                   | Vite plugin for vrowser                                                                                                         |
 | [@vrowser/vite-dev-server](./packages/vite-dev-server)                           | Vite dev server for vrowser                                                                                                     |
 | [@vrowser/rolldown](./packages/rolldown)                                         | Pre-bundled @rolldown/browser for easy browser usage                                                                            |

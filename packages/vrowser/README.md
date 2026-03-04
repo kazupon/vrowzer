@@ -1,8 +1,8 @@
 # vrowser
 
-Preview with Vite HMR flavor for the browser.
+Vite dev server in the browser.
 
-`vrowser` runs a Vite-compatible dev server entirely inside a Service Worker and Web Worker, enabling live preview with HMR in the browser without a back-end server.
+Embeddable live preview system with HMR support. Mount a Vite-powered preview iframe into your app with a simple API — no back-end server required.
 
 ## 💿 Installation
 
