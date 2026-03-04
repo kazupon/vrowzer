@@ -1,6 +1,16 @@
 # Vrowser
 
-Vite dev server in the browser
+<p align="center">
+  <img src="./assets/og-image.png" alt="Vrowser" />
+</p>
+
+<p align="center">
+  <strong>Vite dev server in the Browser</strong>
+</p>
+
+<p align="center">
+  <em>/vraʊzər/ — Vite + Browser</em>
+</p>
 
 ## 🐱 Motivation
 
