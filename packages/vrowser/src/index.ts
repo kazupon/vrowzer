@@ -274,6 +274,8 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
         })
 
         // 5. Initialize Service Worker and Web Worker in parallel
+        // initServiceWorker waits for both controller.ready() AND listen() completion,
+        // so when it resolves the SW is fully ready to accept MessageChannel connections.
         await Promise.all([
           initServiceWorker({
             scriptURL: new URL('./service-worker.ts', import.meta.url),
@@ -293,35 +295,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
           publisher.initFiles(allFiles)
         }
 
-        // 7. Wait for SW's listen() to complete (listenConnections registered)
-        // The SW sends V_SW_LISTEN_READY after listen() completes in the activate event.
-        // We listen for it via both navigator.serviceWorker message events
-        // AND poll by sending V_SW_LISTEN_READY_PING messages to the SW.
-        await withTimeout(
-          new Promise<void>(resolve => {
-            // Listen for the signal from SW
-            const handler = (event: MessageEvent) => {
-              if (event.data?.type === 'V_SW_LISTEN_READY') {
-                navigator.serviceWorker.removeEventListener('message', handler)
-                clearInterval(pollId)
-                resolve()
-              }
-            }
-            navigator.serviceWorker.addEventListener('message', handler)
-
-            // Also poll: send ping to SW, which responds with V_SW_LISTEN_READY if ready
-            const sw = getServiceWorker()
-            const pollId = setInterval(() => {
-              sw?.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
-            }, 500)
-            // Send first ping immediately
-            sw?.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
-          }),
-          30000,
-          'Service Worker listen ready'
-        )
-
-        // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
+        // 7. Establish MessageChannel (Service Worker ↔ Web Worker)
         await establishChannel()
 
         return true

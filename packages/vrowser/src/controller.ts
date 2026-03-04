@@ -32,12 +32,20 @@ export function getServiceWorker(): ServiceWorker | null {
 }
 
 /**
- * Initialize Service Worker
+ * Initialize Service Worker and wait for it to be fully ready.
+ *
+ * "Fully ready" means:
+ * 1. Service Worker is activated and controlling the page (via controller.ready())
+ * 2. Service Worker's Vite dev server has finished initializing (listen() completed)
+ *
+ * The second condition is checked by polling V_SW_LISTEN_READY_PING messages
+ * to the Service Worker, which responds with V_SW_LISTEN_READY when listen() has completed.
  */
 export async function initServiceWorker(options: {
   scriptURL: URL
   version: string
   scope: string
+  listenReadyTimeout?: number
 }): Promise<SvcWorkerController> {
   controller = createSvcWorkerController({
     scriptURL: options.scriptURL,
@@ -54,6 +62,41 @@ export async function initServiceWorker(options: {
   if (!ready) {
     throw new Error('Service Worker failed to become ready')
   }
+
+  // Wait for Service Worker's listen() to complete (listenConnections registered).
+  // Service worker processes are ephemeral — the browser can restart them at any time.
+  // listen() runs at the top level of the Service Worker script, so it executes on every
+  // process start. We poll until the Service Worker confirms it's ready.
+  const serviceWorker = controller.serviceWorker
+  if (!serviceWorker) {
+    throw new Error('Service Worker is not available after ready()')
+  }
+
+  const container = controller.container
+  const timeout = options.listenReadyTimeout ?? 30000
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      clearInterval(pollId)
+      container.removeEventListener('message', handler)
+      reject(new Error(`Service Worker listen() did not complete within ${timeout}ms`))
+    }, timeout)
+
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'V_SW_LISTEN_READY') {
+        clearTimeout(timer)
+        clearInterval(pollId)
+        container.removeEventListener('message', handler)
+        resolve()
+      }
+    }
+    container.addEventListener('message', handler)
+
+    // Poll: Service Worker responds to ping only after listen() completes
+    const pollId = setInterval(() => {
+      serviceWorker.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
+    }, 500)
+    serviceWorker.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
+  })
 
   return controller
 }
