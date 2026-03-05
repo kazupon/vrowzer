@@ -55,6 +55,7 @@
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@kazupon/jts-utils": "catalog:",
     "@vrowser/fs": "workspace:*",
     "@vrowser/service-worker": "workspace:*",
     "@vrowser/vite-dev-server": "workspace:*"

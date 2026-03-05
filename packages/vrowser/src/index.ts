@@ -40,10 +40,13 @@
  * @license MIT
  */
 
+import { Emitter } from '@kazupon/jts-utils/event'
 import { createFileSystemPublisher } from '@vrowser/fs/watcher'
 import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
 
+import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { FileSystemPublisher } from '@vrowser/fs/watcher'
+import type { SvcWorkerControllerEventMap } from '@vrowser/service-worker/controller'
 
 /**
  * VrowserOptions defines the configuration options for {@link Vrowser}.
@@ -68,9 +71,16 @@ export interface VrowserConfig {
 }
 
 /**
+ * Event map for {@link Vrowser}.
+ *
+ * Forwards all {@link SvcWorkerControllerEventMap} events from the underlying Service Worker controller.
+ */
+export type VrowserEventMap = SvcWorkerControllerEventMap
+
+/**
  * The main interface for the Vrowser preview environment.
  */
-export interface Vrowser {
+export interface Vrowser extends Emittable<VrowserEventMap> {
   /**
    * Ready for preview system initialization.
    *
@@ -151,6 +161,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
   const resolved = resolveVrowserOptions(options)
 
+  const _emitter = Emitter<VrowserEventMap>()
   const publisher: FileSystemPublisher = createFileSystemPublisher()
   let webWorker: Worker | null = null
   let iframe: HTMLIFrameElement | null = null
@@ -225,6 +236,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
   }
 
   const instance: Vrowser = {
+    ..._emitter,
     async ready(config: VrowserConfig): Promise<boolean> {
       try {
         // 1. Create Web Worker + add as publisher target
@@ -286,7 +298,25 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
           withTimeout(webWorkerReady, 30000, 'Web Worker setup')
         ])
 
-        // 6. Add Service Worker as publisher target + send initial files
+        // 6. Forward controller events to Vrowser emitter
+        const controller = getController()
+        if (controller) {
+          const events = [
+            'progress',
+            'reloadSuggested',
+            'changeState',
+            'suspended',
+            'terminated',
+            'resumed'
+          ] as const
+          for (const event of events) {
+            controller.on(event, ((...args: any[]) => {
+              ;(_emitter.emit as any)(event, ...args)
+            }) as any)
+          }
+        }
+
+        // 7. Add Service Worker as publisher target + send initial files
         const serviceWorker = getServiceWorker()
         if (serviceWorker) {
           publisher.addTarget({
@@ -296,7 +326,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
           publisher.initFiles(allFiles)
         }
 
-        // 7. Establish MessageChannel (Service Worker ↔ Web Worker)
+        // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
         await establishChannel()
 
         return true
