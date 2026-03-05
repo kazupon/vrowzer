@@ -45,6 +45,7 @@
     "test:e2e:rolldown": "vitest run --project rolldown:e2e",
     "test:e2e:server": "vitest run --project service-worker-server:e2e",
     "test:e2e:unplugin": "vitest run --project unplugin-service-worker:e2e",
+    "test:e2e:vrowser": "vitest run --project vrowser:e2e",
     "test:integration:polyfill": "vitest run --project node-polyfill:integration",
     "test:unit": "vitest run --project *:unit",
     "test:unit:fs": "vitest run --project fs:unit",
@@ -56,6 +57,7 @@
     "test:unit:vite-plugin": "vitest run --project vite-plugin:unit",
     "test:unit:vite:browser": "vitest run --project vite-dev-server:unit:browser",
     "test:unit:vite:node": "vitest run --project vite-dev-server:unit:node",
+    "test:unit:vrowser": "vitest run --project vrowser:unit",
     "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {

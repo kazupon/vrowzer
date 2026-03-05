@@ -41,7 +41,7 @@
  */
 
 import { createFileSystemPublisher } from '@vrowser/fs/watcher'
-import { getServiceWorker, initServiceWorker } from './controller.ts'
+import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
 
 import type { FileSystemPublisher } from '@vrowser/fs/watcher'
 
@@ -167,16 +167,17 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
     }
 
     const channel = new MessageChannel()
+    const controller = getController()
 
     // Wait for Service Worker's ACK
     const serviceWorkerAck = new Promise<void>(resolve => {
       const handler = (event: MessageEvent) => {
         if (event.data?.type === 'V_WW_CONNECT_PORT_ACK') {
-          navigator.serviceWorker.removeEventListener('message', handler)
+          controller?.container.removeEventListener('message', handler)
           resolve()
         }
       }
-      navigator.serviceWorker.addEventListener('message', handler)
+      controller?.container.addEventListener('message', handler)
     })
 
     // Wait for Web Worker's ACK
