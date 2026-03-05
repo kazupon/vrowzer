@@ -107,17 +107,3 @@ Porting status of `packages/vite-dev-server/src/shared/`.
 ### Not Yet Ported
 
 - [ ] ssrTransform.ts — SSR transform
-
-## Node Polyfills (`@vrowser/node-polyfill`)
-
-### Implemented
-
-- [x] events
-- [x] process
-- [x] timers / timers_promises
-- [x] dns / dns_promises
-- [x] os
-- [x] perf_hooks
-- [x] readline
-- [x] url
-- [x] util
