@@ -633,6 +633,9 @@ importers:
 
   packages/vrowser:
     dependencies:
+      '@kazupon/jts-utils':
+        specifier: 'catalog:'
+        version: 0.17.0(@vue/reactivity@3.5.26)
       '@vrowser/fs':
         specifier: workspace:*
         version: link:../fs

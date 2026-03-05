@@ -10,6 +10,14 @@ const statusText = ref('Loading...')
 
 const vrowser = Vrowser({ basePath: '/__preview__/' })
 
+vrowser.on('reloadSuggested', info => {
+  window.alert(
+    `Service Worker has been updated (reason: ${info.reason}).\n` +
+      `The page will be reloaded after closing this dialog.`
+  )
+  window.location.reload()
+})
+
 onMounted(async () => {
   // Collect initial files from EditorPanel
   const initialFiles: Record<string, string> = {}
