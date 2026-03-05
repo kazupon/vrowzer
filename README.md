@@ -40,6 +40,10 @@
 | [@vrowser/unplugin-service-worker](./packages/unplugin-service-worker)           | unplugin for `@vrowser/service-worker`                                                                                          |
 | [@vrowser/oxlint-plugin-service-worker](./packages/oxlint-plugin-service-worker) | Oxlint plugin for `@vrowser/service-worker`                                                                                     |
 
+## ✅ TODO
+
+List is [here](TODO.md)
+
 ## ©️ License
 
 [MIT](http://opensource.org/licenses/MIT)
