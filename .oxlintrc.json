@@ -51,6 +51,7 @@
     ".playwright-cli",
     ".vscode/**/*.json",
     ".claude/**/*.md",
+    "packages/node-polyfill/**/*.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
     "**/dist",
     "**/.output",
     "**/.output-shared",
