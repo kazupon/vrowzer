@@ -17,7 +17,12 @@ export default defineConfig({
         const srcDir = resolve(import.meta.dirname, 'src')
         const distDir = resolve(import.meta.dirname, 'dist')
         cpSync(resolve(srcDir, 'web-worker.ts'), resolve(distDir, 'web-worker.ts'))
+        cpSync(resolve(srcDir, 'web-worker-core.ts'), resolve(distDir, 'web-worker-core.ts'))
         cpSync(resolve(srcDir, 'service-worker.ts'), resolve(distDir, 'service-worker.ts'))
+        cpSync(
+          resolve(srcDir, 'service-worker-core.ts'),
+          resolve(distDir, 'service-worker-core.ts')
+        )
       }
     }
   ]

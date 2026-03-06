@@ -37,7 +37,9 @@
       "import": "./dist/index.js"
     },
     "./web-worker": "./dist/web-worker.ts",
+    "./web-worker-core": "./dist/web-worker-core.ts",
     "./service-worker": "./dist/service-worker.ts",
+    "./service-worker-core": "./dist/service-worker-core.ts",
     "./package.json": "./package.json"
   },
   "typesVersions": {

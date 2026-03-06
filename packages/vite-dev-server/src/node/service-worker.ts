@@ -275,6 +275,11 @@ export interface CreateServerOptions {
    */
   basePath?: string
   /**
+   * User plugins to inject into the Vite dev server.
+   * These are merged with the inline config plugins before resolving.
+   */
+  plugins?: import('vite').Plugin[]
+  /**
    * FSWawtcher factory function to create a custom FSWatcher instance.
    */
   watcherFactory?: (targets: string[], options: WatchOptions) => FSWatcher
@@ -323,6 +328,14 @@ export function createServer(
    * Start the Vite Dev Server
    */
   async function listen(): Promise<ViteDevServerForServiceWorker> {
+    // Merge user plugins from CreateServerOptions into the inline config
+    if (options.plugins?.length && !isResolvedConfig(inlineConfig)) {
+      ;(inlineConfig as InlineConfig).plugins = [
+        ...((inlineConfig as InlineConfig).plugins as any[] ?? []),
+        ...options.plugins,
+      ]
+    }
+
     const config = isResolvedConfig(inlineConfig)
       ? inlineConfig
       : await resolveConfig(inlineConfig, 'serve')

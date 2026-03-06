@@ -54,6 +54,11 @@ export interface CreateServerOptions {
    */
   watcher?: import('#dep-types/chokidar').FSWatcher
   /**
+   * User plugins to inject into the Vite dev server.
+   * These are merged with the inline config plugins before resolving.
+   */
+  plugins?: import('vite').Plugin[]
+  /**
    * Callback for messages not handled by the server protocol.
    * Use this for app-specific messages (e.g. 'bundle').
    */
@@ -119,7 +124,12 @@ export function createServer(
           const transformer = await import('./transformer')
 
           debug?.('transformer loaded, initializing...')
-          const result = await transformer.setupWorker(event.data.config, event.data.options, event.data.files, options.watcher)
+          const setupMsg = event.data as SetupWorkerMessage
+          // Merge user plugins from CreateServerOptions into the config
+          const setupConfig = options.plugins?.length
+            ? { ...setupMsg.config, plugins: [...(setupMsg.config.plugins as any[] ?? []), ...options.plugins] }
+            : setupMsg.config
+          const result = await transformer.setupWorker(setupConfig, setupMsg.options, setupMsg.files, options.watcher)
           const { config, environments, watcher, moduleGraph } = result
           ws = result.ws
           const clientEnv = environments.client

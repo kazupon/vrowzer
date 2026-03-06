@@ -40,6 +40,14 @@ export interface VrowserOptions {
    * @default undefined
    */
   serviceWorkerEntry?: string
+  /**
+   * Path to the vrowser config file.
+   * When specified, this path is used directly instead of auto-detection.
+   * When omitted, the plugin will search for `vrowser.config.{ts,js,mts,mjs}` in the project root.
+   *
+   * @default undefined
+   */
+  configFile?: string
 }
 
 export type ResolvedVrowserOptions = Required<VrowserOptions>
@@ -49,6 +57,7 @@ export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions 
     basePath: options.basePath ?? '/__preview__/',
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'SEVICE_WORKER_VERSION',
-    serviceWorkerEntry: options.serviceWorkerEntry ?? ''
+    serviceWorkerEntry: options.serviceWorkerEntry ?? '',
+    configFile: options.configFile ?? ''
   }
 }
