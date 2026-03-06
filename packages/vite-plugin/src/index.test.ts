@@ -2,9 +2,14 @@ import { describe, expect, test } from 'vitest'
 import { Vrowser } from './index.ts'
 
 describe('Vrowser', () => {
-  test('returns array of 5 plugins', () => {
+  test('returns array of 6 plugins', () => {
     const plugins = Vrowser()
-    expect(plugins).toHaveLength(5)
+    expect(plugins).toHaveLength(6)
+  })
+
+  test('includes vrowser:config plugin', () => {
+    const plugins = Vrowser()
+    expect(plugins.some((p: any) => p.name === 'vrowser:config')).toBe(true)
   })
 
   test('includes vrowser:server-middleware plugin', () => {
