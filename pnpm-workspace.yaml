@@ -8,7 +8,6 @@ catalog:
   get-port-please: ^3.2.0
   magic-string: ^0.30.21
   oxlint: ^1.50.0
-  playwright: 1.57.0
   publint: ^0.3.17
   rolldown: 1.0.0-rc.1
   tsdown: 0.18.4

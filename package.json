@@ -29,7 +29,6 @@
     "fix:oxlint": "oxlint --config .oxlintrc.json --type-aware --fix",
     "gen:wasm": "tsx scripts/generate-wasm.ts",
     "lint": "pnpm run --color \"/^lint:/\"",
-    "lint:clippy": "pnpm -r run lint:clippy",
     "lint:eslint": "eslint . --cache",
     "lint:knip": "knip",
     "lint:oxfmt": "oxfmt . --check --config ./node_modules/@kazupon/prettier-config/index.json",

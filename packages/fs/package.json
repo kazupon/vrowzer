@@ -76,7 +76,7 @@
     "@jsonjoy.com/fs-core": "4.56.10",
     "@jsonjoy.com/fs-node": "4.56.10",
     "@jsonjoy.com/fs-node-utils": "4.56.10",
-    "memfs": "^4.56.10"
+    "memfs": "4.56.10"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
