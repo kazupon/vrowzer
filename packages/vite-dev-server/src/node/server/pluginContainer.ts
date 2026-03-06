@@ -437,7 +437,6 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
       const pluginResolveStart = debugPluginResolve ? performance.now() : 0
       const handler = getHookHandler(plugin.resolveId)
       const result = await this.handleHookPromise(
-        // @ts-expect-error -- FIXME(kazupon): fix me
         handler.call(ctx as any, rawId, importer, normalizedOptions),
       )
       if (!result) { continue }
@@ -588,7 +587,6 @@ class EnvironmentPluginContainer<Env extends Environment = Environment> {
           handler.call(ctx as any, code, id, optionsWithSSR),
         )
       } catch (e) {
-        // @ts-expect-error -- ignore for context error
         ctx.error(e)
       }
       if (!result) { continue }
@@ -796,7 +794,6 @@ class PluginContext
           c.id === id && c.importer === importer && c.plugin === this._plugin,
       )
       if (sameCallIndex !== -1) {
-        // @ts-expect-error -- FIXME(kazupon): fix me
         skipCallsTemp[sameCallIndex] = {
           ...skipCallsTemp[sameCallIndex],
           called: true,
@@ -948,16 +945,13 @@ class PluginContext
         } catch (err2) {
           this.environment.logger.error(
             colors.red(
-              // @ts-expect-error -- FIXME(kazupon): fix me
               `Error in error handler:\n${err2.stack || err2.message}\n`,
             ),
             // print extra newline to separate the two errors
-            // @ts-expect-error -- FIXME(kazupon): fix me
             { error: err2 },
           )
           throw err
         }
-        // @ts-expect-error -- FIXME(kazupon): fix me
         err.loc = err.loc || {
           file: err.id,
           ...errLocation,
@@ -976,7 +970,6 @@ class PluginContext
           err.frame = generateCodeFrame(code, err.loc)
         }
       } else if ((err as any).line && (err as any).column) {
-        // @ts-expect-error -- FIXME(kazupon): fix me
         err.loc = {
           file: err.id,
           line: (err as any).line,

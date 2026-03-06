@@ -255,9 +255,7 @@ export class DevEnvironment extends BaseEnvironment {
       await this.transformRequest(url)
     } catch (e) {
       if (
-        // @ts-expect-error -- FIXME(kazupon): type error
         e?.code === ERR_OUTDATED_OPTIMIZED_DEP ||
-        // @ts-expect-error -- FIXME(kazupon): type error
         e?.code === ERR_CLOSED_SERVER
       ) {
         // these are expected errors
@@ -265,10 +263,8 @@ export class DevEnvironment extends BaseEnvironment {
       }
       // Unexpected error, log the issue but avoid an unhandled exception
       this.logger.error(
-        // @ts-expect-error -- FIXME(kazupon): type error
         buildErrorMessage(e, [`Pre-transform error: ${e.message}`], false),
         {
-          // @ts-expect-error -- FIXME(kazupon): type error
           error: e,
           timestamp: true,
         },

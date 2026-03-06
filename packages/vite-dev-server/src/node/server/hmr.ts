@@ -211,13 +211,9 @@ export const normalizeHotChannel = (
     } catch (error) {
       return {
         error: {
-          // @ts-expect-error -- FIXME(kazupon): type error
           name: error.name,
-          // @ts-expect-error -- FIXME(kazupon): type error
           message: error.message,
-          // @ts-expect-error -- FIXME(kazupon): type error
           stack: error.stack,
-          // @ts-expect-error -- FIXME(kazupon): type error
           ...error, // preserve enumerable properties such as RollupError.loc, frame, plugin
         },
       }
@@ -687,7 +683,6 @@ export function updateModules(
     }
 
     updates.push(
-      // @ts-expect-error -- TODO(kazupon): fix type error later ...
       ...boundaries.map(
         ({ boundary, acceptedVia, isWithinCircularImport }) => ({
           type: `${boundary.type}-update` as const,

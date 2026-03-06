@@ -33,7 +33,7 @@ import { loadTsconfigJsonForFile } from './esbuild'
 
 // IIFE content looks like `var MyLib = (function() {`.
 export const IIFE_BEGIN_RE: RegExp =
-  /(?:(?:const|var)\s+\S+\s*=\s*|^|\n)\(?function\([^()]*\)\s*\{(?:\s*"use strict";)?/
+  /(?:(?:(?:const|var)\s+[^.\s]+|[^.\s]+\.[^.\s]+\.[^.\s]+)\s*=\s*|^|\n)\(?function\([^()]*\)\s*\{(?:\s*"use strict";)?/
 // UMD content looks like `})(this, function(exports, external1, external2) {`.
 export const UMD_BEGIN_RE: RegExp =
   /\}\)\((?:this,\s*)?function\([^()]*\)\s*\{(?:\s*"use strict";)?/
