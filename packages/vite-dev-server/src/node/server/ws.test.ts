@@ -1,7 +1,6 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { createMessageChannelServer, isMessageChannelServer } from './ws'
 import type { ResolvedConfig } from '../config'
-import type { ConnectionEvent } from '@vrowser/service-worker-server'
 
 // --- Mock safeMessagePort ---
 
@@ -16,7 +15,7 @@ function createMockSafePort(rawPort: MessagePort) {
   const errorListeners: Set<ErrorListener> = new Set()
 
   const safePort = {
-    port: rawPort,
+    raw: rawPort,
     postMessage: vi.fn(),
     close: vi.fn(),
     start: vi.fn(),
@@ -57,34 +56,7 @@ vi.mock('@kazupon/jts-utils/message/port', () => ({
 
 // --- Mock Factories ---
 
-type ConnectionHandler = (event: ConnectionEvent<unknown>) => void
-
-function createMockHttpServer() {
-  const connectionHandlers: Set<ConnectionHandler> = new Set()
-
-  return {
-    on: vi.fn((event: string, handler: ConnectionHandler) => {
-      if (event === 'connection') {
-        connectionHandlers.add(handler)
-      }
-    }),
-    off: vi.fn((event: string, handler: ConnectionHandler) => {
-      if (event === 'connection') {
-        connectionHandlers.delete(handler)
-      }
-    }),
-    listenConnections: vi.fn(),
-    closeConnections: vi.fn((cb?: () => void) => cb?.()),
-    // Helper to simulate connection events
-    simulateConnection: (event: ConnectionEvent<unknown>) => {
-      connectionHandlers.forEach(h => h(event))
-    },
-    _getHandlerCount: () => connectionHandlers.size
-  }
-}
-
 function createMockMessagePort() {
-  // Create a minimal mock that will be wrapped by safeMessagePort
   const port = {
     postMessage: vi.fn(),
     close: vi.fn(),
@@ -109,6 +81,12 @@ function createMockConfig(options: { wsEnabled?: boolean } = {}) {
   } as ResolvedConfig
 }
 
+// Helper: add port to server, call listen, so port is activated
+function connectClient(ws: ReturnType<typeof createMessageChannelServer>, port: MessagePort, clientId?: string) {
+  ws.handlePort(port, clientId)
+  ws.listen()
+}
+
 // --- Tests ---
 
 describe('createMessageChannelServer', () => {
@@ -118,10 +96,9 @@ describe('createMessageChannelServer', () => {
 
   describe('with ws disabled (noop server)', () => {
     test('returns noop server when config.server.ws is false', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig({ wsEnabled: false })
 
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
       expect(ws[isMessageChannelServer]).toBe(true)
       expect(ws.clients.size).toBe(0)
@@ -134,78 +111,36 @@ describe('createMessageChannelServer', () => {
     })
 
     test('close() resolves immediately for noop server', async () => {
-      const server = createMockHttpServer()
       const config = createMockConfig({ wsEnabled: false })
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
       await expect(ws.close()).resolves.toBeUndefined()
     })
   })
 
   describe('connection handling', () => {
-    test('ignores connection events without vite:mc:init type', () => {
-      const server = createMockHttpServer()
+    test('handles valid port connection after listen', () => {
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
-      server.simulateConnection({
-        data: { type: 'other' },
-        ports: [port],
-        source: null
-      })
-
-      // safeMessagePort should not be created for non-init events
-      expect(ws.clients.size).toBe(0)
-    })
-
-    test('ignores connection events without ports', () => {
-      const server = createMockHttpServer()
-      const config = createMockConfig()
-      const ws = createMessageChannelServer(server as any, config)
-
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [],
-        source: null
-      })
-
-      expect(ws.clients.size).toBe(0)
-    })
-
-    test('handles valid vite:mc:init connection', () => {
-      const server = createMockHttpServer()
-      const config = createMockConfig()
-      const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
-
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null,
-        clientId: 'test-client-1'
-      })
+      connectClient(ws, port, 'test-client-1')
 
       const safePort = getMockSafePort(port)
-      expect(safePort.postMessage).toHaveBeenCalledWith({ type: 'vite:mc:init' })
-      expect(safePort.postMessage).toHaveBeenCalledWith({ type: 'connected' })
+      expect(safePort.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'vite:mc:init' }))
+      expect(safePort.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'connected' }))
       expect(ws.clients.size).toBe(1)
     })
 
     test('emits connection event when client connects', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
       const connectionHandler = vi.fn()
 
       ws.on('connection', connectionHandler)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       expect(connectionHandler).toHaveBeenCalledWith(port)
     })
@@ -213,23 +148,15 @@ describe('createMessageChannelServer', () => {
 
   describe('send', () => {
     test('broadcasts payload to all connected clients', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port1 = createMockMessagePort()
       const port2 = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
       // Connect 2 clients
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port1],
-        source: null
-      })
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port2],
-        source: null
-      })
+      ws.handlePort(port1)
+      ws.handlePort(port2)
+      ws.listen()
 
       const payload = { type: 'update' as const, updates: [] }
       ws.send(payload)
@@ -239,10 +166,9 @@ describe('createMessageChannelServer', () => {
     })
 
     test('buffers error payload when no clients connected', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
       const errorPayload = {
         type: 'error' as const,
@@ -251,29 +177,20 @@ describe('createMessageChannelServer', () => {
       ws.send(errorPayload)
 
       // Connect client - buffered message should be sent
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       expect(getMockSafePort(port).postMessage).toHaveBeenCalledWith(errorPayload)
     })
 
     test('buffers full-reload payload when no clients connected', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
       const reloadPayload = { type: 'full-reload' as const, path: '/test.js' }
       ws.send(reloadPayload)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       expect(getMockSafePort(port).postMessage).toHaveBeenCalledWith(reloadPayload)
     })
@@ -281,19 +198,14 @@ describe('createMessageChannelServer', () => {
 
   describe('custom event handling', () => {
     test('registers and triggers custom event listeners', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
       const customHandler = vi.fn()
 
       ws.on('my-custom-event', customHandler)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       getMockSafePort(port).simulateMessage({
         type: 'custom',
@@ -308,39 +220,29 @@ describe('createMessageChannelServer', () => {
     })
 
     test('unregisters custom event listeners with off()', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
       const customHandler = vi.fn()
 
       ws.on('my-event', customHandler)
       ws.off('my-event', customHandler)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
       getMockSafePort(port).simulateMessage({ type: 'custom', event: 'my-event', data: {} })
 
       expect(customHandler).not.toHaveBeenCalled()
     })
 
     test('ignores ping messages', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
       const customHandler = vi.fn()
 
       ws.on('ping', customHandler)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
       getMockSafePort(port).simulateMessage({ type: 'ping' })
 
       expect(customHandler).not.toHaveBeenCalled()
@@ -349,16 +251,11 @@ describe('createMessageChannelServer', () => {
 
   describe('close', () => {
     test('sends disconnect event to all clients', async () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       await ws.close()
 
@@ -372,16 +269,11 @@ describe('createMessageChannelServer', () => {
     })
 
     test('clears all clients after close', async () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
       expect(ws.clients.size).toBe(1)
 
       await ws.close()
@@ -390,9 +282,8 @@ describe('createMessageChannelServer', () => {
     })
 
     test('emits close event', async () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
       const closeHandler = vi.fn()
 
       ws.on('close', closeHandler)
@@ -400,42 +291,35 @@ describe('createMessageChannelServer', () => {
 
       expect(closeHandler).toHaveBeenCalled()
     })
-
-    test('removes connection handler from server', async () => {
-      const server = createMockHttpServer()
-      const config = createMockConfig()
-      const ws = createMessageChannelServer(server as any, config)
-
-      await ws.close()
-
-      expect(server.off).toHaveBeenCalledWith('connection', expect.any(Function))
-    })
   })
 
   describe('listen', () => {
-    test('calls server.listenConnections()', () => {
-      const server = createMockHttpServer()
+    test('activates pending ports on listen', () => {
       const config = createMockConfig()
-      const ws = createMessageChannelServer(server as any, config)
+      const port = createMockMessagePort()
+      const ws = createMessageChannelServer(config)
+      const connectionHandler = vi.fn()
 
+      ws.on('connection', connectionHandler)
+
+      // handlePort adds port to safePorts (tracked immediately)
+      ws.handlePort(port)
+      expect(ws.clients.size).toBe(1)
+
+      // But connection event (activation) fires only after listen()
+      expect(connectionHandler).not.toHaveBeenCalled()
       ws.listen()
-
-      expect(server.listenConnections).toHaveBeenCalled()
+      expect(connectionHandler).toHaveBeenCalledWith(port)
     })
   })
 
   describe('clients', () => {
     test('returns Set of MessageChannelClient objects', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       const clients = ws.clients
       expect(clients.size).toBe(1)
@@ -444,24 +328,18 @@ describe('createMessageChannelServer', () => {
       expect(client.port).toBe(port)
     })
 
-    test('clientId is set when vite:client:connect listener is registered', () => {
-      const server = createMockHttpServer()
+    test('clientId is set when provided to handlePort', () => {
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
       const connectHandler = vi.fn()
 
-      // Register vite:client:connect listener before connection
       ws.on('vite:client:connect', connectHandler)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null,
-        clientId: 'client-123'
-      })
+      // listen first, then handlePort — activation is immediate and clientId is preserved
+      ws.listen()
+      ws.handlePort(port, 'client-123')
 
-      // Handler should be called with client that has clientId
       expect(connectHandler).toHaveBeenCalledWith(
         undefined,
         expect.objectContaining({
@@ -472,16 +350,11 @@ describe('createMessageChannelServer', () => {
     })
 
     test('client.send() posts message to port', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       const client = Array.from(ws.clients)[0]
       client.send({ type: 'connected' })
@@ -490,16 +363,11 @@ describe('createMessageChannelServer', () => {
     })
 
     test('client.send() with string event creates custom payload', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       const client = Array.from(ws.clients)[0]
       client.send('my-event', { data: 'test' })
@@ -514,20 +382,15 @@ describe('createMessageChannelServer', () => {
 
   describe('error handling', () => {
     test('emits error event on messageerror', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
       const port = createMockMessagePort()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
       const errorHandler = vi.fn()
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       ws.on('error', errorHandler)
 
-      server.simulateConnection({
-        data: { type: 'vite:mc:init' },
-        ports: [port],
-        source: null
-      })
+      connectClient(ws, port)
 
       const mockError = new Error('test error')
       getMockSafePort(port).simulateError(mockError)
@@ -541,9 +404,8 @@ describe('createMessageChannelServer', () => {
 
   describe('isMessageChannelServer symbol', () => {
     test('server has isMessageChannelServer symbol set to true', () => {
-      const server = createMockHttpServer()
       const config = createMockConfig()
-      const ws = createMessageChannelServer(server as any, config)
+      const ws = createMessageChannelServer(config)
 
       expect(ws[isMessageChannelServer]).toBe(true)
     })

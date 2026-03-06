@@ -19,6 +19,15 @@ describe('createMessageChannelModuleRunnerTransport', () => {
     })
   }
 
+  // Helper to echo back the vite:mc:init handshake with matching clientId
+  function simulateInitEcho(postMessageMock: ReturnType<typeof vi.fn>) {
+    const call = postMessageMock.mock.calls.find(
+      (c: any[]) => c[0]?.type === 'vite:mc:init'
+    )
+    const clientId = call?.[0]?.clientId
+    simulateMessage({ type: 'vite:mc:init', clientId })
+  }
+
   beforeEach(() => {
     messageListeners = new Set()
     mockPort1PostMessage = vi.fn()
@@ -83,13 +92,13 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      // Simulate connection confirmation
-      simulateMessage({ type: 'vite:mc:init' })
+      // Simulate connection confirmation (echo back with matching clientId)
+      simulateInitEcho(mockPostMessage)
 
       await connectPromise
 
       expect(mockPostMessage).toHaveBeenCalledWith(
-        { type: 'vite:mc:init' },
+        expect.objectContaining({ type: 'vite:mc:init' }),
         [mockPort2]
       )
     })
@@ -111,8 +120,8 @@ describe('createMessageChannelModuleRunnerTransport', () => {
 
       expect(resolved).toBe(false)
 
-      // Simulate connection confirmation
-      simulateMessage({ type: 'vite:mc:init' })
+      // Simulate connection confirmation (echo back with matching clientId)
+      simulateInitEcho(mockPostMessage)
 
       await connectPromise
       expect(resolved).toBe(true)
@@ -146,7 +155,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       // Simulate HMR message
@@ -170,7 +179,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection,
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       // Simulate disconnect message
@@ -198,7 +207,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       expect(onMessage).toHaveBeenCalledWith(
@@ -224,7 +233,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       transport.disconnect()
@@ -245,7 +254,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       // Advance to trigger ping
@@ -277,7 +286,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       const payload = { type: 'custom', event: 'test', data: { foo: 'bar' } }
@@ -314,7 +323,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       mockPort1PostMessage.mockClear()
@@ -342,7 +351,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         onDisconnection: vi.fn(),
       })
 
-      simulateMessage({ type: 'vite:mc:init' })
+      simulateInitEcho(mockPostMessage)
       await connectPromise
 
       mockPort1PostMessage.mockClear()
