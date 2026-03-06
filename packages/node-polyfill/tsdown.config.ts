@@ -12,7 +12,10 @@ export default defineConfig({
     './src/process.ts',
     './src/readline.ts',
     './src/timers.ts',
-    './src/timers_promises.ts'
+    './src/timers_promises.ts',
+    './src/crypto.ts',
+    './src/tty.ts',
+    './src/module.ts'
   ],
   platform: 'browser',
   clean: true,

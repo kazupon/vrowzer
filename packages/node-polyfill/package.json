@@ -82,6 +82,21 @@
       "import": "./dist/timers_promises.js",
       "default": "./dist/timers_promises.js"
     },
+    "./crypto": {
+      "types": "./dist/crypto.d.ts",
+      "import": "./dist/crypto.js",
+      "default": "./dist/crypto.js"
+    },
+    "./tty": {
+      "types": "./dist/tty.d.ts",
+      "import": "./dist/tty.js",
+      "default": "./dist/tty.js"
+    },
+    "./module": {
+      "types": "./dist/module.d.ts",
+      "import": "./dist/module.js",
+      "default": "./dist/module.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

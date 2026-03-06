@@ -49,8 +49,91 @@ export function stripVTControlCharacters(str: string): string {
   return str.replace(ansiRegex, '')
 }
 
+/**
+ * Printf-style string formatting.
+ * Supports %s (string), %d/%i (integer), %f (float), %j (JSON), %o/%O (object), %% (literal %).
+ * Extra arguments are appended with space separator.
+ */
+export function format(...args: unknown[]): string {
+  if (args.length === 0) {
+    return ''
+  }
+  const first = args[0]
+  if (typeof first !== 'string') {
+    return args.map(a => (typeof a === 'string' ? a : inspect(a))).join(' ')
+  }
+
+  let i = 1
+  let result = first.replace(/%[sdifjoO%]/g, (match: string) => {
+    if (match === '%%') {
+      return '%'
+    }
+    if (i >= args.length) {
+      return match
+    }
+    const arg = args[i++]
+    switch (match) {
+      case '%s':
+        return String(arg)
+      case '%d':
+        return Number(arg).toString()
+      case '%i':
+        return Math.trunc(Number(arg)).toString()
+      case '%f':
+        return Number(arg).toString()
+      case '%j':
+        try {
+          return JSON.stringify(arg)
+        } catch {
+          return '[Circular]'
+        }
+      case '%o':
+      case '%O':
+        return inspect(arg)
+      default:
+        return match
+    }
+  })
+
+  // Append remaining arguments
+  for (; i < args.length; i++) {
+    const arg = args[i]
+    result += ' ' + (typeof arg === 'string' ? arg : inspect(arg))
+  }
+
+  return result
+}
+
+/**
+ * Format with options. In browser environments, the options are ignored
+ * and this behaves like `format()`.
+ */
+export function formatWithOptions(_inspectOptions: unknown, ...args: unknown[]): string {
+  return format(...args)
+}
+
+/**
+ * Copy properties from source to target (Object.assign equivalent).
+ * @deprecated Use Object.assign instead.
+ */
+export function _extend<T extends object>(target: T, source: object): T {
+  return Object.assign(target, source)
+}
+
+/**
+ * Wrap a function with a deprecation warning.
+ * In browser environments, the warning is suppressed and the original function is returned as-is.
+ */
+export function deprecate<T extends Function>(fn: T, _msg: string, _code?: string): T {
+  return fn
+}
+
 export default {
   promisify,
   inspect,
-  stripVTControlCharacters
+  stripVTControlCharacters,
+  format,
+  formatWithOptions,
+  _extend,
+  deprecate
 }
