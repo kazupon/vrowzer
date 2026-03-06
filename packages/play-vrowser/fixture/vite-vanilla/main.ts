@@ -2,6 +2,7 @@ import './style.css'
 import vrowserLogo from './vrowser.svg'
 import typescriptLogo from './typescript.svg'
 import { setupCounter } from './counter.ts'
+import data from './data.yaml'
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
@@ -15,6 +16,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <div class="card">
       <button id="counter" type="button"></button>
     </div>
+    <p class="yaml-data">${data.title}</p>
+    <ul class="yaml-list">
+      ${data.items.map((item: { name: string; description: string }) => `<li><strong>${item.name}</strong>: ${item.description}</li>`).join('')}
+    </ul>
     <p class="read-the-docs">
       Click on the Vrowser and TypeScript logos to learn more
     </p>

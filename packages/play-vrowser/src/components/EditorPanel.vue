@@ -8,6 +8,7 @@ import counterRaw from '../../fixture/vite-vanilla/counter.ts?raw'
 import styleRaw from '../../fixture/vite-vanilla/style.css?raw'
 import vrowserSvgRaw from '../../fixture/vite-vanilla/vrowser.svg?raw'
 import tsSvgRaw from '../../fixture/vite-vanilla/typescript.svg?raw'
+import dataYamlRaw from '../../fixture/vite-vanilla/data.yaml?raw'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
 const ts = (monaco.languages as any).typescript
@@ -23,6 +24,7 @@ const files = ref<Map<string, string>>(
     ['/style.css', styleRaw],
     ['/vrowser.svg', vrowserSvgRaw],
     ['/typescript.svg', tsSvgRaw],
+    ['/data.yaml', dataYamlRaw],
     ['/index.html', indexHtmlRaw]
   ])
 )
@@ -50,6 +52,11 @@ function getLanguage(path: string): string {
     case 'css':
       return 'css'
     case 'html':
+      return 'html'
+    case 'yaml':
+    case 'yml':
+      return 'yaml'
+    case 'vue':
       return 'html'
     default:
       return 'plaintext'

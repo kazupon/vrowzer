@@ -235,6 +235,9 @@ importers:
         specifier: ^3.5.24
         version: 3.5.26(typescript@5.9.3)
     devDependencies:
+      '@rollup/plugin-yaml':
+        specifier: ^4.1.2
+        version: 4.1.2(rollup@4.55.1)
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.1
@@ -2946,6 +2949,15 @@ packages:
     engines: {node: '>=14.0.0'}
     peerDependencies:
       rollup: ^2.78.0||^3.0.0||^4.0.0
+    peerDependenciesMeta:
+      rollup:
+        optional: true
+
+  '@rollup/plugin-yaml@4.1.2':
+    resolution: {integrity: sha512-RpupciIeZMUqhgFE97ba0s98mOFS7CWzN3EJNhJkqSv9XLlWYtwVdtE6cDw6ASOF/sZVFS7kRJXftaqM2Vakdw==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      rollup: ^1.20.0||^2.0.0||^3.0.0||^4.0.0
     peerDependenciesMeta:
       rollup:
         optional: true
@@ -6320,6 +6332,10 @@ packages:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
 
+  tosource@2.0.0-alpha.3:
+    resolution: {integrity: sha512-KAB2lrSS48y91MzFPFuDg4hLbvDiyTjOVgaK7Erw+5AmZXNq4sFRVn8r6yxSLuNs15PaokrDRpS61ERY9uZOug==}
+    engines: {node: '>=10'}
+
   totalist@3.0.1:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
     engines: {node: '>=6'}
@@ -8412,6 +8428,14 @@ snapshots:
       deepmerge: 4.3.1
       is-module: 1.0.0
       resolve: 1.22.11
+    optionalDependencies:
+      rollup: 4.55.1
+
+  '@rollup/plugin-yaml@4.1.2(rollup@4.55.1)':
+    dependencies:
+      '@rollup/pluginutils': 5.3.0(rollup@4.55.1)
+      js-yaml: 4.1.1
+      tosource: 2.0.0-alpha.3
     optionalDependencies:
       rollup: 4.55.1
 
@@ -12126,6 +12150,8 @@ snapshots:
       reserved-identifiers: 1.2.0
 
   toidentifier@1.0.1: {}
+
+  tosource@2.0.0-alpha.3: {}
 
   totalist@3.0.1: {}
 
