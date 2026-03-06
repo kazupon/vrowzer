@@ -1,15 +1,16 @@
 /// <reference lib="webworker" />
-import { createServer, type ViteDevServer } from '@vrowser/vite-dev-server'
+import { createServer } from '@vrowser/vite-dev-server/service-worker'
+import type { ViteDevServerForServiceWorker as ViteDevServer } from '@vrowser/vite-dev-server/service-worker'
 
 declare const self: ServiceWorkerGlobalScope
 
 // Service Worker version - must match what the test controller expects
 const SW_VERSION = 'test-v1'
 
-// Create listenable server synchronously - fetch event is registered immediately
+// Create listen function synchronously - fetch event is registered immediately
 // This MUST be at script top-level to register fetch handler during script evaluation
 // The version option is passed to createSvcWorkerServer which handles controller protocol
-const listenableServer = createServer(
+const listen = createServer(
   self,
   {
     root: '/',
@@ -21,21 +22,33 @@ const listenableServer = createServer(
 )
 
 // Server instance will be set after listen()
-let server: Omit<ViteDevServer, 'listen'> | null = null
+let server: ViteDevServer | null = null
+
+// Start the server at top level (same pattern as vrowser's service-worker-core.ts)
+// This ensures the server is ready regardless of when activate fires
+const listenPromise = listen()
+let listenReady = false
+listenPromise.then(s => {
+  server = s
+  listenReady = true
+}).catch(err => {
+  console.error('[test-sw] listen() failed:', err)
+})
 
 // Service Worker install
 self.addEventListener('install', (_event) => {
-  // Skip waiting to activate immediately, if you want to skip waiting
-  // self.skipWaiting()
+  // Skip waiting to activate immediately
 })
 
 // Service Worker activate
-// Note: createSvcWorkerServer handles clients.claim() via claimOnActivate option
-// We start the server during activation - listen() returns a Promise that resolves when ready
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    listenableServer.listen().then(s => {
-      server = s
+    listenPromise.then(async () => {
+      // Signal ready to all clients
+      const clients = await self.clients.matchAll({ includeUncontrolled: true })
+      for (const client of clients) {
+        client.postMessage({ type: 'V_SW_LISTEN_READY' })
+      }
     })
   )
 })
@@ -46,6 +59,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('message', async (event) => {
   const data = event.data
   if (!data || typeof data.type !== 'string') {return}
+
+  // Respond to listen-ready ping from main thread
+  if (data.type === 'V_SW_LISTEN_READY_PING' && listenReady) {
+    const clientId = (event.source as Client | null)?.id
+    if (clientId) {
+      const client = await self.clients.get(clientId)
+      client?.postMessage({ type: 'V_SW_LISTEN_READY' })
+    }
+    return
+  }
 
   const port = event.ports?.[0]
 

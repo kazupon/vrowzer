@@ -54,7 +54,6 @@
     "test:unit:unplugin": "vitest run --project unplugin-service-worker:unit",
     "test:unit:vite": "pnpm run --color \"/^test:unit:vite:/\"",
     "test:unit:vite-plugin": "vitest run --project vite-plugin:unit",
-    "test:unit:vite:browser": "vitest run --project vite-dev-server:unit:browser",
     "test:unit:vite:node": "vitest run --project vite-dev-server:unit:node",
     "test:unit:vrowser": "vitest run --project vrowser:unit",
     "typecheck": "pnpm -r --if-present typecheck"

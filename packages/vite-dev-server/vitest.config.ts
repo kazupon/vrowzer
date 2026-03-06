@@ -30,7 +30,7 @@ const alias = targets.reduce(
     if (target === '') {
       const entryPath = path.resolve(__dirname, './dist/node/index.js')
       if (!fs.existsSync(entryPath)) {
-        // Skip if index.js doesn't exist (nodeConfig's index entry is commented out)
+        // index.js entry is commented out in rolldown.config.ts — skip
         return acc
       }
       acc['@vrowser/vite-dev-server'] = entryPath
@@ -53,6 +53,39 @@ if (fs.existsSync(serviceWorkerControllerPath)) {
   alias['@vrowser/service-worker/controller'] = serviceWorkerControllerPath
 }
 
+// Node.js polyfill aliases for Service Worker bundling (browser environment)
+// These are used by unplugin-service-worker's rolldown bundler via resolve.alias extraction
+const nodePolyfillAliases: Record<string, string> = {
+  'node:events': '@vrowser/node-polyfill/events',
+  'node:path': 'pathe',
+  'node:stream': 'readable-stream/lib/stream',
+  'node:buffer': 'buffer',
+  'node:dns': '@vrowser/node-polyfill/dns',
+  'node:fs': '@vrowser/fs',
+  'node:fs/promises': '@vrowser/fs/promises',
+  'node:url': '@vrowser/node-polyfill/url',
+  'node:readline': '@vrowser/node-polyfill/readline',
+  'node:util': '@vrowser/node-polyfill/util',
+  'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
+  'node:crypto': '@vrowser/node-polyfill/crypto',
+  'node:tty': '@vrowser/node-polyfill/tty',
+  'node:module': '@vrowser/node-polyfill/module',
+  buffer: 'buffer',
+  dns: '@vrowser/node-polyfill/dns',
+  events: '@vrowser/node-polyfill/events',
+  path: 'pathe',
+  stream: 'readable-stream/lib/stream',
+  readline: '@vrowser/node-polyfill/readline',
+  util: '@vrowser/node-polyfill/util',
+  perf_hooks: '@vrowser/node-polyfill/perf_hooks',
+  fs: '@vrowser/fs',
+  'fs/promises': '@vrowser/fs/promises',
+  url: '@vrowser/node-polyfill/url',
+  crypto: '@vrowser/node-polyfill/crypto',
+  tty: '@vrowser/node-polyfill/tty',
+  module: '@vrowser/node-polyfill/module',
+}
+
 export default defineConfig({
   root: __dirname,
   publicDir: path.resolve(__dirname, 'test-public'),
@@ -62,6 +95,6 @@ export default defineConfig({
     port: 5174
   },
   resolve: {
-    alias
+    alias: { ...alias, ...nodePolyfillAliases }
   }
 })

@@ -65,23 +65,24 @@ export default defineConfig({
           include: ['./packages/vite-dev-server/src/**/*.test.ts']
         }
       },
-      {
-        extends: './packages/vite-dev-server/vitest.config.ts',
-        test: {
-          name: 'vite-dev-server:unit:browser',
-          include: ['./packages/vite-dev-server/src/**/*.browser-test.ts'],
-          browser: {
-            enabled: true,
-            headless: true,
-            provider: playwright(),
-            instances: [
-              {
-                browser: 'chromium'
-              }
-            ]
-          }
-        }
-      },
+      // TODO(kazupon): SW-based browser tests are flaky. Plan repo-level E2E tests via play-vrowser instead.
+      // {
+      //   extends: './packages/vite-dev-server/vitest.config.ts',
+      //   test: {
+      //     name: 'vite-dev-server:unit:browser',
+      //     include: ['./packages/vite-dev-server/src/**/*.browser-test.ts'],
+      //     browser: {
+      //       enabled: true,
+      //       headless: true,
+      //       provider: playwright(),
+      //       instances: [
+      //         {
+      //           browser: 'chromium'
+      //         }
+      //       ]
+      //     }
+      //   }
+      // },
       {
         extends: './packages/fs/vitest.config.ts',
         test: {

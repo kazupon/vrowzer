@@ -17,6 +17,32 @@ async function sendMessage(sw: ServiceWorker, message: unknown): Promise<any> {
   })
 }
 
+// Wait for SW's Vite dev server to finish initialization (listen() completion)
+async function waitForServerReady(controller: SvcWorkerController, timeout = 10000): Promise<void> {
+  await controller.ready()
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      // Before rejecting, try to get server status for debugging
+      const sw = controller.serviceWorker
+      if (sw) {
+        sendMessage(sw, { type: 'GET_SERVER_STATUS' }).then(status => {
+          console.error('[waitForServerReady] timeout - server status:', status)
+        }).catch(() => {})
+      }
+      reject(new Error('Server listen timeout'))
+    }, timeout)
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === 'V_SW_LISTEN_READY') {
+        clearTimeout(timer)
+        navigator.serviceWorker.removeEventListener('message', handler)
+        resolve()
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', handler)
+    controller.serviceWorker?.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
+  })
+}
+
 // Track controller for cleanup
 let currentController: SvcWorkerController | null = null
 
@@ -44,7 +70,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       const sw = currentController.serviceWorker
       expect(sw).not.toBeNull()
@@ -63,7 +89,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       const sw = currentController.serviceWorker
       expect(sw).not.toBeNull()
@@ -79,7 +105,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       const sw = currentController.serviceWorker
       expect(sw).not.toBeNull()
@@ -97,7 +123,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       // After listen(), the SW should be able to handle fetch requests
       const sw = currentController.serviceWorker
@@ -114,7 +140,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       // If we got here, listen() returned successfully in the SW
       const sw = currentController.serviceWorker
@@ -133,7 +159,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       const response = await fetch('/hello')
       expect(response.ok).toBe(true)
@@ -149,7 +175,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       const response = await fetch('/hello')
       expect(response.ok).toBe(true)
@@ -163,7 +189,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       // Create an iframe and perform fetch from within it
       const iframe = document.createElement('iframe')
@@ -246,7 +272,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       const sw = currentController.serviceWorker
       expect(sw).not.toBeNull()
@@ -262,7 +288,7 @@ describe('createServer', () => {
         scope: '/',
       })
 
-      await currentController.ready()
+      await waitForServerReady(currentController)
 
       const sw = currentController.serviceWorker
       expect(sw).not.toBeNull()
