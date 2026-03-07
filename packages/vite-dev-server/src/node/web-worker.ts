@@ -173,6 +173,16 @@ export function createServer(
           // Setup HMR after server is ready
           await transformer.setupHMR(server as ViteDevServer)
 
+          // Call configureServer hooks on user plugins.
+          // Plugins like @vitejs/plugin-vue store the server reference in configureServer
+          // to enable HMR code injection in SFC transforms. Without this, Vue SFCs won't
+          // have import.meta.hot.accept() and all changes trigger full page reloads.
+          for (const plugin of config.plugins) {
+            if (typeof plugin.configureServer === 'function') {
+              await plugin.configureServer(server as ViteDevServer)
+            }
+          }
+
           // Send ACK to Main Thread with config and environment info
           workerScope.postMessage({ type: V_WW_SETUP_ACK })
           debug?.('setup complete')
