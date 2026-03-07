@@ -50,6 +50,9 @@ export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
             'node:readline': '@vrowser/node-polyfill/readline',
             'node:util': '@vrowser/node-polyfill/util',
             'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
+            'node:crypto': '@vrowser/node-polyfill/crypto',
+            'node:tty': '@vrowser/node-polyfill/tty',
+            'node:module': '@vrowser/node-polyfill/module',
             buffer: 'buffer',
             dns: '@vrowser/node-polyfill/dns',
             events: '@vrowser/node-polyfill/events',
@@ -64,7 +67,10 @@ export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
             process: '@vrowser/node-polyfill/process',
             fs: '@vrowser/fs',
             'fs/promises': '@vrowser/fs/promises',
-            url: '@vrowser/node-polyfill/url'
+            url: '@vrowser/node-polyfill/url',
+            crypto: '@vrowser/node-polyfill/crypto',
+            tty: '@vrowser/node-polyfill/tty',
+            module: '@vrowser/node-polyfill/module'
           }
         },
         worker: {

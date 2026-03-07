@@ -17,9 +17,9 @@ import { corePlugin } from './core.ts'
 import { resolveOptions } from './options.ts'
 import { rolldownPlugin } from './rolldown.ts'
 import { serverMiddlewarePlugin } from './server.ts'
-import { generateServiceWorkerEntry, generateWebWorkerEntry } from './virtual.ts'
+import { generateWebWorkerEntry } from './virtual.ts'
 
-import type { Plugin } from 'vite'
+import type { Plugin, UserConfig } from 'vite'
 import type { VrowserOptions } from './options.ts'
 
 const CONFIG_FILE_NAMES = [
@@ -53,8 +53,8 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
   const root = process.cwd()
   const vrowserConfigPath = detectConfigFile(root, resolvedOptions.configFile || undefined)
 
-  // Reusable transform function for injecting vrowser.config.ts plugins into Worker entries
-  function webWorkerEntryTransform(code: string, id: string) {
+  // Transform function for injecting vrowser.config.ts plugins into WW entry
+  function workerEntryTransform(code: string, id: string) {
     if (!vrowserConfigPath) {
       return
     }
@@ -66,35 +66,56 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     ) {
       return { code: generateWebWorkerEntry(vrowserConfigPath), map: null }
     }
-    if (
-      cleanId?.endsWith('service-worker.ts') &&
-      !cleanId.endsWith('service-worker-core.ts') &&
-      code.includes('initServiceWorker()')
-    ) {
-      return { code: generateServiceWorkerEntry(vrowserConfigPath), map: null }
-    }
   }
 
   const vrowserConfigPlugin: Plugin = {
     name: 'vrowser:config',
-    config() {
-      if (!vrowserConfigPath) {
-        return
-      }
-      // Add Web Worker transform to worker.plugins so it applies during Vite's Worker bundling (build mode)
-      return {
-        worker: {
-          plugins: () => [
-            {
-              name: 'vrowser:web-worker-config-inject',
-              transform: webWorkerEntryTransform
+    config(): UserConfig {
+      const workerPlugins: Plugin[] = [
+        // Inject `process` polyfill into Worker bundle.
+        // In dev mode, @rollup/plugin-inject handles this in the main pipeline.
+        // In build mode, corePlugin's options hook sets transform.inject for the main build,
+        // but Worker bundling runs a separate rolldown instance that doesn't inherit user plugins.
+        // This worker plugin ensures the inject is applied in the Worker build as well.
+        {
+          name: 'vrowser:worker-process-inject',
+          options(inputOptions: any) {
+            inputOptions.transform ??= {}
+            inputOptions.transform.inject = {
+              ...inputOptions.transform.inject,
+              process: '@vrowser/node-polyfill/process'
             }
-          ]
+          }
+        }
+      ]
+
+      // In build mode, Worker entries are bundled by Vite's `bundleWorkerEntry` which uses
+      // worker.plugins. The WW entry transform (injecting vrowser.config.ts) must be included here.
+      if (vrowserConfigPath) {
+        workerPlugins.push({
+          name: 'vrowser:web-worker-config-inject',
+          transform: workerEntryTransform
+        })
+      }
+
+      return {
+        // Resolve bare "vite" imports to @vrowser/vite-dev-server/vite.
+        // Ecosystem plugins (e.g. @vitejs/plugin-vue) import from "vite" which pulls in
+        // lightningcss native bindings. Using resolve.alias ensures this applies to both
+        // the main build pipeline and Worker bundling (Vite inherits resolve.alias for workers).
+        // The regex ensures only exact "vite" is matched, preserving "vite/modulepreload-polyfill".
+        resolve: {
+          alias: [{ find: /^vite$/, replacement: '@vrowser/vite-dev-server/vite' }]
+        },
+        worker: {
+          plugins: () => workerPlugins
         }
       }
     },
     // Transform for dev mode (Vite serves Worker modules through the main pipeline)
-    transform: webWorkerEntryTransform
+    transform(code: string, id: string) {
+      return workerEntryTransform(code, id)
+    }
   }
 
   return [
@@ -116,31 +137,7 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     ServiceWorker({
       serviceWorkerAllowed: '/',
       format: 'esm',
-      ...(resolvedOptions.serviceWorkerEntry ? { entry: resolvedOptions.serviceWorkerEntry } : {}),
-      // Pass Service Worker transform plugin directly to unplugin-service-worker's bundler
-      // to inject user plugins from vrowser.config.ts into the Service Worker entry
-      ...(vrowserConfigPath
-        ? {
-            plugins: [
-              {
-                name: 'vrowser:sw-config-inject',
-                transform(code: string, id: string) {
-                  const cleanId = id.split('?')[0]
-                  if (
-                    cleanId.endsWith('service-worker.ts') &&
-                    !cleanId.endsWith('service-worker-core.ts') &&
-                    code.includes('initServiceWorker()')
-                  ) {
-                    return {
-                      code: generateServiceWorkerEntry(vrowserConfigPath!),
-                      map: null
-                    }
-                  }
-                }
-              }
-            ]
-          }
-        : {})
+      ...(resolvedOptions.serviceWorkerEntry ? { entry: resolvedOptions.serviceWorkerEntry } : {})
     })
   ]
 }

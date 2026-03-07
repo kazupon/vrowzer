@@ -65,6 +65,9 @@
     "pathe": "catalog:",
     "readable-stream": "catalog:"
   },
+  "peerDependencies": {
+    "@vrowser/vite-dev-server": "workspace:*"
+  },
   "devDependencies": {
     "publint": "catalog:",
     "tsdown": "catalog:",
