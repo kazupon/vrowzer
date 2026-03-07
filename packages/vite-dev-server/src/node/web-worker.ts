@@ -142,6 +142,7 @@ export function createServer(
             environments,
             moduleGraph,
             watcher,
+            ws,
             transformRequest: (url, options) => {
               debug?.('transformRequest:', url, options)
               if (server == null) {

@@ -56,6 +56,7 @@ export type ViteDevServerForWorker = Pick<ViteDevServer,
   | 'environments'
   | 'moduleGraph'
   | 'watcher'
+  | 'ws'
   | 'transformRequest'
   | 'warmupRequest'
   | 'transformIndexHtml'
