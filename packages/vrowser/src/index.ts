@@ -42,6 +42,16 @@
 
 import { Emitter } from '@kazupon/jts-utils/event'
 import { createFileSystemPublisher } from '@vrowser/fs/watcher'
+import {
+  V_WW_READY,
+  V_WW_SETUP,
+  V_WW_SETUP_ACK,
+  V_WW_SETUP_ERROR,
+  V_WW_CONNECT_PORT,
+  V_SW_CONNECT_PORT,
+  V_WW_CONNECT_PORT_ACK,
+  V_SW_CONNECT_PORT_ACK
+} from '@vrowser/vite-dev-server/messages'
 import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
@@ -183,7 +193,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
     // Wait for Service Worker's ACK
     const serviceWorkerAck = new Promise<void>(resolve => {
       const handler = (event: MessageEvent) => {
-        if (event.data?.type === 'V_WW_CONNECT_PORT_ACK') {
+        if (event.data?.type === V_WW_CONNECT_PORT_ACK) {
           controller?.container.removeEventListener('message', handler)
           resolve()
         }
@@ -195,7 +205,7 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
     const webWorkerAck = new Promise<void>(resolve => {
       const prevHandler = webWorker!.onmessage
       webWorker!.onmessage = (event: MessageEvent) => {
-        if (event.data.type === 'V_SW_CONNECT_PORT_ACK') {
+        if (event.data.type === V_SW_CONNECT_PORT_ACK) {
           webWorker!.onmessage = prevHandler
           resolve()
           return
@@ -205,8 +215,8 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
     })
 
     // Transfer ports
-    serviceWorker.postMessage({ type: 'V_WW_CONNECT_PORT' }, [channel.port1])
-    webWorker.postMessage({ type: 'V_SW_CONNECT_PORT' }, [channel.port2])
+    serviceWorker.postMessage({ type: V_WW_CONNECT_PORT }, [channel.port1])
+    webWorker.postMessage({ type: V_SW_CONNECT_PORT }, [channel.port2])
 
     // Wait for both sides to complete handshake + birpc setup
     await withTimeout(
@@ -241,22 +251,12 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
       try {
         // 1. Create Web Worker + add as publisher target
         webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
+        webWorker.onerror = event => {
+          console.error('[Vrowser] Web Worker error:', event.message, event.filename, event.lineno)
+        }
         publisher.addTarget(webWorker)
 
-        // 2. V_WW_SETUP: send config and wait for ACK
-        const webWorkerReady = new Promise<void>(resolve => {
-          const prevHandler = webWorker!.onmessage
-          webWorker!.onmessage = (event: MessageEvent) => {
-            if (event.data.type === 'V_WW_SETUP_ACK') {
-              webWorker!.onmessage = prevHandler
-              resolve()
-              return
-            }
-            prevHandler?.call(webWorker!, event)
-          }
-        })
-
-        // 3. Import dist client files and merge with user files
+        // 2. Import dist client files and merge with user files
         const { default: clientCode } =
           await import('@vrowser/vite-dev-server/dist/client/client.mjs?raw')
         const { default: envCode } =
@@ -267,23 +267,51 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
           '/dist/client/env.mjs': envCode
         }
 
-        // 4. Send V_WW_SETUP message
-        webWorker.postMessage({
-          type: 'V_WW_SETUP',
-          config: {
-            root: '/',
-            base: resolved.basePath,
-            publicDir: 'public',
-            optimizeDeps: { disabled: true },
-            experimental: {
-              importGlobRestoreExtension: false,
-              hmrPartialAccept: false,
-              enableNativePlugin: 'v2',
-              bundledDev: false
+        // 3. Wait for WW to signal readiness, then send setup config and wait for ACK.
+        // V_WW_READY is sent by createServer() after self.onmessage is registered.
+        // Without this handshake, V_WW_SETUP can be lost if the WW module evaluation
+        // takes time (e.g. when user plugins import heavy modules via "vite" alias).
+        const webWorkerReady = new Promise<void>((resolve, reject) => {
+          webWorker!.onmessage = (event: MessageEvent) => {
+            if (event.data.type === V_WW_READY) {
+              // WW's self.onmessage is registered — safe to send V_WW_SETUP now.
+              // Replace handler to wait for ACK/ERROR.
+              webWorker!.onmessage = (event: MessageEvent) => {
+                if (event.data.type === V_WW_SETUP_ACK) {
+                  webWorker!.onmessage = null
+                  resolve()
+                  return
+                }
+                if (event.data.type === V_WW_SETUP_ERROR) {
+                  webWorker!.onmessage = null
+                  const errData = event.data.error ?? {}
+                  reject(
+                    new Error(`Web Worker setup failed: ${errData.message ?? 'unknown error'}`)
+                  )
+                  return
+                }
+              }
+
+              // Send V_WW_SETUP after receiving V_WW_READY
+              webWorker!.postMessage({
+                type: V_WW_SETUP,
+                config: {
+                  root: '/',
+                  base: resolved.basePath,
+                  publicDir: 'public',
+                  optimizeDeps: { disabled: true },
+                  experimental: {
+                    importGlobRestoreExtension: false,
+                    hmrPartialAccept: false,
+                    enableNativePlugin: 'v2',
+                    bundledDev: false
+                  }
+                },
+                options: { basePath: resolved.basePath },
+                files: allFiles
+              })
             }
-          },
-          options: { basePath: resolved.basePath },
-          files: allFiles
+          }
         })
 
         // 5. Initialize Service Worker and Web Worker in parallel

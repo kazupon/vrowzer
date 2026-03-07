@@ -18,8 +18,20 @@
 // ---- Web Worker setup protocol ----
 
 /**
+ * Web Worker -> Main Thread: Worker's `self.onmessage` is registered and ready to receive messages.
+ * Sent immediately after `createServer()` registers its message handler.
+ *
+ * Without this handshake, a race condition can occur: if the Web Worker module evaluation
+ * takes time (e.g. loading WASM via user plugins that import from "vite"),
+ * Main Thread may send `V_WW_SETUP` before `onmessage` is set, causing the message to be lost.
+ */
+export interface WorkerReadyMessage {
+  type: 'V_WW_READY'
+}
+
+/**
  * Main Thread -> Web Worker: Initialize worker with config.
- * Sent after `new Worker()` to trigger `setupWorker()`.
+ * Sent after receiving `V_WW_READY` to trigger `setupWorker()`.
  */
 export interface SetupWorkerMessage {
   type: 'V_WW_SETUP'
@@ -28,7 +40,7 @@ export interface SetupWorkerMessage {
    */
   config: Record<string, unknown>
   /**
-   * Intialize web worker
+   * Initialize web worker
    */
   options?: Record<string, unknown>
   /**
@@ -44,6 +56,19 @@ export interface SetupWorkerMessage {
  */
 export interface SetupWorkerAckMessage {
   type: 'V_WW_SETUP_ACK'
+}
+
+/**
+ * Web Worker -> Main Thread: Worker initialization failed.
+ * Sent when `setupWorker()` throws an error.
+ * Allows Main Thread to fail fast instead of waiting for timeout.
+ */
+export interface SetupWorkerErrorMessage {
+  type: 'V_WW_SETUP_ERROR'
+  error: {
+    message: string
+    stack?: string
+  }
 }
 
 // ---- Service Worker <-> Web Worker MessageChannel connection protocol ----
@@ -118,14 +143,38 @@ export interface ViteMessageChannelInitMessage {
   clientId?: string
 }
 
+// ---- Service Worker listen readiness protocol ----
+
+/**
+ * Main Thread -> Service Worker: Poll whether the Service Worker's `listen()` has completed.
+ * Sent at intervals until `V_SW_LISTEN_READY` is received.
+ */
+export interface ServiceWorkerListenReadyPingMessage {
+  type: 'V_SW_LISTEN_READY_PING'
+}
+
+/**
+ * Service Worker -> Main Thread: Service Worker's `listen()` has completed
+ * and it is ready to accept MessageChannel connections.
+ * Sent in response to `V_SW_LISTEN_READY_PING` (after listen is done),
+ * and also broadcast to all clients on activation.
+ */
+export interface ServiceWorkerListenReadyMessage {
+  type: 'V_SW_LISTEN_READY'
+}
+
 // ---- Protocol message type constants ----
 
+export const V_WW_READY = 'V_WW_READY' as const
 export const V_WW_SETUP = 'V_WW_SETUP' as const
 export const V_WW_SETUP_ACK = 'V_WW_SETUP_ACK' as const
+export const V_WW_SETUP_ERROR = 'V_WW_SETUP_ERROR' as const
 export const V_WW_CONNECT_PORT = 'V_WW_CONNECT_PORT' as const
 export const V_SW_CONNECT_PORT = 'V_SW_CONNECT_PORT' as const
 export const V_WW_SW_CHANNEL_READY = 'V_WW_SW_CHANNEL_READY' as const
 export const V_WW_CONNECT_PORT_ACK = 'V_WW_CONNECT_PORT_ACK' as const
 export const V_SW_CONNECT_PORT_ACK = 'V_SW_CONNECT_PORT_ACK' as const
 export const V_WW_HMR_PORT = 'V_WW_HMR_PORT' as const
+export const V_SW_LISTEN_READY_PING = 'V_SW_LISTEN_READY_PING' as const
+export const V_SW_LISTEN_READY = 'V_SW_LISTEN_READY' as const
 export const MC_INIT_EVENT = 'vite:mc:init' as const

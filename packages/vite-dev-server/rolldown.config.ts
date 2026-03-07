@@ -287,6 +287,9 @@ const transformerConfig = defineConfig({
   },
   input: {
     transformer: path.resolve(__dirname, 'src/node/transformer.ts'),
+    // Vite-compat API entry shares the same build pipeline and chunks as transformer.
+    // This ensures rolldown WASM is loaded once (not duplicated in a separate vite-chunks dir).
+    vite: path.resolve(__dirname, 'src/node/vite.ts'),
   },
   resolve: {
     alias: {
@@ -472,6 +475,17 @@ const webWorkerConfig = defineConfig({
   ],
 })
 
+const messagesConfig = defineConfig({
+  input: {
+    messages: path.resolve(__dirname, 'src/shared/messages.ts'),
+  },
+  platform: 'neutral',
+  output: {
+    dir: path.resolve(__dirname, 'dist'),
+    entryFileNames: 'shared/[name].js',
+  },
+})
+
 export default defineConfig([
   envConfig,
   clientConfig,
@@ -479,7 +493,8 @@ export default defineConfig([
   serviceWorkerConfig,
   transformerConfig,
   webWorkerConfig,
-  moduleRunnerConfig
+  moduleRunnerConfig,
+  messagesConfig,
 ])
 
 // #region Plugins

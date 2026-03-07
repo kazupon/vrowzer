@@ -24,6 +24,7 @@ import { createFileSystemSubscriber } from '@vrowser/fs/watcher'
 import client from '@vrowser/vite-dev-server/dist/client/client.mjs?raw' // eslint-disable-line import/default -- ignore for raw import
 import env from '@vrowser/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer } from '@vrowser/vite-dev-server/service-worker'
+import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowser/vite-dev-server/messages'
 
 import type { FileSystemSyncMessage } from '@vrowser/fs/watcher'
 import type { Plugin } from 'vite'
@@ -85,12 +86,12 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
     const message = event.data
 
     // Respond to listen-ready ping from main thread
-    if (message?.type === 'V_SW_LISTEN_READY_PING' && listenReady) {
+    if (message?.type === V_SW_LISTEN_READY_PING && listenReady) {
       const clientId = (event.source as Client | null)?.id
       if (clientId) {
         // eslint-disable-next-line no-floating-promises -- ignore for vrowser preview system negotiation timing
         self.clients.get(clientId).then(client => {
-          client?.postMessage({ type: 'V_SW_LISTEN_READY' })
+          client?.postMessage({ type: V_SW_LISTEN_READY })
         })
       }
       return
@@ -118,7 +119,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
         // Signal main thread that the server is ready
         const clients = await self.clients.matchAll({ includeUncontrolled: true })
         for (const client of clients) {
-          client.postMessage({ type: 'V_SW_LISTEN_READY' })
+          client.postMessage({ type: V_SW_LISTEN_READY })
         }
       })
     )

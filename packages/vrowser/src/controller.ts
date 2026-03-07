@@ -12,6 +12,7 @@
  */
 
 import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowser/vite-dev-server/messages'
 
 import type { SvcWorkerController } from '@vrowser/service-worker/controller'
 
@@ -82,7 +83,7 @@ export async function initServiceWorker(options: {
     }, timeout)
 
     const handler = (event: MessageEvent) => {
-      if (event.data?.type === 'V_SW_LISTEN_READY') {
+      if (event.data?.type === V_SW_LISTEN_READY) {
         clearTimeout(timer)
         clearInterval(pollId)
         container.removeEventListener('message', handler)
@@ -93,9 +94,9 @@ export async function initServiceWorker(options: {
 
     // Poll: Service Worker responds to ping only after listen() completes
     const pollId = setInterval(() => {
-      serviceWorker.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
+      serviceWorker.postMessage({ type: V_SW_LISTEN_READY_PING })
     }, 500)
-    serviceWorker.postMessage({ type: 'V_SW_LISTEN_READY_PING' })
+    serviceWorker.postMessage({ type: V_SW_LISTEN_READY_PING })
   })
 
   return controller

@@ -9,7 +9,6 @@ import type { ViteDevServer } from '../server'
 import {
   createDebugger
 } from '../utils'
-import { transformWithOxc } from './oxc'
 
 const debug = createDebugger('vite:esbuild')
 
@@ -77,6 +76,10 @@ export async function transformWithEsbuild(
   ignoreEsbuildWarning = false,
 ): Promise<ESBuildTransformResult> {
   const { loader, ...rest } = options ?? {}
+  // Dynamic import to avoid loading @vrowser/rolldown WASM at module evaluation time.
+  // When @vrowser/vite-dev-server/vite is used as an alias for "vite" (e.g. for @vitejs/plugin-vue),
+  // a static import chain would block the Web Worker module evaluation with WASM loading.
+  const { transformWithOxc } = await import('./oxc')
   // @ts-expect-error -- NOTE(kazupon): loader is required for transformWithOxc, but it is optional for transformWithEsbuild for backward compatibility. We can remove this fallback logic after all usages of transformWithEsbuild are migrated to transformWithOxc.
   return transformWithOxc(code, filename, { ...rest, lang: loader }, inMap, config, watcher)
 }

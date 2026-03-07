@@ -22,7 +22,8 @@ import { createDebugger } from './utils'
 
 // NOTE(kazupon): Only type-only imports from heavy modules.
 // Runtime imports of ./transformer happen inside listen() via dynamic import.
-import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage } from '../shared/messages'
+import { V_WW_READY, V_WW_SETUP_ACK, V_WW_SETUP_ERROR, V_SW_CONNECT_PORT_ACK } from '../shared/messages'
+import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage, WorkerReadyMessage } from '../shared/messages'
 import type { ViteDevServer } from './server/index'
 import type {
   TransformOptionsInternal,
@@ -172,12 +173,16 @@ export function createServer(
           await transformer.setupHMR(server as ViteDevServer)
 
           // Send ACK to Main Thread with config and environment info
-          workerScope.postMessage({ type: 'V_WW_SETUP_ACK' })
+          workerScope.postMessage({ type: V_WW_SETUP_ACK })
           debug?.('setup complete')
           setupResolve?.(server!)
         } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error))
+          console.error('[vrowser:web-worker] V_WW_SETUP failed:', err.message, err.stack)
           debug?.('V_WW_SETUP failed:', error)
-          setupReject?.(error instanceof Error ? error : new Error(String(error)))
+          // Notify Main Thread of the failure so it can fail fast instead of timing out
+          workerScope.postMessage({ type: V_WW_SETUP_ERROR, error: { message: err.message, stack: err.stack } })
+          setupReject?.(err)
         }
         break
       }
@@ -203,7 +208,7 @@ export function createServer(
           ws!.handlePort(hmrPort, clientId)
         })
 
-        workerScope.postMessage({ type: 'V_SW_CONNECT_PORT_ACK' })
+        workerScope.postMessage({ type: V_SW_CONNECT_PORT_ACK })
         debug?.('SW<->WW birpc channel established')
         break
       }
@@ -212,6 +217,13 @@ export function createServer(
         options.onUnhandledMessage?.(event)
     }
   }
+
+  // Signal to Main Thread that onmessage is registered and ready to receive V_WW_SETUP.
+  // Without this, a race condition can occur: if the WW module evaluation takes time
+  // (e.g. loading WASM via user plugins that import from "vite"), Main Thread may send
+  // V_WW_SETUP before onmessage is set, causing the message to be lost.
+  workerScope.postMessage({ type: V_WW_READY } satisfies WorkerReadyMessage)
+  debug?.('V_WW_READY sent')
 
   return Object.freeze({
     listen(timeout = 30_000): Promise<ViteDevServerForWorker> {
@@ -245,7 +257,10 @@ export function createServer(
 
 // Re-export types needed by consumers
 export type {
-  ConnectServiceWorkerPortAckMessage, ConnectServiceWorkerPortMessage, ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage, SetupWorkerAckMessage, SetupWorkerMessage, WebWorkerServiceWorkerChannelReadyMessage
+  ConnectServiceWorkerPortAckMessage, ConnectServiceWorkerPortMessage,
+  ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage,
+  SetupWorkerAckMessage, SetupWorkerMessage,
+  WebWorkerServiceWorkerChannelReadyMessage,
 } from '../shared/messages'
 export type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 export type { ViteDevServerForWorker } from './transformer'
