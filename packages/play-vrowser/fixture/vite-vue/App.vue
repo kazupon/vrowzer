@@ -1,27 +1,32 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-
-const count = ref(0)
-const message = ref('Hello from Vue SFC!')
+import HelloWorld from './HelloWorld.vue'
+import vrowserLogo from './vrowser.svg'
+import vueLogo from './vue.svg'
 </script>
 
 <template>
-  <div class="app">
-    <h1>{{ message }}</h1>
-    <button @click="count++">Count: {{ count }}</button>
-    <p>Powered by Vrowser + @vitejs/plugin-vue</p>
+  <div>
+    <a href="https://github.com/kazupon/vrowser" target="_blank">
+      <img :src="vrowserLogo" class="logo" alt="Vrowser logo" />
+    </a>
+    <a href="https://vuejs.org/" target="_blank">
+      <img :src="vueLogo" class="logo vue" alt="Vue logo" />
+    </a>
   </div>
+  <HelloWorld msg="Vrowser + Vue" />
 </template>
 
 <style scoped>
-.app {
-  font-family: sans-serif;
-  text-align: center;
-  padding: 2rem;
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
 }
-button {
-  font-size: 1.2rem;
-  padding: 0.5rem 1.5rem;
-  cursor: pointer;
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.vue:hover {
+  filter: drop-shadow(0 0 2em #42b883aa);
 }
 </style>
