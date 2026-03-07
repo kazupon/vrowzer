@@ -16,7 +16,12 @@
     "url": "git+https://github.com/kazupon/vrowser.git",
     "directory": "packages/node-polyfill"
   },
-  "keywords": ["polyfill", "node", "browser", "vrowser"],
+  "keywords": [
+    "polyfill",
+    "node",
+    "browser",
+    "vrowser"
+  ],
   "homepage": "https://github.com/kazupon/vrowser/packages/node-polyfill/README.md",
   "publishConfig": {
     "access": "public"
@@ -25,7 +30,9 @@
     "node": ">= 20.19.0"
   },
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
     "./url": {
       "types": "./dist/url.d.ts",

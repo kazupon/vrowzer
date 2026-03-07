@@ -608,6 +608,9 @@ importers:
       '@vrowser/unplugin-service-worker':
         specifier: workspace:*
         version: link:../unplugin-service-worker
+      '@vrowser/vite-dev-server':
+        specifier: workspace:*
+        version: link:../vite-dev-server
       buffer:
         specifier: 'catalog:'
         version: 6.0.3

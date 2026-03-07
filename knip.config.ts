@@ -62,7 +62,9 @@ const config: KnipConfig = {
         'buffer',
         'pathe',
         'readable-stream'
-      ]
+      ],
+      // generateServiceWorkerEntry is kept for future SW plugin injection re-enablement
+      ignore: ['src/virtual.ts']
     },
     // TODO(kazupon): enable after fnished to port from 'vite'
     // 'packages/vite-dev-server': {
