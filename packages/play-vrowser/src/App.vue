@@ -19,12 +19,15 @@ vrowser.on('reloadSuggested', info => {
 })
 
 onMounted(async () => {
-  // Collect initial files from EditorPanel
+  // Collect initial files from EditorPanel (editable + vendor)
   const initialFiles: Record<string, string> = {}
   if (editorPanel.value?.files) {
     for (const [path, content] of editorPanel.value.files) {
       initialFiles[path] = content
     }
+  }
+  if (editorPanel.value?.vendorFiles) {
+    Object.assign(initialFiles, editorPanel.value.vendorFiles)
   }
 
   // Initialize preview system

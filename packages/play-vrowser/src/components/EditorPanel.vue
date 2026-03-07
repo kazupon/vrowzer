@@ -2,13 +2,10 @@
 import * as monaco from 'monaco-editor'
 import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
-import indexHtmlRaw from '../../fixture/vite-vanilla/index.html?raw'
-import mainTsRaw from '../../fixture/vite-vanilla/main.ts?raw'
-import counterRaw from '../../fixture/vite-vanilla/counter.ts?raw'
-import styleRaw from '../../fixture/vite-vanilla/style.css?raw'
-import vrowserSvgRaw from '../../fixture/vite-vanilla/vrowser.svg?raw'
-import tsSvgRaw from '../../fixture/vite-vanilla/typescript.svg?raw'
-import dataYamlRaw from '../../fixture/vite-vanilla/data.yaml?raw'
+import indexHtmlRaw from '../../fixture/vite-vue/index.html?raw'
+import mainTsRaw from '../../fixture/vite-vue/main.ts?raw'
+import appVueRaw from '../../fixture/vite-vue/App.vue?raw'
+import vueRuntimeRaw from 'vue/dist/vue.esm-browser.js?raw'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
 const ts = (monaco.languages as any).typescript
@@ -20,17 +17,17 @@ const emit = defineEmits<{
 const files = ref<Map<string, string>>(
   new Map([
     ['/main.ts', mainTsRaw],
-    ['/counter.ts', counterRaw],
-    ['/style.css', styleRaw],
-    ['/vrowser.svg', vrowserSvgRaw],
-    ['/typescript.svg', tsSvgRaw],
-    ['/data.yaml', dataYamlRaw],
+    ['/App.vue', appVueRaw],
     ['/index.html', indexHtmlRaw]
   ])
 )
-const activeFile = ref('/main.ts')
+// Vendor files are not shown in the editor but included in the virtual FS
+const vendorFiles: Record<string, string> = {
+  '/vendor/vue.esm-browser.js': vueRuntimeRaw
+}
+const activeFile = ref('/App.vue')
 
-defineExpose({ files })
+defineExpose({ files, vendorFiles })
 const editorContainer = useTemplateRef('editorContainer')
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
