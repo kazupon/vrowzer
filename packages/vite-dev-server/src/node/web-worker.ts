@@ -60,6 +60,11 @@ export interface CreateServerOptions {
    */
   plugins?: import('vite').Plugin[]
   /**
+   * Additional Vite inline config from vrowser.config.ts (resolve.alias, define, etc.).
+   * Merged into the V_WW_SETUP config before resolveConfig().
+   */
+  inlineConfig?: Record<string, unknown>
+  /**
    * Callback for messages not handled by the server protocol.
    * Use this for app-specific messages (e.g. 'bundle').
    */
@@ -123,13 +128,20 @@ export function createServer(
 
           // Dynamic import — heavy modules loaded here for the first time
           const transformer = await import('./transformer')
-
           debug?.('transformer loaded, initializing...')
+
           const setupMsg = event.data as SetupWorkerMessage
-          // Merge user plugins from CreateServerOptions into the config
-          const setupConfig = options.plugins?.length
-            ? { ...setupMsg.config, plugins: [...(setupMsg.config.plugins as any[] ?? []), ...options.plugins] }
-            : setupMsg.config
+          // Merge user config from vrowser.config.ts into the setup config.
+          // inlineConfig contains non-plugin fields (resolve.alias, define, etc.)
+          // plugins are merged separately.
+          let setupConfig = { ...setupMsg.config }
+          if (options.inlineConfig) {
+            setupConfig = { ...setupConfig, ...options.inlineConfig }
+          }
+          if (options.plugins?.length) {
+            setupConfig.plugins = [...(setupConfig.plugins as any[] ?? []), ...options.plugins]
+          }
+
           const result = await transformer.setupWorker(setupConfig, setupMsg.options, setupMsg.files, options.watcher)
           const { config, environments, watcher, moduleGraph } = result
           ws = result.ws

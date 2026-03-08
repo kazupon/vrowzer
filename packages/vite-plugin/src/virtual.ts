@@ -16,7 +16,8 @@ export function generateWebWorkerEntry(configPath: string): string {
   return `
 import { initWebWorker } from 'vrowser/web-worker-core'
 import config from '${configPath}'
-initWebWorker({ plugins: config.default?.plugins ?? config.plugins ?? [] })
+const resolved = config.default ?? config
+initWebWorker(resolved)
 `
 }
 
