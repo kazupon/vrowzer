@@ -5,7 +5,6 @@ import { Vrowser } from '@vrowser/vite-plugin'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  // Exclude vue-related packages from pre-bundling so WW can import them as ESM
   optimizeDeps: {
     exclude: ['@vitejs/plugin-vue', 'vue/compiler-sfc', 'vue']
   },

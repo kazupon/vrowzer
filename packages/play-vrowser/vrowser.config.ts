@@ -4,20 +4,11 @@ import * as compiler from 'vue/compiler-sfc'
 import yaml from '@rollup/plugin-yaml'
 
 export default defineConfig({
+  resolve: {
+    alias: { vue: '/vendor/vue.js' }
+  },
   plugins: [
-    // Alias `vue` to the browser ESM build provided as a virtual file
-    {
-      name: 'vrowser:vue-alias',
-      config() {
-        return {
-          resolve: {
-            alias: {
-              vue: '/vendor/vue.esm-browser.js'
-            }
-          }
-        }
-      }
-    },
+    // compiler option bypasses createRequire-based loading (not available in Worker)
     vue({ compiler }),
     yaml()
   ]
