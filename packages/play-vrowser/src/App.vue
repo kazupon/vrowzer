@@ -3,6 +3,33 @@ import { Vrowser } from 'vrowser'
 import { onMounted, ref, useTemplateRef } from 'vue'
 import EditorPanel from './components/EditorPanel.vue'
 
+import type { FixtureManifest } from '../../../e2e/fixtures/types'
+
+// Discover all fixture manifests via import.meta.glob
+const manifestModules = import.meta.glob<{ default: FixtureManifest }>(
+  '../../../e2e/fixtures/*/manifest.ts',
+  { eager: true }
+)
+const manifests = new Map<string, FixtureManifest>()
+for (const [path, mod] of Object.entries(manifestModules)) {
+  const parts = path.split('/')
+  const name = parts[parts.length - 2]!
+  manifests.set(name, mod.default)
+}
+
+// Select fixture from URL parameter (default: first available)
+const selectedFixture = ref(
+  new URLSearchParams(location.search).get('fixture')
+    ?? manifests.keys().next().value!
+)
+const activeManifest = manifests.get(selectedFixture.value)!
+
+function switchFixture(name: string) {
+  const url = new URL(location.href)
+  url.searchParams.set('fixture', name)
+  location.href = url.toString()
+}
+
 const editorPanel = useTemplateRef<InstanceType<typeof EditorPanel>>('editorPanel')
 const previewContainer = useTemplateRef<HTMLElement>('previewContainer')
 const isReady = ref(false)
@@ -63,9 +90,12 @@ function handleReload() {
       <img src="/favicon.svg" alt="Vrowser" class="app-logo" />
       <h1>Vrowser Playground</h1>
       <span class="subtitle">Vite Dev Server in the Browser</span>
+      <select class="fixture-select" :value="selectedFixture" @change="switchFixture(($event.target as HTMLSelectElement).value)">
+        <option v-for="[name, m] in manifests" :key="name" :value="name">{{ m.name }}</option>
+      </select>
     </header>
     <main class="app-main">
-      <EditorPanel ref="editorPanel" @file-change="handleFileChange" />
+      <EditorPanel ref="editorPanel" :manifest="activeManifest" @file-change="handleFileChange" />
       <div class="preview-panel">
         <div class="preview-header">
           <span>Preview by MessageChannel base HMR</span>
@@ -127,6 +157,27 @@ function handleReload() {
   background: #646cff22;
   border-radius: 12px;
   border: 1px solid #646cff44;
+}
+
+.fixture-select {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #646cff44;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  cursor: pointer;
+  outline: none;
+}
+
+.fixture-select:hover {
+  border-color: #646cff;
+}
+
+.fixture-select:focus {
+  border-color: #41d1ff;
 }
 
 .app-main {

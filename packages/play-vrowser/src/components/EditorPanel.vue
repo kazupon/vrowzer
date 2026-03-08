@@ -2,38 +2,22 @@
 import * as monaco from 'monaco-editor'
 import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
-import indexHtmlRaw from '../../fixture/vite-vue/index.html?raw'
-import mainTsRaw from '../../fixture/vite-vue/main.ts?raw'
-import styleCssRaw from '../../fixture/vite-vue/style.css?raw'
-import appVueRaw from '../../fixture/vite-vue/App.vue?raw'
-import helloWorldVueRaw from '../../fixture/vite-vue/HelloWorld.vue?raw'
-import vrowserSvgRaw from '../../fixture/vite-vue/vrowser.svg?raw'
-import vueSvgRaw from '../../fixture/vite-vue/vue.svg?raw'
-import vueRuntimeRaw from '../../fixture/vite-vue/vendor/vue.js?raw'
+import type { FixtureManifest } from '../../../../e2e/fixtures/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
 const ts = (monaco.languages as any).typescript
+
+const props = defineProps<{ manifest: FixtureManifest }>()
 
 const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
 const files = ref<Map<string, string>>(
-  new Map([
-    ['/index.html', indexHtmlRaw],
-    ['/main.ts', mainTsRaw],
-    ['/style.css', styleCssRaw],
-    ['/App.vue', appVueRaw],
-    ['/HelloWorld.vue', helloWorldVueRaw],
-    ['/vrowser.svg', vrowserSvgRaw],
-    ['/vue.svg', vueSvgRaw]
-  ])
+  new Map(Object.entries(props.manifest.files))
 )
-// Vendor files are not shown in the editor but included in the virtual FS
-const vendorFiles: Record<string, string> = {
-  '/vendor/vue.js': vueRuntimeRaw
-}
-const activeFile = ref('/App.vue')
+const vendorFiles = props.manifest.vendorFiles
+const activeFile = ref(props.manifest.activeFile)
 
 defineExpose({ files, vendorFiles })
 const editorContainer = useTemplateRef('editorContainer')

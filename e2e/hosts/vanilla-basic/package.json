@@ -1,0 +1,11 @@
+{
+  "name": "@vrowser/e2e-vanilla-basic",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vrowser/vite-plugin": "workspace:*",
+    "@rollup/plugin-yaml": "^4.1.2",
+    "vrowser": "workspace:*",
+    "vite": "catalog:"
+  }
+}

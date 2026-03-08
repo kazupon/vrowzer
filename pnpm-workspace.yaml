@@ -1,5 +1,6 @@
 packages:
   - packages/*
+  - e2e/hosts/*
 
 catalog:
   '@kazupon/jts-utils': ^0.17.0

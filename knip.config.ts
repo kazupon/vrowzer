@@ -28,7 +28,6 @@ const config: KnipConfig = {
       ]
     },
     'packages/play-vrowser': {
-      entry: ['fixture/**'],
       ignoreDependencies: [
         '@rollup/plugin-yaml' // Used in vrowser.config.ts (loaded into Worker via @vrowser/vite-plugin)
       ]
@@ -80,12 +79,21 @@ const config: KnipConfig = {
     'refers/**',
     '**/*.config.{js,ts}',
     // ignores for vite-dev-server package, because it will be forked from `vite` and maintained separately, preventing conflicts.
-    'packages/vite-dev-server/**'
+    'packages/vite-dev-server/**',
+    // Bundled vendor files and E2E test fixtures
+    'e2e/fixtures/**',
+    'e2e/hosts/**',
+    'e2e/helpers/**'
   ],
   ignoreBinaries: [
     'wrangler' // Used in play-vrowser scripts, installed as devDependency in play-vrowser
   ],
-  ignoreDependencies: ['lint-staged', '@kazupon/prettier-config', '@kazupon/eslint-plugin'],
+  ignoreDependencies: [
+    'lint-staged',
+    '@kazupon/prettier-config',
+    '@kazupon/eslint-plugin',
+    '@playwright/test'
+  ],
   exclude: [
     'duplicates' // EventEmitter exports both named and default for Node.js CJS/ESM compat
   ]

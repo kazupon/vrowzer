@@ -53,7 +53,8 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       'packages/oxlint-plugin-service-worker/**',
       'packages/vite-plugin/**',
       'packages/vrowser/**',
-      'packages/rolldown/e2e/**'
+      'packages/rolldown/e2e/**',
+      'e2e/**'
     ]
   }
 )

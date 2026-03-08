@@ -155,6 +155,16 @@ export default defineConfig({
           testTimeout: 60000,
           hookTimeout: 120000
         }
+      },
+      {
+        test: {
+          name: 'vrowser:e2e:hosts',
+          include: ['./e2e/hosts/**/*.e2e-test.ts'],
+          testTimeout: 60000,
+          hookTimeout: 120000,
+          // Run test files sequentially (each host starts its own server)
+          fileParallelism: false
+        }
       }
     ]
   }
