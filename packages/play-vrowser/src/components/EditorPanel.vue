@@ -31,7 +31,7 @@ const files = ref<Map<string, string>>(
 )
 // Vendor files are not shown in the editor but included in the virtual FS
 const vendorFiles: Record<string, string> = {
-  '/vendor/vue.esm-browser.js': vueRuntimeRaw
+  '/vendor/vue.js': vueRuntimeRaw
 }
 const activeFile = ref('/App.vue')
 
