@@ -32,7 +32,7 @@ declare const self: DedicatedWorkerGlobalScope
  * `plugins` are passed to createServer, other fields (resolve.alias, define, etc.)
  * are forwarded as inlineConfig to the WW's internal Vite via V_WW_SETUP.
  */
-export type InitWebWorkerOptions = UserConfig & { plugins?: Plugin[] }
+type InitWebWorkerOptions = UserConfig & { plugins?: Plugin[] }
 
 export async function initWebWorker(options?: InitWebWorkerOptions) {
   // Create watcher early so it can be passed to DevEnvironment via createServer.
