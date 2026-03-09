@@ -227,9 +227,9 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
   }
 
   function createBootstrapHtml(previewUrl: string): string {
-    // Use DOMParser + manual script execution instead of document.write().
-    // document.write() is deprecated and doesn't guarantee ESM module execution
-    // order in about:srcdoc iframes, which breaks React Refresh preamble timing.
+    // Fetch preview HTML via SW, then inject DOM and execute scripts manually.
+    // We avoid document.write() (deprecated) because it doesn't guarantee
+    // ESM module execution order in about:srcdoc iframes.
     return `<!doctype html>
 <html><head><meta charset="utf-8"></head><body>
 <script>
@@ -238,26 +238,21 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
     const res = await fetch('${previewUrl}');
     const html = await res.text();
     const origin = new URL(res.url).origin;
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
 
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-
-    for (const n of [...doc.head.childNodes]) {
+    // Copy non-script nodes
+    for (const n of [...parsed.head.childNodes])
       if (n.nodeName !== 'SCRIPT') document.head.appendChild(document.importNode(n, true));
-    }
     document.body.innerHTML = '';
-    for (const n of [...doc.body.childNodes]) {
+    for (const n of [...parsed.body.childNodes])
       if (n.nodeName !== 'SCRIPT') document.body.appendChild(document.importNode(n, true));
-    }
 
-    // Set up React DevTools hook before any scripts execute.
-    // React Refresh's injectIntoGlobalHook() wraps hook.inject() to capture
-    // renderer registrations. This pre-setup ensures renderers.set() is called,
-    // so injectIntoGlobalHook() can later find them via hook.renderers.forEach().
+    // Pre-setup React DevTools hook so hook.inject() populates renderers Map
+    // before React Refresh's injectIntoGlobalHook() wraps it.
     if (!window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
       var __id = 0;
       window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
-        renderers: new Map(),
-        supportsFiber: true,
+        renderers: new Map(), supportsFiber: true,
         inject: function(i) { var id = __id++; this.renderers.set(id, i); return id; },
         onScheduleFiberRoot: function() {},
         onCommitFiberRoot: function() {},
@@ -265,45 +260,45 @@ export function Vrowser(options: VrowserOptions = {}): Readonly<Vrowser> {
       };
     }
 
-    // Execute scripts in document order.
-    // Module scripts are awaited via onload to guarantee sequential execution
-    // (preamble must complete before app entry). Inline module scripts are
-    // converted to Blob URLs with import paths resolved to full URLs (Blob
-    // origin is null) and virtual IDs wrapped with @id/ prefix to match
-    // Vite's import analysis, ensuring same ESM module instance.
-    for (const orig of doc.querySelectorAll('script')) {
-      try {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          for (const a of orig.attributes) s.setAttribute(a.name, a.value);
-          if (s.type === 'module') {
-            if (!s.src && orig.textContent) {
-              const code = orig.textContent.replace(
-                /from\\s*["'](\\/[^"']+)["']/g,
-                (_, p) => 'from "' + origin + p.replace(
-                  /(\\/(?:__[^/]+__\\/)?)(@(?!id\\/|vite\\/))/,
-                  '$1@id//$2'
-                ) + '"'
-              );
-              const b = new Blob([code], { type: 'text/javascript' });
-              s.src = URL.createObjectURL(b);
-              s.onload = () => { URL.revokeObjectURL(s.src); resolve(); };
-            } else {
-              s.onload = resolve;
-            }
-            s.onerror = () => resolve();
-          } else {
-            if (orig.textContent) s.textContent = orig.textContent;
-            resolve();
-          }
-          (orig.closest('head') ? document.head : document.body).appendChild(s);
-        });
-      } catch { /* script load error, continue */ }
+    // Execute scripts sequentially (module scripts awaited via onload).
+    for (const orig of parsed.querySelectorAll('script')) {
+      await execScript(orig, origin).catch(function() {});
     }
   } catch (e) {
     document.body.textContent = 'Preview load error: ' + e.message;
   }
 })();
+
+function execScript(orig, origin) {
+  return new Promise(function(resolve) {
+    var s = document.createElement('script');
+    for (var a of orig.attributes) s.setAttribute(a.name, a.value);
+    if (s.type === 'module') {
+      if (!s.src && orig.textContent) {
+        // Inline module → Blob URL with absolute import paths.
+        // Virtual IDs (/@xxx) get @id/ prefix to match Vite's import rewrite.
+        var code = orig.textContent.replace(
+          /from\\s*["'](\\/[^"']+)["']/g,
+          function(_, p) {
+            return 'from "' + origin + p.replace(
+              /(\\/(?:__[^/]+__\\/)?)(@(?!id\\/|vite\\/))/,  '$1@id//$2'
+            ) + '"';
+          }
+        );
+        var b = new Blob([code], { type: 'text/javascript' });
+        s.src = URL.createObjectURL(b);
+        s.onload = function() { URL.revokeObjectURL(s.src); resolve(); };
+      } else {
+        s.onload = resolve;
+      }
+      s.onerror = resolve;
+    } else {
+      if (orig.textContent) s.textContent = orig.textContent;
+      resolve();
+    }
+    (orig.closest('head') ? document.head : document.body).appendChild(s);
+  });
+}
 </script>
 </body></html>`
   }
