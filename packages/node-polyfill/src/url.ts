@@ -34,8 +34,11 @@ const isWindows: boolean = (() => {
 export function fileURLToPath(url: string | URL): string {
   const urlObj = typeof url === 'string' ? new URL(url) : url
 
+  // In Worker environments, import.meta.url may be http/https/blob.
+  // Extract the pathname instead of throwing so Node.js modules
+  // that use dirname(fileURLToPath(import.meta.url)) keep working.
   if (urlObj.protocol !== 'file:') {
-    throw new TypeError('The URL must be of scheme file')
+    return decodeURIComponent(urlObj.pathname)
   }
 
   let pathname = decodeURIComponent(urlObj.pathname)

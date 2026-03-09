@@ -40,15 +40,13 @@ describe('fileURLToPath', () => {
     expect(result).toBe('/foo/bar/test.js')
   })
 
-  it('should throw for non-file protocol', () => {
-    expect(() => fileURLToPath('https://example.com/path')).toThrow(
-      'The URL must be of scheme file'
-    )
+  it('should return pathname for non-file protocol (Worker compatibility)', () => {
+    expect(fileURLToPath('https://example.com/path')).toBe('/path')
   })
 
-  it('should throw for http URL object', () => {
+  it('should return pathname for http URL object (Worker compatibility)', () => {
     const url = new URL('http://example.com/path')
-    expect(() => fileURLToPath(url)).toThrow('The URL must be of scheme file')
+    expect(fileURLToPath(url)).toBe('/path')
   })
 })
 
