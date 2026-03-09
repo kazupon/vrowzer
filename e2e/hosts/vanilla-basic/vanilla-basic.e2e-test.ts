@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { setupHost } from '../../helpers/setup'
-import { isBuild } from '../../helpers/test-utils'
+import { setupHost } from '../../helpers/setup.ts'
+import { isBuild } from '../../helpers/test-utils.ts'
 
 const ctx = setupHost(import.meta.dirname)
 
