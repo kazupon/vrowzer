@@ -128,6 +128,14 @@ export function deprecate<T extends Function>(fn: T, _msg: string, _code?: strin
   return fn
 }
 
+/**
+ * Apply ANSI styling to text (Node.js 21.7+ API).
+ * In browser environments, returns the text without styling.
+ */
+export function styleText(_format: string | string[], text: string): string {
+  return text
+}
+
 export default {
   promisify,
   inspect,
@@ -135,5 +143,6 @@ export default {
   format,
   formatWithOptions,
   _extend,
-  deprecate
+  deprecate,
+  styleText
 }
