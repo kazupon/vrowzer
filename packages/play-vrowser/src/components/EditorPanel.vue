@@ -133,6 +133,8 @@ onMounted(() => {
     target: ts.ScriptTarget.ESNext,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    jsx: ts.JsxEmit.ReactJSX,
+    jsxImportSource: 'react',
     allowNonTsExtensions: true,
     allowImportingTsExtensions: true,
     allowJs: true,
@@ -155,6 +157,19 @@ declare module '*.jpg' {
   export default src
 }
 declare module '*.css' {}
+declare module '*.yaml' {
+  const data: any
+  export default data
+}
+declare module '*.yml' {
+  const data: any
+  export default data
+}
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<{}, {}, any>
+  export default component
+}
 
 interface ImportMetaEnv {
   readonly DEV: boolean
@@ -170,6 +185,49 @@ interface ImportMeta {
     dispose(cb: (data: any) => void): void
     invalidate(): void
     readonly data: any
+  }
+}
+
+declare module 'react' {
+  export function useState<S>(initialState: S | (() => S)): [S, (value: S | ((prev: S) => S)) => void]
+  export function useEffect(effect: () => void | (() => void), deps?: readonly any[]): void
+  export function useCallback<T extends (...args: any[]) => any>(callback: T, deps: readonly any[]): T
+  export function useMemo<T>(factory: () => T, deps: readonly any[]): T
+  export function useRef<T>(initialValue: T): { current: T }
+  export function useContext<T>(context: any): T
+  export function useReducer<S, A>(reducer: (state: S, action: A) => S, initialState: S): [S, (action: A) => void]
+  export function useId(): string
+  export function createElement(type: any, props?: any, ...children: any[]): any
+  export function createContext<T>(defaultValue: T): any
+  export function forwardRef<T, P = {}>(render: (props: P, ref: any) => any): any
+  export function memo<T extends (props: any) => any>(component: T): T
+  export function lazy<T extends (props: any) => any>(factory: () => Promise<{ default: T }>): T
+  export const Fragment: any
+  export const StrictMode: any
+  export const Suspense: any
+  export const version: string
+  export default {} as any
+}
+declare module 'react-dom/client' {
+  export function createRoot(container: Element | DocumentFragment): {
+    render(element: any): void
+    unmount(): void
+  }
+  export function hydrateRoot(container: Element | DocumentFragment, initialChildren: any): any
+}
+declare module 'react/jsx-runtime' {
+  export function jsx(type: any, props: any, key?: string): any
+  export function jsxs(type: any, props: any, key?: string): any
+  export const Fragment: any
+}
+declare module 'react/jsx-dev-runtime' {
+  export function jsxDEV(type: any, props: any, key?: string, isStaticChildren?: boolean, source?: any, self?: any): any
+  export const Fragment: any
+}
+declare namespace JSX {
+  type Element = any
+  interface IntrinsicElements {
+    [elemName: string]: any
   }
 }
 `,
