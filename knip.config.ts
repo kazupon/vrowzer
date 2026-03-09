@@ -29,7 +29,8 @@ const config: KnipConfig = {
     },
     'packages/play-vrowser': {
       ignoreDependencies: [
-        '@rollup/plugin-yaml' // Used in vrowser.config.ts (loaded into Worker via @vrowser/vite-plugin)
+        '@rollup/plugin-yaml', // Used in vrowser.config.ts (loaded into Worker via @vrowser/vite-plugin)
+        '@vitejs/plugin-react' // Used in vrowser.config.ts (loaded into Worker via @vrowser/vite-plugin)
       ]
     },
     'packages/rolldown': {
@@ -80,6 +81,8 @@ const config: KnipConfig = {
     '**/*.config.{js,ts}',
     // ignores for vite-dev-server package, because it will be forked from `vite` and maintained separately, preventing conflicts.
     'packages/vite-dev-server/**',
+    // Vendor bundling scripts (resolve deps from workspace packages, not root)
+    'scripts/**',
     // Bundled vendor files and E2E test fixtures
     'e2e/fixtures/**',
     'e2e/hosts/**',

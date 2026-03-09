@@ -4,7 +4,9 @@
  */
 
 import { rolldown } from 'rolldown'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { createRequire } from 'node:module'
 
 const root = resolve(import.meta.dirname, '..')
 const fixtureDir = resolve(root, 'e2e/fixtures/vite-react')
@@ -41,4 +43,20 @@ await bundle.write({
   minify: false
 })
 
-console.log('Done: vendor/react.js, vendor/react-dom-client.js, vendor/react-jsx-dev-runtime.js')
+// Copy react-refresh-runtime.js from @vitejs/plugin-react (with __README_URL__ replaced)
+const require = createRequire(import.meta.url)
+const pluginReactDir = resolve(
+  require.resolve('@vitejs/plugin-react', {
+    paths: [resolve(root, 'packages/play-vrowser')]
+  }),
+  '..'
+)
+const refreshRuntime = readFileSync(resolve(pluginReactDir, 'refresh-runtime.js'), 'utf-8').replace(
+  /__README_URL__/g,
+  'https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react'
+)
+writeFileSync(resolve(vendorDir, 'react-refresh-runtime.js'), refreshRuntime)
+
+console.log(
+  'Done: vendor/react.js, vendor/react-dom-client.js, vendor/react-jsx-dev-runtime.js, vendor/react-refresh-runtime.js'
+)

@@ -20,6 +20,9 @@
  * @license MIT
  */
 
+// --- Version (needed by @vitejs/plugin-react to detect Rolldown Vite) ---
+export { rolldownVersion } from './utils'
+
 // --- Utilities (lightweight, no WASM dependency) ---
 export { createFilter, normalizePath, isCSSRequest } from './utils'
 

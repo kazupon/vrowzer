@@ -6,7 +6,7 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   optimizeDeps: {
-    exclude: ['@vitejs/plugin-vue', 'vue/compiler-sfc', 'vue']
+    exclude: ['@vitejs/plugin-vue', 'vue/compiler-sfc', 'vue', '@vitejs/plugin-react']
   },
   plugins: [
     vue(),
