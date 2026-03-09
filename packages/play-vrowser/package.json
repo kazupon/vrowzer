@@ -24,6 +24,6 @@
     "@vue/tsconfig": "^0.8.1",
     "vite": "catalog:",
     "vue-tsc": "^3.1.4",
-    "wrangler": "^4.69.0"
+    "wrangler": "catalog:"
   }
 }

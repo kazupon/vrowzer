@@ -20,6 +20,7 @@ catalog:
   obug: ^2.1.1
   buffer: ^6.0.3
   readable-stream: ^4.7.0
+  wrangler: ^4.69.0 # for cloudflare pages deploying on github actions
 
 minimumReleaseAge: 1440
 
