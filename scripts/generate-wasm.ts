@@ -6,12 +6,12 @@ import { compile } from 'watr'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const wat = readFileSync(
-  path.resolve(__dirname, '../packages/unplugin-service-worker/e2e/playground/add.wat'),
+  path.resolve(__dirname, '../packages/unplugin-service-worker/integration/playground/add.wat'),
   'utf-8'
 )
 const wasm = compile(wat)
 writeFileSync(
-  path.resolve(__dirname, '../packages/unplugin-service-worker/e2e/playground/add.wasm'),
+  path.resolve(__dirname, '../packages/unplugin-service-worker/integration/playground/add.wasm'),
   Buffer.from(wasm)
 )
 console.log('Generated add.wasm')
