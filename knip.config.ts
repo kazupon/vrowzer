@@ -81,8 +81,6 @@ const config: KnipConfig = {
     '**/*.config.{js,ts}',
     // ignores for vite-dev-server package, because it will be forked from `vite` and maintained separately, preventing conflicts.
     'packages/vite-dev-server/**',
-    // Vendor bundling scripts (resolve deps from workspace packages, not root)
-    'scripts/**',
     // Bundled vendor files and E2E test fixtures
     'e2e/fixtures/**',
     'e2e/hosts/**',

@@ -11,7 +11,6 @@ import reactRuntime from './vendor/react.js?raw'
 import reactDomClient from './vendor/react-dom-client.js?raw'
 import reactJsxDevRuntime from './vendor/react-jsx-dev-runtime.js?raw'
 import reactShared from './vendor/react-shared.js?raw'
-import reactRefreshRuntime from './vendor/react-refresh-runtime.js?raw'
 
 export default {
   name: 'Vrowser+ React',
@@ -28,8 +27,7 @@ export default {
     '/vendor/react.js': reactRuntime,
     '/vendor/react-dom-client.js': reactDomClient,
     '/vendor/react-jsx-dev-runtime.js': reactJsxDevRuntime,
-    '/vendor/react-shared.js': reactShared,
-    '/vendor/react-refresh-runtime.js': reactRefreshRuntime
+    '/vendor/react-shared.js': reactShared
   },
   activeFile: '/App.tsx'
 } satisfies FixtureManifest
