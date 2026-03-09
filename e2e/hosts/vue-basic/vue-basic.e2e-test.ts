@@ -27,7 +27,9 @@ describe('vue-basic', () => {
   })
 
   test('Vue SFC HMR - template change', async () => {
-    if (isBuild) {return}
+    if (isBuild) {
+      return
+    }
 
     await ctx.page.evaluate(() => {
       ;(window as any).__vrowser__.updateFile(

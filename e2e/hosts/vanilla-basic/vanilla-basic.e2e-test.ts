@@ -34,7 +34,9 @@ describe('vanilla-basic', () => {
   })
 
   test('HMR - update file changes preview', async () => {
-    if (isBuild) {return}
+    if (isBuild) {
+      return
+    }
 
     await ctx.page.evaluate(() => {
       ;(window as any).__vrowser__.updateFile(

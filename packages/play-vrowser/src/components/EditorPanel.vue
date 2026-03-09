@@ -13,9 +13,7 @@ const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
-const files = ref<Map<string, string>>(
-  new Map(Object.entries(props.manifest.files))
-)
+const files = ref<Map<string, string>>(new Map(Object.entries(props.manifest.files)))
 const vendorFiles = props.manifest.vendorFiles
 const activeFile = ref(props.manifest.activeFile)
 

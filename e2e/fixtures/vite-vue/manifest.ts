@@ -1,4 +1,4 @@
-import type { FixtureManifest } from '../types'
+import type { FixtureManifest } from '../types.ts'
 
 import indexHtml from './index.html?raw'
 import mainTs from './main.ts?raw'

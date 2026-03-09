@@ -19,8 +19,7 @@ for (const [path, mod] of Object.entries(manifestModules)) {
 
 // Select fixture from URL parameter (default: first available)
 const selectedFixture = ref(
-  new URLSearchParams(location.search).get('fixture')
-    ?? manifests.keys().next().value!
+  new URLSearchParams(location.search).get('fixture') ?? manifests.keys().next().value!
 )
 const activeManifest = manifests.get(selectedFixture.value)!
 
@@ -90,7 +89,11 @@ function handleReload() {
       <img src="/favicon.svg" alt="Vrowser" class="app-logo" />
       <h1>Vrowser Playground</h1>
       <span class="subtitle">Vite Dev Server in the Browser</span>
-      <select class="fixture-select" :value="selectedFixture" @change="switchFixture(($event.target as HTMLSelectElement).value)">
+      <select
+        class="fixture-select"
+        :value="selectedFixture"
+        @change="switchFixture(($event.target as HTMLSelectElement).value)"
+      >
         <option v-for="[name, m] in manifests" :key="name" :value="name">{{ m.name }}</option>
       </select>
     </header>

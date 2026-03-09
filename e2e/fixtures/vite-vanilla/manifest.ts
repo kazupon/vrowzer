@@ -1,4 +1,4 @@
-import type { FixtureManifest } from '../types'
+import type { FixtureManifest } from '../types.ts'
 
 import indexHtml from './index.html?raw'
 import mainTs from './main.ts?raw'
@@ -9,7 +9,7 @@ import vrowserSvg from './vrowser.svg?raw'
 import typescriptSvg from './typescript.svg?raw'
 
 export default {
-  name: 'Vite Vanilla',
+  name: 'Vrowser Vanilla',
   files: {
     '/index.html': indexHtml,
     '/main.ts': mainTs,
