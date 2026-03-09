@@ -219,7 +219,7 @@ describe('Controller API (createSvcWorkerController)', () => {
     context = await browser.newContext()
     // Cleanup: unregister all service workers
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html`)
+    await page.goto(`${BASE_URL}/integration/api-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -230,7 +230,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
   test('controller transitions through lifecycle states', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     // Wait for activation
     await waitForStatus(page, 'activated')
@@ -249,7 +249,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
   test('controller.version matches expected version', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=test-v2`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=test-v2`)
 
     await waitForStatus(page, 'activated')
 
@@ -263,7 +263,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
   test('controller.serviceWorker is available after activation', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -277,7 +277,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
   test('controller singleton returns same instance', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -305,7 +305,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
   test('controllerchange event is fired after clients.claim()', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -327,7 +327,9 @@ describe('Controller API (createSvcWorkerController)', () => {
   test('reloadSuggested event is fired when clients.claim() is not called', async () => {
     const page = await context.newPage()
     // Use e2e-sw-no-claim.js which does NOT call clients.claim()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-no-claim.js?version=v1`)
+    await page.goto(
+      `${BASE_URL}/integration/api-test.html?version=v1&sw=/e2e-sw-no-claim.js?version=v1`
+    )
 
     await waitForStatus(page, 'activated')
 
@@ -358,7 +360,7 @@ describe('Controller API (createSvcWorkerController)', () => {
     const page = await context.newPage()
     // Use e2e-sw-skip-waiting.js which calls skipWaiting() in install event
     await page.goto(
-      `${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-skip-waiting.js?version=v1`
+      `${BASE_URL}/integration/api-test.html?version=v1&sw=/e2e-sw-skip-waiting.js?version=v1`
     )
 
     await waitForStatus(page, 'activated')
@@ -383,7 +385,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
     // First, register service worker v1 and wait for activation
     await page.goto(
-      `${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-no-skip-waiting.js?version=v1`
+      `${BASE_URL}/integration/api-test.html?version=v1&sw=/e2e-sw-no-skip-waiting.js?version=v1`
     )
     await waitForStatus(page, 'activated')
 
@@ -438,7 +440,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
     // First, register SW v1 and wait for activation
     await page.goto(
-      `${BASE_URL}/e2e/api-test.html?version=v1&sw=/e2e-sw-no-skip-waiting.js?version=v1`
+      `${BASE_URL}/integration/api-test.html?version=v1&sw=/e2e-sw-no-skip-waiting.js?version=v1`
     )
     await waitForStatus(page, 'activated')
 
@@ -499,7 +501,7 @@ describe('Worker API (createSvcWorker)', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html`)
+    await page.goto(`${BASE_URL}/integration/api-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -510,7 +512,7 @@ describe('Worker API (createSvcWorker)', () => {
 
   test('Service Worker responds with version via fetch handler', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -526,7 +528,7 @@ describe('Worker API (createSvcWorker)', () => {
 
   test('Service Worker version is configurable via query parameter', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=custom-version-123`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=custom-version-123`)
 
     await waitForStatus(page, 'activated')
 
@@ -549,7 +551,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html`)
+    await page.goto(`${BASE_URL}/integration/api-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -560,7 +562,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
 
   test('controller.suspend() changes state to suspended', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -595,7 +597,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
 
   test('Service Worker suspended flag is true after suspend', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -614,7 +616,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
 
   test('controller.resume() restores from suspended state', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -645,7 +647,7 @@ describe('Circuit Breaker (Controller.suspend/resume)', () => {
 
   test('Service Worker fetch handler works again after resume', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -679,7 +681,7 @@ describe('Admin API', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html`)
+    await page.goto(`${BASE_URL}/integration/api-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -690,7 +692,7 @@ describe('Admin API', () => {
 
   test('getAllControllers returns registered controllers', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -713,7 +715,7 @@ describe('Admin API', () => {
 
   test('getController returns specific controller', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -742,7 +744,7 @@ describe('Admin API', () => {
 
   test('suspendAllServiceWorkers suspends all active controllers', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -771,7 +773,7 @@ describe('Admin API', () => {
 
   test('resumeAllServiceWorkers resumes all suspended controllers', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -806,7 +808,7 @@ describe('Admin API', () => {
 
   test('disposeAllControllers cleans up all controllers', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -841,7 +843,7 @@ describe('Multi-tab Scenarios', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html`)
+    await page.goto(`${BASE_URL}/integration/api-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -852,12 +854,12 @@ describe('Multi-tab Scenarios', () => {
 
   test('multiple pages share the same Service Worker', async () => {
     const page1 = await context.newPage()
-    await page1.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page1.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
     await waitForStatus(page1, 'activated')
 
     // With `clients.claim()` working, no reload needed
     const page2 = await context.newPage()
-    await page2.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page2.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
     await waitForStatus(page2, 'activated')
 
     // Both should have the same Service Worker controlling them
@@ -873,11 +875,11 @@ describe('Multi-tab Scenarios', () => {
 
   test('controller singleton is per-page (not shared across tabs)', async () => {
     const page1 = await context.newPage()
-    await page1.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page1.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
     await waitForStatus(page1, 'activated')
 
     const page2 = await context.newPage()
-    await page2.goto(`${BASE_URL}/e2e/api-test.html?version=v1`)
+    await page2.goto(`${BASE_URL}/integration/api-test.html?version=v1`)
     await waitForStatus(page2, 'activated')
 
     // Each page has its own controller instance (JavaScript contexts are isolated)
@@ -903,7 +905,7 @@ describe('Version Management', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/api-test.html`)
+    await page.goto(`${BASE_URL}/integration/api-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -914,7 +916,7 @@ describe('Version Management', () => {
 
   test('different versions create different Service Workers', async () => {
     const page1 = await context.newPage()
-    await page1.goto(`${BASE_URL}/e2e/api-test.html?version=version-a`)
+    await page1.goto(`${BASE_URL}/integration/api-test.html?version=version-a`)
     await waitForStatus(page1, 'activated')
 
     // With `clients.claim()` working, no reload needed
@@ -927,7 +929,7 @@ describe('Version Management', () => {
       await Promise.all(registrations.map(r => r.unregister()))
     })
 
-    await page1.goto(`${BASE_URL}/e2e/api-test.html?version=version-b`)
+    await page1.goto(`${BASE_URL}/integration/api-test.html?version=version-b`)
     await waitForStatus(page1, 'activated')
 
     // With `clients.claim()` working, no reload needed

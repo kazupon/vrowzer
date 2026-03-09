@@ -4,7 +4,7 @@
  * Tests Bun bundler's ability to correctly bundle Service Workers
  * using the unplugin-service-worker plugin.
  *
- * Run with: bun test e2e/bun.e2e_test.ts
+ * Run with: bun test integration/bun.integration-test.ts
  *
  * Environment variables:
  * - E2E_DEBUG: Enable debug logging (e.g., "1" or "true")

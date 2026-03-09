@@ -154,7 +154,7 @@ describe('@vrowser/fs E2E', () => {
       errors.push(err.message)
     })
 
-    await page.goto(`${BASE_URL}/e2e/test.html`)
+    await page.goto(`${BASE_URL}/integration/test.html`)
 
     // Wait for modules to load
     try {
@@ -177,7 +177,7 @@ describe('@vrowser/fs E2E', () => {
   })
 
   it('promises API works in browser', async () => {
-    await page.goto(`${BASE_URL}/e2e/test.html`)
+    await page.goto(`${BASE_URL}/integration/test.html`)
 
     await page.waitForFunction(() => document.getElementById('status')?.textContent === 'ready', {
       timeout: 15000
@@ -195,7 +195,7 @@ describe('@vrowser/fs E2E', () => {
   })
 
   it('glob works in browser', async () => {
-    await page.goto(`${BASE_URL}/e2e/test.html`)
+    await page.goto(`${BASE_URL}/integration/test.html`)
 
     await page.waitForFunction(() => document.getElementById('status')?.textContent === 'ready', {
       timeout: 15000

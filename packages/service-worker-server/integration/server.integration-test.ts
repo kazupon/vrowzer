@@ -107,7 +107,7 @@ async function startDevServer(options: {
       }
       try {
         // Check if server is responding (any status code means it's up)
-        const res = await fetch(`${url}/e2e/server-test.html`)
+        const res = await fetch(`${url}/integration/server-test.html`)
         if (res.status !== 0) {
           cleanup()
           resolve({ url, process: childProcess })
@@ -210,7 +210,7 @@ describe('SvcWorkerServer.listen() and listening event', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html`)
+    await page.goto(`${BASE_URL}/integration/server-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -221,7 +221,7 @@ describe('SvcWorkerServer.listen() and listening event', () => {
 
   test('server emits listening event after activation', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
 
@@ -235,7 +235,7 @@ describe('SvcWorkerServer.listen() and listening event', () => {
 
   test('fetch handler responds correctly after listen()', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
     await waitForServiceWorkerController(page)
@@ -265,7 +265,7 @@ describe('SvcWorkerServer.close() and close event', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html`)
+    await page.goto(`${BASE_URL}/integration/server-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -276,7 +276,7 @@ describe('SvcWorkerServer.close() and close event', () => {
 
   test('close() stops fetch handler and emits close event', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
     await waitForServiceWorkerController(page)
@@ -307,7 +307,7 @@ describe('SvcWorkerServer.close() and close event', () => {
 
   test('fetch requests fall through after close()', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
     await waitForServiceWorkerController(page)
@@ -346,7 +346,7 @@ describe('claimOnActivate option', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html`)
+    await page.goto(`${BASE_URL}/integration/server-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -357,7 +357,9 @@ describe('claimOnActivate option', () => {
 
   test('claimOnActivate: true causes immediate page control', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?sw=/e2e-server-sw-claim.js?version=v1`)
+    await page.goto(
+      `${BASE_URL}/integration/server-test.html?sw=/e2e-server-sw-claim.js?version=v1`
+    )
 
     await waitForStatus(page, 'activated')
 
@@ -377,7 +379,9 @@ describe('claimOnActivate option', () => {
 
   test('claimOnActivate: false does not auto-control page', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?sw=/e2e-server-sw-no-claim.js?version=v1`)
+    await page.goto(
+      `${BASE_URL}/integration/server-test.html?sw=/e2e-server-sw-no-claim.js?version=v1`
+    )
 
     await waitForStatus(page, 'activated')
 
@@ -405,7 +409,7 @@ describe('Error cases', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html`)
+    await page.goto(`${BASE_URL}/integration/server-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -416,7 +420,7 @@ describe('Error cases', () => {
 
   test('double listen() emits error event', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
     await waitForServiceWorkerController(page)
@@ -440,7 +444,7 @@ describe('Error cases', () => {
 
   test('error in fetch handler emits error event', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
     await waitForServiceWorkerController(page)
@@ -479,7 +483,7 @@ describe('Integration scenarios', () => {
   beforeEach(async () => {
     context = await browser.newContext()
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html`)
+    await page.goto(`${BASE_URL}/integration/server-test.html`)
     await cleanupServiceWorkers(page)
     await page.close()
   })
@@ -490,11 +494,11 @@ describe('Integration scenarios', () => {
 
   test('multiple pages share same Service Worker server', async () => {
     const page1 = await context.newPage()
-    await page1.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page1.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
     await waitForStatus(page1, 'activated')
 
     const page2 = await context.newPage()
-    await page2.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page2.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
     await waitForStatus(page2, 'activated')
 
     // Both should be controlled by same SW
@@ -510,7 +514,7 @@ describe('Integration scenarios', () => {
 
   test('server state persists across page navigations', async () => {
     const page = await context.newPage()
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
 
     await waitForStatus(page, 'activated')
     await waitForServiceWorkerController(page)
@@ -520,7 +524,7 @@ describe('Integration scenarios', () => {
     expect(state1.version).toBe('v1')
 
     // Navigate to same page
-    await page.goto(`${BASE_URL}/e2e/server-test.html?version=v1`)
+    await page.goto(`${BASE_URL}/integration/server-test.html?version=v1`)
     await waitForStatus(page, 'activated')
 
     // State should persist (same SW instance)

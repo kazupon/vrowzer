@@ -2,7 +2,7 @@
  * Shared E2E Test Cases
  *
  * This module contains test case definitions that can be used by both
- * vitest (bundlers.e2e-test.ts) and bun:test (bun.e2e_test.ts).
+ * vitest (bundlers.integration-test.ts) and bun:test (bun.integration-test.ts).
  *
  * Each test case is a plain async function that takes a TestContext and Expect.
  */

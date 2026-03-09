@@ -23,8 +23,8 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'service-worker:e2e',
-          include: ['./packages/service-worker/e2e/**/*.e2e-test.ts'],
+          name: 'service-worker:integration',
+          include: ['./packages/service-worker/integration/**/*.integration-test.ts'],
           testTimeout: 30000,
           hookTimeout: 60000
         }
@@ -43,17 +43,18 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'service-worker-server:e2e',
-          include: ['./packages/service-worker-server/e2e/**/*.e2e-test.ts'],
+          name: 'service-worker-server:integration',
+          include: ['./packages/service-worker-server/integration/**/*.integration-test.ts'],
           testTimeout: 30000,
           hookTimeout: 120000
         }
       },
       {
         test: {
-          name: 'unplugin-service-worker:e2e',
-          include: ['./packages/unplugin-service-worker/e2e/**/*.e2e-test.ts'],
-          // bun.e2e-test.ts is a spawn wrapper that runs bun test for bun.e2e_test.ts
+          name: 'unplugin-service-worker:integration',
+          include: ['./packages/unplugin-service-worker/integration/**/*.integration-test.ts'],
+          exclude: ['./packages/unplugin-service-worker/integration/bun.integration-test.ts'],
+          // bun.integration-test.ts is a spawn wrapper that runs bun test for bun.e2e_test.ts
           testTimeout: 60000, // Extended for Bun test spawn
           hookTimeout: 120000
         }
@@ -92,8 +93,8 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'fs:e2e',
-          include: ['./packages/fs/e2e/**/*.e2e-test.ts'],
+          name: 'fs:integration',
+          include: ['./packages/fs/integration/**/*.integration-test.ts'],
           testTimeout: 30000,
           hookTimeout: 60000
         }
@@ -128,8 +129,8 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'rolldown:e2e',
-          include: ['./packages/rolldown/e2e/**/*.e2e-test.ts'],
+          name: 'rolldown:integration',
+          include: ['./packages/rolldown/integration/**/*.integration-test.ts'],
           testTimeout: 60000,
           hookTimeout: 120000
         }
@@ -150,8 +151,8 @@ export default defineConfig({
       },
       {
         test: {
-          name: 'vrowser:e2e',
-          include: ['./packages/vrowser/e2e/**/*.e2e-test.ts'],
+          name: 'vrowser:integration',
+          include: ['./packages/vrowser/integration/**/*.integration-test.ts'],
           testTimeout: 60000,
           hookTimeout: 120000
         }

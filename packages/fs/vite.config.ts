@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   server: {
     fs: {
-      allow: ['.', 'src', 'e2e', '../../node_modules']
+      allow: ['.', 'src', 'integration', '../../node_modules']
     }
   },
   resolve: {

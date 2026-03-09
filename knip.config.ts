@@ -3,7 +3,7 @@ import type { KnipConfig } from 'knip'
 const config: KnipConfig = {
   workspaces: {
     'packages/fs': {
-      entry: ['e2e/**'],
+      entry: ['integration/**'],
       ignoreDependencies: [
         // TODO(kazupon): These dependencies are used for bundling, but these might be unnecessary in 'dependecies'
         '@jsonjoy.com/fs-core',
@@ -33,7 +33,7 @@ const config: KnipConfig = {
       ]
     },
     'packages/rolldown': {
-      entry: ['src/index.ts', 'e2e/**'],
+      entry: ['src/index.ts', 'integration/**'],
       ignoreDependencies: [
         // Used for bundling via resolve.alias (node polyfills)
         '@vrowser/node-polyfill',
@@ -45,13 +45,13 @@ const config: KnipConfig = {
       ]
     },
     'packages/service-worker': {
-      entry: ['src/**/*.ts', 'e2e/**', 'test-public/**', 'playground/**']
+      entry: ['src/**/*.ts', 'integration/**', 'test-public/**', 'playground/**']
     },
     'packages/service-worker-server': {
-      entry: ['e2e/**', 'test-public/**', 'docs/**']
+      entry: ['integration/**', 'test-public/**', 'docs/**']
     },
     'packages/unplugin-service-worker': {
-      entry: ['src/**/*.ts', 'e2e/**']
+      entry: ['src/**/*.ts', 'integration/**']
     },
     'packages/vite-plugin': {
       // TODO(kazupon): These dependencies are used for bundling, but these might be unnecessary in 'dependecies'
@@ -69,7 +69,7 @@ const config: KnipConfig = {
     // 'packages/vite-dev-server': {
     // }
     'packages/vrowser': {
-      entry: ['e2e/**']
+      entry: ['integration/**']
     }
   },
   ignore: [

@@ -10,7 +10,7 @@ import type { BundlerConfig } from './types.ts'
 
 export { type BuildResult, type BundlerConfig } from './types.ts'
 
-// NOTE: Bun bundler is tested separately with `bun test` (see bun.e2e-test.ts)
+// NOTE: Bun bundler is tested separately with `bun test` (see bun.integration-test.ts)
 // because it requires the Bun runtime
 export const BUNDLERS: BundlerConfig[] = [
   { name: 'vite', build: buildWithVite },

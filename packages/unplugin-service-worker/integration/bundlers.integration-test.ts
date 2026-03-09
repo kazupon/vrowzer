@@ -141,13 +141,13 @@ const TIMEOUT = 60000
 
 /**
  * Runs bun test as a child process.
- * Actual tests are in bun.e2e_test.ts (underscore, not matched by vitest).
+ * Actual tests are in bun.integration-test.ts (underscore, not matched by vitest).
  */
 function runBunTest(): Promise<{ success: boolean; exitCode: number | null }> {
   return new Promise(resolve => {
     const bunProcess = spawn(
       'bun',
-      ['test', './e2e/bun.e2e_test.ts', '--timeout', TIMEOUT.toString()],
+      ['test', './integration/bun.integration-test.ts', '--timeout', TIMEOUT.toString()],
       {
         cwd: join(__dirname, '..'),
         stdio: E2E_DEBUG ? 'inherit' : 'pipe',
