@@ -17,11 +17,15 @@
   },
   "devDependencies": {
     "@rollup/plugin-yaml": "^4.1.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/node": "catalog:",
     "@vitejs/plugin-react": "5.1.4",
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vrowser/node-polyfill": "workspace:*",
+    "@vrowser/vite-dev-server": "workspace:*",
     "@vrowser/vite-plugin": "workspace:*",
     "@vue/tsconfig": "^0.8.1",
+    "svelte": "^5.53.7",
     "vite": "catalog:",
     "vue-tsc": "^3.1.4",
     "wrangler": "catalog:"
