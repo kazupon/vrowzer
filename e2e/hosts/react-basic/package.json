@@ -1,9 +1,9 @@
 {
-  "name": "@vrowser/e2e-vanilla-basic",
+  "name": "@vrowser/e2e-react-basic",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@rollup/plugin-yaml": "^4.1.2",
+    "@vitejs/plugin-react": "5.1.4",
     "@vrowser/vite-plugin": "workspace:*",
     "vrowser": "workspace:*",
     "vite": "catalog:"

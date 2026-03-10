@@ -4,8 +4,8 @@
   "type": "module",
   "dependencies": {
     "@vitejs/plugin-vue": "^6.0.3",
-    "@vrowser/vite-plugin": "workspace:*",
     "@rollup/plugin-yaml": "^4.1.2",
+    "@vrowser/vite-plugin": "workspace:*",
     "vue": "^3.5.26",
     "vrowser": "workspace:*",
     "vite": "catalog:"
