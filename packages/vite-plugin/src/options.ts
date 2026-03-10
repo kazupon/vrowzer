@@ -9,6 +9,11 @@
  * @license MIT
  */
 
+export interface Alias {
+  find: string | RegExp
+  replacement: string
+}
+
 export interface VrowserOptions {
   /**
    * The base path for the preview system location, which is used to serve the preview files via service worker of Vrowser.
@@ -41,23 +46,47 @@ export interface VrowserOptions {
    */
   serviceWorkerEntry?: string
   /**
-   * Path to the vrowser config file.
-   * When specified, this path is used directly instead of auto-detection.
-   * When omitted, the plugin will search for `vrowser.config.{ts,js,mts,mjs}` in the project root.
+   * Worker-specific resolve settings (e.g. vendor aliases).
+   * These are NOT added to the host Vite config (which would break host package resolution),
+   * but are passed to the Worker's internal Vite dev server.
+   *
+   * @example { alias: [{ find: 'vue', replacement: '/vendor/vue.js' }] }
+   * @default undefined
+   */
+  resolve?: { alias?: Alias[] }
+  /**
+   * Fallback: explicit Worker config file path.
+   * When specified, the old vrowser.config.ts flow is used instead of
+   * auto-extracting plugins from vite.config.ts.
    *
    * @default undefined
+   */
+  workerConfig?: string
+  /**
+   * @deprecated Use `workerConfig` instead.
    */
   configFile?: string
 }
 
-export type ResolvedVrowserOptions = Required<VrowserOptions>
+export interface ResolvedVrowserOptions {
+  basePath: string
+  serviceWorkerScope: string
+  serviceWorkerVersion: string
+  serviceWorkerEntry: string
+  resolve: { alias?: Alias[] } | undefined
+  workerConfig: string
+  configFile: string
+}
 
 export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions {
+  const workerConfig = options.workerConfig ?? options.configFile ?? ''
   return {
     basePath: options.basePath ?? '/__preview__/',
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'SEVICE_WORKER_VERSION',
     serviceWorkerEntry: options.serviceWorkerEntry ?? '',
-    configFile: options.configFile ?? ''
+    resolve: options.resolve,
+    workerConfig,
+    configFile: workerConfig
   }
 }

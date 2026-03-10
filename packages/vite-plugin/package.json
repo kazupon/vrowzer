@@ -63,12 +63,14 @@
     "buffer": "catalog:",
     "obug": "catalog:",
     "pathe": "catalog:",
-    "readable-stream": "catalog:"
+    "readable-stream": "catalog:",
+    "rolldown": "catalog:"
   },
   "peerDependencies": {
     "@vrowser/vite-dev-server": "workspace:*"
   },
   "devDependencies": {
+    "@oxc-project/types": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "vite": "catalog:",
