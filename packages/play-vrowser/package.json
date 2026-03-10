@@ -21,8 +21,6 @@
     "@types/node": "catalog:",
     "@vitejs/plugin-react": "5.1.4",
     "@vitejs/plugin-vue": "^6.0.1",
-    "@vrowser/node-polyfill": "workspace:*",
-    "@vrowser/vite-dev-server": "workspace:*",
     "@vrowser/vite-plugin": "workspace:*",
     "@vue/tsconfig": "^0.8.1",
     "svelte": "^5.53.7",

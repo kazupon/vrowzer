@@ -11,6 +11,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import inject from '@rollup/plugin-inject'
 import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
 import { createDebug } from 'obug'
@@ -83,8 +84,33 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
 
   const vrowserConfigPlugin: Plugin = {
     name: 'vrowser:config',
+    // Resolve @vrowser/* imports from prebundled config using this plugin's
+    // own dependency graph, so host projects don't need them as direct dependencies.
+    resolveId(id) {
+      if (id.startsWith('@vrowser/')) {
+        try {
+          return fileURLToPath(import.meta.resolve(id))
+        } catch {
+          // Not resolvable from this plugin — let Vite handle it normally
+        }
+      }
+    },
     config(): UserConfig {
       const workerPlugins: Plugin[] = [
+        // Resolve @vrowser/* imports in Worker bundles (build mode uses a separate
+        // rolldown instance that doesn't inherit the main resolveId hook).
+        {
+          name: 'vrowser:worker-resolve',
+          resolveId(id: string) {
+            if (id.startsWith('@vrowser/')) {
+              try {
+                return fileURLToPath(import.meta.resolve(id))
+              } catch {
+                // fallthrough
+              }
+            }
+          }
+        },
         // Inject `process` polyfill into Worker bundle.
         // In dev mode, @rollup/plugin-inject handles this in the main pipeline.
         // In build mode, corePlugin's options hook sets transform.inject for the main build,
