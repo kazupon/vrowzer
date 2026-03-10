@@ -29,8 +29,7 @@ const config: KnipConfig = {
     },
     'packages/play-vrowser': {
       ignoreDependencies: [
-        '@rollup/plugin-yaml', // Used in vrowser.config.ts (loaded into Worker via @vrowser/vite-plugin)
-        '@vitejs/plugin-react' // Used in vrowser.config.ts (loaded into Worker via @vrowser/vite-plugin)
+        'vue/compiler-sfc' // Imported in vite.config.ts for Worker plugin override (not detected by knip)
       ]
     },
     'packages/rolldown': {
@@ -61,7 +60,8 @@ const config: KnipConfig = {
         '@vrowser/node-polyfill',
         'buffer',
         'pathe',
-        'readable-stream'
+        'readable-stream',
+        'rolldown' // Used at runtime for parseSync (extract.ts) and prebundling (prebundle.ts)
       ],
       // generateServiceWorkerEntry is kept for future SW plugin injection re-enablement
       ignore: ['src/virtual.ts']
