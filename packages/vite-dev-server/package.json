@@ -109,7 +109,7 @@
     "@kazupon/jts-utils": "catalog:",
     "@noble/hashes": "^2.0.1",
     "@oxc-parser/binding-wasm32-wasi": "0.111.0",
-    "@oxc-project/types": "0.108.0",
+    "@oxc-project/types": "catalog:",
     "@rolldown/pluginutils": "1.0.0-beta.60",
     "@rollup/plugin-alias": "^5.1.1",
     "@rollup/pluginutils": "^5.3.0",

@@ -23,6 +23,9 @@
 // --- Version (needed by @vitejs/plugin-react to detect Rolldown Vite) ---
 export { rolldownVersion } from './utils'
 
+// `version` is used by ecosystem plugins (e.g. @vitejs/plugin-react checks vite.version)
+export { rolldownVersion as version } from './utils'
+
 // --- Utilities (lightweight, no WASM dependency) ---
 export { createFilter, normalizePath, isCSSRequest } from './utils'
 
@@ -34,6 +37,15 @@ export { formatPostcssSourceMap } from './plugins/css'
 // for oxc.ts (which depends on @vrowser/rolldown WASM), so WASM is not
 // loaded at module evaluation time.
 export { transformWithEsbuild } from './plugins/esbuild'
+
+// --- Environment (stub for plugins that call loadEnv) ---
+export function loadEnv(
+  _mode: string,
+  _envDir: string,
+  _prefixes?: string | string[]
+): Record<string, string> {
+  return {}
+}
 
 // --- Plugin types ---
 export type { Plugin } from './plugin'
