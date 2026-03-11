@@ -1,0 +1,16 @@
+{
+  "name": "Vrowser + Vue",
+  "files": {
+    "/index.html": "../../packages/play-vrowser/fixtures/vite-vue/index.html",
+    "/main.ts": "../../packages/play-vrowser/fixtures/vite-vue/main.ts",
+    "/style.css": "../../packages/play-vrowser/fixtures/vite-vue/style.css",
+    "/App.vue": "../../packages/play-vrowser/fixtures/vite-vue/App.vue",
+    "/HelloWorld.vue": "../../packages/play-vrowser/fixtures/vite-vue/HelloWorld.vue",
+    "/vrowser.svg": "../../packages/play-vrowser/fixtures/vite-vue/vrowser.svg",
+    "/vue.svg": "../../packages/play-vrowser/fixtures/vite-vue/vue.svg"
+  },
+  "vendor": {
+    "/vendor/vue.js": "../../packages/play-vrowser/fixtures/vite-vue/vendor/vue.js"
+  },
+  "activeFile": "/App.vue"
+}

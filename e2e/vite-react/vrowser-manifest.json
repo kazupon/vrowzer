@@ -1,0 +1,19 @@
+{
+  "name": "Vrowser + React",
+  "files": {
+    "/index.html": "../../packages/play-vrowser/fixtures/vite-react/index.html",
+    "/main.tsx": "../../packages/play-vrowser/fixtures/vite-react/main.tsx",
+    "/App.tsx": "../../packages/play-vrowser/fixtures/vite-react/App.tsx",
+    "/App.css": "../../packages/play-vrowser/fixtures/vite-react/App.css",
+    "/index.css": "../../packages/play-vrowser/fixtures/vite-react/index.css",
+    "/react.svg": "../../packages/play-vrowser/fixtures/vite-react/react.svg",
+    "/vrowser.svg": "../../packages/play-vrowser/fixtures/vite-react/vrowser.svg"
+  },
+  "vendor": {
+    "/vendor/react.js": "../../packages/play-vrowser/fixtures/vite-react/vendor/react.js",
+    "/vendor/react-dom-client.js": "../../packages/play-vrowser/fixtures/vite-react/vendor/react-dom-client.js",
+    "/vendor/react-jsx-dev-runtime.js": "../../packages/play-vrowser/fixtures/vite-react/vendor/react-jsx-dev-runtime.js",
+    "/vendor/react-shared.js": "../../packages/play-vrowser/fixtures/vite-react/vendor/react-shared.js"
+  },
+  "activeFile": "/App.tsx"
+}

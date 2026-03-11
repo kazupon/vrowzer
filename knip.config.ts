@@ -82,9 +82,7 @@ const config: KnipConfig = {
     // ignores for vite-dev-server package, because it will be forked from `vite` and maintained separately, preventing conflicts.
     'packages/vite-dev-server/**',
     // Bundled vendor files and E2E test fixtures
-    'e2e/fixtures/**',
-    'e2e/hosts/**',
-    'e2e/helpers/**'
+    'e2e/**'
   ],
   ignoreBinaries: [
     'wrangler' // Used in play-vrowser scripts, installed as devDependency in play-vrowser

@@ -1,0 +1,18 @@
+{
+  "name": "Vrowser + Svelte",
+  "files": {
+    "/index.html": "../../packages/play-vrowser/fixtures/vite-svelte/index.html",
+    "/main.ts": "../../packages/play-vrowser/fixtures/vite-svelte/main.ts",
+    "/App.svelte": "../../packages/play-vrowser/fixtures/vite-svelte/App.svelte",
+    "/Counter.svelte": "../../packages/play-vrowser/fixtures/vite-svelte/Counter.svelte",
+    "/app.css": "../../packages/play-vrowser/fixtures/vite-svelte/app.css",
+    "/svelte.svg": "../../packages/play-vrowser/fixtures/vite-svelte/svelte.svg",
+    "/vrowser.svg": "../../packages/play-vrowser/fixtures/vite-svelte/vrowser.svg"
+  },
+  "vendor": {
+    "/vendor/svelte.js": "../../packages/play-vrowser/fixtures/vite-svelte/vendor/svelte.js",
+    "/vendor/svelte-internal-client.js": "../../packages/play-vrowser/fixtures/vite-svelte/vendor/svelte-internal-client.js",
+    "/vendor/svelte-shared.js": "../../packages/play-vrowser/fixtures/vite-svelte/vendor/svelte-shared.js"
+  },
+  "activeFile": "/App.svelte"
+}

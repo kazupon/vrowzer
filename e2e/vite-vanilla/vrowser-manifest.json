@@ -1,0 +1,13 @@
+{
+  "name": "Vrowser Vanilla",
+  "files": {
+    "/index.html": "../../packages/play-vrowser/fixtures/vite-vanilla/index.html",
+    "/main.ts": "../../packages/play-vrowser/fixtures/vite-vanilla/main.ts",
+    "/counter.ts": "../../packages/play-vrowser/fixtures/vite-vanilla/counter.ts",
+    "/style.css": "../../packages/play-vrowser/fixtures/vite-vanilla/style.css",
+    "/data.yaml": "../../packages/play-vrowser/fixtures/vite-vanilla/data.yaml",
+    "/vrowser.svg": "../../packages/play-vrowser/fixtures/vite-vanilla/vrowser.svg",
+    "/typescript.svg": "../../packages/play-vrowser/fixtures/vite-vanilla/typescript.svg"
+  },
+  "activeFile": "/main.ts"
+}
