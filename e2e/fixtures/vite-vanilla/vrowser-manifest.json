@@ -1,0 +1,13 @@
+{
+  "name": "Vrowser Vanilla",
+  "files": {
+    "/index.html": "./app.html",
+    "/main.ts": "./main.ts",
+    "/counter.ts": "./counter.ts",
+    "/style.css": "./style.css",
+    "/data.yaml": "./data.yaml",
+    "/vrowser.svg": "./vrowser.svg",
+    "/typescript.svg": "./typescript.svg"
+  },
+  "activeFile": "/main.ts"
+}

@@ -2,22 +2,25 @@
 import * as monaco from 'monaco-editor'
 import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
-import type { FixtureManifest } from '../../../../e2e/fixtures/types'
+import type { VrowserManifest } from '../../fixtures/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
 const ts = (monaco.languages as any).typescript
 
-const props = defineProps<{ manifest: FixtureManifest }>()
+const props = defineProps<{ manifest: VrowserManifest }>()
 
 const emit = defineEmits<{
   (e: 'file-change', payload: { path: string; content: string }): void
 }>()
 
 const files = ref<Map<string, string>>(new Map(Object.entries(props.manifest.files)))
-const vendorFiles = props.manifest.vendorFiles
-const activeFile = ref(props.manifest.activeFile)
+const hiddenFiles = {
+  ...(props.manifest.vendor ?? {}),
+  ...(props.manifest.nodeModules ?? {})
+}
+const activeFile = ref(props.manifest.activeFile ?? Object.keys(props.manifest.files)[0] ?? '')
 
-defineExpose({ files, vendorFiles })
+defineExpose({ files, hiddenFiles })
 const editorContainer = useTemplateRef('editorContainer')
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null

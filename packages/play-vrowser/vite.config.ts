@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import react from '@vitejs/plugin-react'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
 import vue from '@vitejs/plugin-vue'
 import * as compiler from 'vue/compiler-sfc'
 import yaml from '@rollup/plugin-yaml'
-import { Vrowser } from '@vrowser/vite-plugin'
+import { Vrowser, VrowserManifest } from '@vrowser/vite-plugin'
 import { defineConfig } from 'vite'
 
 import type { Plugin } from 'vite'
@@ -51,13 +52,14 @@ export default defineConfig({
     ]
   },
   plugins: [
+    // Transform vrowser-manifest.json imports to inline file contents
+    VrowserManifest(),
     // Provides /@react-refresh without readFileSync (must be before react())
     reactRefreshRuntimePlugin(),
     // compiler option bypasses createRequire-based loading (not available in Worker)
     vue({ compiler }),
     react(),
-    // TODO: enable after CJS→ESM conversion issue is resolved (.notes/064)
-    // svelte(),
+    svelte(),
     yaml(),
     Vrowser({
       serviceWorkerEntry: resolve(
@@ -70,7 +72,9 @@ export default defineConfig({
           { find: 'react/jsx-dev-runtime', replacement: '/vendor/react-jsx-dev-runtime.js' },
           { find: 'react-dom/client', replacement: '/vendor/react-dom-client.js' },
           { find: 'react', replacement: '/vendor/react.js' },
-          { find: 'vue', replacement: '/vendor/vue.js' }
+          { find: 'vue', replacement: '/vendor/vue.js' },
+          { find: 'svelte/internal/client', replacement: '/vendor/svelte-internal-client.js' },
+          { find: 'svelte', replacement: '/vendor/svelte.js' }
         ]
       }
     })

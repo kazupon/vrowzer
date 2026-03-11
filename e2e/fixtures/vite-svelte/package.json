@@ -1,0 +1,14 @@
+{
+  "name": "@vrowser/e2e-svelte-basic",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "svelte": "catalog:"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@vrowser/vite-plugin": "workspace:*",
+    "vrowser": "workspace:*",
+    "vite": "catalog:"
+  }
+}

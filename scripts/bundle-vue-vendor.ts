@@ -1,13 +1,13 @@
 /**
  * This script bundles Vue and related packages into a single ESM bundle for use in the Vrowser + Vue fixture.
- * ref: e2e/fixtures/vite-vue
+ * ref: packages/play-vrowser/fixtures/vite-vue
  */
 
 import { rolldown } from 'rolldown'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
-const vendorDir = resolve(root, 'e2e/fixtures/vite-vue/vendor')
+const vendorDir = resolve(root, 'packages/play-vrowser/fixtures/vite-vue/vendor')
 const vueNodeModules = resolve(root, 'packages/play-vrowser/node_modules')
 
 // Bundle vue.esm-bundler.js as a single ESM vendor file.

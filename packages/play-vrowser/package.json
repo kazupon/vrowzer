@@ -13,17 +13,18 @@
   "dependencies": {
     "monaco-editor": "^0.55.1",
     "vrowser": "workspace:*",
-    "vue": "^3.5.24"
+    "vue": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "svelte": "catalog:"
   },
   "devDependencies": {
     "@rollup/plugin-yaml": "^4.1.2",
-    "@sveltejs/vite-plugin-svelte": "^6.2.4",
-    "@types/node": "catalog:",
-    "@vitejs/plugin-react": "5.1.4",
-    "@vitejs/plugin-vue": "^6.0.1",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
     "@vrowser/vite-plugin": "workspace:*",
     "@vue/tsconfig": "^0.8.1",
-    "svelte": "^5.53.7",
     "vite": "catalog:",
     "vue-tsc": "^3.1.4",
     "wrangler": "catalog:"

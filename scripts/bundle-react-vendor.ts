@@ -1,13 +1,13 @@
 /**
  * This script bundles React and related packages into multiple ESM bundles for use in the Vrowser + React fixture.
- * ref: e2e/fixtures/vite-react
+ * ref: packages/play-vrowser/fixtures/vite-react
  */
 
 import { rolldown } from 'rolldown'
 import { resolve } from 'node:path'
 
 const root = resolve(import.meta.dirname, '..')
-const fixtureDir = resolve(root, 'e2e/fixtures/vite-react')
+const fixtureDir = resolve(root, 'packages/play-vrowser/fixtures/vite-react')
 const vendorDir = resolve(fixtureDir, 'vendor')
 const entriesDir = resolve(fixtureDir, '_vendor-entries')
 const reactNodeModules = resolve(root, 'node_modules')

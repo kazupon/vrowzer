@@ -6,7 +6,7 @@
  */
 
 import { afterAll, beforeAll } from 'vitest'
-import { debug, launchBrowser, startServer, waitForVrowserReady } from './test-utils'
+import { debug, launchBrowser, startServer, waitForVrowserReady } from './test-utils.ts'
 
 import type { Browser, Page } from '@playwright/test'
 import type { PreviewServer, ViteDevServer } from 'vite'

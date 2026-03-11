@@ -1,0 +1,6 @@
+title: Hello from YAML
+items:
+  - name: Vrowser
+    description: Vite Dev Server in the Browser
+  - name: TypeScript
+    description: JavaScript with syntax for types

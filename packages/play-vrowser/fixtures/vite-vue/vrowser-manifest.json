@@ -1,0 +1,16 @@
+{
+  "name": "Vrowser + Vue",
+  "files": {
+    "/index.html": "./index.html",
+    "/main.ts": "./main.ts",
+    "/style.css": "./style.css",
+    "/App.vue": "./App.vue",
+    "/HelloWorld.vue": "./HelloWorld.vue",
+    "/vrowser.svg": "./vrowser.svg",
+    "/vue.svg": "./vue.svg"
+  },
+  "vendor": {
+    "/vendor/vue.js": "./vendor/vue.js"
+  },
+  "activeFile": "/App.vue"
+}

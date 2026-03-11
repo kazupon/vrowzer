@@ -3,14 +3,16 @@ import { Vrowser } from 'vrowser'
 import { onMounted, ref, useTemplateRef } from 'vue'
 import EditorPanel from './components/EditorPanel.vue'
 
-import type { FixtureManifest } from '../../../e2e/fixtures/types'
+import type { VrowserManifest } from '../fixtures/types'
 
 // Discover all fixture manifests via import.meta.glob
-const manifestModules = import.meta.glob<{ default: FixtureManifest }>(
-  '../../../e2e/fixtures/*/manifest.ts',
-  { eager: true }
+// The vrowserManifestPlugin transforms these JSON files at build time,
+// resolving file paths to actual file contents.
+const manifestModules = import.meta.glob<{ default: VrowserManifest }>(
+  '../fixtures/*/vrowser-manifest.json',
+  { eager: true, query: '?vrowser' }
 )
-const manifests = new Map<string, FixtureManifest>()
+const manifests = new Map<string, VrowserManifest>()
 for (const [path, mod] of Object.entries(manifestModules)) {
   const parts = path.split('/')
   const name = parts[parts.length - 2]!
@@ -52,8 +54,8 @@ onMounted(async () => {
       initialFiles[path] = content
     }
   }
-  if (editorPanel.value?.vendorFiles) {
-    Object.assign(initialFiles, editorPanel.value.vendorFiles)
+  if (editorPanel.value?.hiddenFiles) {
+    Object.assign(initialFiles, editorPanel.value.hiddenFiles)
   }
 
   // Initialize preview system
