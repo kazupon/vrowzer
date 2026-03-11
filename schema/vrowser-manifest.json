@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazupon/vrowser/schema/vrowser-manifest.json",
+  "title": "VrowserManifest",
+  "description": "Manifest file for vrowser virtual filesystem setup. Defines the mapping from virtual FS paths to actual source file paths.",
+  "type": "object",
+  "required": ["files"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name for the project (e.g. 'Vrowser + Vue')."
+    },
+    "files": {
+      "type": "object",
+      "description": "Source files shown in the editor and loaded into the virtual FS. Keys are virtual FS paths (e.g. '/index.html'), values are actual file paths relative to the manifest file.",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "examples": [
+        {
+          "/index.html": "./index.html",
+          "/main.ts": "./main.ts",
+          "/App.vue": "./App.vue"
+        }
+      ]
+    },
+    "vendor": {
+      "type": "object",
+      "description": "Pre-bundled vendor/runtime files not shown in the editor but loaded into the virtual FS. Keys are virtual FS paths, values are actual file paths relative to the manifest file. Used for pre-bundled framework runtimes (e.g. Vue, React vendor bundles).",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "examples": [
+        {
+          "/vendor/vue.js": "./vendor/vue.js",
+          "/vendor/react.js": "./vendor/react.js"
+        }
+      ]
+    },
+    "nodeModules": {
+      "type": "object",
+      "description": "Node modules files loaded into the virtual FS under /node_modules/. Not shown in the editor. Keys are virtual FS paths (e.g. '/node_modules/svelte/src/index.js'), values are actual file paths relative to the manifest file.",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "examples": [
+        {
+          "/node_modules/svelte/package.json": "./node_modules/svelte/package.json",
+          "/node_modules/svelte/src/index-client.js": "./node_modules/svelte/src/index-client.js"
+        }
+      ]
+    },
+    "activeFile": {
+      "type": "string",
+      "description": "Default file to open in the editor. Must be a key from the 'files' object.",
+      "examples": ["/App.vue", "/main.ts"]
+    }
+  },
+  "additionalProperties": false
+}
