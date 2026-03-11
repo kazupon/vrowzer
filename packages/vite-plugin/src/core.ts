@@ -9,12 +9,20 @@
  * @license MIT
  */
 
+import { dirname, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { createDebug } from 'obug'
 
 import type { Plugin } from 'vite'
 import type { ResolvedVrowserOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowser:core')
+
+// Resolve picocolors browser version path.
+// picocolors doesn't export the browser file via package.json exports,
+// so we use createRequire to find the package and construct the path.
+const _require = createRequire(import.meta.url)
+const picocolorsBrowser = resolve(dirname(_require.resolve('picocolors')), 'picocolors.browser.js')
 
 export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
   return {
@@ -53,6 +61,8 @@ export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
             'node:crypto': '@vrowser/node-polyfill/crypto',
             'node:tty': '@vrowser/node-polyfill/tty',
             'node:module': '@vrowser/node-polyfill/module',
+            'node:os': '@vrowser/node-polyfill/os',
+            'node:net': '@vrowser/node-polyfill/net',
             buffer: 'buffer',
             dns: '@vrowser/node-polyfill/dns',
             events: '@vrowser/node-polyfill/events',
@@ -70,7 +80,11 @@ export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
             url: '@vrowser/node-polyfill/url',
             crypto: '@vrowser/node-polyfill/crypto',
             tty: '@vrowser/node-polyfill/tty',
-            module: '@vrowser/node-polyfill/module'
+            module: '@vrowser/node-polyfill/module',
+            os: '@vrowser/node-polyfill/os',
+            net: '@vrowser/node-polyfill/net',
+            // picocolors CJS → browser version (no ANSI codes in Worker/SW)
+            picocolors: picocolorsBrowser
           }
         },
         worker: {

@@ -14,6 +14,8 @@
 
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { createRequire as nodeCreateRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { rolldown } from 'rolldown'
 import { createDebug } from 'obug'
 
@@ -89,6 +91,7 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
     // imports in the output (resolved by host Vite's resolve.alias at serve time).
     resolve: {
       alias: {
+        'node:process': '@vrowser/node-polyfill/process',
         'node:events': '@vrowser/node-polyfill/events',
         'node:path': 'pathe',
         'node:stream': 'readable-stream/lib/stream',
@@ -103,6 +106,8 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
         'node:crypto': '@vrowser/node-polyfill/crypto',
         'node:tty': '@vrowser/node-polyfill/tty',
         'node:module': '@vrowser/node-polyfill/module',
+        'node:os': '@vrowser/node-polyfill/os',
+        'node:net': '@vrowser/node-polyfill/net',
         buffer: 'buffer',
         dns: '@vrowser/node-polyfill/dns',
         events: '@vrowser/node-polyfill/events',
@@ -118,13 +123,15 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
         url: '@vrowser/node-polyfill/url',
         crypto: '@vrowser/node-polyfill/crypto',
         tty: '@vrowser/node-polyfill/tty',
-        module: '@vrowser/node-polyfill/module'
+        module: '@vrowser/node-polyfill/module',
+        os: '@vrowser/node-polyfill/os',
+        net: '@vrowser/node-polyfill/net'
       },
       mainFields: ['module', 'main'],
       conditionNames: ['browser', 'import', 'default']
     },
     platform: 'neutral',
-    plugins: [viteAliasPlugin(), inlineReadFileSyncPlugin(configDir)]
+    plugins: [viteAliasPlugin(), inlineReadFileSyncPlugin(configDir), inlineCreateRequirePlugin()]
   })
 
   await bundle.write({
@@ -245,4 +252,47 @@ function tryEvalPathExpr(expr: string, configDir: string): string | null {
   }
 
   return null
+}
+
+/**
+ * Rolldown plugin to inline `createRequire(...)("pkg/path")` calls at prebundle time.
+ *
+ * Some plugins (e.g. @sveltejs/vite-plugin-svelte) use `createRequire` at module
+ * init time to load package.json files. This fails in Worker environments where
+ * `require()` is not available. This plugin detects the pattern and replaces it
+ * with the actual file content at prebundle time.
+ */
+function inlineCreateRequirePlugin(): RolldownPlugin {
+  // Match: createRequire(import.meta.url)("some/package.json")
+  const RE = /createRequire\([^)]+\)\(\s*['"]([^'"]+)['"]\s*\)/g
+
+  return {
+    name: 'vrowser:inline-createRequire',
+    transform(code, id) {
+      if (!code.includes('createRequire')) {return}
+
+      let modified = false
+      const result = code.replace(RE, (match, specifier: string) => {
+        // Only inline JSON files (package.json etc.)
+        if (!specifier.endsWith('.json')) {return match}
+
+        try {
+          // Resolve from the file that contains the createRequire call
+          const req = nodeCreateRequire(id)
+          const resolvedPath = req.resolve(specifier)
+          const content = readFileSync(resolvedPath, 'utf-8')
+          modified = true
+          debug('inlineCreateRequire: inlined', specifier, 'from', id)
+          return JSON.stringify(JSON.parse(content))
+        } catch {
+          debug('inlineCreateRequire: could not resolve', specifier, 'from', id)
+          return match
+        }
+      })
+
+      if (modified) {
+        return { code: result, map: null }
+      }
+    }
+  }
 }
