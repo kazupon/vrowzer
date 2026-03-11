@@ -1,0 +1,438 @@
+/**
+ * Generate a vrowser-manifest.json from a target project's package.json.
+ *
+ * Reads dependencies, walks node_modules for source files (including transitive deps),
+ * detects project source files, and outputs a JSON manifest conforming to
+ * schema/vrowser-manifest.json.
+ *
+ * Usage:
+ *   tsx scripts/generate-manifest.ts [package.json path] [options]
+ *
+ * Options:
+ *   --output, -o    Output path (default: vrowser-manifest.json in project dir)
+ *   --name          Manifest name (default: package.json name)
+ *   --active-file   Default file to open in editor
+ *
+ * Examples:
+ *   tsx scripts/generate-manifest.ts                           # use ./package.json
+ *   tsx scripts/generate-manifest.ts packages/my-app/package.json
+ *   tsx scripts/generate-manifest.ts packages/my-app/package.json -o manifest.json
+ */
+
+import { readdir, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+
+type PackageJson = {
+  name: string
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+  files?: string[]
+}
+
+// --- Config ---
+
+const INCLUDE_EXTENSIONS = new Set([
+  '.js',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.ts',
+  '.mts',
+  '.d.ts',
+  '.d.mts',
+  '.d.cts',
+  '.svelte',
+  '.vue',
+  '.jsx',
+  '.tsx',
+  '.css',
+  '.html',
+  '.svg',
+  '.yaml',
+  '.yml',
+  '.wasm'
+])
+
+const EXCLUDE_DIRS = new Set([
+  '.git',
+  '.github',
+  '.pnpm',
+  '.vite',
+  '.vrowser',
+  '__tests__',
+  '__mocks__',
+  'node_modules', // within a package, skip nested node_modules
+  'test',
+  'tests',
+  'benchmark',
+  'benchmarks'
+])
+
+const EXCLUDE_FILE_PREFIXES = ['README', 'LICENSE', 'CHANGELOG', 'LICENCE']
+const EXCLUDE_FILE_SUFFIXES = ['.map']
+// Test file patterns: *.test.{js,mjs,cjs,ts,cts,mts}, *.spec.{js,mjs,cjs,ts,cts,mts}
+const TEST_FILE_RE = /\.(test|spec)\.(js|mjs|cjs|ts|cts|mts)$/
+
+const PROJECT_SOURCE_PATTERNS = ['index.html', 'src', 'public']
+const ACTIVE_FILE_CANDIDATES = [
+  'App.vue',
+  'App.svelte',
+  'App.tsx',
+  'App.jsx',
+  'main.ts',
+  'main.js',
+  'index.html'
+]
+
+// --- CLI args ---
+
+function parseArgs(argv: string[]) {
+  const args = argv.slice(2)
+  let input: string | undefined
+  let outputPath: string | undefined
+  let manifestName: string | undefined
+  let activeFile: string | undefined
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]!
+    if (arg === '--output' || arg === '-o') {
+      outputPath = args[++i]
+    } else if (arg === '--name') {
+      manifestName = args[++i]
+    } else if (arg === '--active-file') {
+      activeFile = args[++i]
+    } else if (!arg.startsWith('-')) {
+      input = arg
+    }
+  }
+
+  return { input, outputPath, manifestName, activeFile }
+}
+
+// --- Helpers ---
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+const EMPTY_PKG_JSON = Object.freeze({
+  name: '',
+  dependencies: {},
+  devDependencies: {},
+  files: []
+} as PackageJson)
+
+async function readPackageJson(dir: string): Promise<PackageJson> {
+  const pkgPath = join(dir, 'package.json')
+  if (!(await exists(pkgPath))) {
+    return EMPTY_PKG_JSON
+  }
+  try {
+    const { default: pkg } = (await import(pkgPath, { with: { type: 'json' } })) as {
+      default: PackageJson
+    }
+    return pkg
+  } catch {
+    return EMPTY_PKG_JSON
+  }
+}
+
+function shouldIncludeFile(filePath: string): boolean {
+  const name = basename(filePath)
+
+  // Dot files (e.g. .eslintrc.js, .vite)
+  if (name.startsWith('.')) {
+    return false
+  }
+
+  // Check excluded prefixes
+  if (EXCLUDE_FILE_PREFIXES.some(p => name.startsWith(p))) {
+    return false
+  }
+
+  // Check excluded suffixes
+  if (EXCLUDE_FILE_SUFFIXES.some(s => name.endsWith(s))) {
+    return false
+  }
+
+  // Test files (*.test.js, *.spec.ts, etc.)
+  if (TEST_FILE_RE.test(name)) {
+    return false
+  }
+
+  const ext = extname(name)
+  return INCLUDE_EXTENSIONS.has(ext)
+}
+
+function shouldExcludeDir(dirName: string): boolean {
+  return EXCLUDE_DIRS.has(dirName) || dirName.startsWith('.')
+}
+
+/**
+ * Recursively walk a directory and collect files.
+ * Follows symlinks but records logical paths.
+ */
+async function walkDir(dir: string, files: string[] = []): Promise<string[]> {
+  let entries: Awaited<ReturnType<typeof readdir>>
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch {
+    return files
+  }
+
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name)
+
+    if (entry.isDirectory() || entry.isSymbolicLink()) {
+      try {
+        const s = await stat(fullPath)
+        if (s.isDirectory()) {
+          if (!shouldExcludeDir(entry.name)) {
+            await walkDir(fullPath, files)
+          }
+        } else if (s.isFile() && shouldIncludeFile(entry.name)) {
+          files.push(fullPath)
+        }
+      } catch {
+        // broken symlink, skip
+      }
+    } else if (entry.isFile() && shouldIncludeFile(entry.name)) {
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
+/**
+ * Walk a package directory, respecting its package.json "files" field if present.
+ */
+async function walkPackageFiles(pkgDir: string): Promise<string[]> {
+  const pkg = await readPackageJson(pkgDir)
+  const pkgFiles = pkg.files
+
+  if (pkgFiles && pkgFiles.length > 0) {
+    // Use the "files" field to determine which files are published
+    // Always include package.json itself
+    const result: string[] = [join(pkgDir, 'package.json')]
+
+    for (const pattern of pkgFiles) {
+      const target = join(pkgDir, pattern)
+      if (!(await exists(target))) {
+        continue
+      }
+
+      try {
+        const s = await stat(target)
+        if (s.isDirectory()) {
+          await walkDir(target, result)
+        } else if (s.isFile() && shouldIncludeFile(target)) {
+          result.push(target)
+        }
+      } catch {
+        // skip
+      }
+    }
+
+    return result
+  }
+
+  // No "files" field — walk everything with extension filter
+  return walkDir(pkgDir)
+}
+
+// --- Dependency collection ---
+
+async function resolvePackageDir(dep: string, fromDir: string): Promise<string | null> {
+  let current = fromDir
+  while (true) {
+    const candidate = join(current, 'node_modules', dep)
+    if (await exists(candidate)) {
+      return candidate
+    }
+
+    const parent = dirname(current)
+    if (parent === current) {
+      break
+    }
+    current = parent
+  }
+  return null
+}
+
+async function collectDependencies(
+  pkgDir: string,
+  visited: Set<string>,
+  isRoot = false
+): Promise<string[]> {
+  const pkg = await readPackageJson(pkgDir)
+  // Root project: include both dependencies and devDependencies
+  // Transitive deps: only include dependencies
+  const deps = isRoot
+    ? [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})]
+    : Object.keys(pkg.dependencies || {})
+  const result: string[] = []
+
+  for (const dep of deps) {
+    const depDir = await resolvePackageDir(dep, pkgDir)
+    if (!depDir) {
+      continue
+    }
+
+    if (visited.has(depDir)) {
+      continue
+    }
+    visited.add(depDir)
+    result.push(depDir)
+
+    // Recurse into transitive dependencies
+    const transitive = await collectDependencies(depDir, visited)
+    result.push(...transitive)
+  }
+
+  return result
+}
+
+// --- Project source files ---
+
+async function collectProjectFiles(projectDir: string): Promise<Record<string, string>> {
+  const files: Record<string, string> = {}
+
+  for (const pattern of PROJECT_SOURCE_PATTERNS) {
+    const target = join(projectDir, pattern)
+    if (!(await exists(target))) {
+      continue
+    }
+
+    try {
+      const s = await stat(target)
+      if (s.isDirectory()) {
+        const walked = await walkDir(target)
+        for (const filePath of walked) {
+          const relPath = relative(projectDir, filePath).replace(/\\/g, '/')
+          files['/' + relPath] = './' + relPath
+        }
+      } else if (s.isFile() && shouldIncludeFile(target)) {
+        const relPath = relative(projectDir, target).replace(/\\/g, '/')
+        files['/' + relPath] = './' + relPath
+      }
+    } catch {
+      // skip
+    }
+  }
+
+  // Also pick up root-level source files (*.ts, *.js, *.vue, etc.)
+  try {
+    const rootEntries = await readdir(projectDir, { withFileTypes: true })
+    for (const entry of rootEntries) {
+      if (entry.isFile() && shouldIncludeFile(entry.name)) {
+        const virtualPath = '/' + entry.name
+        if (!files[virtualPath]) {
+          files[virtualPath] = './' + entry.name
+        }
+      }
+    }
+  } catch {
+    // skip
+  }
+
+  return files
+}
+
+function detectActiveFile(files: Record<string, string>): string | undefined {
+  for (const candidate of ACTIVE_FILE_CANDIDATES) {
+    const rootPath = '/' + candidate
+    const srcPath = '/src/' + candidate
+    if (files[rootPath]) {
+      return rootPath
+    }
+    if (files[srcPath]) {
+      return srcPath
+    }
+  }
+  const keys = Object.keys(files)
+  return keys.length > 0 ? keys[0] : undefined
+}
+
+// --- Main ---
+
+async function main() {
+  const { input, outputPath, manifestName, activeFile } = parseArgs(process.argv)
+
+  // Resolve project directory from input package.json path
+  let projectDir: string
+  if (input) {
+    const inputPath = resolve(input)
+    // If input points to a file (package.json), use its directory
+    try {
+      const s = await stat(inputPath)
+      projectDir = s.isFile() ? dirname(inputPath) : inputPath
+    } catch {
+      console.error(`Error: "${input}" does not exist.`)
+      process.exit(1)
+    }
+  } else {
+    projectDir = process.cwd()
+  }
+
+  // Read package.json
+  const pkgPath = join(projectDir, 'package.json')
+  if (!(await exists(pkgPath))) {
+    console.error(`Error: No package.json found at ${pkgPath}`)
+    process.exit(1)
+  }
+  const { default: pkg } = (await import(pkgPath, { with: { type: 'json' } })) as {
+    default: PackageJson
+  }
+  const name = manifestName || pkg.name
+  if (!name) {
+    console.error('Error: No "name" field in package.json. Use --name to specify.')
+    process.exit(1)
+  }
+
+  console.log(`Generating manifest for: ${projectDir}`)
+
+  // 1. Collect project source files
+  const projectFiles = await collectProjectFiles(projectDir)
+  console.log(`  Project files: ${Object.keys(projectFiles).length}`)
+
+  // 2. Collect dependency packages
+  const visited = new Set<string>()
+  const depDirs = await collectDependencies(projectDir, visited, true)
+  console.log(`  Dependencies: ${depDirs.length} packages`)
+
+  // 3. Walk each dependency and collect node_modules files
+  const nodeModulesFiles: Record<string, string> = {}
+  for (const depDir of depDirs) {
+    const files = await walkPackageFiles(depDir)
+    for (const filePath of files) {
+      const relPath = relative(projectDir, filePath).replace(/\\/g, '/')
+      nodeModulesFiles['/' + relPath] = './' + relPath
+    }
+  }
+  console.log(`  Node modules files: ${Object.keys(nodeModulesFiles).length}`)
+
+  // 4. Build manifest
+  const manifest: Record<string, any> = { name, files: projectFiles }
+
+  if (Object.keys(nodeModulesFiles).length > 0) {
+    manifest.nodeModules = nodeModulesFiles
+  }
+
+  const resolvedActiveFile = activeFile || detectActiveFile(projectFiles)
+  if (resolvedActiveFile) {
+    manifest.activeFile = resolvedActiveFile
+  }
+
+  // 5. Write output
+  const output = resolve(projectDir, outputPath || 'vrowser-manifest.json')
+  await writeFile(output, JSON.stringify(manifest, null, 2) + '\n')
+  console.log(`\nDone: ${relative(process.cwd(), output)}`)
+}
+
+await main()
