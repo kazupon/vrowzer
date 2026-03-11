@@ -307,8 +307,12 @@ export const isJSRequest = (url: string): boolean => {
   return false
 }
 
+// NOTE(kazupon): avoid unncessary css around bundling for service worker, because it doesn't support css and it will cause performance issue
 export const isCSSRequest = (request: string): boolean =>
   CSS_LANGS_RE.test(request)
+export const cssModuleRE = new RegExp(`\\.module${CSS_LANGS_RE.source}`)
+export const isModuleCSSRequest = (request: string): boolean =>
+  cssModuleRE.test(request)
 
 // NOTE(kazupon): pickup from cssPlugin, because servcie worker needs to tree-shake cssPlugin
 export const cssDirectRequestRE = /[?&]direct\b/

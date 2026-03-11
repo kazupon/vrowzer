@@ -316,6 +316,7 @@ const transformerConfig = defineConfig({
       'readline': '@vrowser/node-polyfill/readline',
       'perf_hooks': '@vrowser/node-polyfill/perf_hooks',
       os: '@vrowser/node-polyfill/os',
+      crypto: '@vrowser/node-polyfill/crypto',
       // NOTE(kazupon):
       // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
       'process/': '@vrowser/node-polyfill/process',

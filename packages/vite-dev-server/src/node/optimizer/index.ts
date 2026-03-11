@@ -1,3 +1,11 @@
+import fs from 'node:fs'
+import fsp from 'node:fs/promises'
+import path from 'node:path'
+import { promisify } from 'node:util'
+import { performance } from 'node:perf_hooks'
+import colors from 'picocolors'
+import { init, parse } from 'es-module-lexer'
+import { isDynamicPattern } from 'tinyglobby'
 import type { DepsOptimizerEsbuildOptions } from '#types/internal/esbuildOptions'
 import {
   rolldown
@@ -6,34 +14,39 @@ import {
 // import {
 //   rolldown
 // } from 'rolldown'
-import { init, parse } from 'es-module-lexer'
-import fs from 'node:fs'
-import fsp from 'node:fs/promises'
-import path from 'node:path'
-import { promisify } from 'node:util'
-import colors from 'picocolors'
 import type {
+  RolldownOutput,
   RolldownOptions,
   OutputOptions as RolldownOutputOptions,
 } from 'rolldown'
 import type { ResolvedConfig } from '../config'
-import {
-  METADATA_FILENAME
-} from '../constants'
-import type { Environment } from '../environment'
-import { transformWithOxc } from '../plugins/oxc'
 import {
   arraify,
   asyncFlatten,
   createDebugger,
   flattenId,
   getHash,
+  isOptimizable,
   lookupFile,
+  normalizeId,
   normalizePath,
   removeLeadingSlash,
   tryStatSync,
-  unique
+  unique,
 } from '../utils'
+import {
+  ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET,
+  METADATA_FILENAME,
+} from '../constants'
+import { isWindows } from '../../shared/utils'
+import type { Environment } from '../environment'
+import { transformWithOxc } from '../plugins/oxc'
+import { ScanEnvironment, scanImports } from './scan'
+import { createOptimizeDepsIncludeResolver, expandGlobIds } from './resolve'
+import {
+  rolldownCjsExternalPlugin,
+  rolldownDepPlugin,
+} from './rolldownDepPlugin'
 
 const debug = createDebugger('vite:deps')
 
@@ -273,8 +286,6 @@ export interface DepOptimizationMetadata {
  * @deprecated the optimization process runs automatically and does not need to be called
  */
 
-/*
- * NOTE(kazupon): disable now, because vite optimize complexity is high.
 export async function optimizeDeps(
   config: ResolvedConfig,
   force: boolean | undefined = config.optimizeDeps.force,
@@ -357,7 +368,6 @@ export function initDepsOptimizerMetadata(
     depInfoList: [],
   }
 }
-*/
 
 export function addOptimizedDepInfo(
   metadata: DepOptimizationMetadata,
@@ -444,8 +454,6 @@ export async function loadCachedDepOptimizationMetadata(
  * Initial optimizeDeps at server start. Perform a fast scan using esbuild to
  * find deps to pre-bundle and include user hard-coded dependencies
  */
-/*
- TODO(kazupon): disable now, because vite optimize complexity is high.
 export function discoverProjectDependencies(environment: ScanEnvironment): {
   cancel: () => Promise<void>
   result: Promise<Record<string, string>>
@@ -497,7 +505,6 @@ export function toDiscoveredDependencies(
   }
   return discovered
 }
-  */
 
 export function depsLogString(qualifiedIds: string[]): string {
   return colors.yellow(qualifiedIds.join(`, `))
@@ -507,8 +514,6 @@ export function depsLogString(qualifiedIds: string[]): string {
  * Internally, Vite uses this function to prepare a optimizeDeps run. When Vite starts, we can get
  * the metadata and start the server without waiting for the optimizeDeps processing to be completed
  */
-/*
- * NOTE(kazupon): disable now, because vite optimize complexity is high.
 export function runOptimizeDeps(
   environment: Environment,
   depsInfo: Record<string, OptimizedDepInfo>,
@@ -667,7 +672,7 @@ export function runOptimizeDeps(
         }
 
         for (const chunk of result.output) {
-          if (chunk.type !== 'chunk') continue
+          if (chunk.type !== 'chunk') { continue }
 
           if (chunk.isEntry) {
             const { exportsData, file, id, ...info } =
@@ -789,7 +794,7 @@ async function prepareRolldownOptimizerRun(
     }),
   )
 
-  if (optimizerContext.cancelled) return { context: undefined, idToExports }
+  if (optimizerContext.cancelled) { return { context: undefined, idToExports } }
 
   const define = {
     'process.env.NODE_ENV': environment.config.keepProcessEnv
@@ -911,7 +916,6 @@ export async function addManuallyIncludedOptimizeDeps(
     }
   }
 }
-  */
 
 // Convert to { id: src }
 export function depsFromOptimizedDepInfo(

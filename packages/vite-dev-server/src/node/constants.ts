@@ -1,5 +1,6 @@
 import path from 'node:path'
 import pkg from '../../package.json' with { type: 'json' }
+
 import type { RollupPluginHooks } from './typeUtils'
 
 const version = pkg.version

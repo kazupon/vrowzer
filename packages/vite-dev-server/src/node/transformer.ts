@@ -182,6 +182,9 @@ export async function setupWorker(
           config,
           {
             ws,
+            // Disable dep optimizer in Worker — packages are resolved via
+            // vendor aliases, not through node_modules prebundling.
+            disableDepsOptimizer: true,
           },
         )
         environments[(name as 'client' | 'ssr')] = environment

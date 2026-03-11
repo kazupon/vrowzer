@@ -164,6 +164,13 @@ export function defineConfig(config: UserConfigExport): UserConfigExport {
 
 export interface CreateDevEnvironmentContext {
   ws: MessageChannelServer
+  // NOTE(kazupon): vrowser extension — not in upstream Vite.
+  // In Worker environments, packages are resolved via vendor aliases (e.g. svelte → /vendor/svelte.js),
+  // not through node_modules prebundling. The dep optimizer must be disabled to prevent
+  // `.vite/deps/` paths from being generated for packages that don't exist in the virtual FS.
+  // Upstream Vite only uses `disableDepsOptimizer` internally in FullBundleDevEnvironment,
+  // but vrowser needs to pass it through the factory context for Worker DevEnvironment creation.
+  disableDepsOptimizer?: boolean
 }
 // NOTE(kazupon): comment out because we need to understand the previous implementation as background
 // export interface CreateDevEnvironmentContext {
@@ -240,6 +247,8 @@ function defaultCreateClientDevEnvironment(
   return new DevEnvironment(name, config, {
     hot: true,
     transport: context.ws,
+    // NOTE(kazupon): vrowser extension — pass through disableDepsOptimizer from factory context
+    disableDepsOptimizer: context.disableDepsOptimizer,
   })
 }
 

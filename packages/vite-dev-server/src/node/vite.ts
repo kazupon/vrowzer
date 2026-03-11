@@ -38,6 +38,16 @@ export { formatPostcssSourceMap } from './plugins/css'
 // loaded at module evaluation time.
 export { transformWithEsbuild } from './plugins/esbuild'
 
+export {
+  DEFAULT_CLIENT_CONDITIONS as defaultClientConditions,
+  DEFAULT_CLIENT_MAIN_FIELDS as defaultClientMainFields,
+  DEFAULT_EXTERNAL_CONDITIONS as defaultExternalConditions,
+  DEFAULT_SERVER_CONDITIONS as defaultServerConditions,
+  DEFAULT_SERVER_MAIN_FIELDS as defaultServerMainFields,
+} from './constants'
+
+export { searchForWorkspaceRoot } from './server/searchRoot'
+
 // --- Environment (stub for plugins that call loadEnv) ---
 export function loadEnv(
   _mode: string,
