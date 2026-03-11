@@ -62,10 +62,6 @@ export default defineConfig({
     svelte(),
     yaml(),
     Vrowser({
-      serviceWorkerEntry: resolve(
-        import.meta.dirname,
-        'node_modules/vrowser/dist/service-worker.ts'
-      ),
       // Worker-specific resolve settings (vendor aliases for browser runtime)
       resolve: {
         alias: [

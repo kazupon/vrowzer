@@ -38,14 +38,10 @@ export default defineConfig({
     exclude: ['@vitejs/plugin-react']
   },
   plugins: [
+    VrowserManifest(),
     reactRefreshRuntimePlugin(),
     react(),
-    VrowserManifest(),
     Vrowser({
-      serviceWorkerEntry: resolve(
-        import.meta.dirname,
-        '../../packages/vrowser/dist/service-worker.ts'
-      ),
       resolve: {
         alias: [
           { find: 'react/jsx-dev-runtime', replacement: '/vendor/react-jsx-dev-runtime.js' },

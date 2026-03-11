@@ -67,7 +67,8 @@
     "rolldown": "catalog:"
   },
   "peerDependencies": {
-    "@vrowser/vite-dev-server": "workspace:*"
+    "@vrowser/vite-dev-server": "workspace:*",
+    "vrowser": "workspace:*"
   },
   "devDependencies": {
     "@oxc-project/types": "catalog:",

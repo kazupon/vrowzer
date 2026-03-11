@@ -761,6 +761,9 @@ importers:
       rolldown:
         specifier: 'catalog:'
         version: 1.0.0-rc.1
+      vrowser:
+        specifier: workspace:*
+        version: link:../vrowser
     devDependencies:
       '@oxc-project/types':
         specifier: 'catalog:'

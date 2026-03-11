@@ -9,6 +9,8 @@
  * @license MIT
  */
 
+import { fileURLToPath } from 'node:url'
+
 export interface Alias {
   find: string | RegExp
   replacement: string
@@ -42,7 +44,7 @@ export interface VrowserOptions {
    * that is in `node_modules` and excluded from code scanning.
    *
    * @example 'vrowser/service-worker'
-   * @default undefined
+   * @default Resolved path to 'vrowser/service-worker' (node_modules/vrowser/dist/service-worker.ts)
    */
   serviceWorkerEntry?: string
   /**
@@ -78,13 +80,21 @@ export interface ResolvedVrowserOptions {
   configFile: string
 }
 
+function resolveDefaultServiceWorkerEntry(): string {
+  try {
+    return fileURLToPath(import.meta.resolve('vrowser/service-worker'))
+  } catch {
+    return ''
+  }
+}
+
 export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions {
   const workerConfig = options.workerConfig ?? options.configFile ?? ''
   return {
     basePath: options.basePath ?? '/__preview__/',
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'SEVICE_WORKER_VERSION',
-    serviceWorkerEntry: options.serviceWorkerEntry ?? '',
+    serviceWorkerEntry: options.serviceWorkerEntry ?? resolveDefaultServiceWorkerEntry(),
     resolve: options.resolve,
     workerConfig,
     configFile: workerConfig
