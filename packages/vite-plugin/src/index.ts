@@ -229,3 +229,5 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     })
   ]
 }
+
+export { VrowserManifest } from './manifest.ts'

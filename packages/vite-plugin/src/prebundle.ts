@@ -269,12 +269,16 @@ function inlineCreateRequirePlugin(): RolldownPlugin {
   return {
     name: 'vrowser:inline-createRequire',
     transform(code, id) {
-      if (!code.includes('createRequire')) {return}
+      if (!code.includes('createRequire')) {
+        return
+      }
 
       let modified = false
       const result = code.replace(RE, (match, specifier: string) => {
         // Only inline JSON files (package.json etc.)
-        if (!specifier.endsWith('.json')) {return match}
+        if (!specifier.endsWith('.json')) {
+          return match
+        }
 
         try {
           // Resolve from the file that contains the createRequire call
