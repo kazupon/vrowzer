@@ -15,7 +15,8 @@ export default defineConfig({
     './src/timers_promises.ts',
     './src/crypto.ts',
     './src/tty.ts',
-    './src/module.ts'
+    './src/module.ts',
+    './src/net.ts'
   ],
   platform: 'browser',
   clean: true,

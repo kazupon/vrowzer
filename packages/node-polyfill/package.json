@@ -104,6 +104,11 @@
       "import": "./dist/module.js",
       "default": "./dist/module.js"
     },
+    "./net": {
+      "types": "./dist/net.d.ts",
+      "import": "./dist/net.js",
+      "default": "./dist/net.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
