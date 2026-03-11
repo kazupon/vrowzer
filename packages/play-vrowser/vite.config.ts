@@ -41,6 +41,9 @@ function reactRefreshRuntimePlugin(): Plugin {
 }
 
 export default defineConfig({
+  define: {
+    'process.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
+  },
   optimizeDeps: {
     exclude: [
       '@vitejs/plugin-vue',
