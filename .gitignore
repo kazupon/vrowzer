@@ -26,7 +26,7 @@ tsconfig.tsbuildinfo
 __screenshots__
 test-results
 .output
-.output-shared
+.output**
 .playwright-cli
 .wrangler
 

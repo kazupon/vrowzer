@@ -25,11 +25,14 @@
  *   tsx scripts/generate-manifest.ts packages/my-app/package.json -o manifest.json
  */
 
-import { readdir, realpath, stat, writeFile } from 'node:fs/promises'
+import { readdir, realpath, stat, writeFile, mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+import { rolldown } from 'rolldown'
 
 type PackageJson = {
   name: string
+  type?: string
+  exports?: Record<string, any> | string
   dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
   files?: string[]
@@ -395,6 +398,229 @@ function detectActiveFile(files: Record<string, string>): string | undefined {
   return keys.length > 0 ? keys[0] : undefined
 }
 
+// --- CJS → ESM bundling ---
+
+function isCjsPackage(pkg: PackageJson): boolean {
+  return pkg.type !== 'module'
+}
+
+/**
+ * Extract export entry points from package.json exports field.
+ * Returns a map of subpath → resolved file path relative to package dir.
+ * e.g. { ".": "./index.js", "./jsx-dev-runtime": "./jsx-dev-runtime.js" }
+ */
+function extractExportEntries(
+  pkg: PackageJson,
+  conditions: string[] = ['browser', 'import', 'default']
+): Record<string, string> {
+  const entries: Record<string, string> = {}
+  const exportsField = pkg.exports
+
+  if (!exportsField || typeof exportsField === 'string') {
+    return entries
+  }
+
+  for (const [subpath, value] of Object.entries(exportsField)) {
+    // Skip non-JS exports (types, etc.)
+    if (subpath.endsWith('.json') || subpath.includes('*')) {
+      continue
+    }
+
+    const resolved = resolveExportCondition(value, conditions)
+    if (resolved && resolved.endsWith('.js')) {
+      entries[subpath] = resolved
+    }
+  }
+
+  return entries
+}
+
+function resolveExportCondition(value: unknown, conditions: string[]): string | null {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'object' && value !== null) {
+    for (const cond of conditions) {
+      if (cond in value) {
+        return resolveExportCondition((value as Record<string, unknown>)[cond], conditions)
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Convert subpath export key to a flat entry name for rolldown.
+ * "." → packageName (e.g. "react")
+ * "./jsx-dev-runtime" → "react_jsx-dev-runtime"
+ */
+function subpathToEntryName(pkgName: string, subpath: string): string {
+  if (subpath === '.') {
+    return pkgName.replace(/\//g, '_').replace(/@/g, '')
+  }
+  const sub = subpath.slice(2).replace(/\//g, '_') // strip "./"
+  return `${pkgName.replace(/\//g, '_').replace(/@/g, '')}_${sub}`
+}
+
+interface CjsBundleResult {
+  /** Map of virtual FS path → real file path (relative to sourceDir) */
+  nodeModulesEntries: Record<string, string>
+}
+
+/**
+ * Bundle CJS packages into ESM using rolldown.
+ * Output goes to `<nodeModulesRoot>/.vrowser-esm/` directory.
+ * Returns nodeModules entries for the bundled files + modified package.json.
+ */
+async function bundleCjsPackages(
+  cjsPackages: { pkgName: string; pkg: PackageJson }[],
+  sourceDir: string,
+  nodeModulesRoot: string
+): Promise<CjsBundleResult> {
+  const entryToSubpath: Record<string, { pkgName: string; subpath: string }> = {}
+
+  // Collect all entry points across all CJS packages
+  for (const { pkgName, pkg } of cjsPackages) {
+    const exportEntries = extractExportEntries(pkg)
+    for (const [subpath] of Object.entries(exportEntries)) {
+      const entryName = subpathToEntryName(pkgName, subpath)
+      entryToSubpath[entryName] = { pkgName, subpath }
+    }
+  }
+
+  if (Object.keys(entryToSubpath).length === 0) {
+    return { nodeModulesEntries: {} }
+  }
+
+  console.log(`  Bundling CJS → ESM: ${Object.keys(entryToSubpath).length} entry points`)
+
+  const esmDir = resolve(nodeModulesRoot, '.vrowser-esm')
+  await mkdir(esmDir, { recursive: true })
+
+  // Generate ESM wrapper entries with explicit named exports.
+  // CJS modules expose exports via module.exports, which rolldown wraps as default.
+  // We detect named exports by require()-ing the CJS module in Node.js,
+  // then generate `export { name1, name2, ... } from 'pkg'` wrappers.
+  const wrapperPlugin = {
+    name: 'cjs-esm-wrapper',
+    resolveId(id: string) {
+      if (id.startsWith('\0esm-wrapper:')) {
+        return id
+      }
+    },
+    load(id: string) {
+      if (id.startsWith('\0esm-wrapper:')) {
+        const specifier = id.slice('\0esm-wrapper:'.length)
+        const wrapperCode = esmWrappers.get(specifier)
+        if (wrapperCode) {
+          return wrapperCode
+        }
+        return `export { default } from '${specifier}';`
+      }
+    }
+  }
+
+  // Detect named exports from CJS modules and generate ESM wrappers
+  const { createRequire } = await import('node:module')
+  const require = createRequire(join(nodeModulesRoot, '_'))
+  const esmWrappers = new Map<string, string>()
+
+  for (const [entryName, { pkgName, subpath }] of Object.entries(entryToSubpath)) {
+    const specifier = subpath === '.' ? pkgName : `${pkgName}/${subpath.slice(2)}`
+    try {
+      const mod = require(specifier)
+      const namedExports = Object.keys(mod).filter(k => k !== 'default' && k !== '__esModule')
+      if (namedExports.length > 0) {
+        const lines = [
+          `import __cjs_mod__ from '${specifier}';`,
+          `export default __cjs_mod__;`,
+          ...namedExports.map(name => `export const ${name} = __cjs_mod__.${name};`)
+        ]
+        esmWrappers.set(specifier, lines.join('\n'))
+      } else {
+        esmWrappers.set(specifier, `export { default } from '${specifier}';`)
+      }
+    } catch {
+      esmWrappers.set(specifier, `export { default } from '${specifier}';`)
+    }
+  }
+
+  // Use wrapper virtual entries instead of direct CJS file paths
+  const wrapperEntries: Record<string, string> = {}
+  for (const [entryName, { pkgName, subpath }] of Object.entries(entryToSubpath)) {
+    const specifier = subpath === '.' ? pkgName : `${pkgName}/${subpath.slice(2)}`
+    wrapperEntries[entryName] = `\0esm-wrapper:${specifier}`
+  }
+
+  // Bundle all CJS entries together (shared chunks for common code)
+  const bundle = await rolldown({
+    input: wrapperEntries,
+    resolve: {
+      conditionNames: ['browser', 'import', 'default'],
+      modules: [nodeModulesRoot, 'node_modules']
+    },
+    transform: {
+      define: {
+        'process.env.NODE_ENV': JSON.stringify('development')
+      }
+    },
+    plugins: [wrapperPlugin]
+  })
+
+  const { output } = await bundle.write({
+    format: 'esm',
+    dir: esmDir,
+    entryFileNames: '[name].js',
+    chunkFileNames: '[name]-[hash].js',
+    minify: false
+  })
+  await bundle.close()
+
+  // Build nodeModules entries for manifest
+  const nodeModulesEntries: Record<string, string> = {}
+
+  // Add all output files to nodeModules under /node_modules/.vrowser-esm/
+  for (const chunk of output) {
+    if (chunk.type === 'chunk') {
+      const virtualPath = `/node_modules/.vrowser-esm/${chunk.fileName}`
+      const relPath = relative(sourceDir, resolve(esmDir, chunk.fileName)).replace(/\\/g, '/')
+      nodeModulesEntries[virtualPath] = './' + relPath
+    }
+  }
+
+  // Generate modified package.json for each CJS package
+  // exports point to ../.vrowser-esm/entryName.js (relative from /node_modules/pkgName/)
+  const pkgExportsMap = new Map<string, Record<string, string>>()
+  for (const [entryName, { pkgName, subpath }] of Object.entries(entryToSubpath)) {
+    if (!pkgExportsMap.has(pkgName)) {
+      pkgExportsMap.set(pkgName, {})
+    }
+    pkgExportsMap.get(pkgName)![subpath] = `../.vrowser-esm/${entryName}.js`
+  }
+
+  for (const { pkgName, pkg } of cjsPackages) {
+    const modifiedExports = pkgExportsMap.get(pkgName) || {}
+
+    // Write modified package.json to .vrowser-esm/ dir
+    const modifiedPkg = {
+      name: pkg.name,
+      type: 'module',
+      exports: modifiedExports
+    }
+    const modifiedPkgPath = resolve(
+      esmDir,
+      `${pkgName.replace(/\//g, '_').replace(/@/g, '')}-package.json`
+    )
+    await writeFile(modifiedPkgPath, JSON.stringify(modifiedPkg, null, 2) + '\n')
+
+    const virtualPkgJsonPath = `/node_modules/${pkgName}/package.json`
+    const relPkgJsonPath = relative(sourceDir, modifiedPkgPath).replace(/\\/g, '/')
+    nodeModulesEntries[virtualPkgJsonPath] = './' + relPkgJsonPath
+  }
+
+  return { nodeModulesEntries }
+}
+
 // --- Main ---
 
 async function main() {
@@ -470,30 +696,43 @@ async function main() {
   }
   console.log(`  Dependencies: ${depDirs.length} packages`)
 
-  // 3. Walk each dependency and collect node_modules files
-  // Keys (virtual FS paths): /node_modules/pkg/subpath (clean, no .pnpm paths)
-  // Values (real file paths): relative to sourceDir (for manifest portability)
+  // 3. Separate CJS and ESM packages, walk ESM packages for individual files
+  const cjsPackages: { pkgName: string; pkg: PackageJson }[] = []
   const nodeModulesFiles: Record<string, string> = {}
+
   for (const depDir of depDirs) {
-    // Extract package name from depDir for clean virtual FS paths.
-    // depDir may be a .pnpm real path — extract the package name from its package.json.
     const depPkg = await readPackageJson(depDir)
     const pkgName = depPkg.name
     if (!pkgName) {
       continue
     }
 
-    const files = await walkPackageFiles(depDir)
-    for (const filePath of files) {
-      const fileRelToPkg = relative(depDir, filePath).replace(/\\/g, '/')
-      const virtualPath = `/node_modules/${pkgName}/${fileRelToPkg}`
-      const relPath = relative(sourceDir, filePath).replace(/\\/g, '/')
-      nodeModulesFiles[virtualPath] = './' + relPath
+    if (isCjsPackage(depPkg) && depPkg.exports) {
+      // CJS package — will be bundled into ESM
+      cjsPackages.push({ pkgName, pkg: depPkg })
+    } else {
+      // ESM package — collect individual files
+      const files = await walkPackageFiles(depDir)
+      for (const filePath of files) {
+        const fileRelToPkg = relative(depDir, filePath).replace(/\\/g, '/')
+        const virtualPath = `/node_modules/${pkgName}/${fileRelToPkg}`
+        const relPath = relative(sourceDir, filePath).replace(/\\/g, '/')
+        nodeModulesFiles[virtualPath] = './' + relPath
+      }
     }
   }
+
+  // 4. Bundle CJS packages into ESM
+  if (cjsPackages.length > 0) {
+    console.log(`  CJS packages: ${cjsPackages.map(p => p.pkgName).join(', ')}`)
+    const nodeModulesRoot = join(pkgDir, 'node_modules')
+    const { nodeModulesEntries } = await bundleCjsPackages(cjsPackages, sourceDir, nodeModulesRoot)
+    Object.assign(nodeModulesFiles, nodeModulesEntries)
+  }
+
   console.log(`  Node modules files: ${Object.keys(nodeModulesFiles).length}`)
 
-  // 4. Build manifest
+  // 5. Build manifest
   const manifest: Record<string, any> = { name, files: projectFiles }
 
   if (Object.keys(nodeModulesFiles).length > 0) {
@@ -505,7 +744,7 @@ async function main() {
     manifest.activeFile = resolvedActiveFile
   }
 
-  // 5. Write output
+  // 6. Write output
   // -o path is resolved from cwd (not sourceDir), defaulting to vrowser-manifest.json in sourceDir
   const output = outputPath ? resolve(outputPath) : resolve(sourceDir, 'vrowser-manifest.json')
   await writeFile(output, JSON.stringify(manifest, null, 2) + '\n')

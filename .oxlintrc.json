@@ -16,6 +16,7 @@
         "**/*.md/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "**/*.config.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "**/*.integration-{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "**/*.e2e-{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "**/*.browser-{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "**/*.{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
@@ -23,7 +24,8 @@
         "scripts/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "packages/vite-dev-server/{src,types,misc}/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "packages/vite-dev-server/client.d.ts",
-        "packages/{service-worker,unplugin-service-worker,service-worker-server}/{playground,e2e,test-public}/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "packages/{rolldown,service-worker,unplugin-service-worker,service-worker-server}/{playground,e2e,test-public}/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
+        "integration/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
         "e2e/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
       ],
       "rules": {
