@@ -12,6 +12,12 @@
  *   --output, -o    Output path (default: vrowser-manifest.json in project dir)
  *   --name          Manifest name (default: package.json name)
  *   --active-file   Default file to open in editor
+ *   --target, -t    Package name(s) to include in nodeModules (can be specified multiple times)
+ *                   When specified, only these packages (+ their transitive deps) are included.
+ *                   When omitted, all dependencies are included.
+ *   --project, -p   Directory to scan for source files (files field).
+ *                   When omitted, uses the package.json directory.
+ *                   Paths in the manifest are relative to this directory.
  *
  * Examples:
  *   tsx scripts/generate-manifest.ts                           # use ./package.json
@@ -19,7 +25,7 @@
  *   tsx scripts/generate-manifest.ts packages/my-app/package.json -o manifest.json
  */
 
-import { readdir, stat, writeFile } from 'node:fs/promises'
+import { readdir, realpath, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 
 type PackageJson = {
@@ -70,6 +76,7 @@ const EXCLUDE_DIRS = new Set([
 
 const EXCLUDE_FILE_PREFIXES = ['README', 'LICENSE', 'CHANGELOG', 'LICENCE']
 const EXCLUDE_FILE_SUFFIXES = ['.map']
+const EXCLUDE_FILE_NAMES = new Set(['manifest.json', 'vrowser-manifest.json', 'package.json'])
 // Test file patterns: *.test.{js,mjs,cjs,ts,cts,mts}, *.spec.{js,mjs,cjs,ts,cts,mts}
 const TEST_FILE_RE = /\.(test|spec)\.(js|mjs|cjs|ts|cts|mts)$/
 
@@ -92,6 +99,8 @@ function parseArgs(argv: string[]) {
   let outputPath: string | undefined
   let manifestName: string | undefined
   let activeFile: string | undefined
+  let projectPath: string | undefined
+  const targets: string[] = []
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!
@@ -101,12 +110,16 @@ function parseArgs(argv: string[]) {
       manifestName = args[++i]
     } else if (arg === '--active-file') {
       activeFile = args[++i]
+    } else if (arg === '--target' || arg === '-t') {
+      targets.push(args[++i]!)
+    } else if (arg === '--project' || arg === '-p') {
+      projectPath = args[++i]
     } else if (!arg.startsWith('-')) {
       input = arg
     }
   }
 
-  return { input, outputPath, manifestName, activeFile }
+  return { input, outputPath, manifestName, activeFile, targets, projectPath }
 }
 
 // --- Helpers ---
@@ -147,6 +160,11 @@ function shouldIncludeFile(filePath: string): boolean {
 
   // Dot files (e.g. .eslintrc.js, .vite)
   if (name.startsWith('.')) {
+    return false
+  }
+
+  // Exact file name exclusions
+  if (EXCLUDE_FILE_NAMES.has(name)) {
     return false
   }
 
@@ -243,24 +261,42 @@ async function walkPackageFiles(pkgDir: string): Promise<string[]> {
   }
 
   // No "files" field — walk everything with extension filter
-  return walkDir(pkgDir)
+  // Always include package.json (excluded by shouldIncludeFile but needed for resolve)
+  const result = [join(pkgDir, 'package.json')]
+  await walkDir(pkgDir, result)
+  return result
 }
 
 // --- Dependency collection ---
 
 async function resolvePackageDir(dep: string, fromDir: string): Promise<string | null> {
-  let current = fromDir
-  while (true) {
-    const candidate = join(current, 'node_modules', dep)
-    if (await exists(candidate)) {
-      return candidate
+  // Try from the given path first, then from the real path (for pnpm symlinks).
+  // pnpm places transitive deps alongside the package in .pnpm/pkg@ver/node_modules/,
+  // which is only reachable from the real (resolved symlink) path.
+  const dirs = [fromDir]
+  try {
+    const real = await realpath(fromDir)
+    if (real !== fromDir) {
+      dirs.push(real)
     }
+  } catch {
+    // ignore
+  }
 
-    const parent = dirname(current)
-    if (parent === current) {
-      break
+  for (const dir of dirs) {
+    let current = dir
+    while (true) {
+      const candidate = join(current, 'node_modules', dep)
+      if (await exists(candidate)) {
+        return candidate
+      }
+
+      const parent = dirname(current)
+      if (parent === current) {
+        break
+      }
+      current = parent
     }
-    current = parent
   }
   return null
 }
@@ -362,26 +398,31 @@ function detectActiveFile(files: Record<string, string>): string | undefined {
 // --- Main ---
 
 async function main() {
-  const { input, outputPath, manifestName, activeFile } = parseArgs(process.argv)
+  const { input, outputPath, manifestName, activeFile, targets, projectPath } = parseArgs(
+    process.argv
+  )
 
-  // Resolve project directory from input package.json path
-  let projectDir: string
+  // Resolve package directory from input package.json path (for node_modules resolution)
+  let pkgDir: string
   if (input) {
     const inputPath = resolve(input)
-    // If input points to a file (package.json), use its directory
     try {
       const s = await stat(inputPath)
-      projectDir = s.isFile() ? dirname(inputPath) : inputPath
+      pkgDir = s.isFile() ? dirname(inputPath) : inputPath
     } catch {
       console.error(`Error: "${input}" does not exist.`)
       process.exit(1)
     }
   } else {
-    projectDir = process.cwd()
+    pkgDir = process.cwd()
   }
 
+  // Resolve source directory (for files collection and path base)
+  // --project overrides: scan this directory for source files instead of pkgDir
+  const sourceDir = projectPath ? resolve(projectPath) : pkgDir
+
   // Read package.json
-  const pkgPath = join(projectDir, 'package.json')
+  const pkgPath = join(pkgDir, 'package.json')
   if (!(await exists(pkgPath))) {
     console.error(`Error: No package.json found at ${pkgPath}`)
     process.exit(1)
@@ -395,24 +436,59 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`Generating manifest for: ${projectDir}`)
+  console.log(`Generating manifest for: ${pkgDir}`)
+  if (sourceDir !== pkgDir) {
+    console.log(`  Source directory: ${sourceDir}`)
+  }
 
-  // 1. Collect project source files
-  const projectFiles = await collectProjectFiles(projectDir)
+  // 1. Collect project source files (from sourceDir)
+  const projectFiles = await collectProjectFiles(sourceDir)
   console.log(`  Project files: ${Object.keys(projectFiles).length}`)
 
-  // 2. Collect dependency packages
+  // 2. Collect dependency packages (from pkgDir's node_modules)
   const visited = new Set<string>()
-  const depDirs = await collectDependencies(projectDir, visited, true)
+  let depDirs: string[]
+  if (targets.length > 0) {
+    // Only collect specified target packages and their transitive deps
+    depDirs = []
+    for (const target of targets) {
+      const depDir = await resolvePackageDir(target, pkgDir)
+      if (!depDir) {
+        console.warn(`  Warning: target package "${target}" not found in node_modules`)
+        continue
+      }
+      if (!visited.has(depDir)) {
+        visited.add(depDir)
+        depDirs.push(depDir)
+        const transitive = await collectDependencies(depDir, visited)
+        depDirs.push(...transitive)
+      }
+    }
+    console.log(`  Target packages: ${targets.join(', ')}`)
+  } else {
+    depDirs = await collectDependencies(pkgDir, visited, true)
+  }
   console.log(`  Dependencies: ${depDirs.length} packages`)
 
   // 3. Walk each dependency and collect node_modules files
+  // Keys (virtual FS paths): /node_modules/pkg/subpath (clean, no .pnpm paths)
+  // Values (real file paths): relative to sourceDir (for manifest portability)
   const nodeModulesFiles: Record<string, string> = {}
   for (const depDir of depDirs) {
+    // Extract package name from depDir for clean virtual FS paths.
+    // depDir may be a .pnpm real path — extract the package name from its package.json.
+    const depPkg = await readPackageJson(depDir)
+    const pkgName = depPkg.name
+    if (!pkgName) {
+      continue
+    }
+
     const files = await walkPackageFiles(depDir)
     for (const filePath of files) {
-      const relPath = relative(projectDir, filePath).replace(/\\/g, '/')
-      nodeModulesFiles['/' + relPath] = './' + relPath
+      const fileRelToPkg = relative(depDir, filePath).replace(/\\/g, '/')
+      const virtualPath = `/node_modules/${pkgName}/${fileRelToPkg}`
+      const relPath = relative(sourceDir, filePath).replace(/\\/g, '/')
+      nodeModulesFiles[virtualPath] = './' + relPath
     }
   }
   console.log(`  Node modules files: ${Object.keys(nodeModulesFiles).length}`)
@@ -430,7 +506,8 @@ async function main() {
   }
 
   // 5. Write output
-  const output = resolve(projectDir, outputPath || 'vrowser-manifest.json')
+  // -o path is resolved from cwd (not sourceDir), defaulting to vrowser-manifest.json in sourceDir
+  const output = outputPath ? resolve(outputPath) : resolve(sourceDir, 'vrowser-manifest.json')
   await writeFile(output, JSON.stringify(manifest, null, 2) + '\n')
   console.log(`\nDone: ${relative(process.cwd(), output)}`)
 }
