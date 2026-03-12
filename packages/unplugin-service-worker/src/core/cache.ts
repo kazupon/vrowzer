@@ -4,6 +4,7 @@
  */
 
 import { SW_ASSET_PREFIX, SW_ASSET_SUFFIX } from './constants.ts'
+import { hash as getHash } from './hash.ts'
 
 /**
  * Bundled Service Worker information.
@@ -118,22 +119,6 @@ export interface ServiceWorkerCache {
    * Clear all caches
    */
   clear(): void
-}
-
-/**
- * Generate a simple hash from string.
- *
- * @param str - An input string
- * @returns An alphanumeric hash string
- */
-function getHash(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash = hash & hash // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString(36).slice(0, 8)
 }
 
 /**

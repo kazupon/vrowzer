@@ -17,6 +17,7 @@ import {
   SW_QUERY
 } from './core/constants.ts'
 import { injectEnvironmentToHooks } from './core/environment-hooks.ts'
+import { hash } from './core/hash.ts'
 import { resolveOptions } from './core/options.ts'
 import { detectAndResolveServiceWorkers, needsTransform } from './transform/utils.ts'
 
@@ -113,13 +114,7 @@ function replaceWithRollupFileUrl(
  * Generate placeholder hash from file path (same as transform)
  */
 function generatePlaceholderHash(filePath: string): string {
-  let hash = 0
-  for (let i = 0; i < filePath.length; i++) {
-    const char = filePath.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash = hash & hash
-  }
-  return Math.abs(hash).toString(36).slice(0, 8)
+  return hash(filePath)
 }
 
 /**
@@ -222,13 +217,7 @@ function rewriteEntryUrls(
  * Generate content hash for cache busting
  */
 function generateContentHash(content: string): string {
-  let hash = 0
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash = hash & hash
-  }
-  return Math.abs(hash).toString(36).slice(0, 8)
+  return hash(content)
 }
 
 /**

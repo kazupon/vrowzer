@@ -5,6 +5,7 @@
 
 import MagicString from 'magic-string'
 import { SW_ASSET_PREFIX, SW_ASSET_RE, SW_ASSET_SUFFIX } from '../core/constants.ts'
+import { hash } from '../core/hash.ts'
 import {
   detectAndResolveServiceWorkers,
   generateTransformResult,
@@ -42,13 +43,7 @@ export interface BuildTransformOptions {
  * @returns Hash string
  */
 export function generatePlaceholderHash(filePath: string): string {
-  let hash = 0
-  for (let i = 0; i < filePath.length; i++) {
-    const char = filePath.charCodeAt(i)
-    hash = (hash << 5) - hash + char
-    hash = hash & hash // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString(36).slice(0, 8)
+  return hash(filePath)
 }
 
 /**
