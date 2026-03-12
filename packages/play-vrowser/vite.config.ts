@@ -7,6 +7,7 @@ import vue from '@vitejs/plugin-vue'
 import * as compiler from 'vue/compiler-sfc'
 import yaml from '@rollup/plugin-yaml'
 import { Vrowser, VrowserManifest } from '@vrowser/vite-plugin'
+import { DevTools } from '@vitejs/devtools'
 import { defineConfig } from 'vite'
 
 import type { Plugin } from 'vite'
@@ -54,6 +55,11 @@ export default defineConfig({
       'svelte'
     ]
   },
+  build: {
+    rolldownOptions: {
+      devtools: {} // enable devtools mode
+    }
+  },
   plugins: [
     // Transform vrowser-manifest.json imports to inline file contents
     VrowserManifest(),
@@ -66,6 +72,7 @@ export default defineConfig({
     yaml(),
     // All packages use nodeModules in virtual FS.
     // CJS packages (React) are pre-bundled to ESM by gen:manifest.
-    Vrowser()
+    Vrowser(),
+    DevTools()
   ]
 })
