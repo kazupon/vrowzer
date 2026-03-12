@@ -16,10 +16,13 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname, extname, resolve } from 'node:path'
+import { minifySync } from 'rolldown/experimental'
 import { createDebug } from 'obug'
 
 import type { Plugin } from 'vite'
+
+const MINIFIABLE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs'])
 
 const debug = createDebug('vite-plugin-vrowser:manifest')
 
@@ -57,7 +60,8 @@ export function VrowserManifest(): Plugin {
 
       function resolveFiles(
         field: string,
-        files: Record<string, string> | undefined
+        files: Record<string, string> | undefined,
+        minify = false
       ): Record<string, string> {
         if (!files) {
           return {}
@@ -65,7 +69,14 @@ export function VrowserManifest(): Plugin {
         const resolved: Record<string, string> = {}
         for (const [virtualPath, relPath] of Object.entries(files)) {
           try {
-            resolved[virtualPath] = readFileSync(resolve(manifestDir, relPath), 'utf-8')
+            let content = readFileSync(resolve(manifestDir, relPath), 'utf-8')
+            if (minify && MINIFIABLE_EXTENSIONS.has(extname(virtualPath))) {
+              const result = minifySync(virtualPath, content)
+              if (result.code) {
+                content = result.code
+              }
+            }
+            resolved[virtualPath] = content
           } catch (e) {
             debug('failed to read %s %s: %s', field, relPath, (e as Error).message)
           }
@@ -77,8 +88,8 @@ export function VrowserManifest(): Plugin {
       const result = {
         name: manifest.name,
         files: resolveFiles('files', manifest.files),
-        vendor: resolveFiles('vendor', manifest.vendor),
-        nodeModules: resolveFiles('nodeModules', manifest.nodeModules),
+        vendor: resolveFiles('vendor', manifest.vendor, true),
+        nodeModules: resolveFiles('nodeModules', manifest.nodeModules, true),
         activeFile: manifest.activeFile
       }
 
