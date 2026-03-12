@@ -11,6 +11,8 @@
     "preview:wrangler": "wrangler pages dev dist --port 8788"
   },
   "dependencies": {
+    "@iconify-icons/vscode-icons": "^1.2.29",
+    "@iconify/vue": "^5.0.0",
     "monaco-editor": "^0.55.1",
     "react": "catalog:",
     "react-dom": "catalog:",

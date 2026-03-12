@@ -1,5 +1,22 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 import { ref } from 'vue'
+
+import iconTs from '@iconify-icons/vscode-icons/file-type-typescript'
+import iconJs from '@iconify-icons/vscode-icons/file-type-js'
+import iconVue from '@iconify-icons/vscode-icons/file-type-vue'
+import iconSvelte from '@iconify-icons/vscode-icons/file-type-svelte'
+import iconCss from '@iconify-icons/vscode-icons/file-type-css'
+import iconHtml from '@iconify-icons/vscode-icons/file-type-html'
+import iconJson from '@iconify-icons/vscode-icons/file-type-json'
+import iconYaml from '@iconify-icons/vscode-icons/file-type-yaml'
+import iconSvg from '@iconify-icons/vscode-icons/file-type-svg'
+import iconImage from '@iconify-icons/vscode-icons/file-type-image'
+import iconDefault from '@iconify-icons/vscode-icons/default-file'
+import iconFolderOpen from '@iconify-icons/vscode-icons/default-folder-opened'
+import iconFolder from '@iconify-icons/vscode-icons/default-folder'
+
+import type { IconifyIcon } from '@iconify/vue'
 
 export interface TreeNode {
   name: string
@@ -20,34 +37,30 @@ const emit = defineEmits<{
 
 const expanded = ref(true)
 
-function getFileIcon(name: string): string {
-  const ext = name.split('.').pop()?.toLowerCase()
-  switch (ext) {
-    case 'ts':
-    case 'tsx':
-      return '🔷'
-    case 'js':
-    case 'jsx':
-    case 'mjs':
-      return '🟡'
-    case 'vue':
-      return '💚'
-    case 'svelte':
-      return '🧡'
-    case 'css':
-      return '🎨'
-    case 'html':
-      return '🌐'
-    case 'json':
-      return '📋'
-    case 'yaml':
-    case 'yml':
-      return '📄'
-    case 'svg':
-      return '🖼️'
-    default:
-      return '📄'
-  }
+const FILE_ICONS: Record<string, IconifyIcon> = {
+  ts: iconTs,
+  tsx: iconTs,
+  js: iconJs,
+  jsx: iconJs,
+  mjs: iconJs,
+  vue: iconVue,
+  svelte: iconSvelte,
+  css: iconCss,
+  html: iconHtml,
+  json: iconJson,
+  yaml: iconYaml,
+  yml: iconYaml,
+  svg: iconSvg,
+  png: iconImage,
+  jpg: iconImage,
+  jpeg: iconImage,
+  gif: iconImage,
+  webp: iconImage
+}
+
+function getFileIcon(name: string): IconifyIcon {
+  const ext = name.split('.').pop()?.toLowerCase() ?? ''
+  return FILE_ICONS[ext] ?? iconDefault
 }
 </script>
 
@@ -59,7 +72,7 @@ function getFileIcon(name: string): string {
       @click="expanded = !expanded"
     >
       <span class="chevron">{{ expanded ? '▾' : '▸' }}</span>
-      <span class="icon">{{ expanded ? '📂' : '📁' }}</span>
+      <Icon :icon="expanded ? iconFolderOpen : iconFolder" :width="16" />
       <span>{{ node.name }}</span>
     </div>
     <div v-show="expanded">
@@ -81,7 +94,7 @@ function getFileIcon(name: string): string {
     @click="emit('select', node.path)"
   >
     <span class="chevron" />
-    <span class="icon">{{ getFileIcon(node.name) }}</span>
+    <Icon :icon="getFileIcon(node.name)" :width="16" />
     <span>{{ node.name }}</span>
   </div>
 </template>
@@ -107,13 +120,6 @@ function getFileIcon(name: string): string {
   flex-shrink: 0;
   text-align: center;
   color: #888888;
-}
-
-.tree-item .icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  width: 18px;
-  text-align: center;
 }
 
 .tree-item.dir {

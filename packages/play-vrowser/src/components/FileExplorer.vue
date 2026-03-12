@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
+import iconFolderOpen from '@iconify-icons/vscode-icons/default-folder-opened'
 import { computed } from 'vue'
 import FileTreeNode from './FileTreeNode.vue'
 
@@ -52,7 +54,7 @@ function sortTree(nodes: TreeNode[]) {
 <template>
   <div class="file-explorer">
     <div class="explorer-header">
-      <span class="icon">📁</span>
+      <Icon :icon="iconFolderOpen" :width="16" />
       <span>Explorer</span>
     </div>
     <div class="explorer-tree">
@@ -91,10 +93,6 @@ function sortTree(nodes: TreeNode[]) {
   color: #bbbbbb;
   border-bottom: 1px solid #1e1e1e;
   user-select: none;
-}
-
-.explorer-header .icon {
-  font-size: 14px;
 }
 
 .explorer-tree {
