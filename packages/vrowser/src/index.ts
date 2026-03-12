@@ -424,7 +424,10 @@ function execScript(orig, origin) {
 
     mount(container: HTMLElement): void {
       iframe = document.createElement('iframe')
-      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin')
+      iframe.setAttribute(
+        'sandbox',
+        'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox'
+      )
       iframe.setAttribute('credentialless', '')
       iframe.style.cssText = 'width: 100%; height: 100%; border: none;'
       container.appendChild(iframe)
