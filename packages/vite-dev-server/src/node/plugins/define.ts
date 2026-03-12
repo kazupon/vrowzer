@@ -1,4 +1,4 @@
-// NOTE(kazupon): commented out, we need to transform-sync for vrowser
+// NOTE(kazupon): commented out, because we need to know about background later
 // import { transformSync } from 'rolldown/experimental'
 import type { ResolvedConfig } from '../config';
 import type { Environment } from '../environment';
@@ -157,11 +157,11 @@ export function definePlugin(config: ResolvedConfig): Plugin {
         }
 
         let [define, pattern, importMetaEnvVal] = getPattern(this.environment)
-        if (!pattern) {return}
+        if (!pattern) { return }
 
         // Check if our code needs any replacements before running esbuild
         pattern.lastIndex = 0
-        if (!pattern.test(code)) {return}
+        if (!pattern.test(code)) { return }
 
         const hasDefineImportMetaEnv = 'import.meta.env' in define
         let marker = importMetaEnvMarker
@@ -179,12 +179,7 @@ export function definePlugin(config: ResolvedConfig): Plugin {
           }
         }
 
-        const result = {
-          code,
-          map: null as null | { mappings: string },
-        }
-        // TODO(kazupon): commented out, we need to transform-sync for vrowser
-        // const result = await replaceDefine(this.environment, code, id, define)
+        const result = await replaceDefine(this.environment, code, id, define)
 
         if (hasDefineImportMetaEnv) {
           // Replace `import.meta.env.*` with undefined
@@ -210,8 +205,6 @@ export function definePlugin(config: ResolvedConfig): Plugin {
   }
 }
 
-/*
-// NOTE(kazupon): commented out, we need to transform-sync for vrowser
 export async function replaceDefine(
   environment: Environment,
   code: string,
@@ -219,8 +212,10 @@ export async function replaceDefine(
   define: Record<string, string>,
 ): Promise<{
   code: string
-  map: ReturnType<typeof transformSync>['map'] | null
+  map: import('@vrowser/rolldown/utils').TransformResult['map'] | null
 }> {
+  // NOTE(kazupon): Dynamic import to avoid blocking Worker module evaluation with WASM loading
+  const { transformSync } = await import('@vrowser/rolldown/utils')
   const result = transformSync(id, code, {
     lang: 'js',
     sourceType: 'module',
@@ -240,7 +235,6 @@ export async function replaceDefine(
     map: result.map || null,
   }
 }
-  */
 
 /**
  * Like `JSON.stringify` but keeps raw string values as a literal
@@ -262,8 +256,8 @@ export function serializeDefine(define: Record<string, any>): string {
 }
 
 function handleDefineValue(value: any): string {
-  if (typeof value === 'undefined') {return 'undefined'}
-  if (typeof value === 'string') {return value}
+  if (typeof value === 'undefined') { return 'undefined' }
+  if (typeof value === 'string') { return value }
   return JSON.stringify(value)
 }
 
