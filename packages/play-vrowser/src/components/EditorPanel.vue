@@ -20,7 +20,7 @@ const hiddenFiles = {
 }
 const activeFile = ref(props.manifest.activeFile ?? Object.keys(props.manifest.files)[0] ?? '')
 
-defineExpose({ files, hiddenFiles })
+defineExpose({ files, hiddenFiles, activeFile, switchTab })
 const editorContainer = useTemplateRef('editorContainer')
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
@@ -49,6 +49,8 @@ function getLanguage(path: string): string {
     case 'vue':
     case 'svelte':
       return 'html'
+    case 'svg':
+      return 'xml'
     default:
       return 'plaintext'
   }

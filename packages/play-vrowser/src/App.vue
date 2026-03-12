@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Vrowser } from 'vrowser'
-import { onMounted, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import EditorPanel from './components/EditorPanel.vue'
+import FileExplorer from './components/FileExplorer.vue'
 
 import type { VrowserManifest } from '../fixtures/types'
 
@@ -87,6 +88,13 @@ function handleFileChange({ path, content }: { path: string; content: string }) 
 function handleReload() {
   vrowser.reloadPreview()
 }
+
+function handleFileSelect(path: string) {
+  editorPanel.value?.switchTab(path)
+}
+
+const editorFiles = computed(() => editorPanel.value?.files ?? new Map<string, string>())
+const editorActiveFile = computed(() => editorPanel.value?.activeFile ?? '')
 </script>
 
 <template>
@@ -104,6 +112,11 @@ function handleReload() {
       </select>
     </header>
     <main class="app-main">
+      <FileExplorer
+        :files="editorFiles"
+        :active-file="editorActiveFile"
+        @select="handleFileSelect"
+      />
       <EditorPanel ref="editorPanel" :manifest="activeManifest" @file-change="handleFileChange" />
       <div class="preview-panel">
         <div class="preview-header">
@@ -192,7 +205,7 @@ function handleReload() {
 .app-main {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: auto 1fr 1fr;
   overflow: hidden;
 }
 
