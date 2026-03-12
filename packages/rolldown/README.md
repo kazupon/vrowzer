@@ -68,6 +68,15 @@ Re-exports from `@rolldown/browser/experimental`:
 - `parseSync` / `parse` - OXC-based JavaScript/TypeScript parser
 - `transform` / `transformSync` - Code transformation
 
+### `@vrowser/rolldown/utils` / `@vrowser/rolldown/browser/utils`
+
+Re-exports from `@rolldown/browser/experimental`:
+
+- `transformSync` - Synchronous code transformation (TypeScript strip, define replacement)
+- `TransformOptions` / `TransformResult` - TypeScript types
+
+Compatible with `rolldown/utils`. Used by `@vrowser/vite-dev-server` for `process.env.NODE_ENV` replacement via `clientInjectionsPlugin`.
+
 ## HTTP Headers
 
 `SharedArrayBuffer` is required by the rolldown WASM runtime. The following HTTP headers must be set on the server:
@@ -91,12 +100,14 @@ This produces:
 dist/
 ├── index.js                          # Shared build: main entry (@vrowser/fs external)
 ├── experimental.js                   # Shared build: experimental (@vrowser/fs external)
+├── utils.js                          # Shared build: utils (transformSync)
 ├── chunks/                           # Shared build: shared chunks
 ├── worker.js                         # Shared: bundled WASI worker script
 ├── rolldown-binding.wasm32-wasi.wasm # Shared: WASM binary (~11MB)
 └── browser/
     ├── index.js                      # Standalone build: main entry (@vrowser/fs bundled)
     ├── experimental.js               # Standalone build: experimental (@vrowser/fs bundled)
+    ├── utils.js                      # Standalone build: utils (transformSync)
     └── chunks/                       # Standalone build: shared chunks
 ```
 
