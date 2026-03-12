@@ -27,13 +27,3 @@ ${resolveBlock}
 initWebWorker(resolved)
 `
 }
-
-// TODO(kazupon): Re-enable when SW-specific configureServer plugins are needed.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future SW plugin injection
-export function generateServiceWorkerEntry(configPath: string): string {
-  return `
-import { initServiceWorker } from 'vrowser/service-worker-core'
-import config from '${configPath}'
-initServiceWorker({ plugins: config.default?.plugins ?? config.plugins ?? [] })
-`
-}

@@ -7,7 +7,7 @@ describe('resolveOptions', () => {
 
     expect(resolved.basePath).toBe('/__preview__/')
     expect(resolved.serviceWorkerScope).toBe('/')
-    expect(resolved.serviceWorkerVersion).toBe('SEVICE_WORKER_VERSION')
+    expect(resolved.serviceWorkerVersion).toBe('SERVICE_WORKER_VERSION')
   })
 
   test('respects custom basePath', () => {

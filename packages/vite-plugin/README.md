@@ -2,7 +2,7 @@
 
 Vite plugin for [vrowser](https://github.com/kazupon/vrowser) - browser-based Vite dev server preview system.
 
-This plugin configures Vite for running `@vrowser/vite-dev-server` in Service Worker and Web Worker environments. It handles Node.js polyfills, CORS headers, `process` global injection, WASM file copying, and Service Worker bundling.
+This plugin configures Vite for running `@vrowser/vite-dev-server` in Service Worker and Web Worker environments. It handles Node.js polyfills, CORS headers, `process` global injection, WASM file copying, Worker config extraction/prebundling, and Service Worker bundling.
 
 ## 💿 Installation
 
@@ -21,15 +21,15 @@ yarn add -D @vrowser/vite-plugin
 
 ```ts
 // vite.config.ts
-import { Vrowser } from '@vrowser/vite-plugin'
+import { Vrowser, VrowserManifest } from '@vrowser/vite-plugin'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [
-    Vrowser({
-      basePath: '/__preview__/',
-      serviceWorkerEntry: './node_modules/vrowser/dist/service-worker.ts'
-    })
+    // Transform vrowser-manifest.json imports to inline file contents
+    VrowserManifest(),
+    // Configure vrowser preview system
+    Vrowser()
   ]
 })
 ```
@@ -47,54 +47,88 @@ Vrowser({
   serviceWorkerScope: '/',
 
   // Service Worker version for cache management
-  // Default: 'SEVICE_WORKER_VERSION'
+  // Default: 'SERVICE_WORKER_VERSION'
   serviceWorkerVersion: 'my-app-v1',
 
   // Explicit Service Worker entry file path
-  // Required when using a library-provided SW (e.g. vrowser)
+  // Default: Resolved path to 'vrowser/service-worker'
+  serviceWorkerEntry: 'vrowser/service-worker',
+
+  // Worker-specific resolve settings (e.g. vendor aliases)
+  // These are passed to the Worker's internal Vite dev server, not the host.
   // Default: undefined
-  serviceWorkerEntry: './node_modules/vrowser/dist/service-worker.ts'
+  resolve: {
+    alias: [{ find: 'react', replacement: '/vendor/react.js' }]
+  },
+
+  // Explicit Worker config file path (legacy mode)
+  // When omitted, plugins are auto-extracted from vite.config.ts
+  // Default: undefined
+  workerConfig: './vrowser.config.ts'
 })
 ```
 
-| Option                 | Type                  | Default                   | Description                                                                                             |
-| ---------------------- | --------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `basePath`             | `string`              | `'/__preview__/'`         | Base path for the preview system. The Service Worker intercepts requests under this path.               |
-| `serviceWorkerScope`   | `string`              | `'/'`                     | The scope for the Service Worker registration.                                                          |
-| `serviceWorkerVersion` | `string`              | `'SEVICE_WORKER_VERSION'` | Version string for Service Worker cache management.                                                     |
-| `serviceWorkerEntry`   | `string \| undefined` | `undefined`               | Explicit Service Worker entry file path. Required when using a library-provided SW from `node_modules`. |
+| Option                 | Type                  | Default                                   | Description                                                                               |
+| ---------------------- | --------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `basePath`             | `string`              | `'/__preview__/'`                         | Base path for the preview system. The Service Worker intercepts requests under this path. |
+| `serviceWorkerScope`   | `string`              | `'/'`                                     | The scope for the Service Worker registration.                                            |
+| `serviceWorkerVersion` | `string`              | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
+| `serviceWorkerEntry`   | `string`              | Resolved path to `vrowser/service-worker` | Explicit Service Worker entry file path.                                                  |
+| `resolve`              | `{ alias?: Alias[] }` | `undefined`                               | Worker-specific resolve settings (vendor aliases for browser runtime).                    |
+| `workerConfig`         | `string`              | `undefined`                               | Explicit Worker config file path. Skips auto-extraction from vite.config.ts.              |
 
-## 📖 What This Plugin Does
+## 🔌 Exported Plugins
 
-`Vrowser()` returns an array of Vite plugins that together configure the environment for vrowser:
+### `Vrowser(options?)`
 
-### 1. Preview Guard Middleware (`vrowser:server-middleware`)
+Returns an array of Vite plugins that configure the environment for vrowser:
+
+#### 1. Worker Config Extraction & Prebundling (`vrowser:config`)
+
+Auto-extracts user plugins from `vite.config.ts` using OXC parser, then pre-bundles them with Rolldown for the Web Worker environment. The prebundled config is written to `node_modules/.vrowser/config.bundled.mjs`.
+
+- Resolves `@vrowser/*` imports from the plugin's own dependency graph
+- Inlines `readFileSync()` and `createRequire()` calls for Worker compatibility
+- Maps `vite` imports to `@vrowser/vite-dev-server/vite`
+
+#### 2. Preview Guard Middleware (`vrowser:server-middleware`)
 
 Prevents Vite's SPA fallback from serving `index.html` for `basePath` requests when the Service Worker is not yet active. Returns a 503 with auto-retry instead.
 
-### 2. Process Global Injection
+#### 3. Process Global Injection
 
-Injects `process` polyfill (`@vrowser/node-polyfill/process`) for browser/Worker environments where `process` is not available:
+Injects `process` polyfill (`@vrowser/node-polyfill/process`) for browser/Worker environments:
 
-- **Dev mode**: Uses `@rollup/plugin-inject` (Rolldown transforms are not available during `vite serve`)
+- **Dev mode**: Uses `@rollup/plugin-inject`
 - **Build mode**: Uses Rolldown's native `transform.inject`
 
-### 3. Core Configuration (`vrowser:core`)
+#### 4. Core Configuration (`vrowser:core`)
 
-Sets up Vite configuration required for the browser-based Vite dev server:
+Sets up Vite configuration for the browser-based Vite dev server:
 
-- **`resolve.alias`** - Maps Node.js built-in modules (`node:fs`, `node:path`, `node:events`, etc.) to browser-compatible polyfills
-- **`worker.format`** - Set to `'es'` for ES Module workers
-- **CORS headers** - `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` for both dev and preview servers, plus `Service-Worker-Allowed: /`
-- **`define`** - Forwards `DEBUG` env var via `import.meta.env.DEBUG`
+- **`resolve.alias`** — Maps Node.js built-in modules (`node:fs`, `node:path`, `node:events`, etc.) to browser-compatible polyfills
+- **`worker.format`** — Set to `'es'` for ES Module workers
+- **CORS headers** — `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless`, plus `Service-Worker-Allowed: /`
 
-### 4. Rolldown WASM Copy (`vrowser:rolldown`)
+#### 5. Rolldown WASM Copy (`vrowser:rolldown`)
 
-Copies `@vrowser/rolldown` WASM binary (`rolldown-binding.wasm32-wasi.wasm`) and sub-worker (`worker.js`) to `dist/assets/` during production builds.
+Copies `@vrowser/rolldown` WASM binary and sub-worker to `dist/assets/` during production builds.
 
-### 5. Service Worker Bundling
+#### 6. Service Worker Bundling
 
-Uses `@vrowser/unplugin-service-worker` to detect, bundle, and deploy the Service Worker with ESM format and `Service-Worker-Allowed: /` header.
+Uses `@vrowser/unplugin-service-worker` to detect, bundle, and deploy the Service Worker with ESM format.
+
+### `VrowserManifest()`
+
+Transforms `vrowser-manifest.json` imports (with `?vrowser` query suffix) by reading referenced files and embedding their contents into the imported object. Supports `files`, `vendor`, and `nodeModules` fields.
+
+```ts
+// Import with ?vrowser query to trigger content resolution
+const manifests = import.meta.glob('./fixtures/*/vrowser-manifest.json', {
+  eager: true,
+  query: '?vrowser'
+})
+```
 
 ## 🤝 Sponsors
 

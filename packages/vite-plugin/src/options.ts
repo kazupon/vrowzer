@@ -32,7 +32,7 @@ export interface VrowserOptions {
   /**
    * The version of the service worker for Vrowser, which can be used to manage updates and cache invalidation for the preview system.
    *
-   * @default 'SEVICE_WORKER_VERSION'
+   * @default 'SERVICE_WORKER_VERSION'
    */
   serviceWorkerVersion?: string
   /**
@@ -64,10 +64,6 @@ export interface VrowserOptions {
    * @default undefined
    */
   workerConfig?: string
-  /**
-   * @deprecated Use `workerConfig` instead.
-   */
-  configFile?: string
 }
 
 export interface ResolvedVrowserOptions {
@@ -77,7 +73,6 @@ export interface ResolvedVrowserOptions {
   serviceWorkerEntry: string
   resolve: { alias?: Alias[] } | undefined
   workerConfig: string
-  configFile: string
 }
 
 function resolveDefaultServiceWorkerEntry(): string {
@@ -89,14 +84,12 @@ function resolveDefaultServiceWorkerEntry(): string {
 }
 
 export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions {
-  const workerConfig = options.workerConfig ?? options.configFile ?? ''
   return {
     basePath: options.basePath ?? '/__preview__/',
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
-    serviceWorkerVersion: options.serviceWorkerVersion ?? 'SEVICE_WORKER_VERSION',
+    serviceWorkerVersion: options.serviceWorkerVersion ?? 'SERVICE_WORKER_VERSION',
     serviceWorkerEntry: options.serviceWorkerEntry ?? resolveDefaultServiceWorkerEntry(),
     resolve: options.resolve,
-    workerConfig,
-    configFile: workerConfig
+    workerConfig: options.workerConfig ?? ''
   }
 }
