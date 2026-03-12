@@ -54,13 +54,21 @@ interface ImportInfo {
   isTypeOnly: boolean
 }
 
-const VROWSER_SOURCES = ['@vrowser/vite-plugin', '@vrowser/vite-plugin/config']
+/**
+ * Packages that should be excluded from Worker config.
+ * These are host-only plugins that cannot run in Web Worker.
+ */
+const WORKER_EXCLUDED_SOURCES = [
+  '@vrowser/vite-plugin',
+  '@vrowser/vite-plugin/config',
+  '@vitejs/devtools'
+]
 
 /**
- * Check if an import source is from Vrowser.
+ * Check if an import source should be excluded from Worker config.
  */
-export function isVrowserImport(source: string): boolean {
-  return VROWSER_SOURCES.some(s => source === s || source.startsWith(`${s}/`))
+export function isWorkerExcludedImport(source: string): boolean {
+  return WORKER_EXCLUDED_SOURCES.some(s => source === s || source.startsWith(`${s}/`))
 }
 
 /**
@@ -159,7 +167,7 @@ export function extractWorkerConfig(
     if (!p.importSource) {
       return true
     } // local function - keep
-    return !isVrowserImport(p.importSource)
+    return !isWorkerExcludedImport(p.importSource)
   })
   debug(
     'workerPlugins',
@@ -187,7 +195,7 @@ export function extractWorkerConfig(
         if (isViteImport(imp.source)) {
           continue
         }
-        if (isVrowserImport(imp.source)) {
+        if (isWorkerExcludedImport(imp.source)) {
           continue
         }
         // Check if the import's local name appears in the argument source
@@ -224,7 +232,7 @@ export function extractWorkerConfig(
         if (isViteImport(imp.source)) {
           continue
         }
-        if (isVrowserImport(imp.source)) {
+        if (isWorkerExcludedImport(imp.source)) {
           continue
         }
         if (funcSource.includes(imp.localName)) {
@@ -258,7 +266,7 @@ export function extractWorkerConfig(
             if (isViteImport(imp.source)) {
               continue
             }
-            if (isVrowserImport(imp.source)) {
+            if (isWorkerExcludedImport(imp.source)) {
               continue
             }
             if (varSource.includes(imp.localName)) {
@@ -388,7 +396,7 @@ function generateWorkerSource(
     if (isViteImport(imp.source)) {
       continue
     }
-    if (isVrowserImport(imp.source)) {
+    if (isWorkerExcludedImport(imp.source)) {
       continue
     }
     if (!neededImportSources.has(imp.source)) {
@@ -459,7 +467,7 @@ function generateWorkerSource(
             if (isViteImport(imp.source)) {
               continue
             }
-            if (isVrowserImport(imp.source)) {
+            if (isWorkerExcludedImport(imp.source)) {
               continue
             }
             if (varSource.includes(imp.localName)) {

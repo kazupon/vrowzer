@@ -1,18 +1,22 @@
 import { describe, expect, test } from 'vitest'
-import { extractWorkerConfig, isVrowserImport } from './extract.ts'
+import { extractWorkerConfig, isWorkerExcludedImport } from './extract.ts'
 
-describe('isVrowserImport', () => {
+describe('isWorkerExcludedImport', () => {
   test('detects @vrowser/vite-plugin', () => {
-    expect(isVrowserImport('@vrowser/vite-plugin')).toBe(true)
+    expect(isWorkerExcludedImport('@vrowser/vite-plugin')).toBe(true)
   })
 
   test('detects @vrowser/vite-plugin/config', () => {
-    expect(isVrowserImport('@vrowser/vite-plugin/config')).toBe(true)
+    expect(isWorkerExcludedImport('@vrowser/vite-plugin/config')).toBe(true)
+  })
+
+  test('detects @vitejs/devtools', () => {
+    expect(isWorkerExcludedImport('@vitejs/devtools')).toBe(true)
   })
 
   test('does not match unrelated packages', () => {
-    expect(isVrowserImport('@vitejs/plugin-vue')).toBe(false)
-    expect(isVrowserImport('vite')).toBe(false)
+    expect(isWorkerExcludedImport('@vitejs/plugin-vue')).toBe(false)
+    expect(isWorkerExcludedImport('vite')).toBe(false)
   })
 })
 
