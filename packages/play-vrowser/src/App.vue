@@ -6,29 +6,43 @@ import FileExplorer from './components/FileExplorer.vue'
 
 import type { VrowserManifest } from '../fixtures/types'
 
-// Discover all fixture manifests via import.meta.glob
-// The vrowserManifestPlugin transforms these JSON files at build time,
-// resolving file paths to actual file contents.
-const manifestModules = import.meta.glob<{ default: VrowserManifest }>(
+// Lazy-load fixture manifests — only the selected fixture is loaded.
+// Manifest names are discovered from glob paths (lightweight, no file content).
+const manifestLoaders = import.meta.glob<{ default: VrowserManifest }>(
   '../fixtures/*/vrowser-manifest.json',
-  { eager: true, query: '?vrowser' }
+  { query: '?vrowser' }
 )
-const unordered = new Map<string, VrowserManifest>()
-for (const [path, mod] of Object.entries(manifestModules)) {
+function dirName(path: string): string {
   const parts = path.split('/')
-  const name = parts[parts.length - 2]!
-  unordered.set(name, mod.default)
+  return parts[parts.length - 2] ?? ''
 }
+
+// Extract fixture names from paths and apply display order
 const fixtureOrder = ['vite-vue', 'vite-react', 'vite-svelte', 'vite-vanilla']
-const manifests = new Map<string, VrowserManifest>(
-  fixtureOrder.filter(k => unordered.has(k)).map(k => [k, unordered.get(k)!])
+const allFixtureNames = Object.keys(manifestLoaders).map(dirName)
+const fixtureNames = fixtureOrder.filter(k => allFixtureNames.includes(k))
+
+// Fixture display names (loaded eagerly — just the name field, not file contents)
+const fixtureDisplayNames = import.meta.glob<{ name?: string }>(
+  '../fixtures/*/vrowser-manifest.json',
+  { eager: true, import: 'default' }
 )
+const displayNames = new Map<string, string>()
+for (const [path, data] of Object.entries(fixtureDisplayNames)) {
+  displayNames.set(dirName(path), data?.name ?? dirName(path))
+}
 
 // Select fixture from URL parameter (default: first available)
 const selectedFixture = ref(
-  new URLSearchParams(location.search).get('fixture') ?? manifests.keys().next().value!
+  new URLSearchParams(location.search).get('fixture') ?? fixtureNames[0]!
 )
-const activeManifest = manifests.get(selectedFixture.value)!
+
+// Load only the selected fixture's manifest
+const loaderKey = Object.keys(manifestLoaders).find(
+  path => dirName(path) === selectedFixture.value
+)!
+const activeManifest = ref<VrowserManifest | null>(null)
+const manifestLoaded = ref(false)
 
 function switchFixture(name: string) {
   const url = new URL(location.href)
@@ -52,6 +66,15 @@ vrowser.on('reloadSuggested', info => {
 })
 
 onMounted(async () => {
+  // Load the selected fixture's manifest (lazy)
+  statusText.value = 'Loading fixture...'
+  const mod = await manifestLoaders[loaderKey]!()
+  activeManifest.value = mod.default
+  manifestLoaded.value = true
+
+  // Wait for EditorPanel to mount with the loaded manifest
+  await new Promise(r => setTimeout(r, 0))
+
   // Collect initial files from EditorPanel (editable + vendor)
   const initialFiles: Record<string, string> = {}
   if (editorPanel.value?.files) {
@@ -108,7 +131,7 @@ const editorActiveFile = computed(() => editorPanel.value?.activeFile ?? '')
         :value="selectedFixture"
         @change="switchFixture(($event.target as HTMLSelectElement).value)"
       >
-        <option v-for="[name, m] in manifests" :key="name" :value="name">{{ m.name }}</option>
+        <option v-for="name in fixtureNames" :key="name" :value="name">{{ displayNames.get(name) ?? name }}</option>
       </select>
     </header>
     <main class="app-main">
@@ -117,7 +140,7 @@ const editorActiveFile = computed(() => editorPanel.value?.activeFile ?? '')
         :active-file="editorActiveFile"
         @select="handleFileSelect"
       />
-      <EditorPanel ref="editorPanel" :manifest="activeManifest" @file-change="handleFileChange" />
+      <EditorPanel v-if="activeManifest" ref="editorPanel" :manifest="activeManifest" @file-change="handleFileChange" />
       <div class="preview-panel">
         <div class="preview-header">
           <span>Preview by MessageChannel base HMR</span>
