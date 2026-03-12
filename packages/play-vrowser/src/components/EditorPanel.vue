@@ -303,9 +303,9 @@ onUnmounted(() => {
 .editor-panel {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
   background: #1e1e1e;
-  border-right: 1px solid #2e2e2e;
 }
 
 .tab-bar {

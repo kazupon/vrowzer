@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Vrowser } from 'vrowser'
-import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import { computed, nextTick, onMounted, ref, useTemplateRef } from 'vue'
 import EditorPanel from './components/EditorPanel.vue'
 import FileExplorer from './components/FileExplorer.vue'
+import SplitPane from './components/SplitPane.vue'
 
 import type { VrowserManifest } from '../fixtures/types'
 
@@ -52,6 +53,7 @@ function switchFixture(name: string) {
 
 const editorPanel = useTemplateRef<InstanceType<typeof EditorPanel>>('editorPanel')
 const previewContainer = useTemplateRef<HTMLElement>('previewContainer')
+const splitPane = useTemplateRef<InstanceType<typeof SplitPane>>('splitPane')
 const isReady = ref(false)
 const statusText = ref('Loading...')
 
@@ -72,17 +74,23 @@ onMounted(async () => {
   activeManifest.value = mod.default
   manifestLoaded.value = true
 
-  // Wait for EditorPanel to mount with the loaded manifest
-  await new Promise(r => setTimeout(r, 0))
+  // Wait for EditorPanel to mount with the loaded manifest.
+  // Two nextTick cycles needed: first for v-if to render, second for ref to be available.
+  await nextTick()
+  await nextTick()
+  splitPane.value?.initSizes()
 
-  // Collect initial files from EditorPanel (editable + vendor)
+  // Collect initial files from EditorPanel (editable + vendor/nodeModules)
   const initialFiles: Record<string, string> = {}
-  if (editorPanel.value?.files) {
+  if (!editorPanel.value) {
+    console.warn('[Vrowser Playground] EditorPanel ref not available, using manifest directly')
+    Object.assign(initialFiles, activeManifest.value!.files)
+    Object.assign(initialFiles, activeManifest.value!.vendor ?? {})
+    Object.assign(initialFiles, activeManifest.value!.nodeModules ?? {})
+  } else {
     for (const [path, content] of editorPanel.value.files) {
       initialFiles[path] = content
     }
-  }
-  if (editorPanel.value?.hiddenFiles) {
     Object.assign(initialFiles, editorPanel.value.hiddenFiles)
   }
 
@@ -135,30 +143,38 @@ const editorActiveFile = computed(() => editorPanel.value?.activeFile ?? '')
       </select>
     </header>
     <main class="app-main">
-      <FileExplorer
-        :files="editorFiles"
-        :active-file="editorActiveFile"
-        @select="handleFileSelect"
-      />
-      <EditorPanel v-if="activeManifest" ref="editorPanel" :manifest="activeManifest" @file-change="handleFileChange" />
-      <div class="preview-panel">
-        <div class="preview-header">
-          <span>Preview by MessageChannel base HMR</span>
-          <div class="status-container">
-            <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
-              Reload
-            </button>
-            <span :class="['status-dot', { ready: isReady }]" title="Service Worker"></span>
-            <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
+      <SplitPane ref="splitPane" :sizes="[200, 500, 500]" :min-size="100">
+        <template #panel-0>
+          <FileExplorer
+            :files="editorFiles"
+            :active-file="editorActiveFile"
+            @select="handleFileSelect"
+          />
+        </template>
+        <template #panel-1>
+          <EditorPanel v-if="activeManifest" ref="editorPanel" :manifest="activeManifest" @file-change="handleFileChange" />
+        </template>
+        <template #panel-2>
+          <div class="preview-panel">
+            <div class="preview-header">
+              <span>Preview by MessageChannel base HMR</span>
+              <div class="status-container">
+                <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
+                  Reload
+                </button>
+                <span :class="['status-dot', { ready: isReady }]" title="Service Worker"></span>
+                <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
+              </div>
+            </div>
+            <div class="preview-content">
+              <div v-if="!isReady" class="loading-overlay">
+                <p>{{ statusText }}</p>
+              </div>
+              <div ref="previewContainer" class="preview-iframe-container" />
+            </div>
           </div>
-        </div>
-        <div class="preview-content">
-          <div v-if="!isReady" class="loading-overlay">
-            <p>{{ statusText }}</p>
-          </div>
-          <div ref="previewContainer" class="preview-iframe-container" />
-        </div>
-      </div>
+        </template>
+      </SplitPane>
     </main>
   </div>
 </template>
@@ -227,8 +243,6 @@ const editorActiveFile = computed(() => editorPanel.value?.activeFile ?? '')
 
 .app-main {
   flex: 1;
-  display: grid;
-  grid-template-columns: auto 1fr 1fr;
   overflow: hidden;
 }
 
