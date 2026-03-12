@@ -6,9 +6,7 @@ import { CLIENT_ENTRY, ENV_ENTRY } from '../constants'
 import { perEnvironmentState } from '../environment'
 import type { Plugin } from '../plugin'
 import { isObject, normalizePath, resolveHostname } from '../utils'
-import { serializeDefine } from './define'
-// NOTE(kazupon): commented out, we need to transform-sync for vrowser
-// import { replaceDefine, serializeDefine } from './define'
+import { replaceDefine, serializeDefine } from './define'
 
 // ids in transform are normalized to unix style
 const normalizedClientEntry = normalizePath(CLIENT_ENTRY)
@@ -52,13 +50,11 @@ export function clientInjectionsPlugin(config: ResolvedConfig): Plugin {
         const nodeEnv =
           this.environment.config.define?.['process.env.NODE_ENV'] ||
           JSON.stringify(process.env.NODE_ENV || config.mode)
-        return { code, map: null }
-        // NOTE(kazupon): commented out, we need to transform-sync for vrowser
-        // return await replaceDefine(this.environment, code, id, {
-        //   'process.env.NODE_ENV': nodeEnv,
-        //   'global.process.env.NODE_ENV': nodeEnv,
-        //   'globalThis.process.env.NODE_ENV': nodeEnv,
-        // })
+        return await replaceDefine(this.environment, code, id, {
+          'process.env.NODE_ENV': nodeEnv,
+          'global.process.env.NODE_ENV': nodeEnv,
+          'globalThis.process.env.NODE_ENV': nodeEnv,
+        })
       }
     },
   }

@@ -1,12 +1,8 @@
 import type { ErrorPayload } from '#types/hmrPayload'
 
-// NOTE(kazupon): disable because currently minimul implementation
-// // injected by the hmr plugin when served
-// declare const __BASE__: string
-// declare const __HMR_CONFIG_NAME__: string
-
-const __BASE__: string = ''
-const __HMR_CONFIG_NAME__: string = 'vite.config.js'
+// injected by the hmr plugin when served
+declare const __BASE__: string
+declare const __HMR_CONFIG_NAME__: string
 
 const hmrConfigName = __HMR_CONFIG_NAME__
 const base = __BASE__ || '/'

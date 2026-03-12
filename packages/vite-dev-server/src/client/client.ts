@@ -16,31 +16,18 @@ import { ErrorOverlay, cspNonce, overlayId } from './overlay'
 
 // TODO: fill in later ...
 
-// NOTE(kazupon): disable because currently minimul implementation
-// // injected by the hmr plugin when served
-// declare const __BASE__: string
-// declare const __SERVER_HOST__: string
-// declare const __HMR_PROTOCOL__: string | null
-// declare const __HMR_HOSTNAME__: string | null
-// declare const __HMR_PORT__: number | null
-// declare const __HMR_DIRECT_TARGET__: string
-// declare const __HMR_BASE__: string
-// declare const __HMR_TIMEOUT__: number
-// declare const __HMR_ENABLE_OVERLAY__: boolean
-// declare const __WS_TOKEN__: string
-// declare const __BUNDLED_DEV__: boolean
-
-const __BASE__: string = ''
-const __SERVER_HOST__: string = ''
-const __HMR_PROTOCOL__: string | null = null
-const __HMR_HOSTNAME__: string | null = null
-const __HMR_PORT__: number | null = null
-const __HMR_DIRECT_TARGET__: string = ''
-const __HMR_BASE__: string = ''
-const __HMR_TIMEOUT__: number = 1000
-const __HMR_ENABLE_OVERLAY__: boolean = false
-const __WS_TOKEN__: string = ''
-const __BUNDLED_DEV__: boolean = false
+// injected by the hmr plugin when served
+declare const __BASE__: string
+declare const __SERVER_HOST__: string
+declare const __HMR_PROTOCOL__: string | null
+declare const __HMR_HOSTNAME__: string | null
+declare const __HMR_PORT__: number | null
+declare const __HMR_DIRECT_TARGET__: string
+declare const __HMR_BASE__: string
+declare const __HMR_TIMEOUT__: number
+declare const __HMR_ENABLE_OVERLAY__: boolean
+declare const __WS_TOKEN__: string
+declare const __BUNDLED_DEV__: boolean
 
 
 // NOTE(kazupon): for console debug for vite

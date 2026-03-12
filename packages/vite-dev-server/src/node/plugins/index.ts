@@ -40,7 +40,7 @@ export async function resolvePlugins(
     // Using dynamic import() guarded by __VROWSER_SERVICE_WORKER__ build-time constant
     // enables rolldown DCE(Dead Code Elimination) to eliminate these plugins and their heavy dependencies
     // (postcss, oxc-parser, es-module-lexer, etc.) from the Service Worker bundle.
-    const [preAliasMod, aliasMod, resolveMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod] = await Promise.all([
+    const [preAliasMod, aliasMod, resolveMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod] = await Promise.all([
       import('./preAlias'),
       import('@rollup/plugin-alias'),
       import('./resolve'),
@@ -49,6 +49,7 @@ export async function resolvePlugins(
       import('./json'),
       import('./importAnalysis'),
       import('./asset'),
+      import('./clientInjections'),
     ])
     const preAliasPlugin = preAliasMod.preAliasPlugin
     const aliasPlugin = aliasMod.default
@@ -60,6 +61,7 @@ export async function resolvePlugins(
     const jsonPlugin = jsonMod.jsonPlugin
     const importAnalysisPlugin = importAnalysisMod.importAnalysisPlugin
     const assetPlugin = assetMod.assetPlugin
+    const clientInjectionsPlugin = clientInjectionsMod.clientInjectionsPlugin
 
     return [
       // !isBundled ? optimizedDepsPlugin() : null,
@@ -72,17 +74,6 @@ export async function resolvePlugins(
       }),
 
       ...prePlugins,
-
-      {
-        name: 'vite:placeholder-plugin',
-        transform(code: string, id: string) {
-          console.log(`[placeholder-plugin] transforming ${id}`, code)
-          return {
-            code,
-            map: null,
-          }
-        }
-      },
 
       resolvePlugin({
         root: config.root,
@@ -122,7 +113,7 @@ export async function resolvePlugins(
       ...(isBundled
         ? []
         : [
-          // clientInjectionsPlugin(config),
+          clientInjectionsPlugin(config),
           cssAnalysisPlugin(config),
           importAnalysisPlugin(config)
         ]),
