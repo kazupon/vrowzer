@@ -319,7 +319,8 @@ export default defineConfig([
     input: {
       index: join(rolldownDist, 'index.browser.mjs'),
       experimental: join(rolldownDist, 'experimental-index.browser.mjs'),
-      parseAst: join(rolldownDist, 'parse-ast-index.mjs')
+      parseAst: join(rolldownDist, 'parse-ast-index.mjs'),
+      utils: join(__dirname, 'src/utils.ts')
     },
     platform: 'browser',
     resolve: commonResolve,
@@ -347,7 +348,8 @@ export default defineConfig([
     input: {
       index: join(rolldownDist, 'index.browser.mjs'),
       experimental: join(rolldownDist, 'experimental-index.browser.mjs'),
-      parseAst: join(rolldownDist, 'parse-ast-index.mjs')
+      parseAst: join(rolldownDist, 'parse-ast-index.mjs'),
+      utils: join(__dirname, 'src/utils.ts')
     },
     platform: 'browser',
     resolve: bundledResolve,

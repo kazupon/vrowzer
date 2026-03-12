@@ -38,6 +38,11 @@
       "import": "./dist/browser/parseAst.js",
       "default": "./dist/browser/parseAst.js"
     },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.js",
+      "default": "./dist/utils.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

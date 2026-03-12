@@ -8,6 +8,7 @@
  */
 
 import { chromium } from '@playwright/test'
+import { copyFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
@@ -20,8 +21,10 @@ import type { StaticServer } from './utils/server.ts'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PLAYGROUND_DIR = join(__dirname, 'playground')
 const PLAYGROUND_SHARED_DIR = join(__dirname, 'playground-shared')
+const PLAYGROUND_UTILS_DIR = join(__dirname, 'playground-utils')
 const OUTPUT_DIR = join(__dirname, '.output')
 const OUTPUT_SHARED_DIR = join(__dirname, '.output-shared')
+const OUTPUT_UTILS_DIR = join(__dirname, '.output-utils')
 
 const E2E_DEBUG = process.env.E2E_DEBUG === '1' || process.env.E2E_DEBUG === 'true'
 const debug = (...args: unknown[]) => E2E_DEBUG && console.log('[E2E]', ...args)
@@ -47,7 +50,6 @@ async function buildPlayground(playgroundDir: string, outputDir: string) {
 }
 
 function copyDistFiles(outputDir: string) {
-  const { copyFileSync } = require('node:fs') as typeof import('node:fs')
   const distDir = join(__dirname, '..', 'dist')
   copyFileSync(join(distDir, 'worker.js'), join(outputDir, 'worker.js'))
   copyFileSync(
@@ -66,6 +68,11 @@ beforeAll(async () => {
   debug('Building shared playground...')
   await buildPlayground(PLAYGROUND_SHARED_DIR, OUTPUT_SHARED_DIR)
   copyDistFiles(OUTPUT_SHARED_DIR)
+
+  // Build utils playground
+  debug('Building utils playground...')
+  await buildPlayground(PLAYGROUND_UTILS_DIR, OUTPUT_UTILS_DIR)
+  copyDistFiles(OUTPUT_UTILS_DIR)
   debug('Build complete')
 
   // Launch browser
@@ -156,6 +163,47 @@ describe('shared build (./) — memfs instance sharing with @vrowser/fs', () => 
     // Verify rolldown can bundle files written via @vrowser/fs
     expect(testState.result.bundleCode).toContain('add')
     expect(testState.result.bundleCode).toContain('console.log')
+
+    await context.close()
+  })
+})
+
+describe('utils build (./utils) — transformSync in browser', () => {
+  let server: StaticServer
+
+  beforeAll(async () => {
+    server = await createStaticServer(OUTPUT_UTILS_DIR)
+    debug('Utils server at', server.url)
+  })
+
+  afterAll(async () => {
+    await server?.close()
+  })
+
+  test('transformSync strips TypeScript types and replaces defines', async () => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+
+    if (E2E_DEBUG) {
+      page.on('console', msg => debug('[CONSOLE]', msg.type(), msg.text()))
+      page.on('pageerror', err => debug('[PAGE_ERROR]', err.message))
+    }
+
+    await page.goto(server.url)
+    const testState = await waitForTestState(page)
+
+    expect(testState.status).toBe('success')
+    expect(testState.error).toBeNull()
+    expect(testState.result).not.toBeNull()
+
+    // TypeScript types should be stripped
+    expect(testState.result.tsHasTypes).toBe(true)
+    expect(testState.result.tsOutputNoTypes).toBe(true)
+    expect(testState.result.tsOutput).toContain('greeting')
+    expect(testState.result.tsOutput).toContain('add')
+
+    // Define replacement should work
+    expect(testState.result.defineReplaced).toBe(true)
 
     await context.close()
   })
