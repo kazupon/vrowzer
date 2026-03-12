@@ -64,18 +64,8 @@ export default defineConfig({
     react(),
     svelte(),
     yaml(),
-    Vrowser({
-      // Worker-specific resolve settings (vendor aliases for browser runtime)
-      resolve: {
-        alias: [
-          { find: 'react/jsx-dev-runtime', replacement: '/vendor/react-jsx-dev-runtime.js' },
-          { find: 'react-dom/client', replacement: '/vendor/react-dom-client.js' },
-          { find: 'react', replacement: '/vendor/react.js' },
-          { find: 'vue', replacement: '/vendor/vue.js' },
-          { find: 'svelte/internal/client', replacement: '/vendor/svelte-internal-client.js' },
-          { find: 'svelte', replacement: '/vendor/svelte.js' }
-        ]
-      }
-    })
+    // All packages use nodeModules in virtual FS.
+    // CJS packages (React) are pre-bundled to ESM by gen:manifest.
+    Vrowser()
   ]
 })

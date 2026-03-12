@@ -47,6 +47,7 @@ function getLanguage(path: string): string {
     case 'yml':
       return 'yaml'
     case 'vue':
+    case 'svelte':
       return 'html'
     default:
       return 'plaintext'

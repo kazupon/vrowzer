@@ -12,12 +12,16 @@ const manifestModules = import.meta.glob<{ default: VrowserManifest }>(
   '../fixtures/*/vrowser-manifest.json',
   { eager: true, query: '?vrowser' }
 )
-const manifests = new Map<string, VrowserManifest>()
+const unordered = new Map<string, VrowserManifest>()
 for (const [path, mod] of Object.entries(manifestModules)) {
   const parts = path.split('/')
   const name = parts[parts.length - 2]!
-  manifests.set(name, mod.default)
+  unordered.set(name, mod.default)
 }
+const fixtureOrder = ['vite-vue', 'vite-react', 'vite-svelte', 'vite-vanilla']
+const manifests = new Map<string, VrowserManifest>(
+  fixtureOrder.filter(k => unordered.has(k)).map(k => [k, unordered.get(k)!])
+)
 
 // Select fixture from URL parameter (default: first available)
 const selectedFixture = ref(
