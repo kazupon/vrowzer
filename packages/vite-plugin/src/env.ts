@@ -1,7 +1,8 @@
 /**
- * core plugin
+ * Environment plugin — Node.js polyfills, CORS headers, and Worker config
+ * for browser/Worker environments.
  *
- * @module core
+ * @module env
  */
 
 /**
@@ -12,11 +13,12 @@
 import { dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { createDebug } from 'obug'
+import { resolveAliases } from './alias.ts'
 
 import type { Plugin } from 'vite'
 import type { ResolvedVrowserOptions } from './options.ts'
 
-const debug = createDebug('vite-plugin-vrowser:core')
+const debug = createDebug('vite-plugin-vrowser:env')
 
 // Resolve picocolors browser version path.
 // picocolors doesn't export the browser file via package.json exports,
@@ -24,9 +26,9 @@ const debug = createDebug('vite-plugin-vrowser:core')
 const _require = createRequire(import.meta.url)
 const picocolorsBrowser = resolve(dirname(_require.resolve('picocolors')), 'picocolors.browser.js')
 
-export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
+export function envPlugin(_options: ResolvedVrowserOptions): Plugin {
   return {
-    name: 'vrowser:core',
+    name: 'vrowser:env',
     // Rolldown native inject: inject `process` global for browser/Worker environments.
     // This replaces bare `process` references with an import from the polyfill.
     options(inputOptions) {
@@ -46,46 +48,15 @@ export function corePlugin(_options: ResolvedVrowserOptions): Plugin {
           'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
         },
         resolve: {
-          alias: {
-            'node:events': '@vrowser/node-polyfill/events',
-            'node:path': 'pathe',
-            'node:stream': 'readable-stream/lib/stream',
-            'node:buffer': 'buffer',
-            'node:dns': '@vrowser/node-polyfill/dns',
-            'node:fs': '@vrowser/fs',
-            'node:fs/promises': '@vrowser/fs/promises',
-            'node:url': '@vrowser/node-polyfill/url',
-            'node:readline': '@vrowser/node-polyfill/readline',
-            'node:util': '@vrowser/node-polyfill/util',
-            'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
-            'node:crypto': '@vrowser/node-polyfill/crypto',
-            'node:tty': '@vrowser/node-polyfill/tty',
-            'node:module': '@vrowser/node-polyfill/module',
-            'node:os': '@vrowser/node-polyfill/os',
-            'node:net': '@vrowser/node-polyfill/net',
-            buffer: 'buffer',
-            dns: '@vrowser/node-polyfill/dns',
-            events: '@vrowser/node-polyfill/events',
-            path: 'pathe',
-            stream: 'readable-stream/lib/stream',
-            readline: '@vrowser/node-polyfill/readline',
-            util: '@vrowser/node-polyfill/util',
-            perf_hooks: '@vrowser/node-polyfill/perf_hooks',
-            // NOTE(kazupon):
-            // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
+          alias: resolveAliases({
+            // process needs both bare and trailing-slash aliases
+            // (`require('process/')` in readable-stream/lib/internal/streams/pipeline.js)
+            'node:process': '@vrowser/node-polyfill/process',
             'process/': '@vrowser/node-polyfill/process',
             process: '@vrowser/node-polyfill/process',
-            fs: '@vrowser/fs',
-            'fs/promises': '@vrowser/fs/promises',
-            url: '@vrowser/node-polyfill/url',
-            crypto: '@vrowser/node-polyfill/crypto',
-            tty: '@vrowser/node-polyfill/tty',
-            module: '@vrowser/node-polyfill/module',
-            os: '@vrowser/node-polyfill/os',
-            net: '@vrowser/node-polyfill/net',
             // picocolors CJS → browser version (no ANSI codes in Worker/SW)
             picocolors: picocolorsBrowser
-          }
+          })
         },
         worker: {
           format: 'es'

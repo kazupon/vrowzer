@@ -56,14 +56,6 @@ export interface VrowserOptions {
    * @default undefined
    */
   resolve?: { alias?: Alias[] }
-  /**
-   * Fallback: explicit Worker config file path.
-   * When specified, the old vrowser.config.ts flow is used instead of
-   * auto-extracting plugins from vite.config.ts.
-   *
-   * @default undefined
-   */
-  workerConfig?: string
 }
 
 export interface ResolvedVrowserOptions {
@@ -72,7 +64,6 @@ export interface ResolvedVrowserOptions {
   serviceWorkerVersion: string
   serviceWorkerEntry: string
   resolve: { alias?: Alias[] } | undefined
-  workerConfig: string
 }
 
 function resolveDefaultServiceWorkerEntry(): string {
@@ -89,7 +80,6 @@ export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions 
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'SERVICE_WORKER_VERSION',
     serviceWorkerEntry: options.serviceWorkerEntry ?? resolveDefaultServiceWorkerEntry(),
-    resolve: options.resolve,
-    workerConfig: options.workerConfig ?? ''
+    resolve: options.resolve
   }
 }

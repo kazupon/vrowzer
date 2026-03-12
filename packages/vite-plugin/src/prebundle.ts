@@ -15,9 +15,9 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createRequire as nodeCreateRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
 import { rolldown } from 'rolldown'
 import { createDebug } from 'obug'
+import { resolveAliases } from './alias.ts'
 
 import type { Plugin as RolldownPlugin } from 'rolldown'
 
@@ -90,43 +90,11 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
     // These are resolved at prebundle time and the aliases appear as external
     // imports in the output (resolved by host Vite's resolve.alias at serve time).
     resolve: {
-      alias: {
-        'node:process': '@vrowser/node-polyfill/process',
-        'node:events': '@vrowser/node-polyfill/events',
-        'node:path': 'pathe',
-        'node:stream': 'readable-stream/lib/stream',
-        'node:buffer': 'buffer',
-        'node:dns': '@vrowser/node-polyfill/dns',
-        'node:fs': '@vrowser/fs',
-        'node:fs/promises': '@vrowser/fs/promises',
-        'node:url': '@vrowser/node-polyfill/url',
-        'node:readline': '@vrowser/node-polyfill/readline',
-        'node:util': '@vrowser/node-polyfill/util',
-        'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
-        'node:crypto': '@vrowser/node-polyfill/crypto',
-        'node:tty': '@vrowser/node-polyfill/tty',
-        'node:module': '@vrowser/node-polyfill/module',
-        'node:os': '@vrowser/node-polyfill/os',
-        'node:net': '@vrowser/node-polyfill/net',
-        buffer: 'buffer',
-        dns: '@vrowser/node-polyfill/dns',
-        events: '@vrowser/node-polyfill/events',
-        path: 'pathe',
-        stream: 'readable-stream/lib/stream',
-        readline: '@vrowser/node-polyfill/readline',
-        util: '@vrowser/node-polyfill/util',
-        perf_hooks: '@vrowser/node-polyfill/perf_hooks',
-        // process is NOT aliased here — it stays as bare `process` reference.
+      alias: resolveAliases({
+        // Only node:process is aliased here — bare `process` stays as-is.
         // Host Vite's @rollup/plugin-inject or resolve.alias handles it at serve time.
-        fs: '@vrowser/fs',
-        'fs/promises': '@vrowser/fs/promises',
-        url: '@vrowser/node-polyfill/url',
-        crypto: '@vrowser/node-polyfill/crypto',
-        tty: '@vrowser/node-polyfill/tty',
-        module: '@vrowser/node-polyfill/module',
-        os: '@vrowser/node-polyfill/os',
-        net: '@vrowser/node-polyfill/net'
-      },
+        'node:process': '@vrowser/node-polyfill/process'
+      }),
       mainFields: ['module', 'main'],
       conditionNames: ['browser', 'import', 'default']
     },

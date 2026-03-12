@@ -17,9 +17,9 @@ describe('Vrowser', () => {
     expect(plugins.some((p: any) => p.name === 'vrowser:server-middleware')).toBe(true)
   })
 
-  test('includes vrowser:core plugin', () => {
+  test('includes vrowser:env plugin', () => {
     const plugins = Vrowser()
-    expect(plugins.some((p: any) => p.name === 'vrowser:core')).toBe(true)
+    expect(plugins.some((p: any) => p.name === 'vrowser:env')).toBe(true)
   })
 
   test('includes vrowser:rolldown plugin', () => {

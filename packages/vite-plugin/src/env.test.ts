@@ -1,15 +1,15 @@
 import { describe, expect, test } from 'vitest'
-import { corePlugin } from './core.ts'
+import { envPlugin } from './env.ts'
 import { resolveOptions } from './options.ts'
 
 function createPlugin() {
-  return corePlugin(resolveOptions({}))
+  return envPlugin(resolveOptions({}))
 }
 
-describe('corePlugin', () => {
-  test('plugin name is "vrowser:core"', () => {
+describe('envPlugin', () => {
+  test('plugin name is "vrowser:env"', () => {
     const plugin = createPlugin()
-    expect(plugin.name).toBe('vrowser:core')
+    expect(plugin.name).toBe('vrowser:env')
   })
 
   test('options hook sets transform.inject for process', () => {

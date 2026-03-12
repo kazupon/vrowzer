@@ -59,12 +59,7 @@ Vrowser({
   // Default: undefined
   resolve: {
     alias: [{ find: 'react', replacement: '/vendor/react.js' }]
-  },
-
-  // Explicit Worker config file path (legacy mode)
-  // When omitted, plugins are auto-extracted from vite.config.ts
-  // Default: undefined
-  workerConfig: './vrowser.config.ts'
+  }
 })
 ```
 
@@ -75,7 +70,6 @@ Vrowser({
 | `serviceWorkerVersion` | `string`              | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
 | `serviceWorkerEntry`   | `string`              | Resolved path to `vrowser/service-worker` | Explicit Service Worker entry file path.                                                  |
 | `resolve`              | `{ alias?: Alias[] }` | `undefined`                               | Worker-specific resolve settings (vendor aliases for browser runtime).                    |
-| `workerConfig`         | `string`              | `undefined`                               | Explicit Worker config file path. Skips auto-extraction from vite.config.ts.              |
 
 ## 🔌 Exported Plugins
 
@@ -102,7 +96,7 @@ Injects `process` polyfill (`@vrowser/node-polyfill/process`) for browser/Worker
 - **Dev mode**: Uses `@rollup/plugin-inject`
 - **Build mode**: Uses Rolldown's native `transform.inject`
 
-#### 4. Core Configuration (`vrowser:core`)
+#### 4. Environment Configuration (`vrowser:env`)
 
 Sets up Vite configuration for the browser-based Vite dev server:
 
