@@ -33,52 +33,59 @@ export function createRequire(_url: string | URL): RequireFunction {
 }
 
 /**
+ * List of Node.js builtin module names (without `node:` prefix).
+ */
+export const builtinModules: string[] = [
+  'assert',
+  'buffer',
+  'child_process',
+  'cluster',
+  'console',
+  'constants',
+  'crypto',
+  'dgram',
+  'dns',
+  'domain',
+  'events',
+  'fs',
+  'http',
+  'https',
+  'module',
+  'net',
+  'os',
+  'path',
+  'perf_hooks',
+  'process',
+  'punycode',
+  'querystring',
+  'readline',
+  'repl',
+  'stream',
+  'string_decoder',
+  'sys',
+  'timers',
+  'tls',
+  'tty',
+  'url',
+  'util',
+  'v8',
+  'vm',
+  'worker_threads',
+  'zlib'
+]
+
+const _builtinSet = new Set(builtinModules)
+
+/**
  * Check if a module name is a Node.js builtin module.
  */
 export function isBuiltin(moduleName: string): boolean {
-  const builtins = new Set([
-    'assert',
-    'buffer',
-    'child_process',
-    'cluster',
-    'console',
-    'constants',
-    'crypto',
-    'dgram',
-    'dns',
-    'domain',
-    'events',
-    'fs',
-    'http',
-    'https',
-    'module',
-    'net',
-    'os',
-    'path',
-    'perf_hooks',
-    'process',
-    'punycode',
-    'querystring',
-    'readline',
-    'repl',
-    'stream',
-    'string_decoder',
-    'sys',
-    'timers',
-    'tls',
-    'tty',
-    'url',
-    'util',
-    'v8',
-    'vm',
-    'worker_threads',
-    'zlib'
-  ])
   const name = moduleName.startsWith('node:') ? moduleName.slice(5) : moduleName
-  return builtins.has(name)
+  return _builtinSet.has(name)
 }
 
 export default {
   createRequire,
+  builtinModules,
   isBuiltin
 }
