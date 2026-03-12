@@ -75,7 +75,7 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
   // Bundle with rolldown
   const bundle = await rolldown({
     input: entryPath,
-    external: [new RegExp('^@vrowser/')],
+    external: [new RegExp('^@vrowser/'), 'assert', 'v8'],
     // Define process.env.NODE_ENV so plugin code doesn't need runtime process global
     transform: {
       define: {
