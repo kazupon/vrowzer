@@ -182,8 +182,10 @@ export async function setupWorker(
           config,
           {
             ws,
-            // Disable dep optimizer in Worker — packages are resolved via
-            // vendor aliases, not through node_modules prebundling.
+            // Disable dep optimizer in Worker — the optimizer's bundle step
+            // partially fails: shared chunks are generated but main entry files
+            // (react.js, react_jsx-dev-runtime.js) are missing from /.vite/deps/.
+            // Root cause investigation needed. See conversation notes.
             disableDepsOptimizer: true,
           },
         )
