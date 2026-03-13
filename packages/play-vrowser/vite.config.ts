@@ -41,6 +41,8 @@ function reactRefreshRuntimePlugin(): Plugin {
   }
 }
 
+const enableDevTools = !!(process.env.VITE_DEVTOOLS || '')
+
 export default defineConfig({
   define: {
     'process.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
@@ -57,7 +59,7 @@ export default defineConfig({
   },
   build: {
     rolldownOptions: {
-      devtools: {} // enable devtools mode
+      ...(enableDevTools ? { devtools: {} } : {})
     }
   },
   plugins: [
@@ -73,6 +75,6 @@ export default defineConfig({
     // All packages use nodeModules in virtual FS.
     // CJS packages (React) are pre-bundled to ESM by gen:manifest.
     Vrowser(),
-    DevTools()
+    enableDevTools && DevTools()
   ]
 })
