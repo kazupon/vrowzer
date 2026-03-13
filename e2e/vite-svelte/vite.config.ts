@@ -6,16 +6,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@sveltejs/vite-plugin-svelte', 'svelte']
   },
-  plugins: [
-    VrowserManifest(),
-    svelte(),
-    Vrowser({
-      resolve: {
-        alias: [
-          { find: 'svelte/internal/client', replacement: '/vendor/svelte-internal-client.js' },
-          { find: 'svelte', replacement: '/vendor/svelte.js' }
-        ]
-      }
-    })
-  ]
+  plugins: [VrowserManifest(), svelte(), Vrowser()]
 })

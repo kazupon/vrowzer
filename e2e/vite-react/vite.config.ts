@@ -37,18 +37,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@vitejs/plugin-react']
   },
-  plugins: [
-    VrowserManifest(),
-    reactRefreshRuntimePlugin(),
-    react(),
-    Vrowser({
-      resolve: {
-        alias: [
-          { find: 'react/jsx-dev-runtime', replacement: '/vendor/react-jsx-dev-runtime.js' },
-          { find: 'react-dom/client', replacement: '/vendor/react-dom-client.js' },
-          { find: 'react', replacement: '/vendor/react.js' }
-        ]
-      }
-    })
-  ]
+  plugins: [VrowserManifest(), reactRefreshRuntimePlugin(), react(), Vrowser()]
 })
