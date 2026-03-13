@@ -159,7 +159,7 @@ console.log(`[import.meta.url] __dirname: ${path.dirname(/** #__KEEP__ */ import
 
 // https://github.com/rolldown/rolldown/blob/62fba31428af244f871f0e119ed43936ee5d01fd/packages/rolldown/src/log/logger.ts#L64
 export const rollupVersion = '4.23.0'
-export const rolldownVersion = '1.0.0-rc.1'
+export const rolldownVersion = '1.0.0-rc.9'
 // export { VERSION as rolldownVersion } from 'rolldown'
 
 // set in bin/vite.js

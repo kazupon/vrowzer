@@ -2,10 +2,8 @@ import type { FSWatcher } from '#dep-types/chokidar'
 import type { RawSourceMap } from '@jridgewell/remapping'
 import { exactRegex, prefixRegex } from '@rolldown/pluginutils'
 import { rolldown } from '@vrowser/rolldown'
-import {
-  viteTransformPlugin as nativeTransformPlugin,
-  transformSync
-} from '@vrowser/rolldown/experimental'
+import { viteTransformPlugin as nativeTransformPlugin } from '@vrowser/rolldown/experimental'
+import { transformSync } from '@vrowser/rolldown/utils'
 import path from 'node:path'
 import url from 'node:url'
 import colors from 'picocolors'
@@ -13,7 +11,7 @@ import type { InternalModuleFormat, RollupError, SourceMap } from 'rolldown'
 import type {
   TransformOptions as OxcTransformOptions,
   TransformResult as OxcTransformResult,
-} from 'rolldown/experimental'
+} from 'rolldown/utils'
 import { type Environment, perEnvironmentPlugin } from '..'
 import { cleanUrl } from '../../shared/utils'
 import type { ResolvedConfig } from '../config'
@@ -43,7 +41,7 @@ const validExtensionRE = /\.\w+$/
 
 export interface OxcOptions extends Omit<
   OxcTransformOptions,
-  'cwd' | 'sourceType' | 'lang' | 'sourcemap' | 'helpers'
+  'cwd' | 'sourceType' | 'lang' | 'sourcemap' | 'helpers' | 'inject' | 'tsconfig' | 'inputMap'
 > {
   include?: string | RegExp | ReadonlyArray<string | RegExp>
   exclude?: string | RegExp | ReadonlyArray<string | RegExp>

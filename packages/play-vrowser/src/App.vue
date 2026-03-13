@@ -34,9 +34,7 @@ for (const [path, data] of Object.entries(fixtureDisplayNames)) {
 }
 
 // Select fixture from URL parameter (default: first available)
-const selectedFixture = ref(
-  new URLSearchParams(location.search).get('fixture') ?? fixtureNames[0]!
-)
+const selectedFixture = ref(new URLSearchParams(location.search).get('fixture') ?? fixtureNames[0]!)
 
 // Load only the selected fixture's manifest
 const loaderKey = Object.keys(manifestLoaders).find(
@@ -139,7 +137,9 @@ const editorActiveFile = computed(() => editorPanel.value?.activeFile ?? '')
         :value="selectedFixture"
         @change="switchFixture(($event.target as HTMLSelectElement).value)"
       >
-        <option v-for="name in fixtureNames" :key="name" :value="name">{{ displayNames.get(name) ?? name }}</option>
+        <option v-for="name in fixtureNames" :key="name" :value="name">
+          {{ displayNames.get(name) ?? name }}
+        </option>
       </select>
     </header>
     <main class="app-main">
@@ -152,14 +152,24 @@ const editorActiveFile = computed(() => editorPanel.value?.activeFile ?? '')
           />
         </template>
         <template #panel-1>
-          <EditorPanel v-if="activeManifest" ref="editorPanel" :manifest="activeManifest" @file-change="handleFileChange" />
+          <EditorPanel
+            v-if="activeManifest"
+            ref="editorPanel"
+            :manifest="activeManifest"
+            @file-change="handleFileChange"
+          />
         </template>
         <template #panel-2>
           <div class="preview-panel">
             <div class="preview-header">
               <span>Preview by MessageChannel base HMR</span>
               <div class="status-container">
-                <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
+                <button
+                  v-if="isReady"
+                  class="reload-btn"
+                  title="Reload preview"
+                  @click="handleReload"
+                >
                   Reload
                 </button>
                 <span :class="['status-dot', { ready: isReady }]" title="Service Worker"></span>

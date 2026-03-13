@@ -196,7 +196,7 @@ const serviceWorkerConfig = defineConfig({
     {
       name: 'stub-sw-unused-modules',
       resolveId: {
-        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$/ },
+        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$|^@vrowser\/rolldown\/utils$/ },
         handler(id) {
           return { id: `\0stub:${id}`, external: false }
         }
@@ -222,6 +222,13 @@ const serviceWorkerConfig = defineConfig({
           if (id.includes('parseAst')) {
             return {
               code: 'export const parseAst = () => { throw new Error("parseAst is not available in Service Worker") }; export const parseAstAsync = parseAst;',
+              moduleType: 'js'
+            }
+          }
+          // @vrowser/rolldown/utils exports transformSync, TransformOptions, TransformResult
+          if (id.includes('utils')) {
+            return {
+              code: 'const stubFn = () => { throw new Error("Not available in Service Worker") }; export const transformSync = stubFn;',
               moduleType: 'js'
             }
           }
