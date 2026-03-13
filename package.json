@@ -28,8 +28,6 @@
     "fix:oxfmt": "oxfmt . --config ./node_modules/@kazupon/prettier-config/index.json",
     "fix:oxlint": "oxlint --config .oxlintrc.json --type-aware --fix",
     "gen:manifest": "tsx scripts/generate-manifest.ts",
-    "gen:react": "tsx scripts/bundle-react-vendor.ts",
-    "gen:vue": "tsx scripts/bundle-vue-vendor.ts",
     "gen:wasm": "tsx scripts/generate-wasm.ts",
     "lint": "pnpm run --color \"/^lint:/\"",
     "lint:eslint": "eslint . --cache",
