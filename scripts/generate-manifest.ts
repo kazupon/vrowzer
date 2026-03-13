@@ -401,7 +401,19 @@ function detectActiveFile(files: Record<string, string>): string | undefined {
 // --- CJS → ESM bundling ---
 
 function isCjsPackage(pkg: PackageJson): boolean {
-  return pkg.type !== 'module'
+  if (pkg.type === 'module') {return false}
+
+  // Packages with ESM entries in exports (e.g. vue) are not truly CJS —
+  // they provide ESM via the "import" condition and can be used directly.
+  const mainExport =
+    typeof pkg.exports === 'object' && pkg.exports !== null
+      ? (pkg.exports as Record<string, any>)['.']
+      : undefined
+  if (mainExport && typeof mainExport === 'object' && 'import' in mainExport) {
+    return false
+  }
+
+  return true
 }
 
 /**
@@ -752,3 +764,4 @@ async function main() {
 }
 
 await main()
+process.exit(0)
