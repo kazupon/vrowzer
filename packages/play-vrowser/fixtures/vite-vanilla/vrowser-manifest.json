@@ -2,12 +2,12 @@
   "name": "Vrowser Vanilla",
   "files": {
     "/index.html": "./index.html",
-    "/main.ts": "./main.ts",
     "/counter.ts": "./counter.ts",
-    "/style.css": "./style.css",
     "/data.yaml": "./data.yaml",
-    "/vrowser.svg": "./vrowser.svg",
-    "/typescript.svg": "./typescript.svg"
+    "/main.ts": "./main.ts",
+    "/style.css": "./style.css",
+    "/typescript.svg": "./typescript.svg",
+    "/vrowser.svg": "./vrowser.svg"
   },
   "activeFile": "/main.ts"
 }
