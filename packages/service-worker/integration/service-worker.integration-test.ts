@@ -410,7 +410,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
       // Create controller with strict policy expecting v2
       const controller = createSvcWorkerController({
-        scriptURL: new URL('/e2e-sw-no-skip-waiting.js?version=v2', import.meta.url),
+        scriptURL: new URL('/e2e-sw-no-skip-waiting.js?version=v2', window.location.origin),
         version: 'v2',
         scope: '/',
         type: 'module'
@@ -465,7 +465,7 @@ describe('Controller API (createSvcWorkerController)', () => {
 
       // Create controller with force policy - should promote any waiting service worker
       const controller = createSvcWorkerController({
-        scriptURL: new URL('/e2e-sw-no-skip-waiting.js?version=v2', import.meta.url),
+        scriptURL: new URL('/e2e-sw-no-skip-waiting.js?version=v2', window.location.origin),
         version: 'v2',
         scope: '/',
         type: 'module'

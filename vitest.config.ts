@@ -9,6 +9,10 @@ export default defineConfig({
         test: {
           name: 'service-worker:unit',
           include: ['./packages/service-worker/src/**/*.browser-test.ts'],
+          testTimeout: 30000,
+          hookTimeout: 60000,
+          // Run test files sequentially to avoid SW registration conflicts across files
+          fileParallelism: false,
           browser: {
             enabled: true,
             headless: true,

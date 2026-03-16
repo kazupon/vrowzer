@@ -109,7 +109,9 @@ describe('Vrowser E2E', () => {
       const sandbox = await page.$eval('#preview-container iframe', el =>
         el.getAttribute('sandbox')
       )
-      expect(sandbox).toBe('allow-scripts allow-same-origin')
+      expect(sandbox).toBe(
+        'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox'
+      )
     })
 
     test('preview content is rendered in iframe', async () => {

@@ -86,8 +86,11 @@ function apiMiddleware(): Plugin {
   }
 }
 
+const isIntegrationTest = process.env.VITEST === 'true' || process.argv.includes('--port')
+
 const config: ReturnType<typeof defineConfig> = defineConfig({
-  root: './playground',
+  root: isIntegrationTest ? '.' : './playground',
+  publicDir: isIntegrationTest ? 'test-public' : undefined,
   plugins: [ServiceWorker(), apiMiddleware()],
   build: {
     outDir: './dist',
