@@ -43,34 +43,6 @@ jobs:
       - name: Build play-vrowser
         run: pnpm --filter "play-vrowser..." --filter "!vite-dev-server" run build
 
-      - name: Debug config.bundled.mjs
-        if: always()
-        run: |
-          echo "=== config.bundled.mjs ==="
-          BUNDLED=$(find packages/play-vrowser -name "config.bundled.mjs" 2>/dev/null | head -1)
-          if [ -n "$BUNDLED" ]; then
-            echo "Found: $BUNDLED"
-            grep -n "skipFastRefresh\|transformIndexHtml\|isProduction\|getPreambleCode\|react-refresh\|RefreshSig" "$BUNDLED" | head -30
-          else
-            echo "config.bundled.mjs not found (cleaned up after build)"
-            echo "--- Checking web-worker JS for preamble ---"
-            WW=$(find packages/play-vrowser/dist/assets -name "web-worker-*.js" 2>/dev/null | head -1)
-            if [ -n "$WW" ]; then
-              echo "Web Worker: $WW ($(wc -c < "$WW") bytes)"
-              grep -c "transformIndexHtml" "$WW"
-              grep -c "RefreshSig" "$WW"
-              grep -c "getPreambleCode" "$WW"
-              # Check the actual preamble code generation
-              grep -o 'getPreambleCode.*' "$WW" | head -3
-              # Check skipFastRefresh initialization
-              grep -o 'skipFastRefresh = [^;]*;' "$WW" | head -5
-              # Check isRolldownVite
-              grep -o 'isRolldownVite = [^;]*;' "$WW" | head -3
-              # Check the plugin array return
-              grep -o 'isRolldownVite ? \[.*\] : \[\]' "$WW" | head -3
-            fi
-          fi
-
       - name: Create cloudflare pages project (if not exists)
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
         continue-on-error: true

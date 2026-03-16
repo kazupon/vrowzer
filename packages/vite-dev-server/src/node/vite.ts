@@ -20,9 +20,10 @@
  * @license MIT
  */
 
-// --- Version (needed by @vitejs/plugin-react to detect Rolldown Vite) ---
+// --- Version ---
+// `rolldownVersion` is needed by ecosystem plugins (@vitejs/plugin-vue, @sveltejs/vite-plugin-svelte)
+// to detect Rolldown-based Vite and adjust behavior accordingly.
 export { rolldownVersion } from './utils'
-
 // `version` is used by ecosystem plugins (e.g. @vitejs/plugin-react checks vite.version)
 export { rolldownVersion as version } from './utils'
 

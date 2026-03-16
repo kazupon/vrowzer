@@ -42,6 +42,7 @@ const sharedNodeOptions = defineConfig({
   platform: 'browser',
   transform: {
     define: {
+      'process.env.NODE_ENV': JSON.stringify('development'), // vrowser always runs in dev mode (resolveConfig uses this for isProduction)
       'process.platform': JSON.stringify('browser'), // for `tinyglobby` polyfill
       '__VROWSER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
     }
