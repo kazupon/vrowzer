@@ -28,6 +28,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate manifests (CJS to ESM bundles)
+        run: |
+          pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-vue -o packages/play-vrowser/fixtures/vite-vue/vrowser-manifest.json -t vue --name "Vrowser + Vue"
+          pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-react -o packages/play-vrowser/fixtures/vite-react/vrowser-manifest.json -t react -t react-dom --name "Vrowser + React"
+          pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-svelte -o packages/play-vrowser/fixtures/vite-svelte/vrowser-manifest.json -t svelte --name "Vrowser + Svelte"
+
       - name: Build vite-dev-server dependencies
         run: pnpm --filter "vite-dev-server^..." run build
 
