@@ -168,7 +168,7 @@ describe('shared build (./) — memfs instance sharing with @vrowser/fs', () => 
   })
 })
 
-describe('utils build (./utils) — transformSync in browser', () => {
+describe('utils build (./utils) — transformSync, parseSync, minifySync in browser', () => {
   let server: StaticServer
 
   beforeAll(async () => {
@@ -204,6 +204,16 @@ describe('utils build (./utils) — transformSync in browser', () => {
 
     // Define replacement should work
     expect(testState.result.defineReplaced).toBe(true)
+
+    // parseSync should produce a valid AST
+    expect(testState.result.parseHasProgram).toBe(true)
+    expect(testState.result.parseBodyLength).toBeGreaterThan(0)
+    expect(testState.result.parseNoErrors).toBe(true)
+
+    // minifySync should produce shorter output without comments
+    expect(testState.result.minifyRemovesComments).toBe(true)
+    expect(testState.result.minifyShorter).toBe(true)
+    expect(testState.result.minifyOutput).toContain('console')
 
     await context.close()
   })

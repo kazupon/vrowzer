@@ -70,12 +70,13 @@ Re-exports from `@rolldown/browser/experimental`:
 
 ### `@vrowser/rolldown/utils` / `@vrowser/rolldown/browser/utils`
 
-Re-exports from `@rolldown/browser/experimental`:
+Re-exports from `@rolldown/browser/experimental`, compatible with `rolldown/utils`:
 
-- `transformSync` - Synchronous code transformation (TypeScript strip, define replacement)
-- `TransformOptions` / `TransformResult` - TypeScript types
-
-Compatible with `rolldown/utils`. Used by `@vrowser/vite-dev-server` for `process.env.NODE_ENV` replacement via `clientInjectionsPlugin`.
+- `transform` / `transformSync` - Code transformation (TypeScript strip, define replacement)
+- `parse` / `parseSync` - OXC-based JavaScript/TypeScript parser
+- `minify` / `minifySync` - OXC-based code minification
+- `TsconfigCache` - TypeScript config resolution cache
+- `TransformOptions` / `TransformResult` / `ParseResult` / `ParserOptions` / `MinifyOptions` / `MinifyResult` - TypeScript types
 
 ## HTTP Headers
 

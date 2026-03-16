@@ -1,30 +1,30 @@
 /**
  * E2E test page for @vrowser/rolldown/utils
  *
- * Tests transformSync in a browser environment.
+ * Tests transformSync, parseSync, and minifySync in a browser environment.
  * Results are exposed via window.testState for Playwright assertions.
  */
 
-import { transformSync } from '@vrowser/rolldown/utils'
+import { transformSync, parseSync, minifySync } from '@vrowser/rolldown/utils'
 
 window.testState = { status: 'initializing', result: null, error: null }
 
 async function run() {
   try {
-    document.getElementById('status').textContent = 'transforming'
+    document.getElementById('status').textContent = 'testing'
 
-    // Test transformSync with TypeScript code
+    // Test 1: transformSync with TypeScript code
     const tsCode = `
 const greeting: string = 'hello'
 const add = (a: number, b: number): number => a + b
 console.log(greeting, add(1, 2))
 `
-    const result = transformSync('test.ts', tsCode, {
+    const transformResult = transformSync('test.ts', tsCode, {
       lang: 'ts',
       sourceType: 'module'
     })
 
-    // Test define replacement
+    // Test 2: transformSync define replacement
     const defineCode = `
 if (process.env.NODE_ENV !== 'production') {
   console.log('dev mode')
@@ -38,16 +38,32 @@ if (process.env.NODE_ENV !== 'production') {
       }
     })
 
+    // Test 3: parseSync
+    const parseCode = `const x = 1; export default x;`
+    const parseResult = parseSync('parse-test.js', parseCode)
+
+    // Test 4: minifySync
+    const minifyCode = `/* comment */ const longVariable = 1;\nconsole.log(longVariable);`
+    const minifyResult = minifySync('minify-test.js', minifyCode)
+
     window.testState = {
       status: 'success',
       result: {
-        // TypeScript transform
-        tsOutput: result.code,
+        // transformSync: TypeScript
+        tsOutput: transformResult.code,
         tsHasTypes: tsCode.includes(': string'),
-        tsOutputNoTypes: !result.code.includes(': string'),
-        // Define replacement — process.env.NODE_ENV should be replaced (not present in output)
+        tsOutputNoTypes: !transformResult.code.includes(': string'),
+        // transformSync: Define replacement
         defineOutput: defineResult.code,
-        defineReplaced: !defineResult.code.includes('process.env.NODE_ENV')
+        defineReplaced: !defineResult.code.includes('process.env.NODE_ENV'),
+        // parseSync
+        parseHasProgram: parseResult.program != null,
+        parseBodyLength: parseResult.program?.body?.length ?? 0,
+        parseNoErrors: parseResult.errors.length === 0,
+        // minifySync
+        minifyOutput: minifyResult.code,
+        minifyRemovesComments: !minifyResult.code.includes('/* comment */'),
+        minifyShorter: minifyResult.code.length < minifyCode.length
       },
       error: null
     }
@@ -61,7 +77,7 @@ if (process.env.NODE_ENV !== 'production') {
       error: e.message
     }
     document.getElementById('status').textContent = `error: ${e.message}`
-    console.error('transformSync E2E error:', e)
+    console.error('utils E2E error:', e)
   }
 }
 

@@ -245,6 +245,18 @@ const postBuildPlugin: Plugin = {
       ].join('\n')
     )
 
+    // Generate type declarations for utils (variant 1)
+    writeFileSync(
+      join(distDir, 'utils.d.ts'),
+      [
+        `export { transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'`,
+        `export { parse, parseSync, type ParseResult, type ParserOptions } from '@rolldown/browser/experimental'`,
+        `export { minify, minifySync, type MinifyOptions, type MinifyResult } from '@rolldown/browser/experimental'`,
+        `export { TsconfigCache } from '@rolldown/browser/experimental'`,
+        ``
+      ].join('\n')
+    )
+
     // Generate type declarations for parseAst (variant 1)
     writeFileSync(
       join(distDir, 'parseAst.d.ts'),
@@ -260,6 +272,17 @@ const postBuildPlugin: Plugin = {
     writeFileSync(
       join(distDir, 'browser', 'experimental.d.ts'),
       `export { memfs, parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'\n`
+    )
+    // Generate type declarations for utils (variant 2)
+    writeFileSync(
+      join(distDir, 'browser', 'utils.d.ts'),
+      [
+        `export { transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'`,
+        `export { parse, parseSync, type ParseResult, type ParserOptions } from '@rolldown/browser/experimental'`,
+        `export { minify, minifySync, type MinifyOptions, type MinifyResult } from '@rolldown/browser/experimental'`,
+        `export { TsconfigCache } from '@rolldown/browser/experimental'`,
+        ``
+      ].join('\n')
     )
     // Generate type declarations for parseAst (variant 2)
     writeFileSync(
