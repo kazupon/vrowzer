@@ -492,7 +492,9 @@ export async function bundleCjsPackages(
     const specifier = subpath === '.' ? pkgName : `${pkgName}/${subpath.slice(2)}`
     try {
       const mod = require(specifier)
-      const namedExports = Object.keys(mod).filter(k => k !== 'default' && k !== '__esModule')
+      const namedExports = Object.keys(mod).filter(
+        k => k !== 'default' && k !== '__esModule' && /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k)
+      )
       if (namedExports.length > 0) {
         const lines = [
           `import __cjs_mod__ from '${specifier}';`,
