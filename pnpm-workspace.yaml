@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - e2e/vite-*
+  - examples/*
 
 catalog:
   '@kazupon/jts-utils': ^0.17.0

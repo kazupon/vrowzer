@@ -1,0 +1,19 @@
+{
+  "name": "@vrowser/example-vue",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "catalog:",
+    "@vrowser/vite-plugin": "workspace:*",
+    "vite": "catalog:",
+    "vrowser": "workspace:*"
+  }
+}
