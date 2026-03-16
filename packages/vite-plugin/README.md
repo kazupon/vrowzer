@@ -54,11 +54,11 @@ Vrowser({
   // Default: Resolved path to 'vrowser/service-worker'
   serviceWorkerEntry: 'vrowser/service-worker',
 
-  // Worker-specific resolve settings (e.g. vendor aliases)
+  // Worker-specific resolve settings.
   // These are passed to the Worker's internal Vite dev server, not the host.
   // Default: undefined
   resolve: {
-    alias: [{ find: 'react', replacement: '/vendor/react.js' }]
+    alias: [{ find: 'my-lib', replacement: '/libs/my-lib.js' }]
   }
 })
 ```
@@ -69,7 +69,7 @@ Vrowser({
 | `serviceWorkerScope`   | `string`              | `'/'`                                     | The scope for the Service Worker registration.                                            |
 | `serviceWorkerVersion` | `string`              | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
 | `serviceWorkerEntry`   | `string`              | Resolved path to `vrowser/service-worker` | Explicit Service Worker entry file path.                                                  |
-| `resolve`              | `{ alias?: Alias[] }` | `undefined`                               | Worker-specific resolve settings (vendor aliases for browser runtime).                    |
+| `resolve`              | `{ alias?: Alias[] }` | `undefined`                               | Worker-specific resolve settings passed to the internal Vite dev server.                  |
 
 ## 🔌 Exported Plugins
 
@@ -114,7 +114,7 @@ Uses `@vrowser/unplugin-service-worker` to detect, bundle, and deploy the Servic
 
 ### `VrowserManifest()`
 
-Transforms `vrowser-manifest.json` imports (with `?vrowser` query suffix) by reading referenced files and embedding their contents into the imported object. Supports `files`, `vendor`, and `nodeModules` fields.
+Transforms `vrowser-manifest.json` imports (with `?vrowser` query suffix) by reading referenced files and embedding their contents into the imported object. Supports `files`, `vendor`, and `nodeModules` fields. JS files in `vendor` and `nodeModules` are automatically minified with OXC (`minifySync`) to reduce bundle size.
 
 ```ts
 // Import with ?vrowser query to trigger content resolution
