@@ -28,15 +28,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build dependencies
-        run: pnpm --filter vite-dev-server... run build --if-present
-        continue-on-error: true
-
-      - name: Build vite-dev-server bundle (fallback if types failed)
-        run: |
-          if [ ! -f packages/vite-dev-server/dist/node/vite.js ]; then
-            pnpm --filter vite-dev-server run build-bundle
-          fi
+      - name: Build vite-dev-server (bundle only, skip dts)
+        run: pnpm --filter vite-dev-server run build-bundle
 
       - name: Build
         run: pnpm --filter play-vrowser... run build
