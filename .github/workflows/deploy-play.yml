@@ -28,10 +28,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build vite-dev-server dependencies
+        run: pnpm --filter "vite-dev-server^..." run build
+
       - name: Build vite-dev-server (bundle only, skip dts)
         run: pnpm --filter vite-dev-server run build-bundle
 
-      - name: Build
+      - name: Build play-vrowser
         run: pnpm --filter play-vrowser... run build
 
       - name: Create cloudflare pages project (if not exists)
