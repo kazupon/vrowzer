@@ -3,5 +3,5 @@ import { Vrowser, VrowserManifest } from '@vrowser/vite-plugin'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [VrowserManifest(), yaml(), Vrowser()]
+  plugins: [VrowserManifest(), yaml(), Vrowser({ auto: false })]
 })

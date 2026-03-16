@@ -37,5 +37,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@vitejs/plugin-react']
   },
-  plugins: [VrowserManifest(), reactRefreshRuntimePlugin(), react(), Vrowser()]
+  plugins: [VrowserManifest(), reactRefreshRuntimePlugin(), react(), Vrowser({ auto: false })]
 })

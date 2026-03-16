@@ -74,7 +74,7 @@ export default defineConfig({
     yaml(),
     // All packages use nodeModules in virtual FS.
     // CJS packages (React) are pre-bundled to ESM by gen:manifest.
-    Vrowser(),
+    Vrowser({ auto: false }),
     enableDevTools && DevTools()
   ]
 })

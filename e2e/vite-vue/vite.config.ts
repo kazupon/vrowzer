@@ -8,5 +8,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@vitejs/plugin-vue', 'vue/compiler-sfc', 'vue']
   },
-  plugins: [VrowserManifest(), vue({ compiler }), yaml(), Vrowser()]
+  plugins: [VrowserManifest(), vue({ compiler }), yaml(), Vrowser({ auto: false })]
 })

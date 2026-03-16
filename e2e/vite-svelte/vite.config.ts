@@ -6,5 +6,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@sveltejs/vite-plugin-svelte', 'svelte']
   },
-  plugins: [VrowserManifest(), svelte(), Vrowser()]
+  plugins: [VrowserManifest(), svelte(), Vrowser({ auto: false })]
 })
