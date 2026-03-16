@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import inject from '@rollup/plugin-inject'
 import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
 import { createDebug } from 'obug'
+import { autoManifestPlugin } from './auto-manifest.ts'
 import { envPlugin } from './env.ts'
 import { extractWorkerConfig } from './extract.ts'
 import { resolveOptions } from './options.ts'
@@ -145,7 +146,7 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     }
   }
 
-  return [
+  const plugins: Plugin[] = [
     vrowserConfigPlugin,
     serverMiddlewarePlugin(resolvedOptions),
     {
@@ -164,6 +165,19 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
       ...(resolvedOptions.serviceWorkerEntry ? { entry: resolvedOptions.serviceWorkerEntry } : {})
     })
   ]
+
+  // Auto-manifest plugin: generates manifest and provides virtual:vrowser-manifest
+  if (resolvedOptions.auto) {
+    plugins.unshift(autoManifestPlugin(resolvedOptions.manifest))
+  }
+
+  return plugins
 }
 
 export { VrowserManifest } from './manifest.ts'
+export { generateManifest } from './manifest-generate.ts'
+export type {
+  GenerateManifestOptions,
+  ManifestResult,
+  GenerateManifestLog
+} from './manifest-generate.ts'

@@ -35,6 +35,10 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
+    "./manifest-generate": {
+      "types": "./dist/manifest-generate.d.mts",
+      "import": "./dist/manifest-generate.mjs"
+    },
     "./package.json": "./package.json"
   },
   "typesVersions": {

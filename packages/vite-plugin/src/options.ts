@@ -16,7 +16,49 @@ export interface Alias {
   replacement: string
 }
 
+export interface VrowserManifestOptions {
+  /**
+   * Directory to scan for project source files (index.html, src/, public/).
+   * When the host page and preview content are in different directories,
+   * set this to the preview content directory.
+   *
+   * Resolved relative to Vite's project root.
+   *
+   * @default Vite project root
+   */
+  sourceDir?: string
+  /**
+   * Package directory for node_modules resolution.
+   * Defaults to sourceDir.
+   */
+  pkgDir?: string
+  /**
+   * Package name(s) to include in nodeModules.
+   * When specified, only these packages (+ their transitive deps) are included.
+   * When omitted, all dependencies are included.
+   */
+  targets?: string[]
+}
+
 export interface VrowserOptions {
+  /**
+   * Enable auto-generation of vrowser manifest.
+   *
+   * When `true` (default), the plugin automatically generates the manifest from
+   * the project's package.json dependencies in `configResolved`. The manifest is
+   * cached in `node_modules/.vrowser-manifest/` and provided via the
+   * `virtual:vrowser-manifest` virtual module.
+   *
+   * When `false`, use `VrowserManifest()` plugin with a manually created
+   * `vrowser-manifest.json` file (e.g. via `gen:manifest`).
+   *
+   * @default true
+   */
+  auto?: boolean
+  /**
+   * Auto manifest generation options (used when auto: true).
+   */
+  manifest?: VrowserManifestOptions
   /**
    * The base path for the preview system location, which is used to serve the preview files via service worker of Vrowser.
    *
@@ -59,6 +101,8 @@ export interface VrowserOptions {
 }
 
 export interface ResolvedVrowserOptions {
+  auto: boolean
+  manifest: VrowserManifestOptions | undefined
   basePath: string
   serviceWorkerScope: string
   serviceWorkerVersion: string
@@ -76,6 +120,8 @@ function resolveDefaultServiceWorkerEntry(): string {
 
 export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions {
   return {
+    auto: options.auto ?? true,
+    manifest: options.manifest,
     basePath: options.basePath ?? '/__preview__/',
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'SERVICE_WORKER_VERSION',

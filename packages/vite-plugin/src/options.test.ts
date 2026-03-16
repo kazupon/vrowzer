@@ -5,9 +5,16 @@ describe('resolveOptions', () => {
   test('returns default values when no options provided', () => {
     const resolved = resolveOptions({})
 
+    expect(resolved.auto).toBe(true)
     expect(resolved.basePath).toBe('/__preview__/')
     expect(resolved.serviceWorkerScope).toBe('/')
     expect(resolved.serviceWorkerVersion).toBe('SERVICE_WORKER_VERSION')
+  })
+
+  test('respects auto: false', () => {
+    const resolved = resolveOptions({ auto: false })
+
+    expect(resolved.auto).toBe(false)
   })
 
   test('respects custom basePath', () => {
