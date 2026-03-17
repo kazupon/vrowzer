@@ -14,7 +14,7 @@ const emit = defineEmits<{
 const editableFiles = ref<Map<string, string>>(new Map(Object.entries(props.files)))
 const currentFile = ref(props.activeFile ?? Object.keys(props.files)[0] ?? '')
 
-defineExpose({ editableFiles, currentFile, switchTab })
+defineExpose({ editableFiles, currentFile, selectFile })
 const editorContainer = useTemplateRef('editorContainer')
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
@@ -66,31 +66,13 @@ function getOrCreateModel(path: string, content: string): monaco.editor.ITextMod
   return model
 }
 
-function switchTab(path: string) {
+function selectFile(path: string) {
   if (!editor || !editableFiles.value.has(path)) return
   currentFile.value = path
   const content = editableFiles.value.get(path)!
   const model = getOrCreateModel(path, content)
   editor.setModel(model)
   editor.focus()
-}
-
-function closeTab(path: string) {
-  if (editableFiles.value.size <= 1) return
-  editableFiles.value.delete(path)
-  const model = models.get(path)
-  if (model) {
-    model.dispose()
-    models.delete(path)
-  }
-  if (currentFile.value === path) {
-    const first = editableFiles.value.keys().next().value as string
-    switchTab(first)
-  }
-}
-
-function filename(path: string): string {
-  return path.split('/').pop() || path
 }
 
 onMounted(() => {
@@ -125,20 +107,6 @@ onUnmounted(() => {
 
 <template>
   <div class="editor-panel">
-    <div class="tab-bar">
-      <div
-        v-for="[path] in editableFiles"
-        :key="path"
-        class="tab"
-        :class="{ active: path === currentFile }"
-        @click="switchTab(path)"
-      >
-        <span class="tab-name">{{ filename(path) }}</span>
-        <button v-if="editableFiles.size > 1" class="tab-close" @click.stop="closeTab(path)">
-          x
-        </button>
-      </div>
-    </div>
     <div ref="editorContainer" class="editor-container" />
   </div>
 </template>
@@ -150,55 +118,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background: #1e1e1e;
-}
-.tab-bar {
-  display: flex;
-  align-items: center;
-  background: #252526;
-  border-bottom: 1px solid #1e1e1e;
-  overflow-x: auto;
-  min-height: 36px;
-}
-.tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  color: #969696;
-  cursor: pointer;
-  border-right: 1px solid #1e1e1e;
-  white-space: nowrap;
-  user-select: none;
-}
-.tab:hover {
-  background: #2a2d2e;
-}
-.tab.active {
-  background: #1e1e1e;
-  color: #e0e0e0;
-  border-bottom: 2px solid #646cff;
-}
-.tab-name {
-  font-family: 'Fira Code', 'Consolas', monospace;
-}
-.tab-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: transparent;
-  color: #969696;
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 3px;
-  padding: 0;
-}
-.tab-close:hover {
-  background: #ff4d4f44;
-  color: #ff4d4f;
 }
 .editor-container {
   flex: 1;

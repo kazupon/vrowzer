@@ -143,7 +143,7 @@ function handleReload() {
 }
 
 function handleFileSelect(path: string) {
-  editorPanel.value?.switchTab(path)
+  editorPanel.value?.selectFile(path)
 }
 
 const editorFiles = computed(() => editorPanel.value?.editableFiles ?? new Map<string, string>())
@@ -151,19 +151,21 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
 </script>
 
 <template>
-  <div class="ide">
-    <header class="ide-header">
-      <span class="title">Vrowser IDE</span>
-      <span class="badge">experimental</span>
+  <div class="app">
+    <header class="app-header">
+      <h1>Vrowser IDE</h1>
+      <span class="subtitle">experimental</span>
       <span class="project-name">{{ manifest.name }}</span>
-      <div class="status-area">
+      <div class="status-container">
         <span v-if="syncStatus" class="sync-status">{{ syncStatus }}</span>
-        <button v-if="isReady" class="reload-btn" @click="handleReload">Reload</button>
-        <span :class="['status-dot', { ready: isReady }]" />
-        <span :class="['status-text', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
+        <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
+          Reload
+        </button>
+        <span :class="['status-dot', { ready: isReady }]" title="Service Worker" />
+        <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
       </div>
     </header>
-    <main class="ide-main">
+    <main class="app-main">
       <SplitPane ref="splitPane" :sizes="[200, 500, 500]" :min-size="100">
         <template #panel-0>
           <FileExplorer
@@ -182,11 +184,19 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
         </template>
         <template #panel-2>
           <div class="preview-panel">
-            <div v-if="!isReady" class="loading-overlay">
-              <div class="spinner" />
-              <p>{{ statusText }}</p>
+            <div class="preview-header">
+              <span>Preview by MessageChannel base HMR</span>
+              <div class="preview-status-container">
+                <span :class="['status-dot', { ready: isReady }]" />
+                <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
+              </div>
             </div>
-            <div ref="previewContainer" class="preview-container" />
+            <div class="preview-content">
+              <div v-if="!isReady" class="loading-overlay">
+                <p>{{ statusText }}</p>
+              </div>
+              <div ref="previewContainer" class="preview-iframe-container" />
+            </div>
           </div>
         </template>
       </SplitPane>
@@ -195,70 +205,72 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
 </template>
 
 <style scoped>
-.ide {
+.app {
   display: flex;
   flex-direction: column;
   height: 100vh;
   background: #1a1a1a;
-  color: #ccc;
 }
-.ide-header {
+
+.app-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px;
-  background: #1e1e1e;
-  border-bottom: 1px solid #333;
-  font-size: 13px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 1px solid #646cff33;
 }
-.title {
-  font-weight: 600;
-  color: #fff;
+
+.app-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #41d1ff 0%, #bd34fe 50%, #41d1ff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
-.badge {
-  background: #4a3;
-  color: #fff;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 11px;
-}
-.project-name {
-  color: #888;
+
+.subtitle {
   font-size: 12px;
+  color: #888888;
+  padding: 4px 10px;
+  background: #646cff22;
+  border-radius: 12px;
+  border: 1px solid #646cff44;
 }
-.status-area {
+
+.project-name {
+  font-size: 12px;
+  color: #888888;
+}
+
+.status-container {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .sync-status {
   font-size: 11px;
-  color: #4a3;
+  color: #41d1ff;
   animation: fade-in 0.2s;
 }
+
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: #555;
+  transition: all 0.3s ease;
 }
+
 .status-dot.ready {
   background: #41d1ff;
   box-shadow: 0 0 8px #41d1ff88;
 }
-.status-text {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.status-text.loading {
-  color: #646cff;
-}
-.status-text.ready {
-  color: #41d1ff;
-}
+
 .reload-btn {
   font-size: 11px;
   font-weight: 600;
@@ -268,46 +280,96 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
   background: #646cff22;
   color: #646cff;
   cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
 }
+
 .reload-btn:hover {
   background: #646cff44;
   border-color: #646cff;
 }
-.ide-main {
+
+.status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status.loading {
+  background: #646cff22;
+  color: #646cff;
+  border: 1px solid #646cff44;
+}
+
+.status.ready {
+  background: linear-gradient(135deg, #41d1ff22 0%, #bd34fe22 100%);
+  color: #41d1ff;
+  border: 1px solid #41d1ff44;
+}
+
+.app-main {
   flex: 1;
   overflow: hidden;
 }
+
 .preview-panel {
-  width: 100%;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  background: #ffffff;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #242424 0%, #1a1a1a 100%);
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #646cff33;
+}
+
+.preview-status-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-content {
+  flex: 1;
   position: relative;
-  background: #fff;
+  overflow: hidden;
 }
-.preview-container {
-  width: 100%;
-  height: 100%;
-}
-.preview-container :deep(iframe) {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
+
 .loading-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #1a1a2e;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #888;
   z-index: 5;
   gap: 16px;
 }
+
 .loading-overlay p {
   font-size: 14px;
   color: #646cff;
 }
-.spinner {
+
+.loading-overlay::before {
+  content: '';
   width: 40px;
   height: 40px;
   border: 3px solid #646cff33;
@@ -315,11 +377,25 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+
+.preview-iframe-container {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-iframe-container :deep(iframe) {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
+
 @keyframes fade-in {
   from {
     opacity: 0;
