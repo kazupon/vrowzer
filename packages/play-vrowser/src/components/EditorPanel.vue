@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import * as monaco from 'monaco-editor'
+import * as monaco from '../monaco'
 import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
 import type { VrowserManifest } from '../../fixtures/types'
@@ -261,7 +261,7 @@ declare namespace JSX {
 
   const content = files.value.get(activeFile.value)!
   const model = getOrCreateModel(activeFile.value, content)
-  editor.setModel(model)
+  editor!.setModel(model)
 
   emit('file-change', { path: activeFile.value, content })
 })
