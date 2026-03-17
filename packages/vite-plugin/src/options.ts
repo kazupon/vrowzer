@@ -40,6 +40,26 @@ export interface VrowserManifestOptions {
   targets?: string[]
 }
 
+export interface VrowserIdeOptions {
+  /**
+   * Port for the birpc WebSocket server.
+   * @default auto (find available port)
+   */
+  port?: number
+}
+
+export interface VrowserExperimentalOptions {
+  /**
+   * Enable browser IDE at `/__vrowser__/`.
+   *
+   * When `true` or an options object, the plugin serves a browser-based IDE
+   * with Monaco Editor, File Explorer, and Preview at `/__vrowser__/`.
+   *
+   * @default false (disabled)
+   */
+  ide?: boolean | VrowserIdeOptions
+}
+
 export interface VrowserOptions {
   /**
    * Enable auto-generation of vrowser manifest.
@@ -98,11 +118,21 @@ export interface VrowserOptions {
    * @default undefined
    */
   resolve?: { alias?: Alias[] }
+  /**
+   * Experimental features.
+   */
+  experimental?: VrowserExperimentalOptions
+}
+
+export interface ResolvedIdeOptions {
+  enabled: boolean
+  port: number | undefined
 }
 
 export interface ResolvedVrowserOptions {
   auto: boolean
   manifest: VrowserManifestOptions | undefined
+  ide: ResolvedIdeOptions
   basePath: string
   serviceWorkerScope: string
   serviceWorkerVersion: string
@@ -119,9 +149,14 @@ function resolveDefaultServiceWorkerEntry(): string {
 }
 
 export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions {
+  const ide = options.experimental?.ide
   return {
     auto: options.auto ?? true,
     manifest: options.manifest,
+    ide: {
+      enabled: !!ide,
+      port: typeof ide === 'object' ? ide.port : undefined
+    },
     basePath: options.basePath ?? '/__preview__/',
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'SERVICE_WORKER_VERSION',

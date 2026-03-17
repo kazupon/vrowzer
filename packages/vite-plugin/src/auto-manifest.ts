@@ -200,7 +200,7 @@ export function autoManifestPlugin(manifestOptions?: VrowserManifestOptions): Pl
         {
           pkgDir,
           sourceDir,
-          targets: manifestOptions?.targets
+          ...(manifestOptions?.targets ? { targets: manifestOptions.targets } : {})
         },
         msg => debug(msg)
       )

@@ -50,12 +50,14 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && pnpm build:ide",
+    "build:ide": "vite build --config vite.ide.config.ts",
     "prepack": "pnpm build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@rollup/plugin-inject": "^5.0.5",
+    "birpc": "^2.3.0",
     "@vrowser/fs": "workspace:*",
     "@vrowser/node-polyfill": "workspace:*",
     "@vrowser/rolldown": "workspace:*",
@@ -64,17 +66,24 @@
     "obug": "catalog:",
     "pathe": "catalog:",
     "readable-stream": "catalog:",
-    "rolldown": "catalog:"
+    "rolldown": "catalog:",
+    "ws": "^8.18.0"
   },
   "peerDependencies": {
     "@vrowser/vite-dev-server": "workspace:*",
     "vrowser": "workspace:*"
   },
   "devDependencies": {
+    "@iconify-icons/vscode-icons": "^1.2.29",
+    "@iconify/vue": "^5.0.0",
     "@oxc-project/types": "catalog:",
+    "@types/ws": "^8.18.0",
+    "@vitejs/plugin-vue": "catalog:",
+    "monaco-editor": "^0.55.1",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "vue": "catalog:"
   }
 }

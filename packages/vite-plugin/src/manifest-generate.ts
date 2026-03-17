@@ -181,30 +181,31 @@ export function shouldExcludeDir(dirName: string): boolean {
  * Follows symlinks but records logical paths.
  */
 export async function walkDir(dir: string, files: string[] = []): Promise<string[]> {
-  let entries: Awaited<ReturnType<typeof readdir>>
+  let entries: import('node:fs').Dirent[]
   try {
-    entries = await readdir(dir, { withFileTypes: true })
+    entries = (await readdir(dir, { withFileTypes: true })) as unknown as import('node:fs').Dirent[]
   } catch {
     return files
   }
 
   for (const entry of entries) {
-    const fullPath = join(dir, entry.name)
+    const name = String(entry.name)
+    const fullPath = join(dir, name)
 
     if (entry.isDirectory() || entry.isSymbolicLink()) {
       try {
         const s = await stat(fullPath)
         if (s.isDirectory()) {
-          if (!shouldExcludeDir(entry.name)) {
+          if (!shouldExcludeDir(name)) {
             await walkDir(fullPath, files)
           }
-        } else if (s.isFile() && shouldIncludeFile(entry.name)) {
+        } else if (s.isFile() && shouldIncludeFile(name)) {
           files.push(fullPath)
         }
       } catch {
         // broken symlink, skip
       }
-    } else if (entry.isFile() && shouldIncludeFile(entry.name)) {
+    } else if (entry.isFile() && shouldIncludeFile(name)) {
       files.push(fullPath)
     }
   }
@@ -340,12 +341,15 @@ export async function collectProjectFiles(projectDir: string): Promise<Record<st
 
   // Also pick up root-level source files (*.ts, *.js, *.vue, etc.)
   try {
-    const rootEntries = await readdir(projectDir, { withFileTypes: true })
+    const rootEntries = (await readdir(projectDir, {
+      withFileTypes: true
+    })) as unknown as import('node:fs').Dirent[]
     for (const entry of rootEntries) {
-      if (entry.isFile() && shouldIncludeFile(entry.name)) {
-        const virtualPath = '/' + entry.name
+      const entryName = String(entry.name)
+      if (entry.isFile() && shouldIncludeFile(entryName)) {
+        const virtualPath = '/' + entryName
         if (!files[virtualPath]) {
-          files[virtualPath] = './' + entry.name
+          files[virtualPath] = './' + entryName
         }
       }
     }

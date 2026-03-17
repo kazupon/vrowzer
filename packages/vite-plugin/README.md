@@ -2,7 +2,7 @@
 
 Vite plugin for [vrowser](https://github.com/kazupon/vrowser) - browser-based Vite dev server preview system.
 
-This plugin configures Vite for running `@vrowser/vite-dev-server` in Service Worker and Web Worker environments. It handles auto manifest generation, Node.js polyfills, CORS headers, `process` global injection, WASM file copying, Worker config extraction/prebundling, and Service Worker bundling.
+This plugin configures Vite for running `@vrowser/vite-dev-server` in Service Worker and Web Worker environments. It handles auto manifest generation, Node.js polyfills, CORS headers, `process` global injection, WASM file copying, Worker config extraction/prebundling, Service Worker bundling, and an experimental browser IDE.
 
 ## 💿 Installation
 
@@ -70,6 +70,44 @@ export default defineConfig({
 })
 ```
 
+### Browser IDE (experimental)
+
+Enable the browser IDE to get a full development environment at `/__vrowser__/` with File Explorer, Monaco Editor, and live Preview.
+
+```ts
+Vrowser({
+  manifest: {
+    sourceDir: './app',
+    targets: ['vue']
+  },
+  experimental: { ide: true }
+})
+```
+
+The IDE is a pre-built Vue app bundled into the plugin (no additional dependencies required). It includes:
+
+- **File Explorer** with vscode-icons
+- **Monaco Editor** with web language support (HTML, CSS, JS, TS, Vue, etc.)
+- **Live Preview** powered by vrowser (HMR via Web Worker + Service Worker)
+- **File sync** via birpc WebSocket (edits are saved to local filesystem)
+
+On `vite dev`, the IDE URL is printed in the console:
+
+```
+  ➜  Local:   http://localhost:5173/
+  ➜  Vrowser IDE: http://localhost:5173/__vrowser__/
+```
+
+You can also specify a custom port for the birpc WebSocket server:
+
+```ts
+Vrowser({
+  experimental: {
+    ide: { port: 7900 }
+  }
+})
+```
+
 ## ⚙️ Options
 
 ```ts
@@ -89,6 +127,13 @@ Vrowser({
     // Package name(s) to include in nodeModules
     // Default: all dependencies
     targets: ['vue']
+  },
+
+  // Experimental features
+  experimental: {
+    // Enable browser IDE at /__vrowser__/
+    // Default: false
+    ide: true // or { port: 7900 }
   },
 
   // Base path for the preview system
@@ -115,15 +160,16 @@ Vrowser({
 })
 ```
 
-| Option                 | Type                     | Default                                   | Description                                                                               |
-| ---------------------- | ------------------------ | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `auto`                 | `boolean`                | `true`                                    | Enable auto manifest generation. Set `false` to use `VrowserManifest()` manually.         |
-| `manifest`             | `VrowserManifestOptions` | `undefined`                               | Auto manifest options (sourceDir, pkgDir, targets). Used when `auto: true`.               |
-| `basePath`             | `string`                 | `'/__preview__/'`                         | Base path for the preview system. The Service Worker intercepts requests under this path. |
-| `serviceWorkerScope`   | `string`                 | `'/'`                                     | The scope for the Service Worker registration.                                            |
-| `serviceWorkerVersion` | `string`                 | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
-| `serviceWorkerEntry`   | `string`                 | Resolved path to `vrowser/service-worker` | Explicit Service Worker entry file path.                                                  |
-| `resolve`              | `{ alias?: Alias[] }`    | `undefined`                               | Worker-specific resolve settings passed to the internal Vite dev server.                  |
+| Option                 | Type                         | Default                                   | Description                                                                               |
+| ---------------------- | ---------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `auto`                 | `boolean`                    | `true`                                    | Enable auto manifest generation. Set `false` to use `VrowserManifest()` manually.         |
+| `manifest`             | `VrowserManifestOptions`     | `undefined`                               | Auto manifest options (sourceDir, pkgDir, targets). Used when `auto: true`.               |
+| `experimental`         | `VrowserExperimentalOptions` | `undefined`                               | Experimental features. Currently supports `ide`.                                          |
+| `basePath`             | `string`                     | `'/__preview__/'`                         | Base path for the preview system. The Service Worker intercepts requests under this path. |
+| `serviceWorkerScope`   | `string`                     | `'/'`                                     | The scope for the Service Worker registration.                                            |
+| `serviceWorkerVersion` | `string`                     | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
+| `serviceWorkerEntry`   | `string`                     | Resolved path to `vrowser/service-worker` | Explicit Service Worker entry file path.                                                  |
+| `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Worker-specific resolve settings passed to the internal Vite dev server.                  |
 
 ### `VrowserManifestOptions`
 
@@ -132,6 +178,18 @@ Vrowser({
 | `sourceDir` | `string`   | Vite project root | Directory to scan for project source files (index.html, src/, public/). |
 | `pkgDir`    | `string`   | Vite project root | Package directory for node_modules resolution.                          |
 | `targets`   | `string[]` | all dependencies  | Package name(s) to include. Only these packages + transitive deps.      |
+
+### `VrowserExperimentalOptions`
+
+| Option | Type                           | Default | Description                                                      |
+| ------ | ------------------------------ | ------- | ---------------------------------------------------------------- |
+| `ide`  | `boolean \| VrowserIdeOptions` | `false` | Enable browser IDE at `/__vrowser__/`. `true` uses all defaults. |
+
+### `VrowserIdeOptions`
+
+| Option | Type     | Default | Description                          |
+| ------ | -------- | ------- | ------------------------------------ |
+| `port` | `number` | auto    | Port for the birpc WebSocket server. |
 
 ## 🔌 Exported Plugins
 
@@ -183,6 +241,15 @@ Copies `@vrowser/rolldown` WASM binary and sub-worker to `dist/assets/` during p
 #### 7. Service Worker Bundling
 
 Uses `@vrowser/unplugin-service-worker` to detect, bundle, and deploy the Service Worker with ESM format.
+
+#### 8. Browser IDE (`vrowser:ide`)
+
+When `experimental.ide` is enabled (dev mode only):
+
+- Serves a pre-built Vue app at `/__vrowser__/` with File Explorer, Monaco Editor, and Preview
+- Provides `/__vrowser__/client.js` virtual module that imports `vrowser` and `virtual:vrowser-manifest`
+- Starts a birpc WebSocket server for file sync (write-back edits to local filesystem)
+- Watches for external file changes via Vite's chokidar watcher and pushes updates to the IDE
 
 ### `VrowserManifest()`
 

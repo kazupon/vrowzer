@@ -17,6 +17,7 @@ import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
 import { createDebug } from 'obug'
 import { autoManifestPlugin } from './auto-manifest.ts'
 import { envPlugin } from './env.ts'
+import { idePlugin } from './ide.ts'
 import { extractWorkerConfig } from './extract.ts'
 import { resolveOptions } from './options.ts'
 import { cleanOutputDir, prebundleWorkerConfig } from './prebundle.ts'
@@ -159,6 +160,7 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     } as Plugin,
     envPlugin(resolvedOptions),
     rolldownPlugin(resolvedOptions),
+    // @ts-expect-error -- Plugin type mismatch from duplicate vite installations (esbuild version diff)
     ServiceWorker({
       serviceWorkerAllowed: '/',
       format: 'esm',
@@ -169,6 +171,11 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
   // Auto-manifest plugin: generates manifest and provides virtual:vrowser-manifest
   if (resolvedOptions.auto) {
     plugins.unshift(autoManifestPlugin(resolvedOptions.manifest))
+  }
+
+  // IDE plugin: serves browser IDE at /__vrowser__/ (experimental)
+  if (resolvedOptions.ide.enabled) {
+    plugins.push(idePlugin(resolvedOptions))
   }
 
   return plugins

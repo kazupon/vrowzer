@@ -91,7 +91,7 @@ function isViteImport(source: string): boolean {
 export function extractWorkerConfig(
   source: string,
   configPath: string,
-  options: ExtractOptions = {}
+  _options: ExtractOptions = {}
 ): ExtractResult {
   const unsupported: string[] = []
 
