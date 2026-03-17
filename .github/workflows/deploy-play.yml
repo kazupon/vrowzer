@@ -34,14 +34,11 @@ jobs:
           pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-react -o packages/play-vrowser/fixtures/vite-react/vrowser-manifest.json -t react -t react-dom --name "Vrowser + React"
           pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-svelte -o packages/play-vrowser/fixtures/vite-svelte/vrowser-manifest.json -t svelte --name "Vrowser + Svelte"
 
-      - name: Build vite-dev-server (bundle + types, allow types failure)
-        run: |
-          pnpm --filter "vite-dev-server^..." run build
-          pnpm --filter vite-dev-server run build-bundle
-          pnpm --filter vite-dev-server run build-types || echo "Warning: vite-dev-server types build failed (non-critical)"
+      - name: Build vite-dev-server
+        run: pnpm --filter vite-dev-server... run build
 
       - name: Build play-vrowser
-        run: pnpm --filter "play-vrowser..." --filter "!vite-dev-server" run build
+        run: pnpm --filter play-vrowser... run build
 
       - name: Create cloudflare pages project (if not exists)
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
