@@ -20,7 +20,7 @@ const hiddenFiles = {
 }
 const activeFile = ref(props.manifest.activeFile ?? Object.keys(props.manifest.files)[0] ?? '')
 
-defineExpose({ files, hiddenFiles, activeFile, switchTab })
+defineExpose({ files, hiddenFiles, activeFile, selectFile })
 const editorContainer = useTemplateRef('editorContainer')
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
@@ -79,7 +79,7 @@ function getOrCreateModel(path: string, content: string): monaco.editor.ITextMod
 
 const extraLibDisposables = new Map<string, monaco.IDisposable>()
 
-function switchTab(path: string) {
+function selectFile(path: string) {
   if (!editor || !files.value.has(path)) {
     return
   }
@@ -88,45 +88,6 @@ function switchTab(path: string) {
   const model = getOrCreateModel(path, content)
   editor.setModel(model)
   editor.focus()
-}
-
-function closeTab(path: string) {
-  if (files.value.size <= 1) {
-    return
-  }
-  files.value.delete(path)
-  const model = models.get(path)
-  if (model) {
-    model.dispose()
-    models.delete(path)
-  }
-  if (activeFile.value === path) {
-    const first = files.value.keys().next().value as string
-    switchTab(first)
-  }
-}
-
-function addNewFile() {
-  let name = prompt('File name (e.g. utils.ts):')
-  if (!name) {
-    return
-  }
-  name = name.trim()
-  if (!name) {
-    return
-  }
-  const path = name.startsWith('/') ? name : `/${name}`
-  if (files.value.has(path)) {
-    switchTab(path)
-    return
-  }
-  files.value.set(path, '')
-  switchTab(path)
-  emit('file-change', { path, content: '' })
-}
-
-function filename(path: string): string {
-  return path.split('/').pop() || path
 }
 
 onMounted(() => {
@@ -282,19 +243,6 @@ onUnmounted(() => {
 
 <template>
   <div class="editor-panel">
-    <div class="tab-bar">
-      <div
-        v-for="[path] in files"
-        :key="path"
-        class="tab"
-        :class="{ active: path === activeFile }"
-        @click="switchTab(path)"
-      >
-        <span class="tab-name">{{ filename(path) }}</span>
-        <button v-if="files.size > 1" class="tab-close" @click.stop="closeTab(path)">×</button>
-      </div>
-      <button class="tab-add" @click="addNewFile" title="New file">+</button>
-    </div>
     <div ref="editorContainer" class="editor-container" />
   </div>
 </template>
@@ -306,85 +254,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background: #1e1e1e;
-}
-
-.tab-bar {
-  display: flex;
-  align-items: center;
-  background: #252526;
-  border-bottom: 1px solid #1e1e1e;
-  overflow-x: auto;
-  min-height: 36px;
-}
-
-.tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  color: #969696;
-  cursor: pointer;
-  border-right: 1px solid #1e1e1e;
-  white-space: nowrap;
-  user-select: none;
-  transition: background 0.15s;
-}
-
-.tab:hover {
-  background: #2a2d2e;
-}
-
-.tab.active {
-  background: #1e1e1e;
-  color: #e0e0e0;
-  border-bottom: 2px solid #646cff;
-}
-
-.tab-name {
-  font-family: 'Fira Code', 'Consolas', monospace;
-}
-
-.tab-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: transparent;
-  color: #969696;
-  font-size: 14px;
-  cursor: pointer;
-  border-radius: 3px;
-  line-height: 1;
-  padding: 0;
-}
-
-.tab-close:hover {
-  background: #ff4d4f44;
-  color: #ff4d4f;
-}
-
-.tab-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin: 0 4px;
-  border: none;
-  background: transparent;
-  color: #969696;
-  font-size: 18px;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 0;
-}
-
-.tab-add:hover {
-  background: #646cff33;
-  color: #646cff;
 }
 
 .editor-container {

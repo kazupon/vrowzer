@@ -119,7 +119,7 @@ function handleReload() {
 }
 
 function handleFileSelect(path: string) {
-  editorPanel.value?.switchTab(path)
+  editorPanel.value?.selectFile(path)
 }
 
 const editorFiles = computed(() => editorPanel.value?.files ?? new Map<string, string>())
