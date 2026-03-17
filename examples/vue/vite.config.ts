@@ -14,7 +14,8 @@ export default defineConfig({
       manifest: {
         sourceDir: './app',
         targets: ['vue']
-      }
+      },
+      experimental: { ide: true }
     })
   ]
 })
