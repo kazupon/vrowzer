@@ -100,9 +100,36 @@ function getFileIcon(name: string): IconifyIcon {
 </template>
 
 <style scoped>
-.tree-item { display: flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 13px; color: #cccccc; cursor: pointer; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tree-item .chevron { font-size: 10px; width: 14px; flex-shrink: 0; text-align: center; color: #888888; }
-.tree-item.dir { color: #bbbbbb; font-weight: 500; }
-.tree-item.dir:hover, .tree-item.file:hover { background: #2a2d2e; }
-.tree-item.file.active { background: #37373d; color: #ffffff; }
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 13px;
+  color: #cccccc;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tree-item .chevron {
+  font-size: 10px;
+  width: 14px;
+  flex-shrink: 0;
+  text-align: center;
+  color: #888888;
+}
+.tree-item.dir {
+  color: #bbbbbb;
+  font-weight: 500;
+}
+.tree-item.dir:hover,
+.tree-item.file:hover {
+  background: #2a2d2e;
+}
+.tree-item.file.active {
+  background: #37373d;
+  color: #ffffff;
+}
 </style>

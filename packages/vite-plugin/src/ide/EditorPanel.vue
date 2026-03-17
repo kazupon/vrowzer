@@ -24,15 +24,29 @@ const disposables: monaco.IDisposable[] = []
 function getLanguage(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase()
   switch (ext) {
-    case 'ts': case 'tsx': return 'typescript'
-    case 'js': case 'jsx': case 'mjs': return 'javascript'
-    case 'json': return 'json'
-    case 'css': return 'css'
-    case 'html': return 'html'
-    case 'yaml': case 'yml': return 'yaml'
-    case 'vue': case 'svelte': return 'html'
-    case 'svg': return 'xml'
-    default: return 'plaintext'
+    case 'ts':
+    case 'tsx':
+      return 'typescript'
+    case 'js':
+    case 'jsx':
+    case 'mjs':
+      return 'javascript'
+    case 'json':
+      return 'json'
+    case 'css':
+      return 'css'
+    case 'html':
+      return 'html'
+    case 'yaml':
+    case 'yml':
+      return 'yaml'
+    case 'vue':
+    case 'svelte':
+      return 'html'
+    case 'svg':
+      return 'xml'
+    default:
+      return 'plaintext'
   }
 }
 
@@ -65,7 +79,10 @@ function closeTab(path: string) {
   if (editableFiles.value.size <= 1) return
   editableFiles.value.delete(path)
   const model = models.get(path)
-  if (model) { model.dispose(); models.delete(path) }
+  if (model) {
+    model.dispose()
+    models.delete(path)
+  }
   if (currentFile.value === path) {
     const first = editableFiles.value.keys().next().value as string
     switchTab(first)
@@ -117,7 +134,9 @@ onUnmounted(() => {
         @click="switchTab(path)"
       >
         <span class="tab-name">{{ filename(path) }}</span>
-        <button v-if="editableFiles.size > 1" class="tab-close" @click.stop="closeTab(path)">x</button>
+        <button v-if="editableFiles.size > 1" class="tab-close" @click.stop="closeTab(path)">
+          x
+        </button>
       </div>
     </div>
     <div ref="editorContainer" class="editor-container" />
@@ -125,13 +144,64 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.editor-panel { display: flex; flex-direction: column; width: 100%; height: 100%; background: #1e1e1e; }
-.tab-bar { display: flex; align-items: center; background: #252526; border-bottom: 1px solid #1e1e1e; overflow-x: auto; min-height: 36px; }
-.tab { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; color: #969696; cursor: pointer; border-right: 1px solid #1e1e1e; white-space: nowrap; user-select: none; }
-.tab:hover { background: #2a2d2e; }
-.tab.active { background: #1e1e1e; color: #e0e0e0; border-bottom: 2px solid #646cff; }
-.tab-name { font-family: 'Fira Code', 'Consolas', monospace; }
-.tab-close { display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; background: transparent; color: #969696; font-size: 12px; cursor: pointer; border-radius: 3px; padding: 0; }
-.tab-close:hover { background: #ff4d4f44; color: #ff4d4f; }
-.editor-container { flex: 1; overflow: hidden; }
+.editor-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #1e1e1e;
+}
+.tab-bar {
+  display: flex;
+  align-items: center;
+  background: #252526;
+  border-bottom: 1px solid #1e1e1e;
+  overflow-x: auto;
+  min-height: 36px;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #969696;
+  cursor: pointer;
+  border-right: 1px solid #1e1e1e;
+  white-space: nowrap;
+  user-select: none;
+}
+.tab:hover {
+  background: #2a2d2e;
+}
+.tab.active {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  border-bottom: 2px solid #646cff;
+}
+.tab-name {
+  font-family: 'Fira Code', 'Consolas', monospace;
+}
+.tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: #969696;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+}
+.tab-close:hover {
+  background: #ff4d4f44;
+  color: #ff4d4f;
+}
+.editor-container {
+  flex: 1;
+  overflow: hidden;
+}
 </style>

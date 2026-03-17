@@ -53,7 +53,9 @@ function connectRpc() {
       },
       {
         post: data => ws!.send(data),
-        on: handler => { ws!.onmessage = (e) => handler(e.data) },
+        on: handler => {
+          ws!.onmessage = e => handler(e.data)
+        },
         serialize: v => JSON.stringify(v),
         deserialize: v => JSON.parse(v)
       }
@@ -121,13 +123,18 @@ function handleFileChange({ path, content }: { path: string; content: string }) 
 
   // 2. Write back to local FS via birpc (async, no await)
   if (rpc) {
-    rpc.writeFile(path, content).then(() => {
-      syncStatus.value = `Saved ${path.split('/').pop()}`
-      setTimeout(() => { syncStatus.value = '' }, 2000)
-    }).catch((err: Error) => {
-      console.error('[Vrowser IDE] writeFile failed:', err)
-      syncStatus.value = 'Save failed'
-    })
+    rpc
+      .writeFile(path, content)
+      .then(() => {
+        syncStatus.value = `Saved ${path.split('/').pop()}`
+        setTimeout(() => {
+          syncStatus.value = ''
+        }, 2000)
+      })
+      .catch((err: Error) => {
+        console.error('[Vrowser IDE] writeFile failed:', err)
+        syncStatus.value = 'Save failed'
+      })
   }
 }
 
@@ -188,27 +195,137 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
 </template>
 
 <style scoped>
-.ide { display: flex; flex-direction: column; height: 100vh; background: #1a1a1a; color: #ccc; }
-.ide-header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #1e1e1e; border-bottom: 1px solid #333; font-size: 13px; }
-.title { font-weight: 600; color: #fff; }
-.badge { background: #4a3; color: #fff; padding: 1px 6px; border-radius: 3px; font-size: 11px; }
-.project-name { color: #888; font-size: 12px; }
-.status-area { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.sync-status { font-size: 11px; color: #4a3; animation: fade-in 0.2s; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
-.status-dot.ready { background: #41d1ff; box-shadow: 0 0 8px #41d1ff88; }
-.status-text { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.status-text.loading { color: #646cff; }
-.status-text.ready { color: #41d1ff; }
-.reload-btn { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 12px; border: 1px solid #646cff44; background: #646cff22; color: #646cff; cursor: pointer; }
-.reload-btn:hover { background: #646cff44; border-color: #646cff; }
-.ide-main { flex: 1; overflow: hidden; }
-.preview-panel { width: 100%; height: 100%; position: relative; background: #fff; }
-.preview-container { width: 100%; height: 100%; }
-.preview-container :deep(iframe) { width: 100%; height: 100%; border: none; }
-.loading-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a2e; z-index: 5; gap: 16px; }
-.loading-overlay p { font-size: 14px; color: #646cff; }
-.spinner { width: 40px; height: 40px; border: 3px solid #646cff33; border-top-color: #646cff; border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.ide {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #1a1a1a;
+  color: #ccc;
+}
+.ide-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #1e1e1e;
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+}
+.title {
+  font-weight: 600;
+  color: #fff;
+}
+.badge {
+  background: #4a3;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.project-name {
+  color: #888;
+  font-size: 12px;
+}
+.status-area {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sync-status {
+  font-size: 11px;
+  color: #4a3;
+  animation: fade-in 0.2s;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #555;
+}
+.status-dot.ready {
+  background: #41d1ff;
+  box-shadow: 0 0 8px #41d1ff88;
+}
+.status-text {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.status-text.loading {
+  color: #646cff;
+}
+.status-text.ready {
+  color: #41d1ff;
+}
+.reload-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #646cff44;
+  background: #646cff22;
+  color: #646cff;
+  cursor: pointer;
+}
+.reload-btn:hover {
+  background: #646cff44;
+  border-color: #646cff;
+}
+.ide-main {
+  flex: 1;
+  overflow: hidden;
+}
+.preview-panel {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: #fff;
+}
+.preview-container {
+  width: 100%;
+  height: 100%;
+}
+.preview-container :deep(iframe) {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a2e;
+  z-index: 5;
+  gap: 16px;
+}
+.loading-overlay p {
+  font-size: 14px;
+  color: #646cff;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #646cff33;
+  border-top-color: #646cff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 </style>

@@ -83,9 +83,35 @@ defineExpose({ initSizes, setSizes })
 </template>
 
 <style scoped>
-.split-pane { display: flex; width: 100%; height: 100%; overflow: hidden; }
-.split-panel { height: 100%; overflow: hidden; flex-shrink: 0; }
-.split-grip { width: 4px; flex-shrink: 0; cursor: col-resize; background: #1e1e1e; transition: background 0.15s; position: relative; }
-.split-grip::after { content: ''; position: absolute; top: 0; left: -2px; right: -2px; bottom: 0; }
-.split-grip:hover, .split-grip.active { background: #646cff; }
+.split-pane {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.split-panel {
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.split-grip {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: #1e1e1e;
+  transition: background 0.15s;
+  position: relative;
+}
+.split-grip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -2px;
+  right: -2px;
+  bottom: 0;
+}
+.split-grip:hover,
+.split-grip.active {
+  background: #646cff;
+}
 </style>

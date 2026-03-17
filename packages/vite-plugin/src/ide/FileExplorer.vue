@@ -71,7 +71,28 @@ function sortTree(nodes: TreeNode[]) {
 </template>
 
 <style scoped>
-.file-explorer { display: flex; flex-direction: column; width: 100%; height: 100%; background: #252526; overflow-y: auto; }
-.explorer-header { display: flex; align-items: center; gap: 6px; padding: 10px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #bbbbbb; border-bottom: 1px solid #1e1e1e; user-select: none; }
-.explorer-tree { padding: 4px 0; }
+.file-explorer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #252526;
+  overflow-y: auto;
+}
+.explorer-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #bbbbbb;
+  border-bottom: 1px solid #1e1e1e;
+  user-select: none;
+}
+.explorer-tree {
+  padding: 4px 0;
+}
 </style>
