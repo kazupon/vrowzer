@@ -189,6 +189,7 @@ async function main() {
     pkgDir,
     sourceDir,
     targets,
+    includeDevDependencies: true,
     name: manifestName,
     activeFile
   })
