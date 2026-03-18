@@ -9,12 +9,7 @@ export default defineConfig({
   },
   plugins: [
     vue({ compiler }),
-    // auto: true (default) — manifest is auto-generated from app/ directory
     Vrowser({
-      manifest: {
-        sourceDir: './app',
-        targets: ['vue']
-      },
       experimental: { ide: true }
     })
   ]
