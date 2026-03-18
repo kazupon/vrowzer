@@ -58,6 +58,15 @@ export interface VrowserExperimentalOptions {
    * @default false (disabled)
    */
   ide?: boolean | VrowserIdeOptions
+  /**
+   * Enable Vite DevTools panel in IDE.
+   *
+   * Requires `@vitejs/devtools` to be installed and configured
+   * in `vite.config.ts` (with injection plugin excluded).
+   *
+   * @default false
+   */
+  devtools?: boolean
 }
 
 export interface VrowserOptions {
@@ -127,6 +136,7 @@ export interface VrowserOptions {
 export interface ResolvedIdeOptions {
   enabled: boolean
   port: number | undefined
+  devtools: boolean
 }
 
 export interface ResolvedVrowserOptions {
@@ -155,7 +165,8 @@ export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions 
     manifest: options.manifest,
     ide: {
       enabled: !!ide,
-      port: typeof ide === 'object' ? ide.port : undefined
+      port: typeof ide === 'object' ? ide.port : undefined,
+      devtools: options.experimental?.devtools ?? false
     },
     basePath: options.basePath ?? '/__preview__/',
     serviceWorkerScope: options.serviceWorkerScope ?? '/',

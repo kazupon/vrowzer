@@ -38,6 +38,10 @@ minimumReleaseAgeExclude:
   - '@kazupon/prettier-config'
   - '@kazupon/eslint-config'
   - '@kazupon/jts-utils'
+  - '@vitejs/devtools'
+  - '@vitejs/devtools-kit'
+  - '@vitejs/devtools-rolldown'
+  - '@vitejs/devtools-rpc'
   - eslint-plugin-oxlint
   - knip
   - oxlint

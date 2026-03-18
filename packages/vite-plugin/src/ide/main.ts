@@ -24,6 +24,7 @@ export interface MountIdeOptions {
   basePath: string
   Vrowser: (options?: { basePath?: string }) => any
   rpcPort: number
+  devtoolsUrl?: string | null
 }
 
 function mountIde(options: MountIdeOptions): App {
@@ -31,7 +32,8 @@ function mountIde(options: MountIdeOptions): App {
     manifest: options.manifest,
     basePath: options.basePath,
     VrowserFactory: options.Vrowser,
-    rpcPort: options.rpcPort
+    rpcPort: options.rpcPort,
+    devtoolsUrl: options.devtoolsUrl ?? null
   })
   app.mount('#app')
   return app

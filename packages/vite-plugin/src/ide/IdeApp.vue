@@ -17,7 +17,10 @@ const props = defineProps<{
   basePath: string
   VrowserFactory: (options?: { basePath?: string }) => any
   rpcPort: number
+  devtoolsUrl?: string | null
 }>()
+
+const devtoolsOpen = ref(false)
 
 const editorPanel = useTemplateRef<InstanceType<typeof EditorPanel>>('editorPanel')
 const previewContainer = useTemplateRef<HTMLElement>('previewContainer')
@@ -158,48 +161,63 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
       <span class="project-name">{{ manifest.name }}</span>
       <div class="status-container">
         <span v-if="syncStatus" class="sync-status">{{ syncStatus }}</span>
-        <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
-          Reload
+        <button
+          v-if="devtoolsUrl"
+          :class="['devtools-btn', { active: devtoolsOpen }]"
+          title="Toggle Vite DevTools"
+          @click="devtoolsOpen = !devtoolsOpen"
+        >
+          DevTools
         </button>
-        <span :class="['status-dot', { ready: isReady }]" title="Service Worker" />
-        <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
       </div>
     </header>
     <main class="app-main">
-      <SplitPane ref="splitPane" :sizes="[200, 500, 500]" :min-size="100">
-        <template #panel-0>
-          <FileExplorer
-            :files="editorFiles"
-            :active-file="editorActiveFile"
-            @select="handleFileSelect"
-          />
-        </template>
-        <template #panel-1>
-          <EditorPanel
-            ref="editorPanel"
-            :files="manifest.files"
-            :active-file="manifest.activeFile"
-            @file-change="handleFileChange"
-          />
-        </template>
-        <template #panel-2>
-          <div class="preview-panel">
-            <div class="preview-header">
-              <span>Preview by MessageChannel base HMR</span>
-              <div class="preview-status-container">
-                <span :class="['status-dot', { ready: isReady }]" />
-                <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
+      <div class="main-top" :style="{ flex: devtoolsOpen ? '0 0 60%' : '1' }">
+        <SplitPane ref="splitPane" :sizes="[200, 500, 500]" :min-size="100">
+          <template #panel-0>
+            <FileExplorer
+              :files="editorFiles"
+              :active-file="editorActiveFile"
+              @select="handleFileSelect"
+            />
+          </template>
+          <template #panel-1>
+            <EditorPanel
+              ref="editorPanel"
+              :files="manifest.files"
+              :active-file="manifest.activeFile"
+              @file-change="handleFileChange"
+            />
+          </template>
+          <template #panel-2>
+            <div class="preview-panel">
+              <div class="preview-header">
+                <span>Preview by MessageChannel base HMR</span>
+                <div class="preview-status-container">
+                  <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
+                    Reload
+                  </button>
+                  <span :class="['status-dot', { ready: isReady }]" />
+                  <span :class="['status', isReady ? 'ready' : 'loading']">{{ statusText }}</span>
+                </div>
+              </div>
+              <div class="preview-content">
+                <div v-if="!isReady" class="loading-overlay">
+                  <p>{{ statusText }}</p>
+                </div>
+                <div ref="previewContainer" class="preview-iframe-container" />
               </div>
             </div>
-            <div class="preview-content">
-              <div v-if="!isReady" class="loading-overlay">
-                <p>{{ statusText }}</p>
-              </div>
-              <div ref="previewContainer" class="preview-iframe-container" />
-            </div>
-          </div>
-        </template>
-      </SplitPane>
+          </template>
+        </SplitPane>
+      </div>
+      <div v-if="devtoolsOpen && devtoolsUrl" class="devtools-panel">
+        <div class="devtools-header">
+          <span>Vite DevTools</span>
+          <button class="devtools-close" @click="devtoolsOpen = false">&#x2715;</button>
+        </div>
+        <iframe :src="devtoolsUrl" class="devtools-iframe" />
+      </div>
     </main>
   </div>
 </template>
@@ -314,6 +332,77 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
 .app-main {
   flex: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-top {
+  overflow: hidden;
+}
+
+.devtools-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid #bd34fe44;
+  background: #bd34fe22;
+  color: #bd34fe;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+}
+
+.devtools-btn:hover {
+  background: #bd34fe44;
+  border-color: #bd34fe;
+}
+
+.devtools-btn.active {
+  background: #bd34fe;
+  color: #fff;
+  border-color: #bd34fe;
+  box-shadow: 0 0 8px #bd34fe66;
+}
+
+.devtools-panel {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #646cff33;
+}
+
+.devtools-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: linear-gradient(180deg, #242424 0%, #1a1a1a 100%);
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #646cff33;
+}
+
+.devtools-close {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+}
+
+.devtools-close:hover {
+  color: #fff;
+}
+
+.devtools-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
 }
 
 .preview-panel {

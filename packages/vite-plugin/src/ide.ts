@@ -50,7 +50,11 @@ const MIME_TYPES: Record<string, string> = {
   '.ttf': 'font/ttf'
 }
 
-function generateIdeClientCode(basePath: string, rpcPort: number): string {
+function generateIdeClientCode(
+  basePath: string,
+  rpcPort: number,
+  devtoolsUrl: string | null
+): string {
   return `
 import { Vrowser } from 'vrowser'
 import manifest from 'virtual:vrowser-manifest'
@@ -60,7 +64,8 @@ window.__vrowser_ide_mount__({
   manifest,
   basePath: '${basePath}',
   Vrowser,
-  rpcPort: ${rpcPort}
+  rpcPort: ${rpcPort},
+  devtoolsUrl: ${devtoolsUrl ? `'${devtoolsUrl}'` : 'null'}
 })
 `
 }
@@ -119,6 +124,7 @@ export function idePlugin(options: ResolvedVrowserOptions): Plugin {
   let rpcPort = 0
   let projectRoot = ''
   let sourceDir = ''
+  let devtoolsUrl: string | null = null
 
   // Find the CSS file in dist/ide/
   if (existsSync(ideDistDir)) {
@@ -143,6 +149,15 @@ export function idePlugin(options: ResolvedVrowserOptions): Plugin {
       // Find available port for birpc WebSocket
       rpcPort = await findAvailablePort(options.ide.port)
       debug('RPC port:', rpcPort)
+
+      // Detect DevTools plugin
+      if (options.ide.devtools) {
+        const hasDevTools = config.plugins.some((p: any) => p.name === 'vite:devtools:server')
+        if (hasDevTools) {
+          devtoolsUrl = '/.devtools/'
+          debug('DevTools detected, URL:', devtoolsUrl)
+        }
+      }
     },
     resolveId(id) {
       if (id === IDE_CLIENT_PATH) {
@@ -151,11 +166,29 @@ export function idePlugin(options: ResolvedVrowserOptions): Plugin {
     },
     load(id) {
       if (id === IDE_CLIENT_PATH) {
-        return generateIdeClientCode(options.basePath, rpcPort)
+        return generateIdeClientCode(options.basePath, rpcPort, devtoolsUrl)
       }
     },
     configureServer(server: ViteDevServer) {
       const ideUrl = `${IDE_BASE}/`
+
+      // --- COEP headers for DevTools iframe ---
+      // DevTools serves at /.devtools/, /.devtools-rolldown/, /.devtools-vite/, etc.
+      if (devtoolsUrl) {
+        server.middlewares.use((req: any, res: any, next: any) => {
+          const url = req.url ?? ''
+          if (url.startsWith('/.devtools')) {
+            const originalWriteHead = res.writeHead.bind(res)
+            res.writeHead = function (statusCode: number, ...args: any[]) {
+              res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless')
+              res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+              return originalWriteHead(statusCode, ...args)
+            } as typeof res.writeHead
+          }
+          next()
+        })
+        debug('COEP middleware added for /.devtools*')
+      }
 
       // --- birpc WebSocket server ---
       const wss = new WebSocketServer({ port: rpcPort })
