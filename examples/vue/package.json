@@ -11,6 +11,7 @@
     "vue": "catalog:"
   },
   "devDependencies": {
+    "@vitejs/devtools": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@vrowser/vite-plugin": "workspace:*",
     "vite": "catalog:",
