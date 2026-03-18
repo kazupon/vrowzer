@@ -41,6 +41,11 @@ export interface GenerateManifestOptions {
    */
   targets?: string[]
   /**
+   * When true, include devDependencies in dependency collection (default: false).
+   * Used by CLI for fixture projects where runtime deps may be in devDependencies.
+   */
+  includeDevDependencies?: boolean
+  /**
    * Override manifest name. Defaults to package.json name.
    */
   name?: string
@@ -600,7 +605,7 @@ export async function generateManifest(
   options: GenerateManifestOptions,
   log: GenerateManifestLog = console.log
 ): Promise<ManifestResult> {
-  const { pkgDir, targets = [], activeFile } = options
+  const { pkgDir, targets = [], includeDevDependencies = false, activeFile } = options
   const sourceDir = options.sourceDir || pkgDir
 
   // Read package.json
@@ -639,7 +644,7 @@ export async function generateManifest(
     }
     log(`  Target packages: ${targets.join(', ')}`)
   } else {
-    depDirs = await collectDependencies(pkgDir, visited, true)
+    depDirs = await collectDependencies(pkgDir, visited, includeDevDependencies)
   }
   log(`  Dependencies: ${depDirs.length} packages`)
 

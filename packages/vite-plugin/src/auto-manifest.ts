@@ -51,10 +51,18 @@ function hash(input: string): string {
 }
 
 /**
- * Compute cache key from package.json dependencies and lockfile.
+ * Compute cache key from package.json dependencies, lockfile, and manifest options.
  */
-function computeCacheHash(root: string): string {
+function computeCacheHash(root: string, manifestOptions?: VrowserManifestOptions): string {
   const parts: string[] = []
+
+  // Include sourceDir in cache key so changes to it invalidate the cache
+  if (manifestOptions?.sourceDir) {
+    parts.push(`sourceDir:${manifestOptions.sourceDir}`)
+  }
+  if (manifestOptions?.targets) {
+    parts.push(`targets:${manifestOptions.targets.join(',')}`)
+  }
 
   // Read package.json deps
   const pkgPath = join(root, 'package.json')
@@ -181,7 +189,7 @@ export function autoManifestPlugin(manifestOptions?: VrowserManifestOptions): Pl
       const pkgDir = manifestOptions?.pkgDir ? resolve(root, manifestOptions.pkgDir) : root
 
       const cacheDir = getCacheDir(root)
-      const currentHash = computeCacheHash(pkgDir)
+      const currentHash = computeCacheHash(pkgDir, manifestOptions)
       const cachedHash = readCachedHash(cacheDir)
 
       if (currentHash === cachedHash) {
