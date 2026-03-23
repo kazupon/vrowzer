@@ -25,6 +25,12 @@
 - However, current HMR implementations are WebSocket-based, so there's no existing solution that uses an in-browser bundler like rolldown to deliver Vite-like high-performance preview experiences
 - This project was created to enable efficient, high-performance live preview system for no-code/low-code products using rolldown
 
+The following video shows an editor with a live preview built in a browser using Vrowser:
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/cc364c59-9305-4aaf-aadd-43262fbd3900" controls></video>
+</p>
+
 ## 📦 Packages
 
 | Package                                                                | Description                                                                                                                     |
