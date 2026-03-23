@@ -1,7 +1,7 @@
 {
   "name": "@vrowser/vite-plugin",
   "description": "Vite plugin for vrowser",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"

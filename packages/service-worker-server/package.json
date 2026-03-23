@@ -1,7 +1,7 @@
 {
   "name": "@vrowser/service-worker-server",
   "description": "Serverized service worker with the Node Server interface",
-  "version": "0.0.0",
+  "version": "0.0.2",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
