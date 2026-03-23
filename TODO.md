@@ -112,6 +112,11 @@ Porting status of `packages/vite-dev-server/src/shared/`.
 - [x] server.ts — Preview guard middleware
 - [x] rolldown.ts — WASM/Worker asset copying
 - [x] virtual.ts — Worker entry generation
+- [x] auto-manifest.ts — Auto-manifest generation with cache (`sourceDir`/`targets` in cache key)
+- [x] manifest-generate.ts — `includeDevDependencies` option (default `false`)
+- [x] ide.ts — Browser IDE plugin (Monaco Editor, File Explorer, Preview, birpc WebSocket)
+- [x] ide.ts — Vite DevTools integration (experimental): detection, COEP middleware for `/.devtools*`
+- [x] options.ts — `experimental.devtools` option
 
 ## `@vrowser/rolldown`
 

@@ -27,22 +27,28 @@
 
 ## 📦 Packages
 
-| Package                                                                          | Description                                                                                                                     |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| [vrowser](./packages/vrowser)                                                    | Embeddable live preview system with HMR, powered by Vite dev server in the browser                                              |
-| [@vrowser/vite-plugin](./packages/vite-plugin)                                   | Vite plugin for vrowser                                                                                                         |
-| [@vrowser/vite-dev-server](./packages/vite-dev-server)                           | Vite dev server for vrowser                                                                                                     |
-| [@vrowser/rolldown](./packages/rolldown)                                         | Pre-bundled @rolldown/browser for easy browser usage                                                                            |
-| [@vrowser/fs](./packages/fs)                                                     | Browser-compatible filesystem using memfs for vrowser                                                                           |
-| [@vrowser/node-polyfill](./packages/node-polyfill)                               | Browser-compatible Node.js module polyfills for vrowser                                                                         |
-| [@vrowser/service-worker](./packages/service-worker)                             | Safely deploy and manage Service Workers with version control, bidirectional communication, and emergency shutdown capabilities |
-| [@vrowser/service-worker-server](./packages/service-worker-server)               | Serverized service worker with the Node Server interface                                                                        |
-| [@vrowser/unplugin-service-worker](./packages/unplugin-service-worker)           | unplugin for `@vrowser/service-worker`                                                                                          |
-| [@vrowser/oxlint-plugin-service-worker](./packages/oxlint-plugin-service-worker) | Oxlint plugin for `@vrowser/service-worker`                                                                                     |
+| Package                                                                | Description                                                                                                                     |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| [vrowser](./packages/vrowser)                                          | Embeddable live preview system with HMR, powered by Vite dev server in the browser                                              |
+| [@vrowser/vite-plugin](./packages/vite-plugin)                         | Vite plugin for vrowser                                                                                                         |
+| [@vrowser/vite-dev-server](./packages/vite-dev-server)                 | Vite dev server for vrowser                                                                                                     |
+| [@vrowser/rolldown](./packages/rolldown)                               | Pre-bundled @rolldown/browser for easy browser usage                                                                            |
+| [@vrowser/fs](./packages/fs)                                           | Browser-compatible filesystem using memfs for vrowser                                                                           |
+| [@vrowser/node-polyfill](./packages/node-polyfill)                     | Browser-compatible Node.js module polyfills for vrowser                                                                         |
+| [@vrowser/service-worker](./packages/service-worker)                   | Safely deploy and manage Service Workers with version control, bidirectional communication, and emergency shutdown capabilities |
+| [@vrowser/service-worker-server](./packages/service-worker-server)     | Serverized service worker with the Node Server interface                                                                        |
+| [@vrowser/unplugin-service-worker](./packages/unplugin-service-worker) | unplugin for `@vrowser/service-worker`                                                                                          |
 
 ## ✅ TODO
 
 List is [here](TODO.md)
+
+## 💖 Credits
+
+This project is inspired and powered by:
+
+- [`vite`](https://github.com/vitejs/vite), created by [Evan You](https://github.com/yyx990803) and Vite community
+- [`rolldown`](https://rolldown.rs/), create by [VoidZero](https://voidzero.dev/) and community
 
 ## ©️ License
 
