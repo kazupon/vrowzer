@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.31.0",
   "type": "module",
   "scripts": {
+    "build": "pnpm -r run build",
     "build:docs": "pnpm -r run build:docs",
     "build:fs": "pnpm --filter fs build",
     "build:oxlint": "pnpm --filter oxlint-plugin-service-worker build",
@@ -16,7 +17,6 @@
     "build:unplugin": "pnpm --filter unplugin-service-worker build",
     "build:vite": "pnpm --filter vite-dev-server build",
     "build:vite-plugin": "pnpm --filter vite-plugin build",
-    "build:vite:type": "pnpm --filter vite-dev-server build-types-roll",
     "build:vrowzer": "pnpm --filter vrowzer build",
     "deploy:play": "pnpm --filter play-vrowzer... run build && wrangler pages deploy packages/play-vrowzer/dist --project-name=vrowzer-playground --commit-dirty=true",
     "dev:eslint": "pnpx @eslint/config-inspector --config eslint.config.ts",
