@@ -1,7 +1,7 @@
 import type {
   SvcWorkerController,
   SvcWorkerControllerState
-} from '@vrowser/service-worker/controller'
+} from '@vrowzer/service-worker/controller'
 
 declare global {
   interface Window {

@@ -10,10 +10,10 @@
  */
 
 import { Emitter } from '@kazupon/jts-utils/event'
-import { createSvcWorker } from '@vrowser/service-worker/worker'
+import { createSvcWorker } from '@vrowzer/service-worker/worker'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
-import type { SvcWorker, SvcWorkerOptions } from '@vrowser/service-worker/worker'
+import type { SvcWorker, SvcWorkerOptions } from '@vrowzer/service-worker/worker'
 
 /**
  * Service worker server error

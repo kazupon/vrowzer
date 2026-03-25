@@ -1,7 +1,7 @@
 /**
  * FileSystemSubscriber - Worker side of the Pub-Sub filesystem sync.
  *
- * Receives V_FS_* protocol messages, updates the @vrowser/fs memfs volume,
+ * Receives V_FS_* protocol messages, updates the @vrowzer/fs memfs volume,
  * and notifies the VirtualFSWatcher to trigger chokidar-compatible events.
  *
  * @module watcher/subscriber
@@ -58,7 +58,7 @@ export interface CreateFileSystemSubscriberOptions {
  *
  * @param fs - fs instance to use for vol operations.
  *   Must be explicitly passed to avoid module instance mismatch when bundlers
- *   create separate copies of @vrowser/fs.
+ *   create separate copies of @vrowzer/fs.
  * @param options - Options including optional external watcher
  * @returns FileSystemSubscriber instance with a VirtualFSWatcher
  */

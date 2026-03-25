@@ -4,7 +4,7 @@
  * @example
  * ```ts
  * // rollup.config.js
- * import ServiceWorker from '@vrowser/unplugin-service-worker/rollup'
+ * import ServiceWorker from '@vrowzer/unplugin-service-worker/rollup'
  *
  * export default {
  *   plugins: [ServiceWorker()],

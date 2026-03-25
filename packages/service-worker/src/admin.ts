@@ -32,7 +32,7 @@ import type {
  *
  * @example
  * ```ts
- * import { getAllControllers } from '@vrowser/service-worker/admin'
+ * import { getAllControllers } from '@vrowzer/service-worker/admin'
  *
  * const controllers = getAllControllers()
  * for (const controller of controllers) {
@@ -53,7 +53,7 @@ export function getAllControllers(): readonly SvcWorkerController[] {
  *
  * @example
  * ```ts
- * import { getController } from '@vrowser/service-worker/admin'
+ * import { getController } from '@vrowzer/service-worker/admin'
  *
  * const controller = getController(new URL('./sw.js', import.meta.url), 'v1.0.0')
  * if (controller) {
@@ -73,7 +73,7 @@ export function getController(scriptURL: URL, version: string): SvcWorkerControl
  *
  * @example
  * ```ts
- * import { disposeAllControllers } from '@vrowser/service-worker/admin'
+ * import { disposeAllControllers } from '@vrowzer/service-worker/admin'
  *
  * // Clean up all controllers on page unload
  * window.addEventListener('unload', () => {
@@ -112,7 +112,7 @@ export interface SuspendOptions {
  *
  * @example
  * ```ts
- * import { suspendAllServiceWorkers } from '@vrowser/service-worker/admin'
+ * import { suspendAllServiceWorkers } from '@vrowzer/service-worker/admin'
  *
  * // Suspend all service workers (e.g., for maintenance)
  * const results = await suspendAllServiceWorkers()
@@ -149,7 +149,7 @@ export async function suspendAllServiceWorkers(
  *
  * @example
  * ```ts
- * import { suspendServiceWorker } from '@vrowser/service-worker/admin'
+ * import { suspendServiceWorker } from '@vrowzer/service-worker/admin'
  *
  * // Suspend a specific service worker
  * const result = await suspendServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')
@@ -193,7 +193,7 @@ export interface TerminateOptions {
  *
  * @example
  * ```ts
- * import { terminateAllServiceWorkers } from '@vrowser/service-worker/admin'
+ * import { terminateAllServiceWorkers } from '@vrowzer/service-worker/admin'
  *
  * // Terminate all service workers (e.g., for emergency shutdown)
  * const results = await terminateAllServiceWorkers({ clearCaches: true })
@@ -243,7 +243,7 @@ export async function terminateAllServiceWorkers(
  *
  * @example
  * ```ts
- * import { terminateServiceWorker } from '@vrowser/service-worker/admin'
+ * import { terminateServiceWorker } from '@vrowzer/service-worker/admin'
  *
  * // Terminate a specific service worker
  * const result = await terminateServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0', { clearCaches: true })
@@ -286,7 +286,7 @@ export async function terminateServiceWorker(
  *
  * @example
  * ```ts
- * import { resumeAllServiceWorkers } from '@vrowser/service-worker/admin'
+ * import { resumeAllServiceWorkers } from '@vrowzer/service-worker/admin'
  *
  * // Resume all suspended service workers
  * const results = await resumeAllServiceWorkers()
@@ -322,7 +322,7 @@ export async function resumeAllServiceWorkers(
  *
  * @example
  * ```ts
- * import { resumeServiceWorker } from '@vrowser/service-worker/admin'
+ * import { resumeServiceWorker } from '@vrowzer/service-worker/admin'
  *
  * // Resume a specific service worker
  * const result = await resumeServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')

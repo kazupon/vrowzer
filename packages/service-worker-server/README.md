@@ -1,27 +1,27 @@
-# @vrowser/service-worker-server
+# @vrowzer/service-worker-server
 
-A Node.js HTTP Server-like interface for Service Worker environments. Wraps `@vrowser/service-worker` to provide familiar `listen()` / `close()` / event patterns for handling fetch events and MessageChannel connections inside a Service Worker.
+A Node.js HTTP Server-like interface for Service Worker environments. Wraps `@vrowzer/service-worker` to provide familiar `listen()` / `close()` / event patterns for handling fetch events and MessageChannel connections inside a Service Worker.
 
 ## 💿 Installation
 
 ```sh
 # npm
-npm install --save @vrowser/service-worker-server
+npm install --save @vrowzer/service-worker-server
 
 # pnpm
-pnpm add @vrowser/service-worker-server
+pnpm add @vrowzer/service-worker-server
 
 # yarn
-yarn add @vrowser/service-worker-server
+yarn add @vrowzer/service-worker-server
 
 # bun
-bun add @vrowser/service-worker-server
+bun add @vrowzer/service-worker-server
 ```
 
 ## 🚀 Usage
 
 ```ts
-import { createSvcWorkerServer } from '@vrowser/service-worker-server'
+import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 
 const server = createSvcWorkerServer(self, {
   version: 'v1',

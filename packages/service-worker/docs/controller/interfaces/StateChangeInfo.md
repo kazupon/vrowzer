@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [controller](../index.md) / StateChangeInfo
+[@vrowzer/service-worker](../../index.md) / [controller](../index.md) / StateChangeInfo
 
 # Interface: StateChangeInfo
 

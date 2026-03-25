@@ -7,7 +7,7 @@
  * @example
  * ```ts
  * // vite.config.ts
- * import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+ * import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
  *
  * export default defineConfig({
  *   plugins: [ServiceWorker()],

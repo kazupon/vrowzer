@@ -6,12 +6,12 @@ const __dirname = path.dirname(new URL(import.meta.url).pathname)
 export default defineConfig({
   resolve: {
     alias: {
-      // Map @vrowser/rolldown shared build imports to pre-bundled dist files
-      '@vrowser/rolldown/experimental': path.resolve(__dirname, '../../dist/experimental.js'),
-      '@vrowser/rolldown': path.resolve(__dirname, '../../dist/index.js'),
-      // Use @vrowser/fs browser build to avoid Node.js module externalization
-      // Use @vrowser/fs source to avoid re-bundling issues with pre-built dist files
-      '@vrowser/fs': path.resolve(__dirname, '../../../fs/src/index.ts'),
+      // Map @vrowzer/rolldown shared build imports to pre-bundled dist files
+      '@vrowzer/rolldown/experimental': path.resolve(__dirname, '../../dist/experimental.js'),
+      '@vrowzer/rolldown': path.resolve(__dirname, '../../dist/index.js'),
+      // Use @vrowzer/fs browser build to avoid Node.js module externalization
+      // Use @vrowzer/fs source to avoid re-bundling issues with pre-built dist files
+      '@vrowzer/fs': path.resolve(__dirname, '../../../fs/src/index.ts'),
       // Node.js polyfills for memfs dependencies
       'node:buffer': 'buffer',
       'node:events': path.resolve(__dirname, '../../../node-polyfill/src/events.ts'),

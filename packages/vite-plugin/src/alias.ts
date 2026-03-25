@@ -16,22 +16,22 @@
  * Each entry maps both `node:xxx` and bare `xxx` specifiers.
  */
 const NODE_POLYFILL_MAP: Record<string, string> = {
-  events: '@vrowser/node-polyfill/events',
+  events: '@vrowzer/node-polyfill/events',
   path: 'pathe',
   stream: 'readable-stream/lib/stream',
   buffer: 'buffer',
-  dns: '@vrowser/node-polyfill/dns',
-  fs: '@vrowser/fs',
-  'fs/promises': '@vrowser/fs/promises',
-  url: '@vrowser/node-polyfill/url',
-  readline: '@vrowser/node-polyfill/readline',
-  util: '@vrowser/node-polyfill/util',
-  perf_hooks: '@vrowser/node-polyfill/perf_hooks',
-  crypto: '@vrowser/node-polyfill/crypto',
-  tty: '@vrowser/node-polyfill/tty',
-  module: '@vrowser/node-polyfill/module',
-  os: '@vrowser/node-polyfill/os',
-  net: '@vrowser/node-polyfill/net'
+  dns: '@vrowzer/node-polyfill/dns',
+  fs: '@vrowzer/fs',
+  'fs/promises': '@vrowzer/fs/promises',
+  url: '@vrowzer/node-polyfill/url',
+  readline: '@vrowzer/node-polyfill/readline',
+  util: '@vrowzer/node-polyfill/util',
+  perf_hooks: '@vrowzer/node-polyfill/perf_hooks',
+  crypto: '@vrowzer/node-polyfill/crypto',
+  tty: '@vrowzer/node-polyfill/tty',
+  module: '@vrowzer/node-polyfill/module',
+  os: '@vrowzer/node-polyfill/os',
+  net: '@vrowzer/node-polyfill/net'
 }
 
 /**

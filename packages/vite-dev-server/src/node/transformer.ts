@@ -1,5 +1,5 @@
 /**
- * Web Worker entry point for @vrowser/vite-dev-server
+ * Web Worker entry point for @vrowzer/vite-dev-server
  *
  * This module exports everything needed to run DevEnvironment,
  * PluginContainer, ModuleGraph, transform pipeline, HMR computation,
@@ -13,9 +13,9 @@
  * @license MIT
  */
 
-import { fs, vol } from '@vrowser/fs'
-import { rolldown } from '@vrowser/rolldown'
-import { memfs } from '@vrowser/rolldown/experimental'
+import { fs, vol } from '@vrowzer/fs'
+import { rolldown } from '@vrowzer/rolldown'
+import { memfs } from '@vrowzer/rolldown/experimental'
 import { createBirpc } from 'birpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { reloadOnTsconfigChange } from './plugins/esbuild'
@@ -42,7 +42,7 @@ import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { ViteDevServer } from './server/index'
 
-const debug = createDebugger('vrowser:transformer')
+const debug = createDebugger('vrowzer:transformer')
 
 /**
  * Subset of ViteDevServer for Web Worker environment.
@@ -230,7 +230,7 @@ function clientBasePlugin() {
   let resolvedBase = '/'
 
   return {
-    name: 'vrowser:client-base',
+    name: 'vrowzer:client-base',
     configResolved(config: ResolvedConfig) {
       resolvedBase = config.base
     },
@@ -431,9 +431,9 @@ export function connectServiceWorkerPort(
 }
 
 /**
- * Update a file in the virtual filesystem (@vrowser/fs).
+ * Update a file in the virtual filesystem (@vrowzer/fs).
  *
- * This ensures the file is written to the same @vrowser/fs instance
+ * This ensures the file is written to the same @vrowzer/fs instance
  * used by DevEnvironment and the transform pipeline.
  */
 export function updateFile(path: string, content: string): void {
@@ -461,8 +461,8 @@ export async function bundle(files: Record<string, string>, input: string): Prom
   updateFiles(files)
 
   fs.mkdirSync('/node_modules', { recursive: true })
-  debug?.('virtual files (@vrowser/rolldown memfs):', memfs.fs.readdirSync('/'))
-  debug?.('virtual files (@vrowser/fs memfs):', fs.readdirSync('/'))
+  debug?.('virtual files (@vrowzer/rolldown memfs):', memfs.fs.readdirSync('/'))
+  debug?.('virtual files (@vrowzer/fs memfs):', fs.readdirSync('/'))
 
   const bundle = await rolldown({ input, cwd: '/' })
   const { output } = await bundle.generate({ format: 'esm' })

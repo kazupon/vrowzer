@@ -1,8 +1,8 @@
-**@vrowser/service-worker**
+**@vrowzer/service-worker**
 
 ***
 
-# @vrowser/service-worker
+# @vrowzer/service-worker
 
 ## Modules
 

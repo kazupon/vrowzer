@@ -15,7 +15,7 @@ const props = defineProps<{
     activeFile?: string
   }
   basePath: string
-  VrowserFactory: (options?: { basePath?: string }) => any
+  VrowzerFactory: (options?: { basePath?: string }) => any
   rpcPort: number
   devtoolsUrl?: string | null
 }>()
@@ -29,7 +29,7 @@ const isReady = ref(false)
 const statusText = ref('Initializing...')
 const syncStatus = ref('')
 
-const vrowser = props.VrowserFactory({ basePath: props.basePath })
+const vrowzer = props.VrowzerFactory({ basePath: props.basePath })
 
 // --- birpc connection ---
 let ws: WebSocket | null = null
@@ -39,19 +39,19 @@ function connectRpc() {
   ws = new WebSocket(`ws://localhost:${props.rpcPort}`)
 
   ws.onopen = () => {
-    console.log('[Vrowser IDE] RPC connected')
+    console.log('[Vrowzer IDE] RPC connected')
 
     rpc = createBirpc<ServerFunctions, ClientFunctions>(
       {
         // Server calls this when an external editor modifies a file
         onFileChanged(path: string, content: string) {
-          console.log('[Vrowser IDE] external file change:', path)
+          console.log('[Vrowzer IDE] external file change:', path)
           // Update editor content if the file is open
           if (editorPanel.value?.editableFiles.has(path)) {
             editorPanel.value.editableFiles.set(path, content)
           }
-          // Update vrowser preview
-          vrowser.updateFile(path, content)
+          // Update vrowzer preview
+          vrowzer.updateFile(path, content)
         }
       },
       {
@@ -66,14 +66,14 @@ function connectRpc() {
   }
 
   ws.onclose = () => {
-    console.log('[Vrowser IDE] RPC disconnected')
+    console.log('[Vrowzer IDE] RPC disconnected')
     rpc = null
   }
 }
 
 // --- lifecycle ---
 
-vrowser.on('reloadSuggested', (info: { reason: string }) => {
+vrowzer.on('reloadSuggested', (info: { reason: string }) => {
   window.alert(
     `Service Worker has been updated (reason: ${info.reason}).\nThe page will be reloaded.`
   )
@@ -99,7 +99,7 @@ onMounted(async () => {
   Object.assign(initialFiles, props.manifest.nodeModules ?? {})
 
   statusText.value = 'Starting preview...'
-  const ready = await vrowser.ready({ files: initialFiles })
+  const ready = await vrowzer.ready({ files: initialFiles })
 
   if (!ready) {
     statusText.value = 'Failed to initialize'
@@ -107,7 +107,7 @@ onMounted(async () => {
   }
 
   if (previewContainer.value) {
-    vrowser.mount(previewContainer.value)
+    vrowzer.mount(previewContainer.value)
   }
 
   isReady.value = true
@@ -122,7 +122,7 @@ onUnmounted(() => {
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
   // 1. Update preview via HMR (immediate)
-  vrowser.updateFile(path, content)
+  vrowzer.updateFile(path, content)
 
   // 2. Write back to local FS via birpc (async, no await)
   if (rpc) {
@@ -135,14 +135,14 @@ function handleFileChange({ path, content }: { path: string; content: string }) 
         }, 2000)
       })
       .catch((err: Error) => {
-        console.error('[Vrowser IDE] writeFile failed:', err)
+        console.error('[Vrowzer IDE] writeFile failed:', err)
         syncStatus.value = 'Save failed'
       })
   }
 }
 
 function handleReload() {
-  vrowser.reloadPreview()
+  vrowzer.reloadPreview()
 }
 
 function handleFileSelect(path: string) {
@@ -156,7 +156,7 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
 <template>
   <div class="app">
     <header class="app-header">
-      <h1>Vrowser IDE</h1>
+      <h1>Vrowzer IDE</h1>
       <span class="subtitle">experimental</span>
       <span class="project-name">{{ manifest.name }}</span>
       <div class="status-container">
@@ -194,7 +194,12 @@ const editorActiveFile = computed(() => editorPanel.value?.currentFile ?? '')
               <div class="preview-header">
                 <span>Preview by MessageChannel base HMR</span>
                 <div class="preview-status-container">
-                  <button v-if="isReady" class="reload-btn" title="Reload preview" @click="handleReload">
+                  <button
+                    v-if="isReady"
+                    class="reload-btn"
+                    title="Reload preview"
+                    @click="handleReload"
+                  >
                     Reload
                   </button>
                   <span :class="['status-dot', { ready: isReady }]" />

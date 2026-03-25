@@ -1,12 +1,12 @@
 /**
- * Rolldown config for @vrowser/rolldown
+ * Rolldown config for @vrowzer/rolldown
  *
  * Pre-bundles @rolldown/browser with all dependencies resolved,
- * replacing internal memfs with @vrowser/fs.
+ * replacing internal memfs with @vrowzer/fs.
  *
  * Two build variants:
- *   1. dist/ — @vrowser/fs is external (consumer provides it)
- *   2. dist/browser/ — @vrowser/fs is bundled (fully self-contained)
+ *   1. dist/ — @vrowzer/fs is external (consumer provides it)
+ *   2. dist/browser/ — @vrowzer/fs is bundled (fully self-contained)
  *
  * Shared files:
  *   dist/worker.js                         — Bundled WASI worker script
@@ -44,25 +44,25 @@ const FS_PROXY_BUFFER_SIZE = 16 + 10 * 1024 * 1024
 // ---------------------------------------------------------------------------
 
 /**
- * Replace `@napi-rs/wasm-runtime/fs` with `@vrowser/fs` at the resolve level.
+ * Replace `@napi-rs/wasm-runtime/fs` with `@vrowzer/fs` at the resolve level.
  *
  * The installed `@napi-rs/wasm-runtime/fs` (dist/fs.js) is a pre-bundled file
  * that has memfs inlined (~21k lines). We can't use transform to replace
  * `from 'memfs'` because it doesn't exist in the bundled dist/fs.js.
  * Instead, we redirect the entire `@napi-rs/wasm-runtime/fs` import to
- * `@vrowser/fs` which exports the same API surface (including `memfsExported`).
+ * `@vrowzer/fs` which exports the same API surface (including `memfsExported`).
  */
 /**
- * Replace `@napi-rs/wasm-runtime/fs` with `@vrowser/fs` at the resolve level.
- * For variant 1 (external): @vrowser/fs is marked external (bare specifier kept).
- * For variant 2 (bundled) and worker: resolves to @vrowser/fs browser build path.
+ * Replace `@napi-rs/wasm-runtime/fs` with `@vrowzer/fs` at the resolve level.
+ * For variant 1 (external): @vrowzer/fs is marked external (bare specifier kept).
+ * For variant 2 (bundled) and worker: resolves to @vrowzer/fs browser build path.
  */
 const replaceWasmRuntimeFsExternalPlugin: Plugin = {
   name: 'replace-wasm-runtime-fs-external',
   resolveId: {
     filter: { id: /^@napi-rs\/wasm-runtime\/fs$/ },
     handler() {
-      return { id: '@vrowser/fs', external: true }
+      return { id: '@vrowzer/fs', external: true }
     }
   }
 }
@@ -72,21 +72,21 @@ const replaceWasmRuntimeFsBundledPlugin: Plugin = {
   resolveId: {
     filter: { id: /^@napi-rs\/wasm-runtime\/fs$/ },
     handler() {
-      return { id: vrowserFsSrcPath, external: false }
+      return { id: vrowzerFsSrcPath, external: false }
     }
   }
 }
 
 /**
- * Replace `memfs()` factory call with `@vrowser/fs` singletons in the binding.
+ * Replace `memfs()` factory call with `@vrowzer/fs` singletons in the binding.
  *
  * The original binding (`rolldown-binding.wasi-browser.js`) does:
  *   import { memfs } from '@napi-rs/wasm-runtime/fs'
  *   export const { fs: __fs, vol: __volume } = memfs()
  *
- * This creates a NEW Volume instance, separate from @vrowser/fs's singleton.
- * We replace it so that rolldown uses the same Volume as @vrowser/fs:
- *   import { fs as __fs, vol as __volume } from '@vrowser/fs'
+ * This creates a NEW Volume instance, separate from @vrowzer/fs's singleton.
+ * We replace it so that rolldown uses the same Volume as @vrowzer/fs:
+ *   import { fs as __fs, vol as __volume } from '@vrowzer/fs'
  */
 const useSharedFsSingletonPlugin: Plugin = {
   name: 'use-shared-fs-singleton',
@@ -95,10 +95,10 @@ const useSharedFsSingletonPlugin: Plugin = {
     handler(code) {
       // Replace: import { memfs } from '@napi-rs/wasm-runtime/fs'
       //          export const { fs: __fs, vol: __volume } = memfs()
-      // With:    import { fs as __fs, vol as __volume } from '@vrowser/fs'
+      // With:    import { fs as __fs, vol as __volume } from '@vrowzer/fs'
       let replaced = code.replace(
         /import\s*\{\s*memfs\s*\}\s*from\s*['"]@napi-rs\/wasm-runtime\/fs['"]/,
-        "import { fs as __fs, vol as __volume } from '@vrowser/fs'"
+        "import { fs as __fs, vol as __volume } from '@vrowzer/fs'"
       )
       replaced = replaced.replace(
         /export\s+const\s*\{\s*fs:\s*__fs,\s*vol:\s*__volume\s*\}\s*=\s*memfs\(\)/,
@@ -228,8 +228,8 @@ const postBuildPlugin: Plugin = {
       join(distDir, 'rolldown-binding.wasm32-wasi.wasm')
     )
 
-    // Generate type declarations for variant 1 (external @vrowser/fs)
-    // memfs uses @vrowser/fs singletons (fs, vol), so types are precise
+    // Generate type declarations for variant 1 (external @vrowzer/fs)
+    // memfs uses @vrowzer/fs singletons (fs, vol), so types are precise
     writeFileSync(
       join(distDir, 'index.d.ts'),
       `export { rolldown, type RolldownOptions, type RolldownOutput, type RolldownBuild, VERSION } from '@rolldown/browser'\n`
@@ -237,8 +237,8 @@ const postBuildPlugin: Plugin = {
     writeFileSync(
       join(distDir, 'experimental.d.ts'),
       [
-        `import type { IFs } from '@vrowser/fs'`,
-        `import type { Volume } from '@vrowser/fs'`,
+        `import type { IFs } from '@vrowzer/fs'`,
+        `import type { Volume } from '@vrowzer/fs'`,
         `export declare const memfs: { fs: IFs; volume: InstanceType<typeof Volume> }`,
         `export { parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'`,
         ``
@@ -263,7 +263,7 @@ const postBuildPlugin: Plugin = {
       `export { parseAst, parseAstAsync, type ParseResult, type ParserOptions } from '@rolldown/browser/parseAst'\n`
     )
 
-    // Generate type declarations for variant 2 (bundled @vrowser/fs)
+    // Generate type declarations for variant 2 (bundled @vrowzer/fs)
     mkdirSync(join(distDir, 'browser'), { recursive: true })
     writeFileSync(
       join(distDir, 'browser', 'index.d.ts'),
@@ -296,10 +296,10 @@ const postBuildPlugin: Plugin = {
 // Build configurations
 // ---------------------------------------------------------------------------
 
-// Resolve @vrowser/fs source path via package name (pnpm workspace symlink).
+// Resolve @vrowzer/fs source path via package name (pnpm workspace symlink).
 // Use source directly to avoid re-bundling issues with pre-built dist files.
-const vrowserFsPkgPath = fileURLToPath(import.meta.resolve('@vrowser/fs/package.json'))
-const vrowserFsSrcPath = join(dirname(vrowserFsPkgPath), 'src', 'index.ts')
+const vrowzerFsPkgPath = fileURLToPath(import.meta.resolve('@vrowzer/fs/package.json'))
+const vrowzerFsSrcPath = join(dirname(vrowzerFsPkgPath), 'src', 'index.ts')
 
 const commonResolve = {
   conditionNames: ['browser', 'import', 'module', 'default']
@@ -308,22 +308,22 @@ const commonResolve = {
 const bundledResolve = {
   ...commonResolve,
   alias: {
-    '@vrowser/fs': vrowserFsSrcPath,
-    // Node.js module aliases for browser compatibility (same as @vrowser/fs tsdown config)
-    'node:events': '@vrowser/node-polyfill/events',
+    '@vrowzer/fs': vrowzerFsSrcPath,
+    // Node.js module aliases for browser compatibility (same as @vrowzer/fs tsdown config)
+    'node:events': '@vrowzer/node-polyfill/events',
     'node:path': 'pathe',
     'node:stream': 'readable-stream',
     'node:buffer': 'buffer',
     buffer: 'buffer',
-    events: '@vrowser/node-polyfill/events',
+    events: '@vrowzer/node-polyfill/events',
     path: 'pathe',
     stream: 'readable-stream',
-    process: '@vrowser/node-polyfill/process'
+    process: '@vrowzer/node-polyfill/process'
   }
 }
 
 export default defineConfig([
-  // 1. Worker script (shared by both variants, @vrowser/fs always bundled)
+  // 1. Worker script (shared by both variants, @vrowzer/fs always bundled)
   {
     input: join(rolldownDist, 'wasi-worker-browser.mjs'),
     platform: 'browser',
@@ -336,8 +336,8 @@ export default defineConfig([
     }
   },
 
-  // 2. Variant 1: @vrowser/fs external
-  //    Consumer provides @vrowser/fs, allowing shared memfs instances.
+  // 2. Variant 1: @vrowzer/fs external
+  //    Consumer provides @vrowzer/fs, allowing shared memfs instances.
   {
     input: {
       index: join(rolldownDist, 'index.browser.mjs'),
@@ -355,7 +355,7 @@ export default defineConfig([
       rewriteUrlsPlugin,
       postBuildPlugin
     ],
-    external: [/\.wasm$/, /^@vrowser\/fs/],
+    external: [/\.wasm$/, /^@vrowzer\/fs/],
     output: {
       dir: distDir,
       format: 'esm',
@@ -365,7 +365,7 @@ export default defineConfig([
     }
   },
 
-  // 3. Variant 2: @vrowser/fs bundled (fully self-contained)
+  // 3. Variant 2: @vrowzer/fs bundled (fully self-contained)
   //    No additional dependencies needed.
   {
     input: {

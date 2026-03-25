@@ -212,10 +212,10 @@ export async function replaceDefine(
   define: Record<string, string>,
 ): Promise<{
   code: string
-  map: import('@vrowser/rolldown/utils').TransformResult['map'] | null
+  map: import('@vrowzer/rolldown/utils').TransformResult['map'] | null
 }> {
   // NOTE(kazupon): Dynamic import to avoid blocking Worker module evaluation with WASM loading
-  const { transformSync } = await import('@vrowser/rolldown/utils')
+  const { transformSync } = await import('@vrowzer/rolldown/utils')
   const result = transformSync(id, code, {
     lang: 'js',
     sourceType: 'module',

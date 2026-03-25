@@ -28,7 +28,7 @@ export async function resolvePlugins(
   const enableNativePlugin = config.nativePluginEnabledLevel >= 0
   const enableNativePluginV1 = config.nativePluginEnabledLevel >= 1
 
-  if (__VROWSER_SERVICE_WORKER__) {
+  if (__VROWZER_SERVICE_WORKER__) {
     return [
       ...prePlugins,
       ...normalPlugins,
@@ -37,7 +37,7 @@ export async function resolvePlugins(
   } else {
     // Transform pipeline plugins: only loaded for Web Worker (not Service Worker).
     // In Service Worker, all transform operations are delegated to Web Worker via birpc RPC.
-    // Using dynamic import() guarded by __VROWSER_SERVICE_WORKER__ build-time constant
+    // Using dynamic import() guarded by __VROWZER_SERVICE_WORKER__ build-time constant
     // enables rolldown DCE(Dead Code Elimination) to eliminate these plugins and their heavy dependencies
     // (postcss, oxc-parser, es-module-lexer, etc.) from the Service Worker bundle.
     const [preAliasMod, aliasMod, resolveMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod] = await Promise.all([

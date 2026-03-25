@@ -1,6 +1,6 @@
-# @vrowser/fs
+# @vrowzer/fs
 
-Browser-compatible filesystem using memfs for vrowser.
+Browser-compatible filesystem using memfs for vrowzer.
 
 ## ✨ Features
 
@@ -15,19 +15,19 @@ Browser-compatible filesystem using memfs for vrowser.
 
 ```sh
 # npm
-npm install --save @vrowser/fs
+npm install --save @vrowzer/fs
 
 # pnpm
-pnpm add @vrowser/fs
+pnpm add @vrowzer/fs
 
 # yarn
-yarn add @vrowser/fs
+yarn add @vrowzer/fs
 
 # deno
-deno add npm:@vrowser/fs
+deno add npm:@vrowzer/fs
 
 # bun
-bun add @vrowser/fs
+bun add @vrowzer/fs
 ```
 
 ## 🚀 Usage
@@ -35,7 +35,7 @@ bun add @vrowser/fs
 ### Direct Usage
 
 ```ts
-import { vol, writeFileSync, readFileSync, chdir, cwd } from '@vrowser/fs'
+import { vol, writeFileSync, readFileSync, chdir, cwd } from '@vrowzer/fs'
 
 // Initialize filesystem from JSON
 vol.fromJSON({
@@ -59,10 +59,10 @@ console.log(content) // 'export const hello = "world"'
 export default defineConfig({
   resolve: {
     alias: {
-      'node:fs': '@vrowser/fs',
-      'node:fs/promises': '@vrowser/fs/promises',
-      fs: '@vrowser/fs',
-      'fs/promises': '@vrowser/fs/promises'
+      'node:fs': '@vrowzer/fs',
+      'node:fs/promises': '@vrowzer/fs/promises',
+      fs: '@vrowzer/fs',
+      'fs/promises': '@vrowzer/fs/promises'
     }
   }
 })
@@ -71,7 +71,7 @@ export default defineConfig({
 ### Promises API
 
 ```ts
-import { readFile, writeFile } from '@vrowser/fs/promises'
+import { readFile, writeFile } from '@vrowzer/fs/promises'
 
 const content = await readFile('/path/to/file', 'utf8')
 await writeFile('/path/to/output', 'Hello World')
@@ -112,7 +112,7 @@ graph TB
 
     subgraph ServiceWorker["Service Worker (Subscriber)"]
         SWSub["FileSystemSubscriber"]
-        SWVol["@vrowser/fs (memfs vol)"]
+        SWVol["@vrowzer/fs (memfs vol)"]
         SWWatcher["VirtualFSWatcher<br/>(chokidar I/F)"]
         SWSub -->|"update vol"| SWVol
         SWSub -->|"notify(event, path)"| SWWatcher
@@ -120,7 +120,7 @@ graph TB
 
     subgraph WebWorker["Web Worker (Subscriber)"]
         WWSub["FileSystemSubscriber"]
-        WWVol["@vrowser/fs (memfs vol)"]
+        WWVol["@vrowzer/fs (memfs vol)"]
         WWWatcher["VirtualFSWatcher<br/>(chokidar I/F)"]
         WWSub -->|"update vol"| WWVol
         WWSub -->|"notify(event, path)"| WWWatcher
@@ -130,7 +130,7 @@ graph TB
 #### Publisher (Main Thread)
 
 ```ts
-import { createFileSystemPublisher } from '@vrowser/fs/watcher'
+import { createFileSystemPublisher } from '@vrowzer/fs/watcher'
 
 const publisher = createFileSystemPublisher([worker])
 
@@ -145,7 +145,7 @@ publisher.initFiles({ '/main.js': 'code' }) // bulk init
 #### Subscriber (Worker)
 
 ```ts
-import { createFileSystemSubscriber } from '@vrowser/fs/watcher'
+import { createFileSystemSubscriber } from '@vrowzer/fs/watcher'
 
 const { watcher, handleMessage } = createFileSystemSubscriber()
 
@@ -163,7 +163,7 @@ watcher.on('all', (event, path) => console.log(event, path))
 #### VirtualFSWatcher
 
 ```ts
-import { createVirtualFSWatcher } from '@vrowser/fs/watcher'
+import { createVirtualFSWatcher } from '@vrowzer/fs/watcher'
 
 const watcher = createVirtualFSWatcher()
 
@@ -177,10 +177,10 @@ watcher.notify('change', '/main.js') // triggers 'change' + 'all' events
 
 | Entry Point            | Description                                        |
 | ---------------------- | -------------------------------------------------- |
-| `@vrowser/fs`          | Main entry with all exports, `node:fs` compatibles |
-| `@vrowser/fs/promises` | `node:fs/promises` compatible                      |
-| `@vrowser/fs/watcher`  | Virtual filesystem watcher + Pub-Sub sync          |
-| `@vrowser/fs/process`  | Custom process polyfill                            |
+| `@vrowzer/fs`          | Main entry with all exports, `node:fs` compatibles |
+| `@vrowzer/fs/promises` | `node:fs/promises` compatible                      |
+| `@vrowzer/fs/watcher`  | Virtual filesystem watcher + Pub-Sub sync          |
+| `@vrowzer/fs/process`  | Custom process polyfill                            |
 
 ## 🤝 Sponsors
 

@@ -25,7 +25,7 @@ interface RequireFunction {
  */
 export function createRequire(_url: string | URL): RequireFunction {
   function require(_id: string): never {
-    throw new Error(`[vrowser] require() is not supported in browser/Worker environment`)
+    throw new Error(`[vrowzer] require() is not supported in browser/Worker environment`)
   }
   require.resolve = (id: string): string => id
   require.cache = {} as Record<string, unknown>

@@ -1,5 +1,5 @@
 /**
- * @vrowser/unplugin-service-worker E2E Tests
+ * @vrowzer/unplugin-service-worker E2E Tests
  *
  * Tests each bundler's ability to correctly bundle Service Workers
  * using the unplugin-service-worker plugin.

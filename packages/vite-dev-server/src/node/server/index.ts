@@ -1,6 +1,6 @@
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
-import { createSvcWorkerServer } from '@vrowser/service-worker-server'
+import type { ListenOptions, SvcWorkerServer } from '@vrowzer/service-worker-server'
+import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
 import type { BlankSchema, Env, MiddlewareHandler } from 'hono/types'
@@ -503,7 +503,7 @@ export function createServer(
   const httpServer = createSvcWorkerServer(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: true,
-    debug: createDebugger('vrowser:svc-worker-server')!,
+    debug: createDebugger('vrowzer:svc-worker-server')!,
   })
   const fetchHandler = handle(middlewares)
 
@@ -518,7 +518,7 @@ export function createServer(
     const config = isResolvedConfig(inlineConfig)
       ? inlineConfig
       : await resolveConfig(inlineConfig, 'serve')
-    console.log('[vrowser-vite-dev-server] Vite Dev Server config:', config)
+    console.log('[vrowzer-vite-dev-server] Vite Dev Server config:', config)
 
     const initPublicFilesPromise = initPublicFiles(config)
 
@@ -555,7 +555,7 @@ export function createServer(
 
     const publicFiles = await initPublicFilesPromise
     const { publicDir } = config
-    console.log('[vrowser-vite-dev-server] publicDir:', publicDir, 'publicFiles:', publicFiles)
+    console.log('[vrowzer-vite-dev-server] publicDir:', publicDir, 'publicFiles:', publicFiles)
 
     const watchEnabled = serverConfig.watch !== null
     const watcher = watchEnabled && options.watcherFactory
@@ -588,7 +588,7 @@ export function createServer(
         },
       ),
     )
-    console.log('[vrowser-vite-dev-server] Created environments:', environments)
+    console.log('[vrowzer-vite-dev-server] Created environments:', environments)
 
     // Backward compatibility
 
@@ -736,7 +736,7 @@ export function createServer(
       //   return server
       // },
       openBrowser() {
-        console.warn('[@vrowser/vite-dev-server] not supported: server.openBrowser()')
+        console.warn('[@vrowzer/vite-dev-server] not supported: server.openBrowser()')
         // NOTE(kazupon): commented out, because Service Worker server don't need to open browser
         // const options = server.config.server
         // const url = getServerUrlByHost(server.resolvedUrls, options.host)

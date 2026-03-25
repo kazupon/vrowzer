@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionTerminatedMessage
+[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionTerminatedMessage
 
 # Function: isSvcWorkerSessionTerminatedMessage()
 

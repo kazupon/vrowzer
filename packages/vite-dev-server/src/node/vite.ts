@@ -1,13 +1,13 @@
 /**
- * Vite-compatible API entry point for @vrowser/vite-dev-server.
+ * Vite-compatible API entry point for @vrowzer/vite-dev-server.
  *
  * This module re-exports APIs that `@vitejs/plugin-vue` and other ecosystem plugins
- * import from `"vite"`. By aliasing `vite` → `@vrowser/vite-dev-server/vite`,
+ * import from `"vite"`. By aliasing `vite` → `@vrowzer/vite-dev-server/vite`,
  * these plugins can run inside Worker environments without pulling in the full
  * Vite package (which includes native dependencies like lightningcss).
  *
  * IMPORTANT: This entry MUST NOT statically import modules that depend on
- * @vrowser/rolldown (WASM). When used as a "vite" alias in Web Workers,
+ * @vrowzer/rolldown (WASM). When used as a "vite" alias in Web Workers,
  * static WASM imports would block module evaluation and prevent self.onmessage
  * from being registered in time (causing V_WW_SETUP messages to be lost).
  * Heavy modules (transformWithEsbuild → oxc.ts) are loaded lazily via dynamic import.
@@ -35,7 +35,7 @@ export { formatPostcssSourceMap } from './plugins/css'
 
 // --- Transform ---
 // Safe to statically re-export: esbuild.ts internally uses dynamic import
-// for oxc.ts (which depends on @vrowser/rolldown WASM), so WASM is not
+// for oxc.ts (which depends on @vrowzer/rolldown WASM), so WASM is not
 // loaded at module evaluation time.
 export { transformWithEsbuild } from './plugins/esbuild'
 

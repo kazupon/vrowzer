@@ -1,0 +1,13 @@
+{
+  "name": "Vrowzer Vanilla",
+  "files": {
+    "/index.html": "../../packages/play-vrowzer/fixtures/vite-vanilla/index.html",
+    "/counter.ts": "../../packages/play-vrowzer/fixtures/vite-vanilla/counter.ts",
+    "/data.yaml": "../../packages/play-vrowzer/fixtures/vite-vanilla/data.yaml",
+    "/main.ts": "../../packages/play-vrowzer/fixtures/vite-vanilla/main.ts",
+    "/style.css": "../../packages/play-vrowzer/fixtures/vite-vanilla/style.css",
+    "/typescript.svg": "../../packages/play-vrowzer/fixtures/vite-vanilla/typescript.svg",
+    "/vrowzer.svg": "../../packages/play-vrowzer/fixtures/vite-vanilla/vrowzer.svg"
+  },
+  "activeFile": "/main.ts"
+}

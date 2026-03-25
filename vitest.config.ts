@@ -70,7 +70,7 @@ export default defineConfig({
           include: ['./packages/vite-dev-server/src/**/*.test.ts']
         }
       },
-      // TODO(kazupon): SW-based browser tests are flaky. Plan repo-level E2E tests via play-vrowser instead.
+      // TODO(kazupon): SW-based browser tests are flaky. Plan repo-level E2E tests via play-vrowzer instead.
       // {
       //   extends: './packages/vite-dev-server/vitest.config.ts',
       //   test: {
@@ -122,7 +122,7 @@ export default defineConfig({
       {
         resolve: {
           alias: {
-            events: '@vrowser/node-polyfill/events'
+            events: '@vrowzer/node-polyfill/events'
           }
         },
         test: {
@@ -147,23 +147,23 @@ export default defineConfig({
         }
       },
       {
-        extends: './packages/vrowser/vitest.config.ts',
+        extends: './packages/vrowzer/vitest.config.ts',
         test: {
-          name: 'vrowser:unit',
-          include: ['./packages/vrowser/src/**/*.test.ts']
+          name: 'vrowzer:unit',
+          include: ['./packages/vrowzer/src/**/*.test.ts']
         }
       },
       {
         test: {
-          name: 'vrowser:integration',
-          include: ['./packages/vrowser/integration/**/*.integration-test.ts'],
+          name: 'vrowzer:integration',
+          include: ['./packages/vrowzer/integration/**/*.integration-test.ts'],
           testTimeout: 60000,
           hookTimeout: 120000
         }
       },
       {
         test: {
-          name: 'vrowser:e2e:hosts',
+          name: 'vrowzer:e2e:hosts',
           include: ['./e2e/vite-*/**/*.e2e-test.ts'],
           testTimeout: 60000,
           hookTimeout: 120000,

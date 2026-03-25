@@ -6,8 +6,8 @@ const __dirname = path.dirname(new URL(import.meta.url).pathname)
 export default defineConfig({
   resolve: {
     alias: {
-      // Map @vrowser/rolldown/utils to the pre-bundled dist file
-      '@vrowser/rolldown/utils': path.resolve(__dirname, '../../dist/browser/utils.js')
+      // Map @vrowzer/rolldown/utils to the pre-bundled dist file
+      '@vrowzer/rolldown/utils': path.resolve(__dirname, '../../dist/browser/utils.js')
     }
   },
   define: {
@@ -17,7 +17,7 @@ export default defineConfig({
   build: {
     target: 'esnext',
     minify: false,
-    // Don't process worker URLs in @vrowser/rolldown dist files
+    // Don't process worker URLs in @vrowzer/rolldown dist files
     // Worker scripts are pre-bundled and copied separately
     rollupOptions: {
       input: path.join(__dirname, 'index.html')

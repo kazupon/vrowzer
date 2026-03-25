@@ -1,6 +1,6 @@
-# @vrowser/unplugin-service-worker
+# @vrowzer/unplugin-service-worker
 
-unplugin for `@vrowser/service-worker`
+unplugin for `@vrowzer/service-worker`
 
 ## ✨ Features
 
@@ -16,22 +16,22 @@ unplugin for `@vrowser/service-worker`
 
 ```sh
 # npm
-npm install -D @vrowser/unplugin-service-worker
+npm install -D @vrowzer/unplugin-service-worker
 
 # pnpm
-pnpm add -D @vrowser/unplugin-service-worker
+pnpm add -D @vrowzer/unplugin-service-worker
 
 # yarn
-yarn add -D @vrowser/unplugin-service-worker
+yarn add -D @vrowzer/unplugin-service-worker
 
 # bun
-bun add -D @vrowser/unplugin-service-worker
+bun add -D @vrowzer/unplugin-service-worker
 ```
 
 <!-- eslint-disable markdown/no-missing-label-refs -->
 
 > [!NOTE]
-> This plugin requires `@vrowser/service-worker` to be installed in your project.
+> This plugin requires `@vrowzer/service-worker` to be installed in your project.
 
 <!-- eslint-enable markdown/no-missing-label-refs -->
 
@@ -40,7 +40,7 @@ bun add -D @vrowser/unplugin-service-worker
 
 ```ts
 // vite.config.ts
-import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
 
 export default defineConfig({
   plugins: [ServiceWorker()]
@@ -54,7 +54,7 @@ export default defineConfig({
 
 ```ts
 // rolldown.config.ts / tsdown.config.ts
-import ServiceWorker from '@vrowser/unplugin-service-worker/rolldown'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/rolldown'
 
 export default {
   plugins: [ServiceWorker()]
@@ -68,7 +68,7 @@ export default {
 
 ```ts
 // rollup.config.js
-import ServiceWorker from '@vrowser/unplugin-service-worker/rollup'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/rollup'
 
 export default {
   plugins: [ServiceWorker()]
@@ -82,7 +82,7 @@ export default {
 
 ```ts
 import { build } from 'esbuild'
-import ServiceWorker from '@vrowser/unplugin-service-worker/esbuild'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/esbuild'
 
 build({
   plugins: [ServiceWorker()]
@@ -96,7 +96,7 @@ build({
 
 ```js
 // webpack.config.js
-import ServiceWorker from '@vrowser/unplugin-service-worker/webpack'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/webpack'
 
 export default {
   /* ... */
@@ -111,7 +111,7 @@ export default {
 
 ```ts
 // rspack.config.js
-import ServiceWorker from '@vrowser/unplugin-service-worker/rspack'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/rspack'
 
 export default {
   /* ... */
@@ -126,7 +126,7 @@ export default {
 
 ```ts
 // farm.config.ts
-import ServiceWorker from '@vrowser/unplugin-service-worker/farm'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/farm'
 
 export default {
   plugins: [ServiceWorker()]
@@ -139,7 +139,7 @@ export default {
 <summary>Bun</summary><br>
 
 ```ts
-import ServiceWorker from '@vrowser/unplugin-service-worker/bun'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/bun'
 
 Bun.build({
   entrypoints: ['./src/main.ts'],
@@ -158,7 +158,7 @@ The plugin detects `createSvcWorkerController()` calls with `new URL()` pattern 
 
 ```ts
 // src/main.ts
-import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 
 // The plugin detects this pattern and bundles './sw.ts' as a separate entry
 const controller = createSvcWorkerController({
@@ -191,7 +191,7 @@ When the Service Worker entry file is provided by a library (e.g. in `node_modul
 
 ```ts
 ServiceWorker({
-  entry: './node_modules/vrowser/dist/service-worker.ts'
+  entry: './node_modules/vrowzer/dist/service-worker.ts'
 })
 ```
 
@@ -241,7 +241,7 @@ When you specify a `scope` parameter in `createSvcWorkerController()`, the plugi
 
 ```ts
 // src/main.ts
-import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 
 const controller = createSvcWorkerController({
   scriptURL: new URL('./sw.ts', import.meta.url),
@@ -330,7 +330,7 @@ When `assets` is specified, the plugin automatically:
 You can also add `wasmUrlPlugin()` to the `plugins` option manually if you need more control:
 
 ```ts
-import ServiceWorker, { wasmUrlPlugin } from '@vrowser/unplugin-service-worker/vite'
+import ServiceWorker, { wasmUrlPlugin } from '@vrowzer/unplugin-service-worker/vite'
 
 ServiceWorker({
   plugins: [wasmUrlPlugin()],
@@ -354,7 +354,7 @@ ServiceWorker({
 ServiceWorker({
   // Explicit Service Worker entry file path
   // Default: undefined
-  entry: './node_modules/vrowser/dist/service-worker.ts',
+  entry: './node_modules/vrowzer/dist/service-worker.ts',
 
   // Files to include for Service Worker processing
   // Default: [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]
@@ -408,7 +408,7 @@ The `assets` option allows you to emit additional files alongside the bundled Se
 ServiceWorker({
   assets: [
     // Emit WASM file next to the Service Worker bundle
-    { src: './node_modules/@vrowser/oxc-parser/dist/vrowser_oxc_parser_bg.wasm' },
+    { src: './node_modules/@vrowzer/oxc-parser/dist/vrowzer_oxc_parser_bg.wasm' },
     // Emit with a custom filename
     { src: './static/model.bin', fileName: 'model.bin' }
   ]

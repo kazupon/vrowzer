@@ -39,7 +39,7 @@ describe('vanilla-basic', () => {
     }
 
     await ctx.page.evaluate(() => {
-      ;(window as any).__vrowser__.updateFile(
+      ;(window as any).__vrowzer__.updateFile(
         '/main.ts',
         `
 document.querySelector('#app')!.innerHTML = '<h1>HMR Updated</h1>'

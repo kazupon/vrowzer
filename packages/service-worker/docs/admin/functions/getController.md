@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / getController
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / getController
 
 # Function: getController()
 
@@ -31,7 +31,7 @@ The controller if found, undefined otherwise
 ## Example
 
 ```ts
-import { getController } from '@vrowser/service-worker/admin'
+import { getController } from '@vrowzer/service-worker/admin'
 
 const controller = getController(new URL('./sw.js', import.meta.url), 'v1.0.0')
 if (controller) {

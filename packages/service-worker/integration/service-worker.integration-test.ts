@@ -1,5 +1,5 @@
 /**
- * @vrowser/service-worker E2E Tests
+ * @vrowzer/service-worker E2E Tests
  *
  * Comprehensive end-to-end tests covering:
  * - Controller API (createSvcWorkerController)

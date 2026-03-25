@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [default](../index.md) / rmdirSync
+[@vrowzer/fs](../../index.md) / [default](../index.md) / rmdirSync
 
 # Variable: rmdirSync()
 

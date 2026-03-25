@@ -1,2 +1,2 @@
-// @vrowser/node-polyfill
+// @vrowzer/node-polyfill
 // Browser-compatible Node.js module polyfills

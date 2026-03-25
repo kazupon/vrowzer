@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [watcher](../index.md) / FSWriteMessage
+[@vrowzer/fs](../../index.md) / [watcher](../index.md) / FSWriteMessage
 
 # Interface: FSWriteMessage
 

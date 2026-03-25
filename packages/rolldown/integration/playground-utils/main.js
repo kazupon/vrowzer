@@ -1,11 +1,11 @@
 /**
- * E2E test page for @vrowser/rolldown/utils
+ * E2E test page for @vrowzer/rolldown/utils
  *
  * Tests transformSync, parseSync, and minifySync in a browser environment.
  * Results are exposed via window.testState for Playwright assertions.
  */
 
-import { transformSync, parseSync, minifySync } from '@vrowser/rolldown/utils'
+import { transformSync, parseSync, minifySync } from '@vrowzer/rolldown/utils'
 
 window.testState = { status: 'initializing', result: null, error: null }
 

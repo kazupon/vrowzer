@@ -88,7 +88,7 @@ export function promiseWithResolvers<T>(): PromiseWithResolvers<T> {
 // TODO: fill in later ...
 
 // ------------------------------------------------------------------------------------------------
-// @vrowser/vite-dev-server original code below
+// @vrowzer/vite-dev-server original code below
 // ------------------------------------------------------------------------------------------------
 
 /**

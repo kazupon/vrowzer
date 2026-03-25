@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [controller](../index.md) / SvcWorkerControllerOptions
+[@vrowzer/service-worker](../../index.md) / [controller](../index.md) / SvcWorkerControllerOptions
 
 # Interface: SvcWorkerControllerOptions
 

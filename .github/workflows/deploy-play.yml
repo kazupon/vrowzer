@@ -1,4 +1,4 @@
-name: Deploy Vrowser Playground
+name: Deploy Vrowzer Playground
 on:
   workflow_dispatch: # eslint-disable-line yml/no-empty-mapping-value -- disalbe
 
@@ -30,15 +30,15 @@ jobs:
 
       - name: Generate manifests (CJS to ESM bundles)
         run: |
-          pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-vue -o packages/play-vrowser/fixtures/vite-vue/vrowser-manifest.json -t vue --name "Vrowser + Vue"
-          pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-react -o packages/play-vrowser/fixtures/vite-react/vrowser-manifest.json -t react -t react-dom --name "Vrowser + React"
-          pnpm gen:manifest packages/play-vrowser/package.json -p packages/play-vrowser/fixtures/vite-svelte -o packages/play-vrowser/fixtures/vite-svelte/vrowser-manifest.json -t svelte --name "Vrowser + Svelte"
+          pnpm gen:manifest packages/play-vrowzer/package.json -p packages/play-vrowzer/fixtures/vite-vue -o packages/play-vrowzer/fixtures/vite-vue/vrowzer-manifest.json -t vue --name "Vrowzer + Vue"
+          pnpm gen:manifest packages/play-vrowzer/package.json -p packages/play-vrowzer/fixtures/vite-react -o packages/play-vrowzer/fixtures/vite-react/vrowzer-manifest.json -t react -t react-dom --name "Vrowzer + React"
+          pnpm gen:manifest packages/play-vrowzer/package.json -p packages/play-vrowzer/fixtures/vite-svelte -o packages/play-vrowzer/fixtures/vite-svelte/vrowzer-manifest.json -t svelte --name "Vrowzer + Svelte"
 
       - name: Build vite-dev-server
         run: pnpm --filter vite-dev-server... run build
 
-      - name: Build play-vrowser
-        run: pnpm --filter play-vrowser... run build
+      - name: Build play-vrowzer
+        run: pnpm --filter play-vrowzer... run build
 
       - name: Create cloudflare pages project (if not exists)
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
@@ -46,11 +46,11 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages project create vrowser-playground --production-branch=main
+          command: pages project create vrowzer-playground --production-branch=main
 
       - name: Deploy cloudflare pages
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy packages/play-vrowser/dist --project-name=vrowser-playground --commit-dirty=true
+          command: pages deploy packages/play-vrowzer/dist --project-name=vrowzer-playground --commit-dirty=true

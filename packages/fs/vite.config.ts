@@ -8,15 +8,15 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      'node:events': '@vrowser/node-polyfill/events',
+      'node:events': '@vrowzer/node-polyfill/events',
       'node:path': 'pathe',
       'node:stream': 'readable-stream',
       'node:buffer': 'buffer',
       buffer: 'buffer',
-      events: '@vrowser/node-polyfill/events',
+      events: '@vrowzer/node-polyfill/events',
       path: 'pathe',
       stream: 'readable-stream',
-      'native-process': '@vrowser/node-polyfill/process'
+      'native-process': '@vrowzer/node-polyfill/process'
     }
   },
   define: {
@@ -27,10 +27,10 @@ export default defineConfig({
     include: [
       'memfs',
       'buffer',
-      '@vrowser/node-polyfill/events',
+      '@vrowzer/node-polyfill/events',
       'pathe',
       'readable-stream',
-      '@vrowser/node-polyfill/process'
+      '@vrowzer/node-polyfill/process'
     ]
   }
 })

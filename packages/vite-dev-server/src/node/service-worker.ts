@@ -1,5 +1,5 @@
 /**
- * Service Worker entry point for @vrowser/vite-dev-server
+ * Service Worker entry point for @vrowzer/vite-dev-server
  *
  * This module exports everything needed to run the Vite dev server
  * as a proxy inside a Service Worker: server creation, middleware,
@@ -13,7 +13,7 @@
  * @license MIT
  */
 
-import { createSvcWorkerServer } from '@vrowser/service-worker-server'
+import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
@@ -44,10 +44,10 @@ import {
   resolveEmptyOutDir,
 } from './watch'
 
-const debug = createDebugger('vrowser:service-worker')
+const debug = createDebugger('vrowzer:service-worker')
 
 import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-import type { ListenOptions, SvcWorkerServer } from '@vrowser/service-worker-server'
+import type { ListenOptions, SvcWorkerServer } from '@vrowzer/service-worker-server'
 import type { BlankSchema, Env } from 'hono/types'
 import type { ConnectWebWorkerPortMessage, ViteMessageChannelInitMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
@@ -316,7 +316,7 @@ export function createServer(
   const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage>(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: true,
-    debug: createDebugger('vrowser:svc-worker-server')!,
+    debug: createDebugger('vrowzer:svc-worker-server')!,
   })
   const fetchHandler = handle(middlewares)
 
@@ -422,7 +422,7 @@ export function createServer(
       transformRequest(url, options) {
         debug?.('transformRequest:', url)
         if (!workerRpc) {
-          throw new Error('[@vrowser/vite-dev-server/service-worker] transformRequest requires workerPort to be set in CreateServerOptions')
+          throw new Error('[@vrowzer/vite-dev-server/service-worker] transformRequest requires workerPort to be set in CreateServerOptions')
         }
         // delegate to Web Worker via birpc
         return workerRpc.transformRequest(url, options)
@@ -439,7 +439,7 @@ export function createServer(
       transformIndexHtml(url, html, originalUrl) {
         debug?.('transformIndexHtml:', url, originalUrl)
         if (!workerRpc) {
-          throw new Error('[@vrowser/vite-dev-server/service-worker] transformIndexHtml requires workerPort to be set in CreateServerOptions')
+          throw new Error('[@vrowzer/vite-dev-server/service-worker] transformIndexHtml requires workerPort to be set in CreateServerOptions')
         }
         // delegate to Web Worker via birpc
         return workerRpc.transformIndexHtml(url, html, originalUrl)

@@ -1,4 +1,4 @@
-import type { ListenOptions } from '@vrowser/service-worker-server'
+import type { ListenOptions } from '@vrowzer/service-worker-server'
 import type { OutgoingHttpHeaders as HttpServerHeaders } from 'node:http'
 import type { ServerOptions as HttpsServerOptions } from 'node:https'
 import type { HttpServer } from './server'

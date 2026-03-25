@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [promises](../index.md) / lchown
+[@vrowzer/fs](../../index.md) / [promises](../index.md) / lchown
 
 # Variable: lchown()
 

@@ -13,12 +13,12 @@
  */
 
 export function createServer() {
-  throw new Error('[vrowser] node:net createServer is not supported in browser/Worker environment')
+  throw new Error('[vrowzer] node:net createServer is not supported in browser/Worker environment')
 }
 
 export function createConnection() {
   throw new Error(
-    '[vrowser] node:net createConnection is not supported in browser/Worker environment'
+    '[vrowzer] node:net createConnection is not supported in browser/Worker environment'
   )
 }
 
@@ -38,13 +38,13 @@ export function isIPv6(_input: string): boolean {
 
 export class Socket {
   constructor() {
-    throw new Error('[vrowser] node:net Socket is not supported in browser/Worker environment')
+    throw new Error('[vrowzer] node:net Socket is not supported in browser/Worker environment')
   }
 }
 
 export class Server {
   constructor() {
-    throw new Error('[vrowser] node:net Server is not supported in browser/Worker environment')
+    throw new Error('[vrowzer] node:net Server is not supported in browser/Worker environment')
   }
 }
 

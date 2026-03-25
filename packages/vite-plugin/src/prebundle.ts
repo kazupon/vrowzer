@@ -2,7 +2,7 @@
  * Pre-bundle Worker config using rolldown.
  *
  * Takes the extracted Worker source from extract.ts and bundles it
- * into node_modules/.vrowser/ for Worker consumption.
+ * into node_modules/.vrowzer/ for Worker consumption.
  *
  * @module prebundle
  */
@@ -21,7 +21,7 @@ import { resolveAliases } from './alias.ts'
 
 import type { Plugin as RolldownPlugin } from 'rolldown'
 
-const debug = createDebug('vite-plugin-vrowser:prebundle')
+const debug = createDebug('vite-plugin-vrowzer:prebundle')
 
 export interface PrebundleOptions {
   /** Generated Worker config source code */
@@ -32,7 +32,7 @@ export interface PrebundleOptions {
   configDir: string
 }
 
-const OUTPUT_DIR_NAME = '.vrowser'
+const OUTPUT_DIR_NAME = '.vrowzer'
 const BUNDLED_FILENAME = 'config.bundled.mjs'
 
 /**
@@ -75,7 +75,7 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
   // Bundle with rolldown
   const bundle = await rolldown({
     input: entryPath,
-    external: [new RegExp('^@vrowser/'), 'assert', 'v8'],
+    external: [new RegExp('^@vrowzer/'), 'assert', 'v8'],
     // Define process.env.NODE_ENV so plugin code doesn't need runtime process global
     transform: {
       define: {
@@ -83,17 +83,17 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
         global: 'globalThis'
       },
       inject: {
-        process: '@vrowser/node-polyfill/process'
+        process: '@vrowzer/node-polyfill/process'
       }
     },
-    // Map Node.js builtins to browser polyfills and vite to vrowser's shim.
+    // Map Node.js builtins to browser polyfills and vite to vrowzer's shim.
     // These are resolved at prebundle time and the aliases appear as external
     // imports in the output (resolved by host Vite's resolve.alias at serve time).
     resolve: {
       alias: resolveAliases({
         // Only node:process is aliased here — bare `process` stays as-is.
         // Host Vite's @rollup/plugin-inject or resolve.alias handles it at serve time.
-        'node:process': '@vrowser/node-polyfill/process'
+        'node:process': '@vrowzer/node-polyfill/process'
       }),
       mainFields: ['module', 'main'],
       conditionNames: ['browser', 'import', 'default']
@@ -116,23 +116,23 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
 }
 
 /**
- * Rolldown plugin to redirect `vite` imports to `@vrowser/vite-dev-server/vite`.
+ * Rolldown plugin to redirect `vite` imports to `@vrowzer/vite-dev-server/vite`.
  * Handles both exact `vite` and subpaths like `vite/internal`.
  */
 function viteAliasPlugin(): RolldownPlugin {
-  const VITE_INTERNAL_ID = '\0vrowser:vite-internal-stub'
+  const VITE_INTERNAL_ID = '\0vrowzer:vite-internal-stub'
   return {
-    name: 'vrowser:vite-alias',
+    name: 'vrowzer:vite-alias',
     resolveId(id) {
       if (id === 'vite') {
-        return { id: '@vrowser/vite-dev-server/vite', external: true }
+        return { id: '@vrowzer/vite-dev-server/vite', external: true }
       }
       // vite/internal is a Rolldown Vite 8 internal — stub it out
       if (id === 'vite/internal') {
         return { id: VITE_INTERNAL_ID, external: false }
       }
       if (id.startsWith('vite/')) {
-        return { id: id.replace(/^vite\//, '@vrowser/vite-dev-server/vite/'), external: true }
+        return { id: id.replace(/^vite\//, '@vrowzer/vite-dev-server/vite/'), external: true }
       }
     },
     load(id) {
@@ -161,10 +161,10 @@ function inlineReadFileSyncPlugin(configDir: string): RolldownPlugin {
   const RE = /readFileSync\(\s*([\s\S]+?)\s*,\s*['"]utf-?8['"]\s*\)/g
 
   return {
-    name: 'vrowser:inline-readFileSync',
+    name: 'vrowzer:inline-readFileSync',
     transform(code, id) {
       // Only process the entry file, not dependencies
-      if (!id.includes('_entry.mt') && !id.includes('.vrowser/')) {
+      if (!id.includes('_entry.mt') && !id.includes('.vrowzer/')) {
         return
       }
       if (!code.includes('readFileSync')) {
@@ -235,7 +235,7 @@ function inlineCreateRequirePlugin(): RolldownPlugin {
   const RE = /createRequire\([^)]+\)\(\s*['"]([^'"]+)['"]\s*\)/g
 
   return {
-    name: 'vrowser:inline-createRequire',
+    name: 'vrowzer:inline-createRequire',
     transform(code, id) {
       if (!code.includes('createRequire')) {
         return

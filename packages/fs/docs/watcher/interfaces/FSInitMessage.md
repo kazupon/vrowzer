@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [watcher](../index.md) / FSInitMessage
+[@vrowzer/fs](../../index.md) / [watcher](../index.md) / FSInitMessage
 
 # Interface: FSInitMessage
 

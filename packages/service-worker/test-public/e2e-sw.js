@@ -1,14 +1,14 @@
 /// <reference lib="webworker" />
 
 /**
- * E2E Test Service Worker using built @vrowser/service-worker/worker module
+ * E2E Test Service Worker using built @vrowzer/service-worker/worker module
  *
  * This service worker is used for e2e tests and imports from the built dist files.
  * Since this file is in publicDir (test-public), it's served as a static file
  * without Vite transformation, so we use direct path to dist instead of aliases.
  */
 
-// import { createSvcWorker } from '@vrowser/service-worker/worker'
+// import { createSvcWorker } from '@vrowzer/service-worker/worker'
 // same as above, but adjusted for static serving:
 import { createSvcWorker } from '/dist/worker.js'
 

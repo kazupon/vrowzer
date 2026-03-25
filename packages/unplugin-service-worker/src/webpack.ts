@@ -4,7 +4,7 @@
  * @example
  * ```js
  * // webpack.config.js
- * import ServiceWorker from '@vrowser/unplugin-service-worker/webpack'
+ * import ServiceWorker from '@vrowzer/unplugin-service-worker/webpack'
  *
  * export default {
  *   plugins: [ServiceWorker()],

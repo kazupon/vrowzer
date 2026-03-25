@@ -1,5 +1,5 @@
 /**
- * @vrowser/rolldown
+ * @vrowzer/rolldown
  *
  * Pre-bundled @rolldown/browser for easy browser usage.
  * All dependencies (including @napi-rs/wasm-runtime) are pre-resolved,
@@ -7,8 +7,8 @@
  *
  * @example
  * ```ts
- * import { rolldown } from '@vrowser/rolldown'
- * import { memfs } from '@vrowser/rolldown/experimental'
+ * import { rolldown } from '@vrowzer/rolldown'
+ * import { memfs } from '@vrowzer/rolldown/experimental'
  *
  * memfs.volume.fromJSON({ '/src/index.js': 'export const x = 1' })
  * const bundle = await rolldown({ input: '/src/index.js' })

@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [watcher](../index.md) / createFileSystemSubscriber
+[@vrowzer/fs](../../index.md) / [watcher](../index.md) / createFileSystemSubscriber
 
 # Function: createFileSystemSubscriber()
 
@@ -16,7 +16,7 @@ Create a [FileSystemSubscriber](../interfaces/FileSystemSubscriber.md) instance.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `fs` | [`FileSystemInterfaces`](../interfaces/FileSystemInterfaces.md) | fs instance to use for vol operations. Must be explicitly passed to avoid module instance mismatch when bundlers create separate copies of @vrowser/fs. |
+| `fs` | [`FileSystemInterfaces`](../interfaces/FileSystemInterfaces.md) | fs instance to use for vol operations. Must be explicitly passed to avoid module instance mismatch when bundlers create separate copies of @vrowzer/fs. |
 | `options?` | [`CreateFileSystemSubscriberOptions`](../interfaces/CreateFileSystemSubscriberOptions.md) | Options including optional external watcher |
 
 ## Returns

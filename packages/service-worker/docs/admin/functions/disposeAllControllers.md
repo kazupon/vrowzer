@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / disposeAllControllers
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / disposeAllControllers
 
 # Function: disposeAllControllers()
 
@@ -22,7 +22,7 @@ Use [terminateAllServiceWorkers](terminateAllServiceWorkers.md) to terminate ser
 ## Example
 
 ```ts
-import { disposeAllControllers } from '@vrowser/service-worker/admin'
+import { disposeAllControllers } from '@vrowzer/service-worker/admin'
 
 // Clean up all controllers on page unload
 window.addEventListener('unload', () => {

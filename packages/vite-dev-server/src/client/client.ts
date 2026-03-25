@@ -34,7 +34,7 @@ declare const __BUNDLED_DEV__: boolean
 // console.debug('[vite] connecting...')
 
 const importMetaUrl = new URL(import.meta.url)
-console.debug('[vrowser] connecting... ', importMetaUrl.href)
+console.debug('[vrowzer] connecting... ', importMetaUrl.href)
 
 // use server configuration, then fallback to inference
 const serverHost = __SERVER_HOST__
@@ -69,7 +69,7 @@ const transport = normalizeModuleRunnerTransport(
             currentScriptHostURL.host +
             currentScriptHostURL.pathname.replace(/@vite\/client$/, '')
           console.error(
-            '[vrowser] failed to connect to MessageChannel.\n' +
+            '[vrowzer] failed to connect to MessageChannel.\n' +
             'your current setup:\n' +
             `  (browser) ${currentScriptHost} <--[Message Channel]--> ${serverHost} (server: service worker)\n`,
           )
@@ -189,9 +189,9 @@ const pageReload = debounceReload(20)
 
 const hmrClient = new HMRClient(
   {
-    error: (err) => console.error('[vrowser]', err),
-    debug: (...msg) => console.debug('[vrowser]', ...msg),
-    // NOTE(kazupon): for console debug for vrowser
+    error: (err) => console.error('[vrowzer]', err),
+    debug: (...msg) => console.debug('[vrowzer]', ...msg),
+    // NOTE(kazupon): for console debug for vrowzer
     // error: (err) => console.error('[vite]', err),
     // debug: (...msg) => console.debug('[vite]', ...msg),
   },
@@ -246,14 +246,14 @@ const hmrClient = new HMRClient(
     },
 )
 
-console.log('[vrowser] connecting to HMR MessageChannel server...')
+console.log('[vrowzer] connecting to HMR MessageChannel server...')
 transport.connect!(createHMRHandler(handleMessage))
 
 async function handleMessage(payload: HotPayload) {
   switch (payload.type) {
     case 'connected':
-      console.debug(`[vrowser] ${payload.clientId} connected.`)
-      // NOTE(kazupon): for console debug for vrowser
+      console.debug(`[vrowzer] ${payload.clientId} connected.`)
+      // NOTE(kazupon): for console debug for vrowzer
       // console.debug(`[vite] connected.`)
       break
     case 'update':
@@ -310,8 +310,8 @@ async function handleMessage(payload: HotPayload) {
             newLinkTag.href = new URL(newPath, el.href).href
             const removeOldEl = () => {
               el.remove()
-              console.debug(`[vrowser] css hot updated: ${searchUrl}`)
-              // NOTE(kazupon): for console debug for vrowser
+              console.debug(`[vrowzer] css hot updated: ${searchUrl}`)
+              // NOTE(kazupon): for console debug for vrowzer
               // console.debug(`[vite] css hot updated: ${searchUrl}`)
               resolve()
             }
@@ -328,8 +328,8 @@ async function handleMessage(payload: HotPayload) {
       await hmrClient.notifyListeners(payload.event, payload.data)
       if (payload.event === 'vite:ws:disconnect') {
         if (hasDocument && !willUnload) {
-          console.log(`[vrowser] server connection lost. Reloading...`)
-          // NOTE(kazupon): for console log for vrowser
+          console.log(`[vrowzer] server connection lost. Reloading...`)
+          // NOTE(kazupon): for console log for vrowzer
           // console.log(`[vite] server connection lost. Reloading...`)
           location.reload()
         }
@@ -369,8 +369,8 @@ async function handleMessage(payload: HotPayload) {
           createErrorOverlay(err)
         } else {
           console.error(
-            `[vrowser] Internal Server Error\n${err.message}\n${err.stack}`,
-            // NOTE(kazupon): for console error for vrowser
+            `[vrowzer] Internal Server Error\n${err.message}\n${err.stack}`,
+            // NOTE(kazupon): for console error for vrowzer
             // `[vite] Internal Server Error\n${err.message}\n${err.stack}`,
           )
         }
@@ -492,7 +492,7 @@ function hasErrorOverlay() {
 //     port.addEventListener('message', (event) => {
 //       const { visibility } = event.data
 //       visibilityManager.currentState = visibility
-//       console.debug('[vrowser] new window visibility', visibility)
+//       console.debug('[vrowzer] new window visibility', visibility)
 //       // NOTE(kazupon): for console debug for vite
 //       // console.debug('[vite] new window visibility', visibility)
 //       for (const listener of visibilityManager.listeners) {
@@ -504,7 +504,7 @@ function hasErrorOverlay() {
 //     console.debug('[vite] connected from window')
 //     waitForSuccessfulPingInternal(socketUrl, visibilityManager).then(
 //       () => {
-//         console.debug('[vrowser] ping successful')
+//         console.debug('[vrowzer] ping successful')
 //         // NOTE(kazupon): for console debug for vite
 //         // console.debug('[vite] ping successful')
 //         try {
@@ -514,7 +514,7 @@ function hasErrorOverlay() {
 //         }
 //       },
 //       (error) => {
-//         console.debug('[vrowser] error happened', error)
+//         console.debug('[vrowzer] error happened', error)
 //         // NOTE(kazupon): for console debug for vite
 //         // console.debug('[vite] error happened', error)
 //         try {

@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { createSvcWorker } from '@vrowser/service-worker/worker'
+import { createSvcWorker } from '@vrowzer/service-worker/worker'
 
 const SW_VERSION = '2026-01-16-001'
 

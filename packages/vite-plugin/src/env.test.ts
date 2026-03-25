@@ -7,9 +7,9 @@ function createPlugin() {
 }
 
 describe('envPlugin', () => {
-  test('plugin name is "vrowser:env"', () => {
+  test('plugin name is "vrowzer:env"', () => {
     const plugin = createPlugin()
-    expect(plugin.name).toBe('vrowser:env')
+    expect(plugin.name).toBe('vrowzer:env')
   })
 
   test('options hook sets transform.inject for process', () => {
@@ -17,7 +17,7 @@ describe('envPlugin', () => {
     const inputOptions: Record<string, any> = {}
     ;(plugin as any).options(inputOptions)
 
-    expect(inputOptions.transform.inject.process).toBe('@vrowser/node-polyfill/process')
+    expect(inputOptions.transform.inject.process).toBe('@vrowzer/node-polyfill/process')
   })
 
   test('options hook merges with existing inject', () => {
@@ -30,19 +30,19 @@ describe('envPlugin', () => {
     ;(plugin as any).options(inputOptions)
 
     expect(inputOptions.transform.inject.Buffer).toBe('buffer')
-    expect(inputOptions.transform.inject.process).toBe('@vrowser/node-polyfill/process')
+    expect(inputOptions.transform.inject.process).toBe('@vrowzer/node-polyfill/process')
   })
 
   test('config hook sets resolve.alias for node polyfills', () => {
     const plugin = createPlugin()
     const result = (plugin as any).config({}, { command: 'serve' })
 
-    expect(result.resolve.alias['node:fs']).toBe('@vrowser/fs')
+    expect(result.resolve.alias['node:fs']).toBe('@vrowzer/fs')
     expect(result.resolve.alias['node:path']).toBe('pathe')
-    expect(result.resolve.alias['node:events']).toBe('@vrowser/node-polyfill/events')
-    expect(result.resolve.alias['node:url']).toBe('@vrowser/node-polyfill/url')
+    expect(result.resolve.alias['node:events']).toBe('@vrowzer/node-polyfill/events')
+    expect(result.resolve.alias['node:url']).toBe('@vrowzer/node-polyfill/url')
     expect(result.resolve.alias['node:buffer']).toBe('buffer')
-    expect(result.resolve.alias.fs).toBe('@vrowser/fs')
+    expect(result.resolve.alias.fs).toBe('@vrowzer/fs')
     expect(result.resolve.alias.path).toBe('pathe')
   })
 

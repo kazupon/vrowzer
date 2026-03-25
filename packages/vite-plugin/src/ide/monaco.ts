@@ -7,7 +7,7 @@
 
 // Disable Monaco Editor web workers in the pre-built IDE.
 // Workers require separate bundle entries which are complex to serve
-// from the /__vrowser__/dist/ middleware. Without workers, Monaco still
+// from the /__vrowzer__/dist/ middleware. Without workers, Monaco still
 // provides syntax highlighting, code editing, and basic completions —
 // only background IntelliSense (type checking, advanced completions) is unavailable.
 ;(self as any).MonacoEnvironment = {

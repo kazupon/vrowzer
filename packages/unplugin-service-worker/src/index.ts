@@ -170,8 +170,8 @@ function rewriteEntryUrls(
         : null
 
     // Use realpathSync to resolve symlinks (e.g. pnpm workspace symlinks)
-    // so that paths like `node_modules/vrowser/dist/sw.ts` (symlink)
-    // and `packages/vrowser/dist/sw.ts` (actual) are correctly matched.
+    // so that paths like `node_modules/vrowzer/dist/sw.ts` (symlink)
+    // and `packages/vrowzer/dist/sw.ts` (actual) are correctly matched.
     if (resolvedPath && safeRealpath(resolvedPath) === safeRealpath(entryPath)) {
       if (mode === 'rollup' && emitFile && rollupReferenceIds) {
         // Rollup/Rolldown: emit chunk and use ROLLUP_FILE_URL
@@ -1719,7 +1719,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
         }
 
         // If explicit entry is specified, add it to pending Service Workers.
-        // This allows bundling SW files from node_modules (e.g. vrowser/service-worker)
+        // This allows bundling SW files from node_modules (e.g. vrowzer/service-worker)
         // that are excluded from code scanning.
         if (options.entry) {
           const entryPath = path.isAbsolute(options.entry)
@@ -1746,7 +1746,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
             filter: options.entry
               ? {
                   // When entry is specified, also scan node_modules for new URL() references
-                  // to the entry file. This allows rewriting URLs in library code (e.g. vrowser).
+                  // to the entry file. This allows rewriting URLs in library code (e.g. vrowzer).
                   id: {
                     include: [
                       /\.[cm]?[jt]sx?$/,

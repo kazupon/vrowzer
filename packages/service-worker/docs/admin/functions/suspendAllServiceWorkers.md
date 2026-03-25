@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / suspendAllServiceWorkers
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / suspendAllServiceWorkers
 
 # Function: suspendAllServiceWorkers()
 
@@ -30,7 +30,7 @@ Map of registry keys to suspend results
 ## Example
 
 ```ts
-import { suspendAllServiceWorkers } from '@vrowser/service-worker/admin'
+import { suspendAllServiceWorkers } from '@vrowzer/service-worker/admin'
 
 // Suspend all service workers (e.g., for maintenance)
 const results = await suspendAllServiceWorkers()

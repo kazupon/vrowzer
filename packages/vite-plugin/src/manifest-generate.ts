@@ -1,8 +1,8 @@
 /**
- * Core logic for generating vrowser-manifest.json.
+ * Core logic for generating vrowzer-manifest.json.
  *
  * Shared between `scripts/generate-manifest.ts` (CLI) and
- * the `Vrowser()` plugin (auto-generation mode).
+ * the `Vrowzer()` plugin (auto-generation mode).
  *
  * @module manifest-generate
  */
@@ -91,7 +91,7 @@ const EXCLUDE_DIRS = new Set([
   '.github',
   '.pnpm',
   '.vite',
-  '.vrowser',
+  '.vrowzer',
   '__tests__',
   '__mocks__',
   'node_modules',
@@ -103,7 +103,7 @@ const EXCLUDE_DIRS = new Set([
 
 const EXCLUDE_FILE_PREFIXES = ['README', 'LICENSE', 'CHANGELOG', 'LICENCE']
 const EXCLUDE_FILE_SUFFIXES = ['.map']
-const EXCLUDE_FILE_NAMES = new Set(['manifest.json', 'vrowser-manifest.json', 'package.json'])
+const EXCLUDE_FILE_NAMES = new Set(['manifest.json', 'vrowzer-manifest.json', 'package.json'])
 const TEST_FILE_RE = /\.(test|spec)\.(js|mjs|cjs|ts|cts|mts)$/
 
 const PROJECT_SOURCE_PATTERNS = ['index.html', 'src', 'public']
@@ -470,7 +470,7 @@ export async function bundleCjsPackages(
     return { nodeModulesEntries: {} }
   }
 
-  const esmDir = resolve(nodeModulesRoot, '.vrowser-esm')
+  const esmDir = resolve(nodeModulesRoot, '.vrowzer-esm')
   await mkdir(esmDir, { recursive: true })
 
   // Generate ESM wrapper entries with explicit named exports
@@ -552,7 +552,7 @@ export async function bundleCjsPackages(
 
   for (const chunk of output) {
     if (chunk.type === 'chunk') {
-      const virtualPath = `/node_modules/.vrowser-esm/${chunk.fileName}`
+      const virtualPath = `/node_modules/.vrowzer-esm/${chunk.fileName}`
       const relPath = relative(sourceDir, resolve(esmDir, chunk.fileName)).replace(/\\/g, '/')
       nodeModulesEntries[virtualPath] = './' + relPath
     }
@@ -564,7 +564,7 @@ export async function bundleCjsPackages(
     if (!pkgExportsMap.has(pkgName)) {
       pkgExportsMap.set(pkgName, {})
     }
-    pkgExportsMap.get(pkgName)![subpath] = `../.vrowser-esm/${entryName}.js`
+    pkgExportsMap.get(pkgName)![subpath] = `../.vrowzer-esm/${entryName}.js`
   }
 
   for (const { pkgName, pkg } of cjsPackages) {
@@ -596,10 +596,10 @@ export interface GenerateManifestLog {
 }
 
 /**
- * Generate a vrowser manifest from a project directory.
+ * Generate a vrowzer manifest from a project directory.
  *
  * This is the main entry point for manifest generation, used by both
- * the CLI script and the Vrowser plugin's auto-generation mode.
+ * the CLI script and the Vrowzer plugin's auto-generation mode.
  */
 export async function generateManifest(
   options: GenerateManifestOptions,

@@ -1,13 +1,13 @@
 /**
- * E2E test page for @vrowser/rolldown
+ * E2E test page for @vrowzer/rolldown
  *
  * Imports pre-bundled rolldown and runs a bundling operation in the browser.
  * Results are exposed via window.testState for Playwright assertions.
  */
 
-// These imports work because @vrowser/rolldown pre-bundles all dependencies
-import { rolldown } from '@vrowser/rolldown/browser'
-import { memfs } from '@vrowser/rolldown/browser/experimental'
+// These imports work because @vrowzer/rolldown pre-bundles all dependencies
+import { rolldown } from '@vrowzer/rolldown/browser'
+import { memfs } from '@vrowzer/rolldown/browser/experimental'
 
 window.testState = { status: 'initializing', result: null, error: null }
 

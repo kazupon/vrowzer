@@ -1,7 +1,7 @@
 {
-  "name": "@vrowser/node-polyfill",
-  "description": "Browser-compatible Node.js module polyfills for vrowser",
-  "version": "0.0.2",
+  "name": "@vrowzer/node-polyfill",
+  "description": "Browser-compatible Node.js module polyfills for vrowzer",
+  "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
@@ -9,20 +9,20 @@
   "license": "MIT",
   "funding": "https://github.com/sponsors/kazupon",
   "bugs": {
-    "url": "https://github.com/kazupon/vrowser/issues"
+    "url": "https://github.com/kazupon/vrowzer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kazupon/vrowser.git",
+    "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/node-polyfill"
   },
   "keywords": [
     "polyfill",
     "node",
     "browser",
-    "vrowser"
+    "vrowzer"
   ],
-  "homepage": "https://github.com/kazupon/vrowser/packages/node-polyfill/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/packages/node-polyfill/README.md",
   "publishConfig": {
     "access": "public"
   },

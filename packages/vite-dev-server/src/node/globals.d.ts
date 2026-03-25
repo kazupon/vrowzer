@@ -5,4 +5,4 @@
  *
  * Used in resolvePlugins() to DCE transform plugins from the SW bundle.
  */
-declare const __VROWSER_SERVICE_WORKER__: boolean
+declare const __VROWZER_SERVICE_WORKER__: boolean

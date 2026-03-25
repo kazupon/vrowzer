@@ -3,7 +3,7 @@
 // https://github.com/paulmillr/chokidar/blob/3.6.0/types/index.d.ts
 // MIT Licensed https://github.com/paulmillr/chokidar/blob/3.6.0/LICENSE
 
-import type { VirtualFSWatcher } from '@vrowser/fs/watcher'
+import type { VirtualFSWatcher } from '@vrowzer/fs/watcher'
 import type { Matcher } from './anymatch'
 
 export interface FSWatcher extends VirtualFSWatcher {

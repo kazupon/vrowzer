@@ -9,7 +9,7 @@ import { isDynamicPattern } from 'tinyglobby'
 import type { DepsOptimizerEsbuildOptions } from '#types/internal/esbuildOptions'
 import {
   rolldown
-} from '@vrowser/rolldown'
+} from '@vrowzer/rolldown'
 // NOTE(kazupon): commented out for maintaining sync from original repo codes as background context
 // import {
 //   rolldown

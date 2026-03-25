@@ -167,7 +167,7 @@ export interface SvcWorker extends ServiceWorkerGlobalScope, Disposable {
  *
  * @example
  * ```ts
- * import { createSvcWorker } from '@vrowser/service-worker/worker'
+ * import { createSvcWorker } from '@vrowzer/service-worker/worker'
  *
  * const sw = createSvcWorker(self, { version: '1.0.0' })
  *

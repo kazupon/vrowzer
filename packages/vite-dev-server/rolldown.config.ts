@@ -12,7 +12,7 @@ import pkg from './package.json' with { type: 'json' }
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 // const disableSourceMap = !!process.env.DEBUG_DISABLE_SOURCE_MAP
 
-// TODO(kazupon): we mignt not need this for vrowser
+// TODO(kazupon): we mignt not need this for vrowzer
 const envConfig = defineConfig({
   input: path.resolve(__dirname, 'src/client/env.ts'),
   platform: 'browser',
@@ -42,9 +42,9 @@ const sharedNodeOptions = defineConfig({
   platform: 'browser',
   transform: {
     define: {
-      'process.env.NODE_ENV': JSON.stringify('development'), // vrowser always runs in dev mode (resolveConfig uses this for isProduction)
+      'process.env.NODE_ENV': JSON.stringify('development'), // vrowzer always runs in dev mode (resolveConfig uses this for isProduction)
       'process.platform': JSON.stringify('browser'), // for `tinyglobby` polyfill
-      '__VROWSER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
+      '__VROWZER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
     }
   },
   treeshake: {
@@ -79,7 +79,7 @@ const sharedNodeOptions = defineConfig({
 const nodeConfig = defineConfig({
   ...sharedNodeOptions,
   input: {
-    // NOTE(kazupon): commented out, this entry isn't used for vrowser, but we keep to maintain the code structure for later use.
+    // NOTE(kazupon): commented out, this entry isn't used for vrowzer, but we keep to maintain the code structure for later use.
     // index: path.resolve(__dirname, 'src/node/index.ts'),
     cli: path.resolve(__dirname, 'src/node/cli.ts'),
     internal: path.resolve(__dirname, 'src/node/internalIndex.ts')
@@ -152,9 +152,9 @@ const nodeConfig = defineConfig({
  *
  *   resolve: {
  *     alias: {
- *       'node:fs': '@vrowser/fs',
+ *       'node:fs': '@vrowzer/fs',
  *       'node:path': 'pathe',
- *       'fs': '@vrowser/fs',
+ *       'fs': '@vrowzer/fs',
  *       'path': 'pathe',
  *       // ... other polyfills
  *     }
@@ -177,7 +177,7 @@ const serviceWorkerConfig = defineConfig({
     ...sharedNodeOptions.transform,
     define: {
       ...sharedNodeOptions.transform?.define,
-      '__VROWSER_SERVICE_WORKER__': 'true',
+      '__VROWZER_SERVICE_WORKER__': 'true',
     },
   },
   external: [
@@ -186,7 +186,7 @@ const serviceWorkerConfig = defineConfig({
     'fs', 'path', 'url', 'util', 'os', 'crypto', 'stream', 'events', 'buffer', 'dns',
   ],
   plugins: [
-    // NOTE: PostCSS shimDepsPlugin is NOT needed here because __VROWSER_SERVICE_WORKER__ DCE
+    // NOTE: PostCSS shimDepsPlugin is NOT needed here because __VROWZER_SERVICE_WORKER__ DCE
     // eliminates css.ts and its postcss-load-config dependency from the SW bundle.
     // shimDepsPlugin for PostCSS is only in transformerConfig (WW bundle).
 
@@ -197,7 +197,7 @@ const serviceWorkerConfig = defineConfig({
     {
       name: 'stub-sw-unused-modules',
       resolveId: {
-        filter: { id: /^es-module-lexer$|^@vrowser\/rolldown$|^@vrowser\/rolldown\/parseAst$|^@vrowser\/rolldown\/experimental$|^@vrowser\/rolldown\/utils$/ },
+        filter: { id: /^es-module-lexer$|^@vrowzer\/rolldown$|^@vrowzer\/rolldown\/parseAst$|^@vrowzer\/rolldown\/experimental$|^@vrowzer\/rolldown\/utils$/ },
         handler(id) {
           return { id: `\0stub:${id}`, external: false }
         }
@@ -212,28 +212,28 @@ const serviceWorkerConfig = defineConfig({
               moduleType: 'js'
             }
           }
-          // @vrowser/rolldown main entry exports rolldown(), VERSION
-          if (id.endsWith('stub:@vrowser/rolldown')) {
+          // @vrowzer/rolldown main entry exports rolldown(), VERSION
+          if (id.endsWith('stub:@vrowzer/rolldown')) {
             return {
               code: 'export const rolldown = () => { throw new Error("rolldown is not available in Service Worker") }; export const VERSION = "stub";',
               moduleType: 'js'
             }
           }
-          // @vrowser/rolldown/parseAst exports parseAst() and parseAstAsync()
+          // @vrowzer/rolldown/parseAst exports parseAst() and parseAstAsync()
           if (id.includes('parseAst')) {
             return {
               code: 'export const parseAst = () => { throw new Error("parseAst is not available in Service Worker") }; export const parseAstAsync = parseAst;',
               moduleType: 'js'
             }
           }
-          // @vrowser/rolldown/utils exports transformSync, TransformOptions, TransformResult
+          // @vrowzer/rolldown/utils exports transformSync, TransformOptions, TransformResult
           if (id.includes('utils')) {
             return {
               code: 'const stubFn = () => { throw new Error("Not available in Service Worker") }; export const transformSync = stubFn;',
               moduleType: 'js'
             }
           }
-          // @vrowser/rolldown/experimental exports transformSync, viteTransformPlugin,
+          // @vrowzer/rolldown/experimental exports transformSync, viteTransformPlugin,
           // viteJsonPlugin, viteWasmFallbackPlugin, etc.
           // Stub all as noop/error — these are only used by DevEnvironment (Web Worker side).
           if (id.includes('experimental')) {
@@ -282,8 +282,8 @@ const moduleRunnerConfig = defineConfig({
   // },
 })
 
-// Resolve @vrowser/rolldown dist paths for WASM/Worker file copying
-const rolldownPkgDir = path.dirname(fileURLToPath(import.meta.resolve('@vrowser/rolldown/package.json')))
+// Resolve @vrowzer/rolldown dist paths for WASM/Worker file copying
+const rolldownPkgDir = path.dirname(fileURLToPath(import.meta.resolve('@vrowzer/rolldown/package.json')))
 const rolldownDistDir = path.resolve(rolldownPkgDir, 'dist')
 
 const transformerConfig = defineConfig({
@@ -301,34 +301,34 @@ const transformerConfig = defineConfig({
   },
   resolve: {
     alias: {
-      'node:events': '@vrowser/node-polyfill/events',
+      'node:events': '@vrowzer/node-polyfill/events',
       'node:path': 'pathe',
       'node:stream': 'readable-stream/lib/stream',
       'node:buffer': 'buffer',
-      'node:fs': '@vrowser/fs',
-      'node:fs/promises': '@vrowser/fs/promises',
-      'node:url': '@vrowser/node-polyfill/url',
-      'node:util': '@vrowser/node-polyfill/util',
-      'node:readline': '@vrowser/node-polyfill/readline',
-      'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
-      'node:dns': '@vrowser/node-polyfill/dns',
-      'node:os': '@vrowser/node-polyfill/os',
-      events: '@vrowser/node-polyfill/events',
+      'node:fs': '@vrowzer/fs',
+      'node:fs/promises': '@vrowzer/fs/promises',
+      'node:url': '@vrowzer/node-polyfill/url',
+      'node:util': '@vrowzer/node-polyfill/util',
+      'node:readline': '@vrowzer/node-polyfill/readline',
+      'node:perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
+      'node:dns': '@vrowzer/node-polyfill/dns',
+      'node:os': '@vrowzer/node-polyfill/os',
+      events: '@vrowzer/node-polyfill/events',
       path: 'pathe',
       stream: 'readable-stream/lib/stream',
       buffer: 'buffer',
-      fs: '@vrowser/fs',
-      'fs/promises': '@vrowser/fs/promises',
-      url: '@vrowser/node-polyfill/url',
-      util: '@vrowser/node-polyfill/util',
-      'readline': '@vrowser/node-polyfill/readline',
-      'perf_hooks': '@vrowser/node-polyfill/perf_hooks',
-      os: '@vrowser/node-polyfill/os',
-      crypto: '@vrowser/node-polyfill/crypto',
+      fs: '@vrowzer/fs',
+      'fs/promises': '@vrowzer/fs/promises',
+      url: '@vrowzer/node-polyfill/url',
+      util: '@vrowzer/node-polyfill/util',
+      'readline': '@vrowzer/node-polyfill/readline',
+      'perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
+      os: '@vrowzer/node-polyfill/os',
+      crypto: '@vrowzer/node-polyfill/crypto',
       // NOTE(kazupon):
       // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
-      'process/': '@vrowser/node-polyfill/process',
-      process: '@vrowser/node-polyfill/process',
+      'process/': '@vrowzer/node-polyfill/process',
+      process: '@vrowzer/node-polyfill/process',
     }
   },
   transform: {
@@ -338,11 +338,11 @@ const transformerConfig = defineConfig({
     // but bare `process.stdout`, `process.env` references in the code
     // need the global to be shimmed via inject.
     inject: {
-      process: '@vrowser/node-polyfill/process',
+      process: '@vrowzer/node-polyfill/process',
     },
   },
   plugins: [
-    // Stub postcss-load-config: vrowser doesn't load PostCSS config from filesystem.
+    // Stub postcss-load-config: vrowzer doesn't load PostCSS config from filesystem.
     // Config is always provided inline. This eliminates jiti and node:module dependencies.
     {
       name: 'stub-postcss-load-config',
@@ -383,7 +383,7 @@ const transformerConfig = defineConfig({
       ],
     }),
     // Rewrite rolldown WASM/Worker URLs to always use './'.
-    // @vrowser/rolldown's build outputs URLs relative to its chunks/ dir (e.g. ../rolldown-binding.wasm32-wasi.wasm).
+    // @vrowzer/rolldown's build outputs URLs relative to its chunks/ dir (e.g. ../rolldown-binding.wasm32-wasi.wasm).
     // We normalize these to './' and copy WASM/worker files alongside each chunk directory,
     // so the URLs work regardless of where the chunk ends up (including when re-bundled by consumers).
     {
@@ -441,9 +441,9 @@ const transformerConfig = defineConfig({
  *
  *   resolve: {
  *     alias: {
- *       'node:fs': '@vrowser/fs',
+ *       'node:fs': '@vrowzer/fs',
  *       'node:path': 'pathe',
- *       'fs': '@vrowser/fs',
+ *       'fs': '@vrowzer/fs',
  *       'path': 'pathe',
  *       // ... other polyfills
  *     }

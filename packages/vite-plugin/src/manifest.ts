@@ -1,11 +1,11 @@
 /**
- * Vite plugin that transforms vrowser-manifest.json imports.
+ * Vite plugin that transforms vrowzer-manifest.json imports.
  *
  * Replaces file path values with actual file contents so that
- * the imported manifest can be passed directly to Vrowser.ready().
+ * the imported manifest can be passed directly to Vrowzer.ready().
  *
- * Use the `?vrowser` query suffix to trigger this plugin:
- *   import manifest from './vrowser-manifest.json?vrowser'
+ * Use the `?vrowzer` query suffix to trigger this plugin:
+ *   import manifest from './vrowzer-manifest.json?vrowzer'
  *
  * @module manifest
  */
@@ -24,32 +24,32 @@ import type { Plugin } from 'vite'
 
 const MINIFIABLE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs'])
 
-const debug = createDebug('vite-plugin-vrowser:manifest')
+const debug = createDebug('vite-plugin-vrowzer:manifest')
 
-function parseId(id: string): { filePath: string; isVrowser: boolean } {
+function parseId(id: string): { filePath: string; isVrowzer: boolean } {
   try {
     const url = new URL(id, 'file://')
     return {
       filePath: url.pathname,
-      isVrowser: url.searchParams.has('vrowser')
+      isVrowzer: url.searchParams.has('vrowzer')
     }
   } catch {
-    return { filePath: id, isVrowser: false }
+    return { filePath: id, isVrowzer: false }
   }
 }
 
-export function VrowserManifest(): Plugin {
+export function VrowzerManifest(): Plugin {
   return {
-    name: 'vrowser:manifest-loader',
+    name: 'vrowzer:manifest-loader',
     resolveId(id) {
-      if (parseId(id).isVrowser) {
+      if (parseId(id).isVrowzer) {
         debug('resolveId:', id)
         return id
       }
     },
     load(id) {
-      const { filePath, isVrowser } = parseId(id)
-      if (!isVrowser) {
+      const { filePath, isVrowzer } = parseId(id)
+      if (!isVrowzer) {
         return
       }
       debug('loading manifest:', filePath)

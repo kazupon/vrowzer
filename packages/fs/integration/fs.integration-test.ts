@@ -1,5 +1,5 @@
 /**
- * @vrowser/fs E2E Tests
+ * @vrowzer/fs E2E Tests
  *
  * Tests filesystem operations in a real browser environment using Vite dev server.
  */
@@ -107,7 +107,7 @@ async function startDevServer(options: {
   })
 }
 
-describe('@vrowser/fs E2E', () => {
+describe('@vrowzer/fs E2E', () => {
   let context: BrowserContext
   let page: Page
 

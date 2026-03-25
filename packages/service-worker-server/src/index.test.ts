@@ -100,11 +100,11 @@ function createMockServiceWorkerGlobalScope(): MockServiceWorkerGlobalScope {
 }
 
 // Mock createSvcWorker
-vi.mock('@vrowser/service-worker/worker', () => ({
+vi.mock('@vrowzer/service-worker/worker', () => ({
   createSvcWorker: vi.fn()
 }))
 
-import { createSvcWorker } from '@vrowser/service-worker/worker'
+import { createSvcWorker } from '@vrowzer/service-worker/worker'
 
 describe('SvcWorkerServer', () => {
   let mockSelf: MockServiceWorkerGlobalScope

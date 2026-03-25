@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [promises](../index.md) / copyFile
+[@vrowzer/fs](../../index.md) / [promises](../index.md) / copyFile
 
 # Variable: copyFile()
 

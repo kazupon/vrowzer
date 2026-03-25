@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [default](../index.md) / glob
+[@vrowzer/fs](../../index.md) / [default](../index.md) / glob
 
 # Variable: glob()
 

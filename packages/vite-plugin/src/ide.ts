@@ -1,7 +1,7 @@
 /**
- * Browser IDE plugin for Vrowser.
+ * Browser IDE plugin for Vrowzer.
  *
- * When `experimental.ide` is enabled, serves a pre-built browser IDE at `/__vrowser__/`.
+ * When `experimental.ide` is enabled, serves a pre-built browser IDE at `/__vrowzer__/`.
  * The IDE is a self-contained Vue app with Monaco Editor, File Explorer, and Preview,
  * bundled into dist/ide/ at build time.
  *
@@ -25,12 +25,12 @@ import { WebSocketServer } from 'ws'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin, ViteDevServer } from 'vite'
 import type { WebSocket } from 'ws'
-import type { ResolvedVrowserOptions } from './options.ts'
+import type { ResolvedVrowzerOptions } from './options.ts'
 import type { ClientFunctions, ServerFunctions } from './ide/rpc.ts'
 
-const debug = createDebug('vite-plugin-vrowser:ide')
+const debug = createDebug('vite-plugin-vrowzer:ide')
 
-const IDE_BASE = '/__vrowser__'
+const IDE_BASE = '/__vrowzer__'
 const IDE_CLIENT_PATH = `${IDE_BASE}/client.js`
 
 // Resolve path to dist/ide/ directory (pre-built IDE assets)
@@ -56,14 +56,14 @@ function generateIdeClientCode(
   devtoolsUrl: string | null
 ): string {
   return `
-import { Vrowser } from 'vrowser'
-import manifest from 'virtual:vrowser-manifest'
+import { Vrowzer } from 'vrowzer'
+import manifest from 'virtual:vrowzer-manifest'
 
 // mountIde is loaded via script tag in HTML and exposed as global
-window.__vrowser_ide_mount__({
+window.__vrowzer_ide_mount__({
   manifest,
   basePath: '${basePath}',
-  Vrowser,
+  Vrowzer,
   rpcPort: ${rpcPort},
   devtoolsUrl: ${devtoolsUrl ? `'${devtoolsUrl}'` : 'null'}
 })
@@ -80,7 +80,7 @@ function generateIdeHtml(base: string, cssFile: string | null): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vrowser IDE</title>
+  <title>Vrowzer IDE</title>
   ${cssLink}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -118,7 +118,7 @@ function findAvailablePort(preferredPort?: number): Promise<number> {
   })
 }
 
-export function idePlugin(options: ResolvedVrowserOptions): Plugin {
+export function idePlugin(options: ResolvedVrowzerOptions): Plugin {
   let viteBase = '/'
   let ideCssFile: string | null = null
   let rpcPort = 0
@@ -137,7 +137,7 @@ export function idePlugin(options: ResolvedVrowserOptions): Plugin {
   }
 
   return {
-    name: 'vrowser:ide',
+    name: 'vrowzer:ide',
     apply: 'serve',
     async configResolved(config) {
       viteBase = config.base || '/'
@@ -251,12 +251,12 @@ export function idePlugin(options: ResolvedVrowserOptions): Plugin {
         const port = info.port || 5173
         setTimeout(() => {
           server.config.logger.info(
-            `  \x1b[36m➜\x1b[0m  \x1b[1mVrowser IDE\x1b[0m: \x1b[36m${protocol}://${host}:${port}${ideUrl}\x1b[0m`
+            `  \x1b[36m➜\x1b[0m  \x1b[1mVrowzer IDE\x1b[0m: \x1b[36m${protocol}://${host}:${port}${ideUrl}\x1b[0m`
           )
         }, 100)
       })
 
-      // Serve IDE at /__vrowser__/
+      // Serve IDE at /__vrowzer__/
       server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
         const url = req.url ?? ''
 

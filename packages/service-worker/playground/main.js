@@ -1,10 +1,10 @@
-import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 import {
   getAllControllers,
   suspendServiceWorker,
   resumeServiceWorker,
   terminateServiceWorker
-} from '@vrowser/service-worker/admin'
+} from '@vrowzer/service-worker/admin'
 
 // Application version - must match SW_VERSION in sw.js
 const SW_VERSION = '2026-01-16-001'

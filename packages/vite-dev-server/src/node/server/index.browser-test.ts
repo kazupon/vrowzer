@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { createSvcWorkerController } from '@vrowser/service-worker/controller'
-import type { SvcWorkerController } from '@vrowser/service-worker/controller'
+import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
+import type { SvcWorkerController } from '@vrowzer/service-worker/controller'
 
 // Clean up all service worker registrations
 async function cleanupServiceWorkers(): Promise<void> {

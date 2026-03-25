@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [watcher](../index.md) / FileSystemSubscriber
+[@vrowzer/fs](../../index.md) / [watcher](../index.md) / FileSystemSubscriber
 
 # Interface: FileSystemSubscriber
 

@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [controller](../index.md) / ReloadSuggestInfo
+[@vrowzer/service-worker](../../index.md) / [controller](../index.md) / ReloadSuggestInfo
 
 # Interface: ReloadSuggestInfo
 

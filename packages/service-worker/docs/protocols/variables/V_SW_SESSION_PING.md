@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_SESSION\_PING
+[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_SESSION\_PING
 
 # Variable: V\_SW\_SESSION\_PING
 

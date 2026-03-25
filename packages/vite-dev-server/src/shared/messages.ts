@@ -3,8 +3,8 @@
  *
  * These types define the message protocol used to establish and manage
  * the MessageChannel connection between Service Worker and Web Worker.
- * They are used by both @vrowser/vite-dev-server/service-worker and
- * @vrowser/vite-dev-server/web-worker, as well as the consumer
+ * They are used by both @vrowzer/vite-dev-server/service-worker and
+ * @vrowzer/vite-dev-server/web-worker, as well as the consumer
  * (play-dev-server) that orchestrates the connection.
  *
  * @module shared/messages
@@ -44,7 +44,7 @@ export interface SetupWorkerMessage {
    */
   options?: Record<string, unknown>
   /**
-   * Initial files to populate the virtual filesystem (@vrowser/fs).
+   * Initial files to populate the virtual filesystem (@vrowzer/fs).
    * Keys are absolute paths (e.g. '/main.js'), values are file contents.
    */
   files?: Record<string, string>

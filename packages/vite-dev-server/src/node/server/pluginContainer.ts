@@ -33,9 +33,9 @@ import type { FSWatcher } from '#dep-types/chokidar'
 import type { RawSourceMap } from '@jridgewell/remapping'
 import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping'
 import type { Program } from '@oxc-project/types'
-// NOTE(kazupon): In the service worker build, @vrowser/rolldown/parseAst is replaced with a stub
+// NOTE(kazupon): In the service worker build, @vrowzer/rolldown/parseAst is replaced with a stub
 // by the `stub-sw-unused-modules` plugin in serviceWorkerConfig (rolldown.config.ts).
-import { parseAst as rolldownParseAst } from '@vrowser/rolldown/parseAst'
+import { parseAst as rolldownParseAst } from '@vrowzer/rolldown/parseAst'
 import MagicString from 'magic-string'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'

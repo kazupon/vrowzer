@@ -1,5 +1,5 @@
 /**
- * vite-plugin-vrowser options
+ * vite-plugin-vrowzer options
  *
  * @module options
  */
@@ -16,7 +16,7 @@ export interface Alias {
   replacement: string
 }
 
-export interface VrowserManifestOptions {
+export interface VrowzerManifestOptions {
   /**
    * Directory to scan for project source files (index.html, src/, public/).
    * When the host page and preview content are in different directories,
@@ -40,7 +40,7 @@ export interface VrowserManifestOptions {
   targets?: string[]
 }
 
-export interface VrowserIdeOptions {
+export interface VrowzerIdeOptions {
   /**
    * Port for the birpc WebSocket server.
    * @default auto (find available port)
@@ -48,16 +48,16 @@ export interface VrowserIdeOptions {
   port?: number
 }
 
-export interface VrowserExperimentalOptions {
+export interface VrowzerExperimentalOptions {
   /**
-   * Enable browser IDE at `/__vrowser__/`.
+   * Enable browser IDE at `/__vrowzer__/`.
    *
    * When `true` or an options object, the plugin serves a browser-based IDE
-   * with Monaco Editor, File Explorer, and Preview at `/__vrowser__/`.
+   * with Monaco Editor, File Explorer, and Preview at `/__vrowzer__/`.
    *
    * @default false (disabled)
    */
-  ide?: boolean | VrowserIdeOptions
+  ide?: boolean | VrowzerIdeOptions
   /**
    * Enable Vite DevTools panel in IDE.
    *
@@ -69,17 +69,17 @@ export interface VrowserExperimentalOptions {
   devtools?: boolean
 }
 
-export interface VrowserOptions {
+export interface VrowzerOptions {
   /**
-   * Enable auto-generation of vrowser manifest.
+   * Enable auto-generation of vrowzer manifest.
    *
    * When `true` (default), the plugin automatically generates the manifest from
    * the project's package.json dependencies in `configResolved`. The manifest is
-   * cached in `node_modules/.vrowser-manifest/` and provided via the
-   * `virtual:vrowser-manifest` virtual module.
+   * cached in `node_modules/.vrowzer-manifest/` and provided via the
+   * `virtual:vrowzer-manifest` virtual module.
    *
-   * When `false`, use `VrowserManifest()` plugin with a manually created
-   * `vrowser-manifest.json` file (e.g. via `gen:manifest`).
+   * When `false`, use `VrowzerManifest()` plugin with a manually created
+   * `vrowzer-manifest.json` file (e.g. via `gen:manifest`).
    *
    * @default true
    */
@@ -87,21 +87,21 @@ export interface VrowserOptions {
   /**
    * Auto manifest generation options (used when auto: true).
    */
-  manifest?: VrowserManifestOptions
+  manifest?: VrowzerManifestOptions
   /**
-   * The base path for the preview system location, which is used to serve the preview files via service worker of Vrowser.
+   * The base path for the preview system location, which is used to serve the preview files via service worker of Vrowzer.
    *
    * @default '/__preview__/'
    */
   basePath?: string
   /**
-   * The scope for the service worker of Vrowser, which determines the range of URLs that the service worker will control.
+   * The scope for the service worker of Vrowzer, which determines the range of URLs that the service worker will control.
    *
    * @default '/' (the entire origin)
    */
   serviceWorkerScope?: string
   /**
-   * The version of the service worker for Vrowser, which can be used to manage updates and cache invalidation for the preview system.
+   * The version of the service worker for Vrowzer, which can be used to manage updates and cache invalidation for the preview system.
    *
    * @default 'SERVICE_WORKER_VERSION'
    */
@@ -111,11 +111,11 @@ export interface VrowserOptions {
    * When specified, `unplugin-service-worker` will bundle this file directly
    * instead of scanning source code for `createSvcWorkerController()` calls.
    *
-   * This is required when using a library-provided Service Worker (e.g. `vrowser/service-worker`)
+   * This is required when using a library-provided Service Worker (e.g. `vrowzer/service-worker`)
    * that is in `node_modules` and excluded from code scanning.
    *
-   * @example 'vrowser/service-worker'
-   * @default Resolved path to 'vrowser/service-worker' (node_modules/vrowser/dist/service-worker.ts)
+   * @example 'vrowzer/service-worker'
+   * @default Resolved path to 'vrowzer/service-worker' (node_modules/vrowzer/dist/service-worker.ts)
    */
   serviceWorkerEntry?: string
   /**
@@ -130,7 +130,7 @@ export interface VrowserOptions {
   /**
    * Experimental features.
    */
-  experimental?: VrowserExperimentalOptions
+  experimental?: VrowzerExperimentalOptions
 }
 
 export interface ResolvedIdeOptions {
@@ -139,9 +139,9 @@ export interface ResolvedIdeOptions {
   devtools: boolean
 }
 
-export interface ResolvedVrowserOptions {
+export interface ResolvedVrowzerOptions {
   auto: boolean
-  manifest: VrowserManifestOptions | undefined
+  manifest: VrowzerManifestOptions | undefined
   ide: ResolvedIdeOptions
   basePath: string
   serviceWorkerScope: string
@@ -152,13 +152,13 @@ export interface ResolvedVrowserOptions {
 
 function resolveDefaultServiceWorkerEntry(): string {
   try {
-    return fileURLToPath(import.meta.resolve('vrowser/service-worker'))
+    return fileURLToPath(import.meta.resolve('vrowzer/service-worker'))
   } catch {
     return ''
   }
 }
 
-export function resolveOptions(options: VrowserOptions): ResolvedVrowserOptions {
+export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
   const ide = options.experimental?.ide
   return {
     auto: options.auto ?? true,

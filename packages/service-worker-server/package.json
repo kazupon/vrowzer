@@ -1,7 +1,7 @@
 {
-  "name": "@vrowser/service-worker-server",
+  "name": "@vrowzer/service-worker-server",
   "description": "Serverized service worker with the Node Server interface",
-  "version": "0.0.2",
+  "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
@@ -9,19 +9,19 @@
   "license": "MIT",
   "funding": "https://github.com/sponsors/kazupon",
   "bugs": {
-    "url": "https://github.com/kazupon/vrowser/issues"
+    "url": "https://github.com/kazupon/vrowzer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kazupon/vrowser.git",
+    "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/service-worker-server"
   },
   "keywords": [
     "service-worker",
-    "vrowser",
+    "vrowzer",
     "server"
   ],
-  "homepage": "https://github.com/kazupon/vrowser/packages/service-worker-server/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/packages/service-worker-server/README.md",
   "publishConfig": {
     "access": "public"
   },
@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@kazupon/jts-utils": "catalog:",
-    "@vrowser/service-worker": "workspace:*"
+    "@vrowzer/service-worker": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",

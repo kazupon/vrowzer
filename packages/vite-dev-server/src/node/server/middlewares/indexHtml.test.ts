@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import type { MiddlewareHandler } from 'hono/types'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-// Mock pluginContainer to avoid loading @vrowser/rolldown WASM binding (which requires memfs with root dir)
+// Mock pluginContainer to avoid loading @vrowzer/rolldown WASM binding (which requires memfs with root dir)
 vi.mock('../pluginContainer', () => ({
   BasicMinimalPluginContext: class {},
   basePluginContextMeta: {},

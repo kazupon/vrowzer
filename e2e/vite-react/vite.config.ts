@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import react from '@vitejs/plugin-react'
-import { Vrowser, VrowserManifest } from '@vrowser/vite-plugin'
+import { Vrowzer, VrowzerManifest } from '@vrowzer/vite-plugin'
 import { defineConfig } from 'vite'
 
 import type { Plugin } from 'vite'
@@ -18,7 +18,7 @@ function reactRefreshRuntimePlugin(): Plugin {
     'https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react'
   )
   return {
-    name: 'vrowser:react-refresh-runtime',
+    name: 'vrowzer:react-refresh-runtime',
     enforce: 'pre',
     resolveId(id) {
       if (id === '/@react-refresh') {
@@ -37,5 +37,5 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@vitejs/plugin-react']
   },
-  plugins: [VrowserManifest(), reactRefreshRuntimePlugin(), react(), Vrowser({ auto: false })]
+  plugins: [VrowzerManifest(), reactRefreshRuntimePlugin(), react(), Vrowzer({ auto: false })]
 })

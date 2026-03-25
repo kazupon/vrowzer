@@ -1,12 +1,12 @@
 /**
- * Shared E2E test setup for vrowser hosts.
+ * Shared E2E test setup for vrowzer hosts.
  *
  * Provides `setupHost()` which handles server startup, browser launch,
- * page navigation, and Vrowser ready wait — common to all E2E host tests.
+ * page navigation, and Vrowzer ready wait — common to all E2E host tests.
  */
 
 import { afterAll, beforeAll } from 'vitest'
-import { debug, launchBrowser, startServer, waitForVrowserReady } from './test-utils.ts'
+import { debug, launchBrowser, startServer, waitForVrowzerReady } from './test-utils.ts'
 
 import type { Browser, Page } from '@playwright/test'
 import type { PreviewServer, ViteDevServer } from 'vite'
@@ -20,7 +20,7 @@ export interface HostContext {
  *
  * Call this at the top level of a test file to register `beforeAll`/`afterAll`
  * hooks that start the Vite server, launch the browser, navigate, and wait
- * for Vrowser to initialize.
+ * for Vrowzer to initialize.
  *
  * @param hostDir - Absolute path to the host directory (use `import.meta.dirname`)
  * @returns Context object with `page` (available after `beforeAll` resolves)
@@ -48,7 +48,7 @@ export function setupHost(hostDir: string): HostContext {
     page.on('pageerror', err => debug('[browser error]', err.message))
 
     await page.goto(serverUrl)
-    await waitForVrowserReady(page)
+    await waitForVrowzerReady(page)
   }, 120000)
 
   afterAll(async () => {

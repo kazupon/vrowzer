@@ -52,7 +52,7 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       'packages/node-polyfill/integration/**',
       'packages/oxlint-plugin-service-worker/**',
       'packages/vite-plugin/**',
-      'packages/vrowser/**',
+      'packages/vrowzer/**',
       'packages/rolldown/integration/**',
       'e2e/**'
     ]

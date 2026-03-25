@@ -23,7 +23,7 @@ const external = [
 
 export default defineConfig({
   input: {
-    // NOTE(kazupon): commented out, this entry isn't used for vrowser, but we keep to maintain the code structure for later use.
+    // NOTE(kazupon): commented out, this entry isn't used for vrowzer, but we keep to maintain the code structure for later use.
     // index: './src/node/index.ts',
     'module-runner': './src/module-runner/index.ts',
     internal: './src/node/internalIndex.ts',

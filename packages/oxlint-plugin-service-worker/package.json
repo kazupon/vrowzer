@@ -1,6 +1,6 @@
 {
-  "name": "@vrowser/oxlint-plugin-service-worker",
-  "description": "oxlint plugin for @vrowser/service-worker",
+  "name": "@vrowzer/oxlint-plugin-service-worker",
+  "description": "oxlint plugin for @vrowzer/service-worker",
   "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
@@ -9,11 +9,11 @@
   "license": "MIT",
   "funding": "https://github.com/sponsors/kazupon",
   "bugs": {
-    "url": "https://github.com/kazupon/vrowser/issues"
+    "url": "https://github.com/kazupon/vrowzer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kazupon/vrowser.git",
+    "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/oxlint-plugin-service-worker"
   },
   "keywords": [
@@ -21,9 +21,9 @@
     "oxlint",
     "eslint",
     "service-worker",
-    "vrowser"
+    "vrowzer"
   ],
-  "homepage": "https://github.com/kazupon/vrowser/packages/oxlint-plugin-service-worker/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/packages/oxlint-plugin-service-worker/README.md",
   "publishConfig": {
     "access": "public"
   },

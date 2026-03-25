@@ -1,4 +1,4 @@
-import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 
 const SW_VERSION = 'e2e-test-v1'
 

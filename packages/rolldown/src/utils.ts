@@ -1,5 +1,5 @@
 /**
- * @vrowser/rolldown/utils
+ * @vrowzer/rolldown/utils
  *
  * Provides utility APIs compatible with `rolldown/utils`.
  * In the browser environment, these are re-exported from `@rolldown/browser/experimental`.

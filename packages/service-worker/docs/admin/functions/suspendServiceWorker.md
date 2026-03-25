@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / suspendServiceWorker
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / suspendServiceWorker
 
 # Function: suspendServiceWorker()
 
@@ -39,7 +39,7 @@ Error if controller is not found
 ## Example
 
 ```ts
-import { suspendServiceWorker } from '@vrowser/service-worker/admin'
+import { suspendServiceWorker } from '@vrowzer/service-worker/admin'
 
 // Suspend a specific service worker
 const result = await suspendServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')

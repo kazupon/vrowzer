@@ -1,5 +1,5 @@
 /**
- * E2E test utilities for vrowser
+ * E2E test utilities for vrowzer
  *
  * Provides shared constants and helpers used across E2E test hosts.
  */
@@ -11,8 +11,8 @@ import { build, createServer, preview } from 'vite'
 import type { Browser, Page } from '@playwright/test'
 import type { PreviewServer, ViteDevServer } from 'vite'
 
-/** Whether running in build mode (VROWSER_TEST_BUILD=1) */
-export const isBuild = !!process.env.VROWSER_TEST_BUILD
+/** Whether running in build mode (VROWZER_TEST_BUILD=1) */
+export const isBuild = !!process.env.VROWZER_TEST_BUILD
 /** Whether running in serve (dev) mode */
 export const isServe = !isBuild
 
@@ -91,15 +91,15 @@ export async function launchBrowser(): Promise<Browser> {
 }
 
 /**
- * Wait for Vrowser to finish initialization in the page.
+ * Wait for Vrowzer to finish initialization in the page.
  * Resolves when the status text changes from "Initializing..." to "Ready" or "Failed".
  */
-export async function waitForVrowserReady(page: Page, timeout = 60000): Promise<void> {
+export async function waitForVrowzerReady(page: Page, timeout = 60000): Promise<void> {
   await page.waitForFunction(
     () => {
       const el =
         document.getElementById('status') ??
-        document.querySelector('[data-testid="vrowser-status"]') ??
+        document.querySelector('[data-testid="vrowzer-status"]') ??
         document.querySelector('.status')
       return el?.textContent === 'Ready' || el?.textContent === 'Failed'
     },

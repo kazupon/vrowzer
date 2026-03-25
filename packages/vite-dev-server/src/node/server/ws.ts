@@ -265,7 +265,7 @@ export function createMessageChannelServer(
 
     // Set up error handler
     safePort.on('messageerror', err => {
-      console.error(`[vrowser] MessageChannel error:`, err)
+      console.error(`[vrowzer] MessageChannel error:`, err)
       // NOTE(kazupon): Disable orignal WebSocket error logging, because MessageChannel errors are not as critical as WebSocket errors and can be noisy during development.
       // config.logger.error(`${colors.red(`ws error:`)}\n${err.stack}`, {
       //   timestamp: true,

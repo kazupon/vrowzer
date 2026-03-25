@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import ServiceWorker from '@vrowser/unplugin-service-worker/bun'
+ * import ServiceWorker from '@vrowzer/unplugin-service-worker/bun'
  *
  * Bun.build({
  *   entrypoints: ['./src/main.ts'],

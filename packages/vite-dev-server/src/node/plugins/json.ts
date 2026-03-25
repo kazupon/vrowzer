@@ -7,7 +7,7 @@
  */
 
 import { dataToEsm, makeLegalIdentifier } from '@rollup/pluginutils'
-import { viteJsonPlugin as nativeJsonPlugin } from '@vrowser/rolldown/experimental'
+import { viteJsonPlugin as nativeJsonPlugin } from '@vrowzer/rolldown/experimental'
 // NOTE(kazupon): comment out, because we need to understand the previous implementation as background
 // import { viteJsonPlugin as nativeJsonPlugin } from 'rolldown/experimental'
 import { SPECIAL_QUERY_RE } from '../constants'

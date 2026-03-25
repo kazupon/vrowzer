@@ -2,7 +2,7 @@ import { vol } from 'memfs'
 import { beforeEach, describe, expect, it } from 'vitest'
 import promises, { constants, mkdir, readFile, stat, writeFile } from './promises.ts'
 
-describe('@vrowser/fs promises entry', () => {
+describe('@vrowzer/fs promises entry', () => {
   beforeEach(() => {
     vol.reset()
   })

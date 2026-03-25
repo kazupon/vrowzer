@@ -17,7 +17,7 @@ const targets = Object.keys(pkg.exports).reduce((acc, key) => {
   return acc
 }, [] as string[])
 
-console.log(`Testing @vrowser/service-worker package v${pkg.version}`, targets)
+console.log(`Testing @vrowzer/service-worker package v${pkg.version}`, targets)
 
 // create `alias` entries for each target
 const alias = targets.reduce(
@@ -26,7 +26,7 @@ const alias = targets.reduce(
     if (!fs.existsSync(entryPath)) {
       throw new Error(`Build entry not found: ${entryPath}`)
     }
-    acc[`@vrowser/service-worker/${target}`] = entryPath
+    acc[`@vrowzer/service-worker/${target}`] = entryPath
     return acc
   },
   {} as Record<string, string>

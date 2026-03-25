@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / getAllControllers
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / getAllControllers
 
 # Function: getAllControllers()
 
@@ -21,7 +21,7 @@ A readonly array of all registered controllers
 ## Example
 
 ```ts
-import { getAllControllers } from '@vrowser/service-worker/admin'
+import { getAllControllers } from '@vrowzer/service-worker/admin'
 
 const controllers = getAllControllers()
 for (const controller of controllers) {

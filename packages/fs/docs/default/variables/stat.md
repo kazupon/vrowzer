@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [default](../index.md) / stat
+[@vrowzer/fs](../../index.md) / [default](../index.md) / stat
 
 # Variable: stat()
 

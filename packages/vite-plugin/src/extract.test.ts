@@ -2,12 +2,12 @@ import { describe, expect, test } from 'vitest'
 import { extractWorkerConfig, isWorkerExcludedImport } from './extract.ts'
 
 describe('isWorkerExcludedImport', () => {
-  test('detects @vrowser/vite-plugin', () => {
-    expect(isWorkerExcludedImport('@vrowser/vite-plugin')).toBe(true)
+  test('detects @vrowzer/vite-plugin', () => {
+    expect(isWorkerExcludedImport('@vrowzer/vite-plugin')).toBe(true)
   })
 
-  test('detects @vrowser/vite-plugin/config', () => {
-    expect(isWorkerExcludedImport('@vrowser/vite-plugin/config')).toBe(true)
+  test('detects @vrowzer/vite-plugin/config', () => {
+    expect(isWorkerExcludedImport('@vrowzer/vite-plugin/config')).toBe(true)
   })
 
   test('detects @vitejs/devtools', () => {
@@ -36,24 +36,24 @@ export default defineConfig({
     expect(result.code).toContain('vue()')
   })
 
-  test('excludes Vrowser() call and its import', () => {
+  test('excludes Vrowzer() call and its import', () => {
     const source = `
 import vue from '@vitejs/plugin-vue'
-import { Vrowser } from '@vrowser/vite-plugin'
+import { Vrowzer } from '@vrowzer/vite-plugin'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [
     vue(),
-    Vrowser({ serviceWorkerEntry: 'test' })
+    Vrowzer({ serviceWorkerEntry: 'test' })
   ]
 })
 `
     const result = extractWorkerConfig(source, 'vite.config.ts')
     expect(result.unsupported).toEqual([])
     expect(result.code).toContain('vue()')
-    expect(result.code).not.toContain('Vrowser')
-    expect(result.code).not.toContain('@vrowser/vite-plugin')
+    expect(result.code).not.toContain('Vrowzer')
+    expect(result.code).not.toContain('@vrowzer/vite-plugin')
   })
 
   test('preserves plugin with arguments', () => {
@@ -173,14 +173,14 @@ export default {
     const source = `
 import vue from '@vitejs/plugin-vue'
 import react from '@vitejs/plugin-react'
-import { Vrowser } from '@vrowser/vite-plugin'
+import { Vrowzer } from '@vrowzer/vite-plugin'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [
     vue(),
     react(),
-    Vrowser()
+    Vrowzer()
   ]
 })
 `
@@ -188,6 +188,6 @@ export default defineConfig({
     expect(result.unsupported).toEqual([])
     expect(result.code).toContain('vue()')
     expect(result.code).toContain('react()')
-    expect(result.code).not.toContain('Vrowser')
+    expect(result.code).not.toContain('Vrowzer')
   })
 })

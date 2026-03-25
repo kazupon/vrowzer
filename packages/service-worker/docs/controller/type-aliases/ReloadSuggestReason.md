@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [controller](../index.md) / ReloadSuggestReason
+[@vrowzer/service-worker](../../index.md) / [controller](../index.md) / ReloadSuggestReason
 
 # Type Alias: ReloadSuggestReason
 

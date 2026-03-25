@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { createSvcWorker } from '@vrowser/service-worker/worker'
+import { createSvcWorker } from '@vrowzer/service-worker/worker'
 
 const SW_VERSION = 'e2e-test-v1'
 

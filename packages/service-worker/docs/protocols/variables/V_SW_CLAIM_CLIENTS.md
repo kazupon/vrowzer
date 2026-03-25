@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_CLAIM\_CLIENTS
+[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_CLAIM\_CLIENTS
 
 # Variable: V\_SW\_CLAIM\_CLIENTS
 

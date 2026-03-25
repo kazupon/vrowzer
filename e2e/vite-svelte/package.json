@@ -1,5 +1,5 @@
 {
-  "name": "@vrowser/e2e-svelte-basic",
+  "name": "@vrowzer/e2e-svelte-basic",
   "private": true,
   "type": "module",
   "dependencies": {
@@ -7,8 +7,8 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "catalog:",
-    "@vrowser/vite-plugin": "workspace:*",
-    "vrowser": "workspace:*",
+    "@vrowzer/vite-plugin": "workspace:*",
+    "vrowzer": "workspace:*",
     "vite": "catalog:"
   }
 }

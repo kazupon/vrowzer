@@ -1,4 +1,4 @@
-# @vrowser/service-worker
+# @vrowzer/service-worker
 
 Safely deploy and manage Service Workers with version control, bidirectional communication, and emergency shutdown capabilities.
 
@@ -15,19 +15,19 @@ Safely deploy and manage Service Workers with version control, bidirectional com
 
 ```sh
 # npm
-npm install --save @vrowser/service-worker
+npm install --save @vrowzer/service-worker
 
 # pnpm
-pnpm add @vrowser/service-worker
+pnpm add @vrowzer/service-worker
 
 # yarn
-yarn add @vrowser/service-worker
+yarn add @vrowzer/service-worker
 
 # deno
-deno add npm:@vrowser/service-worker
+deno add npm:@vrowzer/service-worker
 
 # bun
-bun add @vrowser/service-worker
+bun add @vrowzer/service-worker
 ```
 
 ## 🚀 Usage
@@ -37,7 +37,7 @@ bun add @vrowser/service-worker
 The controller manages Service Worker registration, version verification, and lifecycle on the page side.
 
 ```ts
-import { createSvcWorkerController } from '@vrowser/service-worker/controller'
+import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 
 const controller = createSvcWorkerController({
   scriptURL: new URL('./sw.js', import.meta.url),
@@ -73,7 +73,7 @@ Use `createSvcWorker` to wrap the [Service Worker global scope](https://develope
 
 ```ts
 // sw.js
-import { createSvcWorker } from '@vrowser/service-worker/worker'
+import { createSvcWorker } from '@vrowzer/service-worker/worker'
 
 const sw = createSvcWorker(self, {
   version: '1.0.0',
@@ -111,7 +111,7 @@ import {
   terminateServiceWorker,
   suspendAllServiceWorkers,
   terminateAllServiceWorkers
-} from '@vrowser/service-worker/admin'
+} from '@vrowzer/service-worker/admin'
 
 // List all registered controllers
 const controllers = getAllControllers()
@@ -394,10 +394,10 @@ controller.dispose()
 
 | Entry Point                          | Description                 |
 | ------------------------------------ | --------------------------- |
-| `@vrowser/service-worker/admin`      | Admin API                   |
-| `@vrowser/service-worker/controller` | Controller                  |
-| `@vrowser/service-worker/worker`     | Service Worker wrapper      |
-| `@vrowser/service-worker/protocols`  | Message protocols and types |
+| `@vrowzer/service-worker/admin`      | Admin API                   |
+| `@vrowzer/service-worker/controller` | Controller                  |
+| `@vrowzer/service-worker/worker`     | Service Worker wrapper      |
+| `@vrowzer/service-worker/protocols`  | Message protocols and types |
 
 ## 📚 API References
 

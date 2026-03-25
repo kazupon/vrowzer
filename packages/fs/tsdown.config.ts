@@ -19,23 +19,23 @@ const config: ReturnType<typeof defineConfig> = defineConfig([
     noExternal: [
       'memfs',
       'buffer',
-      '@vrowser/node-polyfill/events',
+      '@vrowzer/node-polyfill/events',
       'pathe',
       'readable-stream',
-      '@vrowser/node-polyfill/process',
+      '@vrowzer/node-polyfill/process',
       /^@jsonjoy\.com\//
     ],
     // Node.js module aliases for browser compatibility
     alias: {
-      'node:events': '@vrowser/node-polyfill/events',
+      'node:events': '@vrowzer/node-polyfill/events',
       'node:path': 'pathe',
       'node:stream': 'readable-stream',
       'node:buffer': 'buffer',
       buffer: 'buffer',
-      events: '@vrowser/node-polyfill/events',
+      events: '@vrowzer/node-polyfill/events',
       path: 'pathe',
       stream: 'readable-stream',
-      process: '@vrowser/node-polyfill/process'
+      process: '@vrowzer/node-polyfill/process'
     },
     // Environment variable replacements
     define: {

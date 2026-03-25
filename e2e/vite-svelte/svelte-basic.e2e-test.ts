@@ -16,7 +16,7 @@ describe('svelte-basic', () => {
         const iframe = document.querySelector('iframe') as HTMLIFrameElement
         return iframe?.contentDocument
           ?.querySelector('h1')
-          ?.textContent?.includes('Vrowser + Svelte')
+          ?.textContent?.includes('Vrowzer + Svelte')
       },
       { timeout: 30000 }
     )
@@ -24,7 +24,7 @@ describe('svelte-basic', () => {
       const iframe = document.querySelector('iframe') as HTMLIFrameElement
       return iframe?.contentDocument?.body?.innerText ?? ''
     })
-    expect(text).toContain('Vrowser + Svelte')
+    expect(text).toContain('Vrowzer + Svelte')
     expect(text).toContain('count is')
   })
 
@@ -34,7 +34,7 @@ describe('svelte-basic', () => {
     }
 
     await ctx.page.evaluate(() => {
-      ;(window as any).__vrowser__.updateFile(
+      ;(window as any).__vrowzer__.updateFile(
         '/Counter.svelte',
         `<script lang="ts">
   let count: number = $state(0)

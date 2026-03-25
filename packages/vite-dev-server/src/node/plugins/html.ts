@@ -17,7 +17,7 @@ import type {
 import { stripLiteral } from 'strip-literal'
 import { cleanUrl } from '../../shared/utils'
 import type { ResolvedConfig } from '../config'
-// NOTE(kazupon): commented out, because env will not be supported in vrowser yet
+// NOTE(kazupon): commented out, because env will not be supported in vrowzer yet
 // import { resolveEnvPrefix } from '../env'
 import type { Logger } from '../logger'
 import type { MinimalPluginContextWithoutEnvironment, Plugin } from '../plugin'
@@ -491,7 +491,7 @@ export function injectCspNonceMetaTagHook(
 export function htmlEnvHook(config: ResolvedConfig): IndexHtmlTransformHook {
   const pattern = /%(\S+?)%/g
   const envPrefix: string[] = []
-  // NOTE(kazupon): commented out, because env will not be supported in vrowser yet
+  // NOTE(kazupon): commented out, because env will not be supported in vrowzer yet
   // const envPrefix = resolveEnvPrefix({ envPrefix: config.envPrefix })
   const env: Record<string, any> = { ...config.env }
 

@@ -1,8 +1,8 @@
 /**
- * Vite configuration for @vrowser/service-worker playground
+ * Vite configuration for @vrowzer/service-worker playground
  */
 
-import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
 import { defineConfig } from 'vite'
 
 import type { Plugin } from 'vite'

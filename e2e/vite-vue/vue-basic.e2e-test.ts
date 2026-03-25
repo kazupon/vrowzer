@@ -14,7 +14,7 @@ describe('vue-basic', () => {
     await ctx.page.waitForFunction(
       () => {
         const iframe = document.querySelector('iframe') as HTMLIFrameElement
-        return iframe?.contentDocument?.querySelector('h1')?.textContent?.includes('Vrowser + Vue')
+        return iframe?.contentDocument?.querySelector('h1')?.textContent?.includes('Vrowzer + Vue')
       },
       { timeout: 30000 }
     )
@@ -22,7 +22,7 @@ describe('vue-basic', () => {
       const iframe = document.querySelector('iframe') as HTMLIFrameElement
       return iframe?.contentDocument?.body?.innerText ?? ''
     })
-    expect(text).toContain('Vrowser + Vue')
+    expect(text).toContain('Vrowzer + Vue')
     expect(text).toContain('count is')
   })
 
@@ -32,7 +32,7 @@ describe('vue-basic', () => {
     }
 
     await ctx.page.evaluate(() => {
-      ;(window as any).__vrowser__.updateFile(
+      ;(window as any).__vrowzer__.updateFile(
         '/HelloWorld.vue',
         `<script setup lang="ts">
 import { ref } from 'vue'

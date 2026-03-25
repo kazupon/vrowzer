@@ -1,5 +1,5 @@
 /**
- * @vrowser/rolldown E2E Tests
+ * @vrowzer/rolldown E2E Tests
  *
  * Verifies that the pre-bundled rolldown works in a browser environment.
  * Builds a test playground with Vite, serves it with a static server
@@ -129,7 +129,7 @@ describe('standalone build (./browser)', () => {
   })
 })
 
-describe('shared build (./) — memfs instance sharing with @vrowser/fs', () => {
+describe('shared build (./) — memfs instance sharing with @vrowzer/fs', () => {
   let server: StaticServer
 
   beforeAll(async () => {
@@ -141,7 +141,7 @@ describe('shared build (./) — memfs instance sharing with @vrowser/fs', () => 
     await server?.close()
   })
 
-  test('rolldown memfs and @vrowser/fs share the same Volume instance', async () => {
+  test('rolldown memfs and @vrowzer/fs share the same Volume instance', async () => {
     const context = await browser.newContext()
     const page = await context.newPage()
 
@@ -160,7 +160,7 @@ describe('shared build (./) — memfs instance sharing with @vrowser/fs', () => 
     // Verify memfs instances are shared
     expect(testState.result.sharedRead).toBe(true)
 
-    // Verify rolldown can bundle files written via @vrowser/fs
+    // Verify rolldown can bundle files written via @vrowzer/fs
     expect(testState.result.bundleCode).toContain('add')
     expect(testState.result.bundleCode).toContain('console.log')
 

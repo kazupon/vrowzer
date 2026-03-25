@@ -1,14 +1,14 @@
 /**
- * Generate a vrowser-manifest.json from a target project's package.json.
+ * Generate a vrowzer-manifest.json from a target project's package.json.
  *
  * CLI wrapper around the shared manifest generation logic in
- * `@vrowser/vite-plugin/manifest-generate`.
+ * `@vrowzer/vite-plugin/manifest-generate`.
  *
  * Usage:
  *   tsx scripts/generate-manifest.ts [package.json path] [options]
  *
  * Options:
- *   --output, -o    Output path (default: vrowser-manifest.json in project dir)
+ *   --output, -o    Output path (default: vrowzer-manifest.json in project dir)
  *   --name          Manifest name (default: package.json name)
  *   --active-file   Default file to open in editor
  *   --target, -t    Package name(s) to include in nodeModules (can be specified multiple times)
@@ -76,7 +76,7 @@ function parseArgs(argv: string[]) {
 // --- Inspect ---
 
 function readCachedManifest(root: string): ManifestResult | null {
-  const manifestPath = join(root, 'node_modules', '.vrowser-manifest', 'manifest.json')
+  const manifestPath = join(root, 'node_modules', '.vrowzer-manifest', 'manifest.json')
   if (existsSync(manifestPath)) {
     try {
       return JSON.parse(readFileSync(manifestPath, 'utf-8'))
@@ -88,7 +88,7 @@ function readCachedManifest(root: string): ManifestResult | null {
 }
 
 function readManifestFile(dir: string): ManifestResult | null {
-  const manifestPath = join(dir, 'vrowser-manifest.json')
+  const manifestPath = join(dir, 'vrowzer-manifest.json')
   if (existsSync(manifestPath)) {
     try {
       return JSON.parse(readFileSync(manifestPath, 'utf-8'))
@@ -103,7 +103,7 @@ function printManifestSummary(manifest: ManifestResult, source: string): void {
   const files = manifest.files || {}
   const nodeModules = manifest.nodeModules || {}
 
-  console.log(`\nVrowser Manifest (${source})`)
+  console.log(`\nVrowzer Manifest (${source})`)
   console.log('─'.repeat(50))
   console.log(`  Name:        ${manifest.name}`)
   console.log(`  Active file: ${manifest.activeFile || '(none)'}`)
@@ -163,16 +163,16 @@ async function main() {
 
   // Inspect mode: show existing manifest
   if (inspect) {
-    // Try cached manifest first, then vrowser-manifest.json
+    // Try cached manifest first, then vrowzer-manifest.json
     let manifest = readCachedManifest(sourceDir)
-    let source = 'node_modules/.vrowser-manifest/'
+    let source = 'node_modules/.vrowzer-manifest/'
     if (!manifest) {
       manifest = readManifestFile(sourceDir)
-      source = 'vrowser-manifest.json'
+      source = 'vrowzer-manifest.json'
     }
 
     if (!manifest) {
-      console.error('No manifest found. Run gen:manifest first or enable auto mode in Vrowser().')
+      console.error('No manifest found. Run gen:manifest first or enable auto mode in Vrowzer().')
       process.exit(1)
     }
 
@@ -195,7 +195,7 @@ async function main() {
   })
 
   // Write output
-  const output = outputPath ? resolve(outputPath) : resolve(sourceDir, 'vrowser-manifest.json')
+  const output = outputPath ? resolve(outputPath) : resolve(sourceDir, 'vrowzer-manifest.json')
   await writeFile(output, JSON.stringify(manifest, null, 2) + '\n')
   console.log(`\nDone: ${relative(process.cwd(), output)}`)
 }

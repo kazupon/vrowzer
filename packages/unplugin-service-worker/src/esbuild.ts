@@ -4,7 +4,7 @@
  * @example
  * ```ts
  * import { build } from 'esbuild'
- * import ServiceWorker from '@vrowser/unplugin-service-worker/esbuild'
+ * import ServiceWorker from '@vrowzer/unplugin-service-worker/esbuild'
  *
  * build({ plugins: [ServiceWorker()] })
  * ```

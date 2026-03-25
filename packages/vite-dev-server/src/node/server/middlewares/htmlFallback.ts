@@ -27,10 +27,10 @@ const debug = createDebugger('vite:html-fallback')
 export function htmlFallbackMiddleware(
   root: string,
   spaFallback: boolean,
-  // NOTE(kazupon): vrowser does not use FullBundleDevEnvironment, so clientEnvironment is not needed
+  // NOTE(kazupon): vrowzer does not use FullBundleDevEnvironment, so clientEnvironment is not needed
   // clientEnvironment?: DevEnvironment,
 ): MiddlewareHandler<ViteEnv> {
-  // NOTE(kazupon): vrowser does not use FullBundleDevEnvironment memoryFiles
+  // NOTE(kazupon): vrowzer does not use FullBundleDevEnvironment memoryFiles
   // const memoryFiles =
   //   clientEnvironment instanceof FullBundleDevEnvironment
   //     ? clientEnvironment.memoryFiles

@@ -1,7 +1,7 @@
 import yaml from '@rollup/plugin-yaml'
-import { Vrowser, VrowserManifest } from '@vrowser/vite-plugin'
+import { Vrowzer, VrowzerManifest } from '@vrowzer/vite-plugin'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  plugins: [VrowserManifest(), yaml(), Vrowser({ auto: false })]
+  plugins: [VrowzerManifest(), yaml(), Vrowzer({ auto: false })]
 })

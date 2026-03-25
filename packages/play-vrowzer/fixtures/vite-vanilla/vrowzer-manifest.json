@@ -1,0 +1,13 @@
+{
+  "name": "Vrowzer Vanilla",
+  "files": {
+    "/index.html": "./index.html",
+    "/counter.ts": "./counter.ts",
+    "/data.yaml": "./data.yaml",
+    "/main.ts": "./main.ts",
+    "/style.css": "./style.css",
+    "/typescript.svg": "./typescript.svg",
+    "/vrowzer.svg": "./vrowzer.svg"
+  },
+  "activeFile": "/main.ts"
+}

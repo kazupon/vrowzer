@@ -3,9 +3,9 @@ import { serverMiddlewarePlugin } from './server.ts'
 import { resolveOptions } from './options.ts'
 
 describe('serverMiddlewarePlugin', () => {
-  test('plugin name is "vrowser:server-middleware"', () => {
+  test('plugin name is "vrowzer:server-middleware"', () => {
     const plugin = serverMiddlewarePlugin(resolveOptions({}))
-    expect(plugin.name).toBe('vrowser:server-middleware')
+    expect(plugin.name).toBe('vrowzer:server-middleware')
   })
 
   test('previewGuardMiddleware returns 503 for basePath requests', () => {

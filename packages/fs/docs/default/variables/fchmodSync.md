@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [default](../index.md) / fchmodSync
+[@vrowzer/fs](../../index.md) / [default](../index.md) / fchmodSync
 
 # Variable: fchmodSync()
 

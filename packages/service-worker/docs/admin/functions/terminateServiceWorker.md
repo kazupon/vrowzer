@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / terminateServiceWorker
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / terminateServiceWorker
 
 # Function: terminateServiceWorker()
 
@@ -39,7 +39,7 @@ Error if controller is not found or session is not established
 ## Example
 
 ```ts
-import { terminateServiceWorker } from '@vrowser/service-worker/admin'
+import { terminateServiceWorker } from '@vrowzer/service-worker/admin'
 
 // Terminate a specific service worker
 const result = await terminateServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0', { clearCaches: true })

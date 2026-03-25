@@ -1,7 +1,7 @@
 {
-  "name": "@vrowser/rolldown",
+  "name": "@vrowzer/rolldown",
   "description": "Pre-bundled @rolldown/browser for easy browser usage",
-  "version": "0.0.2",
+  "version": "0.0.0",
   "type": "module",
   "sideEffects": false,
   "files": [
@@ -52,13 +52,13 @@
   },
   "dependencies": {
     "@rolldown/browser": "1.0.0-rc.9",
-    "@vrowser/fs": "workspace:*"
+    "@vrowzer/fs": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
-    "@vrowser/node-polyfill": "workspace:*",
-    "@vrowser/service-worker": "workspace:*",
-    "@vrowser/unplugin-service-worker": "workspace:*",
+    "@vrowzer/node-polyfill": "workspace:*",
+    "@vrowzer/service-worker": "workspace:*",
+    "@vrowzer/unplugin-service-worker": "workspace:*",
     "buffer": "catalog:",
     "get-port-please": "catalog:",
     "pathe": "catalog:",

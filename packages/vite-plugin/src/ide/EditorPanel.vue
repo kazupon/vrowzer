@@ -67,7 +67,7 @@ function getOrCreateModel(path: string, content: string): monaco.editor.ITextMod
 }
 
 function selectFile(path: string) {
-  if (!editor || !editableFiles.value.has(path)) return
+  if (!editor || !editableFiles.value.has(path)) {return}
   currentFile.value = path
   const content = editableFiles.value.get(path)!
   const model = getOrCreateModel(path, content)
@@ -76,7 +76,7 @@ function selectFile(path: string) {
 }
 
 onMounted(() => {
-  if (!editorContainer.value) return
+  if (!editorContainer.value) {return}
 
   editor = monaco.editor.create(editorContainer.value, {
     theme: 'vs-dark',
@@ -96,9 +96,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  for (const d of disposables) d.dispose()
+  for (const d of disposables) {d.dispose()}
   disposables.length = 0
-  for (const model of models.values()) model.dispose()
+  for (const model of models.values()) {model.dispose()}
   models.clear()
   editor?.dispose()
   editor = null

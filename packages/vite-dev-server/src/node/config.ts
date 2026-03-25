@@ -1,16 +1,16 @@
 import type { Alias, AliasOptions } from '#dep-types/alias'
 import fs from 'node:fs'
 import path from 'node:path'
-// NOTE(kazupon): disable because vrowser will not need full bundle dev environment
+// NOTE(kazupon): disable because vrowzer will not need full bundle dev environment
 // import { performance } from 'node:perf_hooks'
 // import { pathToFileURL } from 'node:url'
 // import { createRequire } from 'node:module'
 // import { nodeResolveWithVite } from './nodeResolve'
 // import { createImportMetaResolver, importMetaResolveWithCustomHookString } from '../module-runner/importMetaResolver'
 // import { findNearestNodeModules } from './packages'
-// NOTE(kazupon): disalbe because vrowser will not need full bundle dev environment
+// NOTE(kazupon): disalbe because vrowzer will not need full bundle dev environment
 // import { rolldown } from 'rolldown'
-// NOTE(kazupon): disable, because vrowser will not need full bundle dev environment
+// NOTE(kazupon): disable, because vrowzer will not need full bundle dev environment
 // import { FullBundleDevEnvironment } from './server/environments/fullBundleEnvironment'
 import { inspect, promisify } from 'node:util'
 import colors from 'picocolors'
@@ -164,12 +164,12 @@ export function defineConfig(config: UserConfigExport): UserConfigExport {
 
 export interface CreateDevEnvironmentContext {
   ws: MessageChannelServer
-  // NOTE(kazupon): vrowser extension — not in upstream Vite.
+  // NOTE(kazupon): vrowzer extension — not in upstream Vite.
   // In Worker environments, packages are resolved via vendor aliases (e.g. svelte → /vendor/svelte.js),
   // not through node_modules prebundling. The dep optimizer must be disabled to prevent
   // `.vite/deps/` paths from being generated for packages that don't exist in the virtual FS.
   // Upstream Vite only uses `disableDepsOptimizer` internally in FullBundleDevEnvironment,
-  // but vrowser needs to pass it through the factory context for Worker DevEnvironment creation.
+  // but vrowzer needs to pass it through the factory context for Worker DevEnvironment creation.
   disableDepsOptimizer?: boolean
 }
 // NOTE(kazupon): comment out because we need to understand the previous implementation as background
@@ -236,7 +236,7 @@ function defaultCreateClientDevEnvironment(
   config: ResolvedConfig,
   context: CreateDevEnvironmentContext,
 ) {
-  // NOTE(kazupon): disable, because vrowser will not need full bundle dev environment
+  // NOTE(kazupon): disable, because vrowzer will not need full bundle dev environment
   // if (config.experimental.bundledDev) {
   //   return new FullBundleDevEnvironment(name, config, {
   //     hot: true,
@@ -247,7 +247,7 @@ function defaultCreateClientDevEnvironment(
   return new DevEnvironment(name, config, {
     hot: true,
     transport: context.ws,
-    // NOTE(kazupon): vrowser extension — pass through disableDepsOptimizer from factory context
+    // NOTE(kazupon): vrowzer extension — pass through disableDepsOptimizer from factory context
     disableDepsOptimizer: context.disableDepsOptimizer,
   })
 }
@@ -1862,7 +1862,7 @@ export async function resolveConfig(
     bundleChain: [],
     isProduction,
     plugins: userPlugins, // placeholder to be replaced
-    css: !__VROWSER_SERVICE_WORKER__
+    css: !__VROWZER_SERVICE_WORKER__
       ? (await import('./plugins/css')).resolveCSSOptions(config.css)
       : (configDefaults.css as ResolvedCSSOptions),
     json: mergeWithDefaults(configDefaults.json, config.json ?? {}),

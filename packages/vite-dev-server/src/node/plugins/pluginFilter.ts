@@ -105,7 +105,7 @@ function normalizeFilter(filter: StringFilter): NormalizedStringFilter {
 export function createIdFilter(
   filter: StringFilter | undefined,
   cwd: string = '/'
-  // TODO(kazupon): disable cwd default to '/', after `@vrowser/polyfills` is fixed.
+  // TODO(kazupon): disable cwd default to '/', after `@vrowzer/polyfills` is fixed.
   // cwd: string = process.cwd(),
 ): PluginFilter | undefined {
   if (!filter) {return}

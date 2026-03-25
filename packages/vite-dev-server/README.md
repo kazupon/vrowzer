@@ -1,4 +1,4 @@
-# @vrowser/vite-dev-server
+# @vrowzer/vite-dev-server
 
 This package is a fork of [Vite](https://github.com/vitejs/vite) that has been adjusted to run in a browser.
 

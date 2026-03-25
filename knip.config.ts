@@ -11,7 +11,7 @@ const config: KnipConfig = {
         '@jsonjoy.com/fs-node-utils',
         // Used for bundling via resolve.alias (node polyfills)
         'pathe',
-        '@vrowser/node-polyfill',
+        '@vrowzer/node-polyfill',
         'buffer',
         'premove',
         'readable-stream'
@@ -27,7 +27,7 @@ const config: KnipConfig = {
         'premove' // Used by clean script
       ]
     },
-    'packages/play-vrowser': {
+    'packages/play-vrowzer': {
       ignoreDependencies: [
         'vue/compiler-sfc' // Imported in vite.config.ts for Worker plugin override (not detected by knip)
       ]
@@ -36,9 +36,9 @@ const config: KnipConfig = {
       entry: ['src/index.ts', 'integration/**'],
       ignoreDependencies: [
         // Used for bundling via resolve.alias (node polyfills)
-        '@vrowser/node-polyfill',
-        '@vrowser/service-worker',
-        '@vrowser/unplugin-service-worker',
+        '@vrowzer/node-polyfill',
+        '@vrowzer/service-worker',
+        '@vrowzer/unplugin-service-worker',
         'buffer',
         'pathe',
         'readable-stream'
@@ -56,8 +56,8 @@ const config: KnipConfig = {
     'packages/vite-plugin': {
       // TODO(kazupon): These dependencies are used for bundling, but these might be unnecessary in 'dependecies'
       ignoreDependencies: [
-        '@vrowser/fs',
-        '@vrowser/node-polyfill',
+        '@vrowzer/fs',
+        '@vrowzer/node-polyfill',
         'buffer',
         'pathe',
         'readable-stream',
@@ -69,7 +69,7 @@ const config: KnipConfig = {
     // TODO(kazupon): enable after fnished to port from 'vite'
     // 'packages/vite-dev-server': {
     // }
-    'packages/vrowser': {
+    'packages/vrowzer': {
       entry: ['integration/**']
     }
   },
@@ -85,7 +85,7 @@ const config: KnipConfig = {
     'e2e/**'
   ],
   ignoreBinaries: [
-    'wrangler' // Used in play-vrowser scripts, installed as devDependency in play-vrowser
+    'wrangler' // Used in play-vrowzer scripts, installed as devDependency in play-vrowzer
   ],
   ignoreDependencies: [
     'lint-staged',

@@ -1,1 +1,1 @@
-console.log('@vrowser/vite cli not support, because vrowser use vite as library.')
+console.log('@vrowzer/vite cli not support, because vrowzer use vite as library.')

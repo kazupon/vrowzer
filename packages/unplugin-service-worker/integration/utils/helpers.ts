@@ -1,7 +1,7 @@
 import { rm, mkdir } from 'node:fs/promises'
 
 import type { Page } from '@playwright/test'
-import type { SvcWorkerControllerState } from '@vrowser/service-worker/controller'
+import type { SvcWorkerControllerState } from '@vrowzer/service-worker/controller'
 
 /**
  * Clean up service workers from the page

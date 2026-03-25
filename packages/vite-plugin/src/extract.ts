@@ -2,7 +2,7 @@
  * Static analysis of vite.config.ts for Worker plugin extraction.
  *
  * Parses the user's vite.config.ts with OXC (via rolldown/experimental),
- * removes Vrowser() calls and their imports,
+ * removes Vrowzer() calls and their imports,
  * and generates a Worker-compatible config source.
  *
  * @module extract
@@ -27,7 +27,7 @@ import type {
   Program
 } from '@oxc-project/types'
 
-const debug = createDebug('vite-plugin-vrowser:extract')
+const debug = createDebug('vite-plugin-vrowzer:extract')
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- reserved for future options (e.g. pluginOverrides)
 export interface ExtractOptions {}
@@ -59,8 +59,8 @@ interface ImportInfo {
  * These are host-only plugins that cannot run in Web Worker.
  */
 const WORKER_EXCLUDED_SOURCES = [
-  '@vrowser/vite-plugin',
-  '@vrowser/vite-plugin/config',
+  '@vrowzer/vite-plugin',
+  '@vrowzer/vite-plugin/config',
   '@vitejs/devtools'
 ]
 
@@ -85,7 +85,7 @@ function isViteImport(source: string): boolean {
  * 2. Collect all imports
  * 3. Find `export default defineConfig(...)` or `export default { ... }`
  * 4. Extract plugins array
- * 5. Remove Vrowser() calls
+ * 5. Remove Vrowzer() calls
  * 6. Generate Worker config source
  */
 export function extractWorkerConfig(
@@ -162,7 +162,7 @@ export function extractWorkerConfig(
     debug('unsupported patterns', unsupported)
   }
 
-  // 6. Filter out Vrowser plugins
+  // 6. Filter out Vrowzer plugins
   const workerPlugins = pluginCalls.filter(p => {
     if (!p.importSource) {
       return true
@@ -387,7 +387,7 @@ function generateWorkerSource(
 ): string {
   const lines: string[] = []
 
-  // Emit needed imports (excluding Vrowser, Vite, type-only)
+  // Emit needed imports (excluding Vrowzer, Vite, type-only)
   const emittedSources = new Set<string>()
   for (const imp of imports) {
     if (imp.isTypeOnly) {

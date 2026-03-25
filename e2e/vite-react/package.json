@@ -1,5 +1,5 @@
 {
-  "name": "@vrowser/e2e-react-basic",
+  "name": "@vrowzer/e2e-react-basic",
   "private": true,
   "type": "module",
   "dependencies": {
@@ -8,8 +8,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "catalog:",
-    "@vrowser/vite-plugin": "workspace:*",
-    "vrowser": "workspace:*",
+    "@vrowzer/vite-plugin": "workspace:*",
+    "vrowzer": "workspace:*",
     "vite": "catalog:"
   }
 }

@@ -14,10 +14,10 @@
 
     // resolve workspace pacakges
     "paths": {
-      "@vrowser/service-worker/controller": ["./packages/service-worker/src/controller.ts"],
-      "@vrowser/service-worker/worker": ["./packages/service-worker/src/worker.ts"],
-      "@vrowser/service-worker/admin": ["./packages/service-worker/src/admin.ts"],
-      "@vrowser/service-worker-server": ["./packages/service-worker-server/src/index.ts"]
+      "@vrowzer/service-worker/controller": ["./packages/service-worker/src/controller.ts"],
+      "@vrowzer/service-worker/worker": ["./packages/service-worker/src/worker.ts"],
+      "@vrowzer/service-worker/admin": ["./packages/service-worker/src/admin.ts"],
+      "@vrowzer/service-worker-server": ["./packages/service-worker-server/src/index.ts"]
     },
 
     // Other Outputs

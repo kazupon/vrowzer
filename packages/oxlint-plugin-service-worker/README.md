@@ -1,21 +1,21 @@
-# @vrowser/oxlint-plugin-service-worker
+# @vrowzer/oxlint-plugin-service-worker
 
-Oxlint plugin for `@vrowser/service-worker`
+Oxlint plugin for `@vrowzer/service-worker`
 
 ## 💿 Installation
 
 ```sh
 # npm
-npm install --save @vrowser/oxlint-plugin-servcie-worker
+npm install --save @vrowzer/oxlint-plugin-servcie-worker
 
 # pnpm
-pnpm add @vrowser/oxlint-plugin-servcie-worker
+pnpm add @vrowzer/oxlint-plugin-servcie-worker
 
 # yarn
-yarn add @vrowser/oxlint-plugin-servcie-worker
+yarn add @vrowzer/oxlint-plugin-servcie-worker
 
 # bun
-bun add @vrowser/oxlint-plugin-servcie-worker
+bun add @vrowzer/oxlint-plugin-servcie-worker
 ```
 
 ## 🚀 Usage

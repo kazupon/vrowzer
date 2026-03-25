@@ -1,8 +1,8 @@
-**@vrowser/fs**
+**@vrowzer/fs**
 
 ***
 
-# @vrowser/fs
+# @vrowzer/fs
 
 ## Modules
 

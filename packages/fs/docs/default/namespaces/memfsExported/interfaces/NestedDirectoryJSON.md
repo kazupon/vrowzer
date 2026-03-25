@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../../../index.md)
+[**@vrowzer/fs**](../../../../index.md)
 
 ***
 
-[@vrowser/fs](../../../../index.md) / [default](../../../index.md) / [memfsExported](../index.md) / NestedDirectoryJSON
+[@vrowzer/fs](../../../../index.md) / [default](../../../index.md) / [memfsExported](../index.md) / NestedDirectoryJSON
 
 # Interface: NestedDirectoryJSON\<T\>
 

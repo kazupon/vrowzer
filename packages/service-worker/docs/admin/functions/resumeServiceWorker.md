@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / resumeServiceWorker
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / resumeServiceWorker
 
 # Function: resumeServiceWorker()
 
@@ -38,7 +38,7 @@ Error if controller is not found
 ## Example
 
 ```ts
-import { resumeServiceWorker } from '@vrowser/service-worker/admin'
+import { resumeServiceWorker } from '@vrowzer/service-worker/admin'
 
 // Resume a specific service worker
 const result = await resumeServiceWorker(new URL('./sw.js', import.meta.url), 'v1.0.0')

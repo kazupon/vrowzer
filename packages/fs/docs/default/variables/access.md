@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [default](../index.md) / access
+[@vrowzer/fs](../../index.md) / [default](../index.md) / access
 
 # Variable: access()
 

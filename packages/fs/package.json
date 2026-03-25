@@ -1,7 +1,7 @@
 {
-  "name": "@vrowser/fs",
-  "description": "Browser-compatible filesystem using memfs for vrowser",
-  "version": "0.0.2",
+  "name": "@vrowzer/fs",
+  "description": "Browser-compatible filesystem using memfs for vrowzer",
+  "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
@@ -9,20 +9,20 @@
   "license": "MIT",
   "funding": "https://github.com/sponsors/kazupon",
   "bugs": {
-    "url": "https://github.com/kazupon/vrowser/issues"
+    "url": "https://github.com/kazupon/vrowzer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kazupon/vrowser.git",
+    "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/fs"
   },
   "keywords": [
     "filesystem",
     "memfs",
-    "vrowser",
+    "vrowzer",
     "browser"
   ],
-  "homepage": "https://github.com/kazupon/vrowser/packages/fs/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/packages/fs/README.md",
   "publishConfig": {
     "access": "public"
   },
@@ -81,7 +81,7 @@
   "devDependencies": {
     "@playwright/test": "catalog:",
     "pathe": "catalog:",
-    "@vrowser/node-polyfill": "workspace:*",
+    "@vrowzer/node-polyfill": "workspace:*",
     "buffer": "catalog:",
     "get-port-please": "catalog:",
     "premove": "^4.0.0",

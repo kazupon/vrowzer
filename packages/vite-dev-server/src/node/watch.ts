@@ -90,7 +90,7 @@ export function convertToNotifyOptions(
 }
 
 // NOTE(kazupon): Remove EventEmitter inheritance for browser env (Service Worker)
-// Implements FSWatcher which extends VirtualFSWatcher from @vrowser/fs/watcher
+// Implements FSWatcher which extends VirtualFSWatcher from @vrowzer/fs/watcher
 class NoopWatcher implements FSWatcher {
   options: WatchOptions
 

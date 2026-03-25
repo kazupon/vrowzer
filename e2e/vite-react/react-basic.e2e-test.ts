@@ -16,7 +16,7 @@ describe('react-basic', () => {
         const iframe = document.querySelector('iframe') as HTMLIFrameElement
         return iframe?.contentDocument
           ?.querySelector('h1')
-          ?.textContent?.includes('Vrowser + React')
+          ?.textContent?.includes('Vrowzer + React')
       },
       { timeout: 30000 }
     )
@@ -24,7 +24,7 @@ describe('react-basic', () => {
       const iframe = document.querySelector('iframe') as HTMLIFrameElement
       return iframe?.contentDocument?.body?.innerText ?? ''
     })
-    expect(text).toContain('Vrowser + React')
+    expect(text).toContain('Vrowzer + React')
     expect(text).toContain('count is')
   })
 
@@ -34,7 +34,7 @@ describe('react-basic', () => {
     }
 
     await ctx.page.evaluate(() => {
-      ;(window as any).__vrowser__.updateFile(
+      ;(window as any).__vrowzer__.updateFile(
         '/App.tsx',
         `import { useState } from 'react'
 
@@ -42,7 +42,7 @@ function App() {
   const [count, setCount] = useState(0)
   return (
     <>
-      <h1>Vrowser + React</h1>
+      <h1>Vrowzer + React</h1>
       <div className="card">
         <button onClick={() => setCount(count => count + 1)}>clicks: {count}</button>
       </div>

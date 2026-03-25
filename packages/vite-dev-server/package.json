@@ -1,7 +1,7 @@
 {
-  "name": "@vrowser/vite-dev-server",
-  "description": "Vite dev server for vrowser",
-  "version": "0.0.2",
+  "name": "@vrowzer/vite-dev-server",
+  "description": "Vite dev server for vrowzer",
+  "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
@@ -9,11 +9,11 @@
   "license": "MIT",
   "funding": "https://github.com/sponsors/kazupon",
   "bugs": {
-    "url": "https://github.com/kazupon/vrowser/issues"
+    "url": "https://github.com/kazupon/vrowzer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kazupon/vrowser.git",
+    "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/vite-dev-server"
   },
   "keywords": [
@@ -22,11 +22,11 @@
     "frontend",
     "framework",
     "hmr",
-    "vrowser",
+    "vrowzer",
     "build-tool",
     "browser"
   ],
-  "homepage": "https://github.com/kazupon/vrowser/packages/vite-dev-server/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/packages/vite-dev-server/README.md",
   "publishConfig": {
     "access": "public"
   },
@@ -117,12 +117,12 @@
     "@types/escape-html": "^1.0.4",
     "@types/estree": "^1.0.8",
     "@types/picomatch": "^4.0.2",
-    "@vrowser/fs": "workspace:*",
-    "@vrowser/node-polyfill": "workspace:*",
-    "@vrowser/rolldown": "workspace:*",
-    "@vrowser/service-worker": "workspace:*",
-    "@vrowser/service-worker-server": "workspace:*",
-    "@vrowser/unplugin-service-worker": "workspace:*",
+    "@vrowzer/fs": "workspace:*",
+    "@vrowzer/node-polyfill": "workspace:*",
+    "@vrowzer/rolldown": "workspace:*",
+    "@vrowzer/service-worker": "workspace:*",
+    "@vrowzer/service-worker-server": "workspace:*",
+    "@vrowzer/unplugin-service-worker": "workspace:*",
     "buffer": "catalog:",
     "birpc": "^4.0.0",
     "convert-source-map": "^2.0.0",

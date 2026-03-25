@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [watcher](../index.md) / V\_FS\_INIT
+[@vrowzer/fs](../../index.md) / [watcher](../index.md) / V\_FS\_INIT
 
 # Variable: V\_FS\_INIT
 

@@ -12,7 +12,7 @@ import { isAbsolute, posix } from 'node:path'
 import colors from 'picocolors'
 import picomatch from 'picomatch'
 import type { CustomPluginOptions, RollupError } from 'rolldown'
-// TODO(kazupon): Use `parseAstAsync` via `@vrowser/oxc-parser` when it supports browser environment
+// TODO(kazupon): Use `parseAstAsync` via `@vrowzer/oxc-parser` when it supports browser environment
 // import { parseAstAsync } from 'rolldown/parseAst'
 import { stripLiteral } from 'strip-literal'
 import { escapePath, glob } from 'tinyglobby'
@@ -283,7 +283,7 @@ export async function parseImportGlob(
     const statementCode = code.slice(start, end)
 
     const rootAst = ({ body: [] }).body[0]
-    // TODO(kazupon): Use `parseAstAsync` via `@vrowser/oxc-parser` when it supports browser environment
+    // TODO(kazupon): Use `parseAstAsync` via `@vrowzer/oxc-parser` when it supports browser environment
     // const rootAst = (await parseAstAsync(statementCode)).body[0]
     if (rootAst.type !== 'ExpressionStatement') {
       throw err(`Expect CallExpression, got ${rootAst.type}`)

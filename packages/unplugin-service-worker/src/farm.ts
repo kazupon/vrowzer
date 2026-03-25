@@ -4,7 +4,7 @@
  * @example
  * ```ts
  * // farm.config.js
- * import ServiceWorker from '@vrowser/unplugin-service-worker/farm'
+ * import ServiceWorker from '@vrowzer/unplugin-service-worker/farm'
  *
  * export default {
  *   plugins: [ServiceWorker()],

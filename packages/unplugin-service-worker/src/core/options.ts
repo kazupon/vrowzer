@@ -16,10 +16,10 @@ export interface Options {
    * without scanning source code for `createSvcWorkerController()` calls.
    *
    * This is useful when the Service Worker entry is provided by a library
-   * (e.g. `vrowser`) that is in `node_modules` and excluded from scanning.
+   * (e.g. `vrowzer`) that is in `node_modules` and excluded from scanning.
    *
    * @example './src/my-service-worker.ts'
-   * @example 'vrowser/service-worker'
+   * @example 'vrowzer/service-worker'
    * @default undefined
    */
   entry?: string | undefined

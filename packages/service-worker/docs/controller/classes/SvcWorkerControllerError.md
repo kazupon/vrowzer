@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [controller](../index.md) / SvcWorkerControllerError
+[@vrowzer/service-worker](../../index.md) / [controller](../index.md) / SvcWorkerControllerError
 
 # Class: SvcWorkerControllerError
 

@@ -1,7 +1,7 @@
 {
-  "name": "@vrowser/service-worker",
+  "name": "@vrowzer/service-worker",
   "description": "Safely deploy and manage Service Workers with version control, bidirectional communication, and emergency shutdown capabilities",
-  "version": "0.0.2",
+  "version": "0.0.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
@@ -9,11 +9,11 @@
   "license": "MIT",
   "funding": "https://github.com/sponsors/kazupon",
   "bugs": {
-    "url": "https://github.com/kazupon/vrowser/issues"
+    "url": "https://github.com/kazupon/vrowzer/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kazupon/vrowser.git",
+    "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/service-worker"
   },
   "keywords": [
@@ -71,7 +71,7 @@
   "devDependencies": {
     "@kazupon/jts-utils": "catalog:",
     "@playwright/test": "catalog:",
-    "@vrowser/unplugin-service-worker": "workspace:*",
+    "@vrowzer/unplugin-service-worker": "workspace:*",
     "get-port-please": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",

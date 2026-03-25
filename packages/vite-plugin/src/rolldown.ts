@@ -15,22 +15,22 @@ import { fileURLToPath } from 'node:url'
 import { createDebug } from 'obug'
 
 import type { Plugin } from 'vite'
-import type { ResolvedVrowserOptions } from './options.ts'
+import type { ResolvedVrowzerOptions } from './options.ts'
 
-const debug = createDebug('vite-plugin-vrowser:rolldown')
+const debug = createDebug('vite-plugin-vrowzer:rolldown')
 
-// Resolve @vrowser/rolldown dist path for WASM/Worker file copying
+// Resolve @vrowzer/rolldown dist path for WASM/Worker file copying
 const rolldownDistDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.resolve('@vrowser/rolldown/package.json'))),
+  path.dirname(fileURLToPath(import.meta.resolve('@vrowzer/rolldown/package.json'))),
   'dist'
 )
 debug('rolldownDistDir ', rolldownDistDir)
 
-export function rolldownPlugin(_options: ResolvedVrowserOptions): Plugin {
+export function rolldownPlugin(_options: ResolvedVrowzerOptions): Plugin {
   let resolvedOutDir = ''
 
   return {
-    name: 'vrowser:rolldown',
+    name: 'vrowzer:rolldown',
     configResolved(config) {
       resolvedOutDir = path.resolve(config.root, config.build.outDir)
     },

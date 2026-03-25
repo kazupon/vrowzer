@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / terminateAllServiceWorkers
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / terminateAllServiceWorkers
 
 # Function: terminateAllServiceWorkers()
 
@@ -30,7 +30,7 @@ Map of registry keys to terminate results
 ## Example
 
 ```ts
-import { terminateAllServiceWorkers } from '@vrowser/service-worker/admin'
+import { terminateAllServiceWorkers } from '@vrowzer/service-worker/admin'
 
 // Terminate all service workers (e.g., for emergency shutdown)
 const results = await terminateAllServiceWorkers({ clearCaches: true })

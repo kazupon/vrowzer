@@ -1,5 +1,5 @@
 /**
- * @vrowser/service-worker-server E2E Tests
+ * @vrowzer/service-worker-server E2E Tests
  *
  * Comprehensive end-to-end tests for SvcWorkerServer covering:
  * - listen() and 'listening' event

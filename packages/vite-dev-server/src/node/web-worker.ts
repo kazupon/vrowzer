@@ -1,8 +1,8 @@
 /**
- * Lightweight Web Worker entry point for @vrowser/vite-dev-server
+ * Lightweight Web Worker entry point for @vrowzer/vite-dev-server
  *
  * This module provides `createServer()` for Web Worker environments.
- * It is intentionally lightweight — it does NOT import @vrowser/rolldown
+ * It is intentionally lightweight — it does NOT import @vrowzer/rolldown
  * or any heavy modules statically. Heavy modules (DevEnvironment, rolldown,
  * transform pipeline) are loaded dynamically in `listen()` via
  * `import('./transformer')` (the ./transformer entry).
@@ -30,7 +30,7 @@ import type {
 } from './server/transformRequest'
 import type { ViteDevServerForWorker } from './transformer'
 
-const debug = createDebugger('vrowser:web-worker')
+const debug = createDebugger('vrowzer:web-worker')
 
 /**
  * Messages handled internally by createServer().
@@ -40,7 +40,7 @@ const debug = createDebugger('vrowser:web-worker')
 type InternalWorkerMessage = SetupWorkerMessage | ConnectServiceWorkerPortMessage
 
 /**
- * This module defines the Web Worker server for @vrowser/vite-dev-server.
+ * This module defines the Web Worker server for @vrowzer/vite-dev-server.
  * It handles the Web Worker side of the protocol for setup and Service Worker communication,
  */
 export interface CreateServerOptions {
@@ -60,7 +60,7 @@ export interface CreateServerOptions {
    */
   plugins?: import('vite').Plugin[]
   /**
-   * Additional Vite inline config from vrowser.config.ts (resolve.alias, define, etc.).
+   * Additional Vite inline config from vrowzer.config.ts (resolve.alias, define, etc.).
    * Merged into the V_WW_SETUP config before resolveConfig().
    */
   inlineConfig?: Record<string, unknown>
@@ -72,7 +72,7 @@ export interface CreateServerOptions {
 }
 
 /**
- * This module defines the Web Worker server for @vrowser/vite-dev-server.
+ * This module defines the Web Worker server for @vrowzer/vite-dev-server.
  * It handles the Web Worker side of the protocol for setup and Service Worker communication,
  * as well as providing a lightweight API for the worker's main logic (e.g. DevEnvironment).
  */
@@ -131,7 +131,7 @@ export function createServer(
           debug?.('transformer loaded, initializing...')
 
           const setupMsg = event.data as SetupWorkerMessage
-          // Merge user config from vrowser.config.ts into the setup config.
+          // Merge user config from vrowzer.config.ts into the setup config.
           // inlineConfig contains non-plugin fields (resolve.alias, define, etc.)
           // plugins are merged separately.
           let setupConfig = { ...setupMsg.config }
@@ -201,7 +201,7 @@ export function createServer(
           setupResolve?.(server!)
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error))
-          console.error('[vrowser:web-worker] V_WW_SETUP failed:', err.message, err.stack)
+          console.error('[vrowzer:web-worker] V_WW_SETUP failed:', err.message, err.stack)
           debug?.('V_WW_SETUP failed:', error)
           // Notify Main Thread of the failure so it can fail fast instead of timing out
           workerScope.postMessage({ type: V_WW_SETUP_ERROR, error: { message: err.message, stack: err.stack } })

@@ -4,7 +4,7 @@ import pkg from '../../package.json' with { type: 'json' }
 import type { RollupPluginHooks } from './typeUtils'
 
 const version = pkg.version
-// NOTE(kazupon): resolve version from package.json of `@vrowser/vite-dev-server`
+// NOTE(kazupon): resolve version from package.json of `@vrowzer/vite-dev-server`
 // const { version } = JSON.parse(
 //   readFileSync(new URL('../../package.json', import.meta.url)).toString(),
 // )

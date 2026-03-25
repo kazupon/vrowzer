@@ -1,7 +1,7 @@
 /**
- * Worker entry generation for vrowser
+ * Worker entry generation for vrowzer
  *
- * Generates source code for Worker entries that import vrowser's factory functions
+ * Generates source code for Worker entries that import vrowzer's factory functions
  * and the user's config to inject user plugins into Workers.
  *
  * @module virtual
@@ -20,7 +20,7 @@ export function generateWebWorkerEntry(configPath: string, resolve?: { alias?: A
     : ''
 
   return `
-import { initWebWorker } from 'vrowser/web-worker-core'
+import { initWebWorker } from 'vrowzer/web-worker-core'
 import config from '${configPath}'
 const resolved = config.default ?? config
 ${resolveBlock}

@@ -4,7 +4,7 @@
  * @example
  * ```js
  * // rspack.config.js
- * import ServiceWorker from '@vrowser/unplugin-service-worker/rspack'
+ * import ServiceWorker from '@vrowzer/unplugin-service-worker/rspack'
  *
  * export default {
  *   plugins: [ServiceWorker()],

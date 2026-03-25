@@ -16,9 +16,9 @@ import { createDebug } from 'obug'
 import { resolveAliases } from './alias.ts'
 
 import type { Plugin } from 'vite'
-import type { ResolvedVrowserOptions } from './options.ts'
+import type { ResolvedVrowzerOptions } from './options.ts'
 
-const debug = createDebug('vite-plugin-vrowser:env')
+const debug = createDebug('vite-plugin-vrowzer:env')
 
 // Resolve picocolors browser version path.
 // picocolors doesn't export the browser file via package.json exports,
@@ -26,9 +26,9 @@ const debug = createDebug('vite-plugin-vrowser:env')
 const _require = createRequire(import.meta.url)
 const picocolorsBrowser = resolve(dirname(_require.resolve('picocolors')), 'picocolors.browser.js')
 
-export function envPlugin(_options: ResolvedVrowserOptions): Plugin {
+export function envPlugin(_options: ResolvedVrowzerOptions): Plugin {
   return {
-    name: 'vrowser:env',
+    name: 'vrowzer:env',
     // Rolldown native inject: inject `process` global for browser/Worker environments.
     // This replaces bare `process` references with an import from the polyfill.
     options(inputOptions) {
@@ -38,7 +38,7 @@ export function envPlugin(_options: ResolvedVrowserOptions): Plugin {
           string,
           string
         >) ?? {}),
-        process: '@vrowser/node-polyfill/process'
+        process: '@vrowzer/node-polyfill/process'
       }
       debug('options hook: inputOptions.transform.inject ', inputOptions.transform.inject)
     },
@@ -51,9 +51,9 @@ export function envPlugin(_options: ResolvedVrowserOptions): Plugin {
           alias: resolveAliases({
             // process needs both bare and trailing-slash aliases
             // (`require('process/')` in readable-stream/lib/internal/streams/pipeline.js)
-            'node:process': '@vrowser/node-polyfill/process',
-            'process/': '@vrowser/node-polyfill/process',
-            process: '@vrowser/node-polyfill/process',
+            'node:process': '@vrowzer/node-polyfill/process',
+            'process/': '@vrowzer/node-polyfill/process',
+            process: '@vrowzer/node-polyfill/process',
             // picocolors CJS → browser version (no ANSI codes in Worker/SW)
             picocolors: picocolorsBrowser
           })

@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_VERSION
+[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_VERSION
 
 # Variable: V\_SW\_VERSION
 

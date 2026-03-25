@@ -1,8 +1,8 @@
-# vrowser TODO
+# vrowzer TODO
 
 Porting status from refers/vite and remaining tasks.
 
-## Plugins (`@vrowser/vite-dev-server`)
+## Plugins (`@vrowzer/vite-dev-server`)
 
 Porting status of `resolvePlugins` (packages/vite-dev-server/src/node/plugins/index.ts).
 
@@ -52,7 +52,7 @@ Porting status of `packages/vite-dev-server/src/node/server/middlewares/`.
 - [x] static.ts
 - [x] time.ts
 - [x] transform.ts
-- [x] crossOrigin.ts — vrowser-specific CORS headers
+- [x] crossOrigin.ts — vrowzer-specific CORS headers
 
 ### Not Yet Ported
 
@@ -102,12 +102,12 @@ Porting status of `packages/vite-dev-server/src/shared/`.
 
 - [ ] ssrTransform.ts — SSR transform
 
-## `@vrowser/vite-plugin`
+## `@vrowzer/vite-plugin`
 
 - [x] env.ts — Node.js polyfill aliases + CORS headers
 - [x] prebundle.ts — Worker config prebundling with rolldown
 - [x] extract.ts — OXC-based vite.config.ts plugin extraction
-- [x] manifest.ts — VrowserManifest plugin (file content resolution + OXC minify)
+- [x] manifest.ts — VrowzerManifest plugin (file content resolution + OXC minify)
 - [x] alias.ts — Shared Node.js polyfill alias helper (`resolveAliases`)
 - [x] server.ts — Preview guard middleware
 - [x] rolldown.ts — WASM/Worker asset copying
@@ -118,7 +118,7 @@ Porting status of `packages/vite-dev-server/src/shared/`.
 - [x] ide.ts — Vite DevTools integration (experimental): detection, COEP middleware for `/.devtools*`
 - [x] options.ts — `experimental.devtools` option
 
-## `@vrowser/rolldown`
+## `@vrowzer/rolldown`
 
 - [x] @rolldown/browser 1.0.0-rc.9 upgrade
 - [x] utils API: `transform`, `transformSync`, `parse`, `parseSync`, `minify`, `minifySync`, `TsconfigCache`
@@ -131,7 +131,7 @@ Porting status of `packages/vite-dev-server/src/shared/`.
 - [x] `package.json` inclusion for all packages
 - [x] OXC minify for nodeModules JS files
 
-## play-vrowser
+## play-vrowzer
 
 - [x] FileExplorer with Iconify vscode-icons (tree view, recursive)
 - [x] SplitPane resizable panels
@@ -140,7 +140,7 @@ Porting status of `packages/vite-dev-server/src/shared/`.
 - [x] SVG / Svelte syntax highlighting
 - [x] DevTools env var control (`VITE_DEVTOOLS=1`)
 - [x] iframe `allow-popups-to-escape-sandbox`
-- [ ] VrowserManifest auto-generation — Zero-config
+- [ ] VrowzerManifest auto-generation — Zero-config
 
 ## Testing
 

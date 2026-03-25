@@ -67,6 +67,6 @@
     "e2e/fixtures/**",
     "packages/**/docs/**",
     "refers/**",
-    "packages/play-vrowser/**"
+    "packages/play-vrowzer/**"
   ]
 }

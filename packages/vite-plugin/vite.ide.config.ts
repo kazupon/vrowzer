@@ -16,7 +16,7 @@ export default defineConfig({
     emptyOutDir: true,
     cssCodeSplit: false,
     rolldownOptions: {
-      external: ['vrowser'],
+      external: ['vrowzer'],
       output: {
         assetFileNames: '[name][extname]'
       }

@@ -1,5 +1,5 @@
 /**
- * vite-plugin-vrowser entry
+ * vite-plugin-vrowzer entry
  *
  * @module default
  */
@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import inject from '@rollup/plugin-inject'
-import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
 import { createDebug } from 'obug'
 import { autoManifestPlugin } from './auto-manifest.ts'
 import { envPlugin } from './env.ts'
@@ -26,11 +26,11 @@ import { serverMiddlewarePlugin } from './server.ts'
 import { generateWebWorkerEntry } from './virtual.ts'
 
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
-import type { VrowserOptions } from './options.ts'
+import type { VrowzerOptions } from './options.ts'
 
-const debug = createDebug('vite-plugin-vrowser:index')
+const debug = createDebug('vite-plugin-vrowzer:index')
 
-export function Vrowser(options: VrowserOptions = {}): Plugin[] {
+export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
   const resolvedOptions = resolveOptions(options)
   const root = process.cwd()
 
@@ -52,10 +52,10 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     }
   }
 
-  const vrowserConfigPlugin: Plugin = {
-    name: 'vrowser:config',
+  const vrowzerConfigPlugin: Plugin = {
+    name: 'vrowzer:config',
     resolveId(id) {
-      if (id.startsWith('@vrowser/')) {
+      if (id.startsWith('@vrowzer/')) {
         try {
           return fileURLToPath(import.meta.resolve(id))
         } catch {
@@ -66,9 +66,9 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     config(): UserConfig {
       const workerPlugins: Plugin[] = [
         {
-          name: 'vrowser:worker-resolve',
+          name: 'vrowzer:worker-resolve',
           resolveId(id: string) {
-            if (id.startsWith('@vrowser/')) {
+            if (id.startsWith('@vrowzer/')) {
               try {
                 return fileURLToPath(import.meta.resolve(id))
               } catch {
@@ -78,24 +78,24 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
           }
         },
         {
-          name: 'vrowser:worker-process-inject',
+          name: 'vrowzer:worker-process-inject',
           options(inputOptions: any) {
             inputOptions.transform ??= {}
             inputOptions.transform.inject = {
               ...inputOptions.transform.inject,
-              process: '@vrowser/node-polyfill/process'
+              process: '@vrowzer/node-polyfill/process'
             }
           }
         },
         {
-          name: 'vrowser:web-worker-config-inject',
+          name: 'vrowzer:web-worker-config-inject',
           transform: workerEntryTransform
         }
       ]
 
       return {
         resolve: {
-          alias: [{ find: /^vite$/, replacement: '@vrowser/vite-dev-server/vite' }]
+          alias: [{ find: /^vite$/, replacement: '@vrowzer/vite-dev-server/vite' }]
         },
         worker: {
           plugins: () => workerPlugins
@@ -148,13 +148,13 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
   }
 
   const plugins: Plugin[] = [
-    vrowserConfigPlugin,
+    vrowzerConfigPlugin,
     serverMiddlewarePlugin(resolvedOptions),
     {
       // @ts-expect-error -- FIXME
       ...inject({
-        process: '@vrowser/node-polyfill/process',
-        exclude: [/node_modules\/\.vite\//, /node_modules\/\.vrowser\//]
+        process: '@vrowzer/node-polyfill/process',
+        exclude: [/node_modules\/\.vite\//, /node_modules\/\.vrowzer\//]
       }),
       apply: 'serve'
     } as Plugin,
@@ -168,12 +168,12 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
     })
   ]
 
-  // Auto-manifest plugin: generates manifest and provides virtual:vrowser-manifest
+  // Auto-manifest plugin: generates manifest and provides virtual:vrowzer-manifest
   if (resolvedOptions.auto) {
     plugins.unshift(autoManifestPlugin(resolvedOptions.manifest))
   }
 
-  // IDE plugin: serves browser IDE at /__vrowser__/ (experimental)
+  // IDE plugin: serves browser IDE at /__vrowzer__/ (experimental)
   if (resolvedOptions.ide.enabled) {
     plugins.push(idePlugin(resolvedOptions))
   }
@@ -181,7 +181,7 @@ export function Vrowser(options: VrowserOptions = {}): Plugin[] {
   return plugins
 }
 
-export { VrowserManifest } from './manifest.ts'
+export { VrowzerManifest } from './manifest.ts'
 export { generateManifest } from './manifest-generate.ts'
 export type {
   GenerateManifestOptions,

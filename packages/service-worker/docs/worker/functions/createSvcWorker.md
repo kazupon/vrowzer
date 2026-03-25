@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [worker](../index.md) / createSvcWorker
+[@vrowzer/service-worker](../../index.md) / [worker](../index.md) / createSvcWorker
 
 # Function: createSvcWorker()
 
@@ -28,7 +28,7 @@ A [SvcWorker](../interfaces/SvcWorker.md) instance that wraps the native service
 ## Example
 
 ```ts
-import { createSvcWorker } from '@vrowser/service-worker/worker'
+import { createSvcWorker } from '@vrowzer/service-worker/worker'
 
 const sw = createSvcWorker(self, { version: '1.0.0' })
 

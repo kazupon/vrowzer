@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [promises](../index.md) / stat
+[@vrowzer/fs](../../index.md) / [promises](../index.md) / stat
 
 # Variable: stat()
 

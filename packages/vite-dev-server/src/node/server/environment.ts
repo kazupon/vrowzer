@@ -1,5 +1,5 @@
 // NOTE(kazupon): disalbe for now, because we move to web worker.
-// import { init as initOxcParser } from '@vrowser/oxc-parser'
+// import { init as initOxcParser } from '@vrowzer/oxc-parser'
 import colors from 'picocolors'
 import type { FetchFunctionOptions, FetchResult } from '../../shared/invokeMethods'
 // NOTE(kazupon): comment out because we need to undserstand the previous implementation as background
@@ -199,7 +199,7 @@ export class DevEnvironment extends BaseEnvironment {
     if (this._initiated) {
       return
     }
-    // NOTE(kazupon): we need to initialize `@vrowser/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
+    // NOTE(kazupon): we need to initialize `@vrowzer/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
     // WASM URL is handled by the build pipeline:
     // - Dev mode: wasmInlinePlugin inlines WASM as base64 data URL
     // - Production: wasmInlinePlugin also inlines WASM in the bundled SW

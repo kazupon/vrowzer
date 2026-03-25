@@ -1,6 +1,6 @@
-# @vrowser/rolldown
+# @vrowzer/rolldown
 
-Pre-bundled `@rolldown/browser` for easy browser usage. All dependencies (`@napi-rs/wasm-runtime`, `memfs`, etc.) are pre-resolved, and the internal `memfs` is replaced with `@vrowser/fs` for filesystem instance sharing.
+Pre-bundled `@rolldown/browser` for easy browser usage. All dependencies (`@napi-rs/wasm-runtime`, `memfs`, etc.) are pre-resolved, and the internal `memfs` is replaced with `@vrowzer/fs` for filesystem instance sharing.
 
 ## 🤔 Why?
 
@@ -17,13 +17,13 @@ This package pre-bundles everything so that bare specifiers are resolved and all
 
 Two build types are provided:
 
-### Shared build: `@vrowser/fs` external (for Web Worker / shared filesystem)
+### Shared build: `@vrowzer/fs` external (for Web Worker / shared filesystem)
 
-`@vrowser/fs` is **not** bundled. The consumer provides `@vrowser/fs`, allowing rolldown and other code to share the same memfs Volume instance.
+`@vrowzer/fs` is **not** bundled. The consumer provides `@vrowzer/fs`, allowing rolldown and other code to share the same memfs Volume instance.
 
 ```ts
-import { rolldown } from '@vrowser/rolldown'
-import { memfs } from '@vrowser/rolldown/experimental'
+import { rolldown } from '@vrowzer/rolldown'
+import { memfs } from '@vrowzer/rolldown/experimental'
 
 memfs.volume.fromJSON({
   '/src/index.js': 'import { add } from "./math.js"\nconsole.log(add(1, 2))',
@@ -37,11 +37,11 @@ console.log(output[0].code)
 
 ### Standalone build: Fully self-contained (for browser)
 
-`@vrowser/fs` is bundled. No additional dependencies needed.
+`@vrowzer/fs` is bundled. No additional dependencies needed.
 
 ```ts
-import { rolldown } from '@vrowser/rolldown/browser'
-import { memfs } from '@vrowser/rolldown/browser/experimental'
+import { rolldown } from '@vrowzer/rolldown/browser'
+import { memfs } from '@vrowzer/rolldown/browser/experimental'
 
 memfs.volume.fromJSON({
   '/src/index.js': 'export const x = 1'
@@ -53,22 +53,22 @@ const { output } = await bundle.generate({ format: 'esm' })
 
 ## Exports
 
-### `@vrowser/rolldown` / `@vrowser/rolldown/browser`
+### `@vrowzer/rolldown` / `@vrowzer/rolldown/browser`
 
 Re-exports from `@rolldown/browser`:
 
 - `rolldown` - Main bundler function
 - `VERSION` - Rolldown version string
 
-### `@vrowser/rolldown/experimental` / `@vrowser/rolldown/browser/experimental`
+### `@vrowzer/rolldown/experimental` / `@vrowzer/rolldown/browser/experimental`
 
 Re-exports from `@rolldown/browser/experimental`:
 
-- `memfs` - In-memory filesystem (`{ fs, volume }`) backed by `@vrowser/fs`
+- `memfs` - In-memory filesystem (`{ fs, volume }`) backed by `@vrowzer/fs`
 - `parseSync` / `parse` - OXC-based JavaScript/TypeScript parser
 - `transform` / `transformSync` - Code transformation
 
-### `@vrowser/rolldown/utils` / `@vrowser/rolldown/browser/utils`
+### `@vrowzer/rolldown/utils` / `@vrowzer/rolldown/browser/utils`
 
 Re-exports from `@rolldown/browser/experimental`, compatible with `rolldown/utils`:
 
@@ -99,15 +99,15 @@ This produces:
 
 ```sh
 dist/
-├── index.js                          # Shared build: main entry (@vrowser/fs external)
-├── experimental.js                   # Shared build: experimental (@vrowser/fs external)
+├── index.js                          # Shared build: main entry (@vrowzer/fs external)
+├── experimental.js                   # Shared build: experimental (@vrowzer/fs external)
 ├── utils.js                          # Shared build: utils (transformSync)
 ├── chunks/                           # Shared build: shared chunks
 ├── worker.js                         # Shared: bundled WASI worker script
 ├── rolldown-binding.wasm32-wasi.wasm # Shared: WASM binary (~11MB)
 └── browser/
-    ├── index.js                      # Standalone build: main entry (@vrowser/fs bundled)
-    ├── experimental.js               # Standalone build: experimental (@vrowser/fs bundled)
+    ├── index.js                      # Standalone build: main entry (@vrowzer/fs bundled)
+    ├── experimental.js               # Standalone build: experimental (@vrowzer/fs bundled)
     ├── utils.js                      # Standalone build: utils (transformSync)
     └── chunks/                       # Standalone build: shared chunks
 ```
@@ -116,7 +116,7 @@ Both builds share the same `worker.js` and WASM binary. Within each variant, `in
 
 ### Key build transformations
 
-- `@napi-rs/wasm-runtime/fs` internal `memfs` is replaced with `@vrowser/fs`
+- `@napi-rs/wasm-runtime/fs` internal `memfs` is replaced with `@vrowzer/fs`
 - `process.cwd()` is replaced with `"/"`
 - fs-proxy IPC buffer is expanded from ~10KB to ~10MB
 - Worker and WASM URLs are adjusted for the `chunks/` subdirectory layout

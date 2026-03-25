@@ -467,7 +467,7 @@ export function indexHtmlMiddleware(
   // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
   // const isDev = isDevServer(server)
   const fullBundleEnv = undefined
-  // NOTE(kazupon): comment out, because fullBundleEnv is not supported in vrowser yet
+  // NOTE(kazupon): comment out, because fullBundleEnv is not supported in vrowzer yet
   // const fullBundleEnv =
   //   isDev && server.environments.client instanceof FullBundleDevEnvironment
   //     ? server.environments.client

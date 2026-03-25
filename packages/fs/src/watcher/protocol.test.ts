@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { V_FS_INIT, V_FS_MKDIR, V_FS_UNLINK, V_FS_WRITE } from './protocol.ts'
 
-describe('@vrowser/fs/watcher protocol', () => {
+describe('@vrowzer/fs/watcher protocol', () => {
   test('V_FS_WRITE constant has correct value', () => {
     expect(V_FS_WRITE).toBe('V_FS_WRITE')
   })

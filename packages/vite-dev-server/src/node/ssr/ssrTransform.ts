@@ -4,7 +4,7 @@ import type {
 import type { SourceMap } from 'rolldown'
 import { isJSONRequest } from '../plugins/json'
 // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
-// we need to use parseAst from @vrowser/oxc-parser
+// we need to use parseAst from @vrowzer/oxc-parser
 // import { parseAstAsync as rolldownParseAstAsync } from 'rolldown/parseAst'
 import type { TransformResult } from '../server/transformRequest'
 

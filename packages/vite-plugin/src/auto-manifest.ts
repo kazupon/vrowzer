@@ -1,10 +1,10 @@
 /**
- * Auto-manifest plugin for Vrowser.
+ * Auto-manifest plugin for Vrowzer.
  *
  * When `auto: true`, this plugin:
- * 1. Auto-generates the vrowser manifest in `configResolved`
- * 2. Caches results in `node_modules/.vrowser-manifest/`
- * 3. Provides the manifest via `virtual:vrowser-manifest` virtual module
+ * 1. Auto-generates the vrowzer manifest in `configResolved`
+ * 2. Caches results in `node_modules/.vrowzer-manifest/`
+ * 3. Provides the manifest via `virtual:vrowzer-manifest` virtual module
  *
  * @module auto-manifest
  */
@@ -22,14 +22,14 @@ import { generateManifest } from './manifest-generate.ts'
 
 import type { Plugin, ResolvedConfig } from 'vite'
 import type { ManifestResult } from './manifest-generate.ts'
-import type { VrowserManifestOptions } from './options.ts'
+import type { VrowzerManifestOptions } from './options.ts'
 
-const debug = createDebug('vite-plugin-vrowser:auto-manifest')
+const debug = createDebug('vite-plugin-vrowzer:auto-manifest')
 
-const VIRTUAL_MODULE_ID = 'virtual:vrowser-manifest'
+const VIRTUAL_MODULE_ID = 'virtual:vrowzer-manifest'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
 
-const CACHE_DIR_NAME = '.vrowser-manifest'
+const CACHE_DIR_NAME = '.vrowzer-manifest'
 const MANIFEST_FILENAME = 'manifest.json'
 const HASH_FILENAME = '_hash'
 
@@ -53,7 +53,7 @@ function hash(input: string): string {
 /**
  * Compute cache key from package.json dependencies, lockfile, and manifest options.
  */
-function computeCacheHash(root: string, manifestOptions?: VrowserManifestOptions): string {
+function computeCacheHash(root: string, manifestOptions?: VrowzerManifestOptions): string {
   const parts: string[] = []
 
   // Include sourceDir in cache key so changes to it invalidate the cache
@@ -128,7 +128,7 @@ function writeCache(cacheDir: string, manifest: ManifestResult, cacheHash: strin
 
 /**
  * Resolve manifest path references to actual file contents.
- * This is equivalent to what VrowserManifest() does for manual manifests.
+ * This is equivalent to what VrowzerManifest() does for manual manifests.
  */
 function resolveManifestContents(
   manifest: ManifestResult,
@@ -170,14 +170,14 @@ function resolveManifestContents(
 /**
  * Create the auto-manifest plugin.
  *
- * This plugin is included in the `Vrowser()` array when `auto: true`.
+ * This plugin is included in the `Vrowzer()` array when `auto: true`.
  */
-export function autoManifestPlugin(manifestOptions?: VrowserManifestOptions): Plugin {
+export function autoManifestPlugin(manifestOptions?: VrowzerManifestOptions): Plugin {
   let sourceDir: string
   let manifest: ManifestResult | null = null
 
   return {
-    name: 'vrowser:auto-manifest',
+    name: 'vrowzer:auto-manifest',
     resolveId(id) {
       if (id === VIRTUAL_MODULE_ID) {
         return RESOLVED_VIRTUAL_MODULE_ID

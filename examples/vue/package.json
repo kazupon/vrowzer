@@ -1,5 +1,5 @@
 {
-  "name": "@vrowser/example-vue",
+  "name": "@vrowzer/example-vue",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,8 +13,8 @@
   "devDependencies": {
     "@vitejs/devtools": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
-    "@vrowser/vite-plugin": "workspace:*",
+    "@vrowzer/vite-plugin": "workspace:*",
     "vite": "catalog:",
-    "vrowser": "workspace:*"
+    "vrowzer": "workspace:*"
   }
 }

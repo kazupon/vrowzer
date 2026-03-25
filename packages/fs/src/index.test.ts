@@ -12,7 +12,7 @@ import {
   writeFileSync
 } from './index.ts'
 
-describe('@vrowser/fs main entry', () => {
+describe('@vrowzer/fs main entry', () => {
   beforeEach(() => {
     vol.reset()
   })

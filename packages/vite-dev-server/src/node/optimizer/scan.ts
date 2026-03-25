@@ -1,12 +1,12 @@
 // NOTE(kazupon): disalbe for now, because we move to web worker.
-// import { init as initOxcParser } from '@vrowser/oxc-parser'
+// import { init as initOxcParser } from '@vrowzer/oxc-parser'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import colors from 'picocolors'
 import type { PartialResolvedId, Plugin } from 'rolldown'
 import type { TransformResult } from 'rolldown/experimental'
-// TODO(kazupon): Use `transformSync` via `@vrowser/oxc-transform` when oxc support browser environment
+// TODO(kazupon): Use `transformSync` via `@vrowzer/oxc-transform` when oxc support browser environment
 // import {
 //   scan,
 //   transformSync
@@ -64,7 +64,7 @@ export class ScanEnvironment extends BaseEnvironment {
     if (this._initiated) {
       return
     }
-    // NOTE(kazupon): we need to initialize `@vrowser/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
+    // NOTE(kazupon): we need to initialize `@vrowzer/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
     // WASM URL is handled by the build pipeline:
     // - Dev mode: wasmInlinePlugin inlines WASM as base64 data URL
     // - Production: wasmInlinePlugin also inlines WASM in the bundled SW

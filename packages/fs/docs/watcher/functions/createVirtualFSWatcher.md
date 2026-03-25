@@ -1,8 +1,8 @@
-[**@vrowser/fs**](../../index.md)
+[**@vrowzer/fs**](../../index.md)
 
 ***
 
-[@vrowser/fs](../../index.md) / [watcher](../index.md) / createVirtualFSWatcher
+[@vrowzer/fs](../../index.md) / [watcher](../index.md) / createVirtualFSWatcher
 
 # Function: createVirtualFSWatcher()
 

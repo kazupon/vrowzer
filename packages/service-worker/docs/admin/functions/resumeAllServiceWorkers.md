@@ -1,8 +1,8 @@
-[**@vrowser/service-worker**](../../index.md)
+[**@vrowzer/service-worker**](../../index.md)
 
 ***
 
-[@vrowser/service-worker](../../index.md) / [admin](../index.md) / resumeAllServiceWorkers
+[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / resumeAllServiceWorkers
 
 # Function: resumeAllServiceWorkers()
 
@@ -30,7 +30,7 @@ Map of registry keys to resume results
 ## Example
 
 ```ts
-import { resumeAllServiceWorkers } from '@vrowser/service-worker/admin'
+import { resumeAllServiceWorkers } from '@vrowzer/service-worker/admin'
 
 // Resume all suspended service workers
 const results = await resumeAllServiceWorkers()

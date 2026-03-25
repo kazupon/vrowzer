@@ -1,6 +1,6 @@
 import aliasPlugin from '@rollup/plugin-alias'
 // NOTE(kazupon): disalbe for now, because we move to web worker.
-// import { init as initOxcParser } from '@vrowser/oxc-parser'
+// import { init as initOxcParser } from '@vrowzer/oxc-parser'
 import type { PartialResolvedId } from 'rolldown'
 import type { PartialEnvironment } from './baseEnvironment'
 import type { ResolvedConfig } from './config'
@@ -60,7 +60,7 @@ export function createIdResolver(
   ): Promise<PartialResolvedId | null> {
     let pluginContainer = pluginContainerMap.get(environment)
     if (!pluginContainer) {
-      // NOTE(kazupon): we need to initialize `@vrowser/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
+      // NOTE(kazupon): we need to initialize `@vrowzer/oxc-parser` here, because it requires to load oxc-parser wasm before using `parseSync`
       // WASM URL is handled by the build pipeline:
       // - Dev mode: wasmInlinePlugin inlines WASM as base64 data URL
       // - Production: wasmInlinePlugin also inlines WASM in the bundled SW

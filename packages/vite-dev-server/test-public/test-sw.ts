@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
-import { createServer } from '@vrowser/vite-dev-server/service-worker'
-import type { ViteDevServerForServiceWorker as ViteDevServer } from '@vrowser/vite-dev-server/service-worker'
+import { createServer } from '@vrowzer/vite-dev-server/service-worker'
+import type { ViteDevServerForServiceWorker as ViteDevServer } from '@vrowzer/vite-dev-server/service-worker'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -24,7 +24,7 @@ const listen = createServer(
 // Server instance will be set after listen()
 let server: ViteDevServer | null = null
 
-// Start the server at top level (same pattern as vrowser's service-worker-core.ts)
+// Start the server at top level (same pattern as vrowzer's service-worker-core.ts)
 // This ensures the server is ready regardless of when activate fires
 const listenPromise = listen()
 let listenReady = false

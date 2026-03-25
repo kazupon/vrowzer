@@ -2,9 +2,9 @@
  * IDE app entry point.
  *
  * Loaded via `<script type="module">` in the IDE HTML.
- * Exposes `mountIde` as a global function (`window.__vrowser_ide_mount__`)
+ * Exposes `mountIde` as a global function (`window.__vrowzer_ide_mount__`)
  * which is called by the client.js virtual module after importing
- * runtime dependencies (vrowser, manifest).
+ * runtime dependencies (vrowzer, manifest).
  */
 
 import { createApp } from 'vue'
@@ -22,7 +22,7 @@ export interface IdeManifest {
 export interface MountIdeOptions {
   manifest: IdeManifest
   basePath: string
-  Vrowser: (options?: { basePath?: string }) => any
+  Vrowzer: (options?: { basePath?: string }) => any
   rpcPort: number
   devtoolsUrl?: string | null
 }
@@ -31,7 +31,7 @@ function mountIde(options: MountIdeOptions): App {
   const app = createApp(IdeApp, {
     manifest: options.manifest,
     basePath: options.basePath,
-    VrowserFactory: options.Vrowser,
+    VrowzerFactory: options.Vrowzer,
     rpcPort: options.rpcPort,
     devtoolsUrl: options.devtoolsUrl ?? null
   })
@@ -40,4 +40,4 @@ function mountIde(options: MountIdeOptions): App {
 }
 
 // Expose as global for client.js to call
-;(window as any).__vrowser_ide_mount__ = mountIde
+;(window as any).__vrowzer_ide_mount__ = mountIde

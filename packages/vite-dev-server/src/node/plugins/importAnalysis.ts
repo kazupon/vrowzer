@@ -1,5 +1,5 @@
 import { makeLegalIdentifier } from '@rollup/pluginutils'
-import { parseAst } from '@vrowser/rolldown/parseAst'
+import { parseAst } from '@vrowzer/rolldown/parseAst'
 // NOTE(kazupon): commented out for maintaining sync from original repo codes as background context
 // import { parseAst } from 'rolldown/parseAst'
 import type {

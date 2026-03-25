@@ -1,4 +1,4 @@
-import ServiceWorker from '@vrowser/unplugin-service-worker/vite'
+import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
 import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vitest/config'
@@ -33,7 +33,7 @@ const alias = targets.reduce(
         // index.js entry is commented out in rolldown.config.ts — skip
         return acc
       }
-      acc['@vrowser/vite-dev-server'] = entryPath
+      acc['@vrowzer/vite-dev-server'] = entryPath
       return acc
     }
     const entryPath = path.resolve(__dirname, `./dist/node/${target}.js`)
@@ -41,49 +41,49 @@ const alias = targets.reduce(
       // Skip if entry doesn't exist (types-only exports)
       return acc
     }
-    acc[`@vrowser/vite-dev-server/${target}`] = entryPath
+    acc[`@vrowzer/vite-dev-server/${target}`] = entryPath
     return acc
   },
   {} as Record<string, string>
 )
 
-// Add alias for @vrowser/service-worker/controller (used in browser tests)
+// Add alias for @vrowzer/service-worker/controller (used in browser tests)
 const serviceWorkerControllerPath = path.resolve(__dirname, '../service-worker/dist/controller.js')
 if (fs.existsSync(serviceWorkerControllerPath)) {
-  alias['@vrowser/service-worker/controller'] = serviceWorkerControllerPath
+  alias['@vrowzer/service-worker/controller'] = serviceWorkerControllerPath
 }
 
 // Node.js polyfill aliases for Service Worker bundling (browser environment)
 // These are used by unplugin-service-worker's rolldown bundler via resolve.alias extraction
 const nodePolyfillAliases: Record<string, string> = {
-  'node:events': '@vrowser/node-polyfill/events',
+  'node:events': '@vrowzer/node-polyfill/events',
   'node:path': 'pathe',
   'node:stream': 'readable-stream/lib/stream',
   'node:buffer': 'buffer',
-  'node:dns': '@vrowser/node-polyfill/dns',
-  'node:fs': '@vrowser/fs',
-  'node:fs/promises': '@vrowser/fs/promises',
-  'node:url': '@vrowser/node-polyfill/url',
-  'node:readline': '@vrowser/node-polyfill/readline',
-  'node:util': '@vrowser/node-polyfill/util',
-  'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
-  'node:crypto': '@vrowser/node-polyfill/crypto',
-  'node:tty': '@vrowser/node-polyfill/tty',
-  'node:module': '@vrowser/node-polyfill/module',
+  'node:dns': '@vrowzer/node-polyfill/dns',
+  'node:fs': '@vrowzer/fs',
+  'node:fs/promises': '@vrowzer/fs/promises',
+  'node:url': '@vrowzer/node-polyfill/url',
+  'node:readline': '@vrowzer/node-polyfill/readline',
+  'node:util': '@vrowzer/node-polyfill/util',
+  'node:perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
+  'node:crypto': '@vrowzer/node-polyfill/crypto',
+  'node:tty': '@vrowzer/node-polyfill/tty',
+  'node:module': '@vrowzer/node-polyfill/module',
   buffer: 'buffer',
-  dns: '@vrowser/node-polyfill/dns',
-  events: '@vrowser/node-polyfill/events',
+  dns: '@vrowzer/node-polyfill/dns',
+  events: '@vrowzer/node-polyfill/events',
   path: 'pathe',
   stream: 'readable-stream/lib/stream',
-  readline: '@vrowser/node-polyfill/readline',
-  util: '@vrowser/node-polyfill/util',
-  perf_hooks: '@vrowser/node-polyfill/perf_hooks',
-  fs: '@vrowser/fs',
-  'fs/promises': '@vrowser/fs/promises',
-  url: '@vrowser/node-polyfill/url',
-  crypto: '@vrowser/node-polyfill/crypto',
-  tty: '@vrowser/node-polyfill/tty',
-  module: '@vrowser/node-polyfill/module',
+  readline: '@vrowzer/node-polyfill/readline',
+  util: '@vrowzer/node-polyfill/util',
+  perf_hooks: '@vrowzer/node-polyfill/perf_hooks',
+  fs: '@vrowzer/fs',
+  'fs/promises': '@vrowzer/fs/promises',
+  url: '@vrowzer/node-polyfill/url',
+  crypto: '@vrowzer/node-polyfill/crypto',
+  tty: '@vrowzer/node-polyfill/tty',
+  module: '@vrowzer/node-polyfill/module',
 }
 
 export default defineConfig({

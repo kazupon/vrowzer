@@ -1,6 +1,6 @@
-# @vrowser/node-polyfill
+# @vrowzer/node-polyfill
 
-Browser-compatible Node.js module polyfills for vrowser.
+Browser-compatible Node.js module polyfills for vrowzer.
 
 ## Features
 
@@ -15,19 +15,19 @@ Browser-compatible Node.js module polyfills for vrowser.
 
 ```sh
 # npm
-npm install --save @vrowser/node-polyfill
+npm install --save @vrowzer/node-polyfill
 
 # pnpm
-pnpm add @vrowser/node-polyfill
+pnpm add @vrowzer/node-polyfill
 
 # yarn
-yarn add @vrowser/node-polyfill
+yarn add @vrowzer/node-polyfill
 
 # deno
-deno add npm:@vrowser/node-polyfill
+deno add npm:@vrowzer/node-polyfill
 
 # bun
-bun add @vrowser/node-polyfill
+bun add @vrowzer/node-polyfill
 ```
 
 ## 🚀 Usage
@@ -35,9 +35,9 @@ bun add @vrowser/node-polyfill
 ### Direct Usage
 
 ```ts
-import { EventEmitter, once, on } from '@vrowser/node-polyfill/events'
-import { clearLine, cursorTo, createInterface } from '@vrowser/node-polyfill/readline'
-import { setTimeout as delay } from '@vrowser/node-polyfill/timers/promises'
+import { EventEmitter, once, on } from '@vrowzer/node-polyfill/events'
+import { clearLine, cursorTo, createInterface } from '@vrowzer/node-polyfill/readline'
+import { setTimeout as delay } from '@vrowzer/node-polyfill/timers/promises'
 
 const ee = new EventEmitter()
 ee.on('data', msg => console.log(msg))
@@ -57,17 +57,17 @@ await delay(1000, 'done')
 export default defineConfig({
   resolve: {
     alias: {
-      'node:url': '@vrowser/node-polyfill/url',
-      'node:util': '@vrowser/node-polyfill/util',
-      'node:events': '@vrowser/node-polyfill/events',
-      'node:perf_hooks': '@vrowser/node-polyfill/perf_hooks',
-      'node:os': '@vrowser/node-polyfill/os',
-      'node:dns': '@vrowser/node-polyfill/dns',
-      'node:dns/promises': '@vrowser/node-polyfill/dns/promises',
-      'node:process': '@vrowser/node-polyfill/process',
-      'node:readline': '@vrowser/node-polyfill/readline',
-      'node:timers': '@vrowser/node-polyfill/timers',
-      'node:timers/promises': '@vrowser/node-polyfill/timers/promises'
+      'node:url': '@vrowzer/node-polyfill/url',
+      'node:util': '@vrowzer/node-polyfill/util',
+      'node:events': '@vrowzer/node-polyfill/events',
+      'node:perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
+      'node:os': '@vrowzer/node-polyfill/os',
+      'node:dns': '@vrowzer/node-polyfill/dns',
+      'node:dns/promises': '@vrowzer/node-polyfill/dns/promises',
+      'node:process': '@vrowzer/node-polyfill/process',
+      'node:readline': '@vrowzer/node-polyfill/readline',
+      'node:timers': '@vrowzer/node-polyfill/timers',
+      'node:timers/promises': '@vrowzer/node-polyfill/timers/promises'
     }
   }
 })
@@ -79,17 +79,17 @@ export default defineConfig({
 
 | Entry Point                              | Node.js Module         | Description                                                                                       |
 | ---------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------- |
-| `@vrowser/node-polyfill/url`             | `node:url`             | `fileURLToPath`, `pathToFileURL`, `URL`                                                           |
-| `@vrowser/node-polyfill/util`            | `node:util`            | `promisify`, `inspect`, `stripVTControlCharacters`                                                |
-| `@vrowser/node-polyfill/events`          | `node:events`          | `EventEmitter`, `once`, `on`, `addAbortListener`, `getEventListeners`                             |
-| `@vrowser/node-polyfill/perf_hooks`      | `node:perf_hooks`      | `performance`, `PerformanceObserver`, stubs for `monitorEventLoopDelay`, `createHistogram`        |
-| `@vrowser/node-polyfill/os`              | `node:os`              | `endianness`, `hostname`, `platform`, `availableParallelism`, stubs for `getPriority`, `userInfo` |
-| `@vrowser/node-polyfill/dns`             | `node:dns`             | Stub implementations for all DNS APIs                                                             |
-| `@vrowser/node-polyfill/dns/promises`    | `node:dns/promises`    | Promise-based DNS stubs                                                                           |
-| `@vrowser/node-polyfill/process`         | `node:process`         | `cwd`/`chdir`, `nextTick`, `hrtime`, `env`, `stdout`/`stderr`/`stdin` stubs                       |
-| `@vrowser/node-polyfill/readline`        | `node:readline`        | ANSI cursor/clear, `Interface`, promises API with `Readline` utility                              |
-| `@vrowser/node-polyfill/timers`          | `node:timers`          | `setTimeout`/`setInterval`, `setImmediate` (MessageChannel fallback)                              |
-| `@vrowser/node-polyfill/timers/promises` | `node:timers/promises` | Promise `setTimeout`/`setImmediate`, async iterator `setInterval`, `scheduler`                    |
+| `@vrowzer/node-polyfill/url`             | `node:url`             | `fileURLToPath`, `pathToFileURL`, `URL`                                                           |
+| `@vrowzer/node-polyfill/util`            | `node:util`            | `promisify`, `inspect`, `stripVTControlCharacters`                                                |
+| `@vrowzer/node-polyfill/events`          | `node:events`          | `EventEmitter`, `once`, `on`, `addAbortListener`, `getEventListeners`                             |
+| `@vrowzer/node-polyfill/perf_hooks`      | `node:perf_hooks`      | `performance`, `PerformanceObserver`, stubs for `monitorEventLoopDelay`, `createHistogram`        |
+| `@vrowzer/node-polyfill/os`              | `node:os`              | `endianness`, `hostname`, `platform`, `availableParallelism`, stubs for `getPriority`, `userInfo` |
+| `@vrowzer/node-polyfill/dns`             | `node:dns`             | Stub implementations for all DNS APIs                                                             |
+| `@vrowzer/node-polyfill/dns/promises`    | `node:dns/promises`    | Promise-based DNS stubs                                                                           |
+| `@vrowzer/node-polyfill/process`         | `node:process`         | `cwd`/`chdir`, `nextTick`, `hrtime`, `env`, `stdout`/`stderr`/`stdin` stubs                       |
+| `@vrowzer/node-polyfill/readline`        | `node:readline`        | ANSI cursor/clear, `Interface`, promises API with `Readline` utility                              |
+| `@vrowzer/node-polyfill/timers`          | `node:timers`          | `setTimeout`/`setInterval`, `setImmediate` (MessageChannel fallback)                              |
+| `@vrowzer/node-polyfill/timers/promises` | `node:timers/promises` | Promise `setTimeout`/`setImmediate`, async iterator `setInterval`, `scheduler`                    |
 
 ### Implementation Notes
 

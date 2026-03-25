@@ -1,5 +1,5 @@
 /**
- * @vrowser/fs E2E Test Entry Point
+ * @vrowzer/fs E2E Test Entry Point
  *
  * This file is loaded in the browser via Vite dev server.
  */
