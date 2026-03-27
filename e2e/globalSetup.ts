@@ -18,10 +18,14 @@ export async function setup({ provide }: { provide: (key: string, value: unknown
   browserServer = await chromium.launchServer({ headless })
   const wsEndpoint = browserServer.wsEndpoint()
   provide('wsEndpoint', wsEndpoint)
-  if (E2E_DEBUG) {console.log('[E2E] Browser server started:', wsEndpoint)}
+  if (E2E_DEBUG) {
+    console.log('[E2E] Browser server started:', wsEndpoint)
+  }
 }
 
 export async function teardown() {
   await browserServer?.close()
-  if (E2E_DEBUG) {console.log('[E2E] Browser server closed')}
+  if (E2E_DEBUG) {
+    console.log('[E2E] Browser server closed')
+  }
 }

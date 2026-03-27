@@ -1,0 +1,10 @@
+{
+  "name": "Define Test",
+  "files": {
+    "/index.html": "./fixture/index.html",
+    "/data.json": "./fixture/data.json",
+    "/main.ts": "./fixture/main.ts",
+    "/optional-env.js": "./fixture/optional-env.js"
+  },
+  "activeFile": "/main.ts"
+}

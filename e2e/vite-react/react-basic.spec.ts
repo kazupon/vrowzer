@@ -22,7 +22,9 @@ describe('react-basic', () => {
   })
 
   test('React HMR - component change', async () => {
-    if (isBuild) {return}
+    if (isBuild) {
+      return
+    }
 
     await updateFile(
       '/App.tsx',

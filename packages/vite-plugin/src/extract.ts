@@ -279,6 +279,9 @@ export function extractWorkerConfig(
     }
   }
 
+  // 8b. Find top-level config properties to forward (define, etc.)
+  const forwardedProps = extractForwardedProperties(source, configObj as ObjectExpression)
+
   // 9. Generate Worker config source
   const code = generateWorkerSource(
     source,
@@ -286,10 +289,32 @@ export function extractWorkerConfig(
     imports,
     workerPlugins,
     neededImportSources,
-    neededLocalNames
+    neededLocalNames,
+    forwardedProps
   )
 
   return { code, unsupported }
+}
+
+/**
+ * Config properties that should be forwarded to Worker config.
+ * These are extracted as raw source code from the config object.
+ */
+const FORWARDED_PROPERTIES = ['define']
+
+function extractForwardedProperties(
+  source: string,
+  configObj: ObjectExpression
+): Map<string, string> {
+  const props = new Map<string, string>()
+  for (const p of configObj.properties) {
+    if (p.type !== 'Property') {continue}
+    const key = p.key.type === 'Identifier' ? p.key.name : null
+    if (key && FORWARDED_PROPERTIES.includes(key)) {
+      props.set(key, source.slice(p.value.start, p.value.end))
+    }
+  }
+  return props
 }
 
 function collectImports(ast: Program): ImportInfo[] {
@@ -383,7 +408,8 @@ function generateWorkerSource(
   imports: ImportInfo[],
   plugins: PluginCallInfo[],
   neededImportSources: Set<string>,
-  neededLocalNames: Set<string>
+  neededLocalNames: Set<string>,
+  forwardedProps: Map<string, string> = new Map()
 ): string {
   const lines: string[] = []
 
@@ -512,7 +538,13 @@ function generateWorkerSource(
     lines.push(`    ${callSource},`)
   }
 
-  lines.push('  ]')
+  lines.push('  ],')
+
+  // Emit forwarded properties (define, etc.)
+  for (const [key, value] of forwardedProps) {
+    lines.push(`  ${key}: ${value},`)
+  }
+
   lines.push('}')
 
   return lines.join('\n')

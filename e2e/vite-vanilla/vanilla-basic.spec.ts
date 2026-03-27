@@ -27,7 +27,9 @@ describe('vanilla-basic', () => {
   })
 
   test('HMR - update file changes preview', async () => {
-    if (isBuild) {return}
+    if (isBuild) {
+      return
+    }
 
     await updateFile(
       '/main.ts',

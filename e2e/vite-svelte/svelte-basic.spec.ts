@@ -22,7 +22,9 @@ describe('svelte-basic', () => {
   })
 
   test('Svelte HMR - component change', async () => {
-    if (isBuild) {return}
+    if (isBuild) {
+      return
+    }
 
     await updateFile(
       '/Counter.svelte',

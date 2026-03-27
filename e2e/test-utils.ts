@@ -29,7 +29,9 @@ import { page } from './vitestSetup.ts'
 export async function iframeEvaluate<T>(fn: (doc: Document) => T): Promise<T> {
   return page.evaluate(fn => {
     const iframe = document.querySelector('iframe') as HTMLIFrameElement
-    if (!iframe?.contentDocument) {throw new Error('Preview iframe not found')}
+    if (!iframe?.contentDocument) {
+      throw new Error('Preview iframe not found')
+    }
     return fn(iframe.contentDocument)
   }, fn)
 }

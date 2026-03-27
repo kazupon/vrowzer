@@ -22,7 +22,9 @@ describe('vue-basic', () => {
   })
 
   test('Vue SFC HMR - template change', async () => {
-    if (isBuild) {return}
+    if (isBuild) {
+      return
+    }
 
     await updateFile(
       '/HelloWorld.vue',

@@ -13,8 +13,7 @@ import {
   normalizeModuleRunnerTransport,
 } from '../shared/moduleRunnerTransport'
 import { ErrorOverlay, cspNonce, overlayId } from './overlay'
-
-// TODO: fill in later ...
+import '@vite/env'
 
 // injected by the hmr plugin when served
 declare const __BASE__: string
@@ -29,10 +28,8 @@ declare const __HMR_ENABLE_OVERLAY__: boolean
 declare const __WS_TOKEN__: string
 declare const __BUNDLED_DEV__: boolean
 
-
 // NOTE(kazupon): for console debug for vite
 // console.debug('[vite] connecting...')
-
 const importMetaUrl = new URL(import.meta.url)
 console.debug('[vrowzer] connecting... ', importMetaUrl.href)
 
