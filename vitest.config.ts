@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
@@ -162,12 +163,18 @@ export default defineConfig({
         }
       },
       {
+        resolve: {
+          alias: {
+            '~utils': resolve(import.meta.dirname, './e2e/test-utils')
+          }
+        },
         test: {
-          name: 'vrowzer:e2e:hosts',
-          include: ['./e2e/vite-*/**/*.e2e-test.ts'],
+          name: 'vrowzer:e2e',
+          include: ['./e2e/vite-*/*.spec.ts', './e2e/playground/**/*.spec.ts'],
+          setupFiles: ['./e2e/vitestSetup.ts'],
+          globalSetup: ['./e2e/globalSetup.ts'],
           testTimeout: 60000,
           hookTimeout: 120000,
-          // Run test files sequentially (each host starts its own server)
           fileParallelism: false
         }
       }
