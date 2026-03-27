@@ -51,7 +51,7 @@
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@rolldown/browser": "1.0.0-rc.9",
+    "@rolldown/browser": "1.0.0-rc.12",
     "@vrowzer/fs": "workspace:*"
   },
   "devDependencies": {

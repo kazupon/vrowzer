@@ -11,7 +11,7 @@ catalog:
   magic-string: ^0.30.21
   oxlint: ^1.57.0
   publint: ^0.3.18
-  rolldown: 1.0.0-rc.9
+  rolldown: 1.0.0-rc.12
   tsdown: 0.18.4
   typedoc: ^0.28.18
   typedoc-plugin-markdown: ^4.11.0
