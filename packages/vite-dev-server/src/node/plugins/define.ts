@@ -1,15 +1,11 @@
-// NOTE(kazupon): commented out, because we need to know about background later
-// import { transformSync } from 'rolldown/experimental'
-import type { ResolvedConfig } from '../config';
-import type { Environment } from '../environment';
-import type { Plugin } from '../plugin';
-import { escapeRegex, isCSSRequest } from '../utils';
-import { isHTMLRequest } from './html';
+import type { ResolvedConfig } from '../config'
+import type { Environment } from '../environment'
+import type { Plugin } from '../plugin'
+import { escapeRegex, isCSSRequest } from '../utils'
+import { isHTMLRequest } from './html'
 
 const nonJsRe = /\.json(?:$|\?)/
 const isNonJsRequest = (request: string): boolean => nonJsRe.test(request)
-const importMetaEnvMarker = '__vite_import_meta_env__'
-const importMetaEnvKeyReCache = new Map<string, RegExp>()
 const escapedDotRE = /(?<!\\)\\./g
 
 export function definePlugin(config: ResolvedConfig): Plugin {
@@ -76,9 +72,6 @@ export function definePlugin(config: ResolvedConfig): Plugin {
     if ('import.meta.env.SSR' in define) {
       define['import.meta.env.SSR'] = ssr + ''
     }
-    if ('import.meta.env' in define) {
-      define['import.meta.env'] = importMetaEnvMarker
-    }
 
     const importMetaEnvVal = serializeDefine({
       ...importMetaEnvKeys,
@@ -96,11 +89,11 @@ export function definePlugin(config: ResolvedConfig): Plugin {
     }
     const pattern = patternKeys.length
       ? new RegExp(
-        patternKeys
-          // replace `\.` (ignore `\\.`) with `\??\.` to match with `?.` as well
-          .map((key) => escapeRegex(key).replaceAll(escapedDotRE, '\\??\\.'))
-          .join('|'),
-      )
+          patternKeys
+            // replace `\.` (ignore `\\.`) with `\??\.` to match with `?.` as well
+            .map((key) => escapeRegex(key).replaceAll(escapedDotRE, '\\??\\.'))
+            .join('|'),
+        )
       : null
 
     return [define, pattern, importMetaEnvVal] as const
@@ -139,7 +132,7 @@ export function definePlugin(config: ResolvedConfig): Plugin {
 
     transform: {
       async handler(code, id) {
-        if (this.environment.config.consumer === 'client' && !isBundled) {
+        if (this.environment.config.consumer === 'client') {
           // for dev we inject actual global defines in the vite client to
           // avoid the transform cost. see the `clientInjection` and
           // `importAnalysis` plugin.
@@ -156,49 +149,14 @@ export function definePlugin(config: ResolvedConfig): Plugin {
           return
         }
 
-        let [define, pattern, importMetaEnvVal] = getPattern(this.environment)
-        if (!pattern) { return }
+        const [define, pattern] = getPattern(this.environment)
+        if (!pattern) {return}
 
         // Check if our code needs any replacements before running esbuild
         pattern.lastIndex = 0
-        if (!pattern.test(code)) { return }
-
-        const hasDefineImportMetaEnv = 'import.meta.env' in define
-        let marker = importMetaEnvMarker
-
-        if (hasDefineImportMetaEnv && code.includes(marker)) {
-          // append a number to the marker until it's unique, to avoid if there is a
-          // marker already in the code
-          let i = 1
-          do {
-            marker = importMetaEnvMarker + i++
-          } while (code.includes(marker))
-
-          if (marker !== importMetaEnvMarker) {
-            define = { ...define, 'import.meta.env': marker }
-          }
-        }
+        if (!pattern.test(code)) {return}
 
         const result = await replaceDefine(this.environment, code, id, define)
-
-        if (hasDefineImportMetaEnv) {
-          // Replace `import.meta.env.*` with undefined
-          result.code = result.code.replaceAll(
-            getImportMetaEnvKeyRe(marker),
-            (m) => 'undefined'.padEnd(m.length),
-          )
-
-          // If there's bare `import.meta.env` references, prepend the banner
-          if (result.code.includes(marker)) {
-            result.code =
-              `const ${marker} = ${importMetaEnvVal};\n` + result.code
-
-            if (result.map) {
-              result.map.mappings = ';' + result.map.mappings
-            }
-          }
-        }
-
         return result
       },
     },
@@ -224,6 +182,7 @@ export async function replaceDefine(
       environment.config.command === 'build'
         ? !!environment.config.build.sourcemap
         : true,
+    tsconfig: false,
   })
 
   if (result.errors.length > 0) {
@@ -256,16 +215,7 @@ export function serializeDefine(define: Record<string, any>): string {
 }
 
 function handleDefineValue(value: any): string {
-  if (typeof value === 'undefined') { return 'undefined' }
-  if (typeof value === 'string') { return value }
+  if (typeof value === 'undefined') {return 'undefined'}
+  if (typeof value === 'string') {return value}
   return JSON.stringify(value)
-}
-
-function getImportMetaEnvKeyRe(marker: string): RegExp {
-  let re = importMetaEnvKeyReCache.get(marker)
-  if (!re) {
-    re = new RegExp(`${marker}\\..+?\\b`, 'g')
-    importMetaEnvKeyReCache.set(marker, re)
-  }
-  return re
 }

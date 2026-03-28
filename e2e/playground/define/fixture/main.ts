@@ -32,7 +32,7 @@ try {
   text('.process-as-property', __OBJ__.process.env.SOMEVAR)
   text(
     '.spread-object',
-    JSON.stringify((process.env.SOMEVAR ? { SOMEVAR: `"${process.env.SOMEVAR}"` } : {}))
+    JSON.stringify(process.env.SOMEVAR ? { SOMEVAR: `"${process.env.SOMEVAR}"` } : {})
   )
   // @ts-expect-error define
   text('.spread-array', JSON.stringify([...`"${__STRING__}"`]))
@@ -54,9 +54,9 @@ try {
   text('.import-json', dataJson.foo)
 
   // @ts-expect-error define
-  text('.define-in-dep', __STRINGIFIED_OBJ__)
+  text('.define-in-dep', JSON.stringify(__STRINGIFIED_OBJ__))
   // @ts-expect-error define
-  text('.define-in-environment', __DEFINE_IN_ENVIRONMENT__)
+  text('.define-in-environment', JSON.stringify(__DEFINE_IN_ENVIRONMENT__))
 
   // String literals should NOT be replaced
   text('.ignores-string-literals .process-env-dot', 'process.env.')

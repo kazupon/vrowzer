@@ -96,14 +96,8 @@ describe('define', () => {
     expect(texts['.no-property']).toBe(String(true))
     expect(texts['.exp-define']).toBe('__EXP__')
     expect(texts['.import-json']).toBe('__EXP__')
-    // Skipped: In upstream Vite, __STRINGIFIED_OBJ__ is used inside a CommonJS dependency
-    // where the define plugin's transform directly replaces it with the JSON string '{"foo":true}'.
-    // In vrowzer's dev mode, define values are injected via @vite/env as globals on globalThis.
-    // JSON.stringify({foo:true}) produces '{"foo":true}' (a string), but handleDefineValue()
-    // re-stringifies it, and @vite/env's globalThis assignment parses it back as an object,
-    // resulting in [object Object] instead of the JSON string.
-    // expect(texts['.define-in-dep']).toBe(defines.__STRINGIFIED_OBJ__)
-    expect(texts['.define-in-environment']).toBe(JSON.parse(defines.__DEFINE_IN_ENVIRONMENT__))
+    expect(texts['.define-in-dep']).toBe(defines.__STRINGIFIED_OBJ__)
+    expect(texts['.define-in-environment']).toBe(defines.__DEFINE_IN_ENVIRONMENT__)
   })
 
   test('ignores constants in string literals', async () => {
