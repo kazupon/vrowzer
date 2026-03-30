@@ -1,0 +1,16 @@
+{
+  "name": "Alias Test",
+  "files": {
+    "/index.html": "./fixture/index.html",
+    "/main.ts": "./fixture/main.ts",
+    "/test.js": "./fixture/test.js",
+    "/customResolver.js": "./fixture/customResolver.js",
+    "/dir/test.js": "./fixture/dir/test.js",
+    "/dir/test.css": "./fixture/dir/test.css",
+    "/dir/from-script-src.js": "./fixture/dir/from-script-src.js",
+    "/dir/url_conflict.js": "./fixture/dir/url_conflict.js",
+    "/dir/module/index.js": "./fixture/dir/module/index.js",
+    "/dir/module/package.json": "./fixture/dir/module/package.json"
+  },
+  "activeFile": "/index.html"
+}

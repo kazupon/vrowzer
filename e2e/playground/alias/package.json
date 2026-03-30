@@ -1,0 +1,10 @@
+{
+  "name": "@vrowzer/e2e-alias",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "vrowzer": "workspace:*",
+    "@vrowzer/vite-plugin": "workspace:*"
+  }
+}
