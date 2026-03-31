@@ -10,4 +10,9 @@
  */
 
 export { safeMessagePort } from './port.ts'
-export type { MessagePortEvents, SafeMessagePort, SafeMessagePortResult } from './port.ts'
+export type {
+  MessagePortEvents,
+  SafeMessagePort,
+  SafeMessagePortOptions,
+  SafeMessagePortResult
+} from './port.ts'

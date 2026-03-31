@@ -165,7 +165,7 @@ export default defineConfig({
       {
         test: {
           name: 'safe-port:unit',
-          include: ['./packages/port-safe/src/**/*.browser-test.ts'],
+          include: ['./packages/safe-port/src/**/*.browser-test.ts'],
           browser: {
             enabled: true,
             headless: true,
