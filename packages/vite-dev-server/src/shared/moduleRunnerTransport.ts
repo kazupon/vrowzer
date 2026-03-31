@@ -1,7 +1,7 @@
 // TODO: fill in later ...
 
 import type { CustomPayload, HotPayload } from '#types/hmrPayload'
-import { safeMessagePort } from '@kazupon/jts-utils/message/port'
+import { safeMessagePort } from '@vrowzer/safe-port'
 import { nanoid } from 'nanoid/non-secure'
 import type { ViteMessageChannelInitMessage } from '../shared/messages'
 import { MC_INIT_EVENT } from '../shared/messages'

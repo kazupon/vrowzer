@@ -1,6 +1,6 @@
 import type { ErrorPayload, FullReloadPayload, HotPayload } from '#types/hmrPayload'
 import { Emitter } from '@kazupon/jts-utils/event'
-import { safeMessagePort } from '@kazupon/jts-utils/message/port'
+import { safeMessagePort } from '@vrowzer/safe-port'
 import { MC_INIT_EVENT } from '../../shared/messages'
 // NOTE(kazupon): HttpServer and ConnectionEvent imports removed.
 // createMessageChannelServer no longer depends on httpServer.

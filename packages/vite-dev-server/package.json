@@ -107,6 +107,7 @@
     "@jridgewell/remapping": "^2.3.5",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@kazupon/jts-utils": "catalog:",
+    "@vrowzer/safe-port": "workspace:*",
     "@noble/hashes": "^2.0.1",
     "@oxc-parser/binding-wasm32-wasi": "0.111.0",
     "@oxc-project/types": "catalog:",

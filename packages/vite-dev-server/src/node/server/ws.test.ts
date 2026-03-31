@@ -50,7 +50,7 @@ function createMockSafePort(rawPort: MessagePort) {
 }
 
 // Mock the safeMessagePort module
-vi.mock('@kazupon/jts-utils/message/port', () => ({
+vi.mock('@vrowzer/safe-port', () => ({
   safeMessagePort: (port: MessagePort) => createMockSafePort(port)
 }))
 

@@ -676,6 +676,9 @@ importers:
       '@vrowzer/rolldown':
         specifier: workspace:*
         version: link:../rolldown
+      '@vrowzer/safe-port':
+        specifier: workspace:*
+        version: link:../safe-port
       '@vrowzer/service-worker':
         specifier: workspace:*
         version: link:../service-worker
