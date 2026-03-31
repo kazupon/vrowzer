@@ -163,6 +163,22 @@ export default defineConfig({
         }
       },
       {
+        test: {
+          name: 'safe-port:unit',
+          include: ['./packages/port-safe/src/**/*.browser-test.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright(),
+            instances: [
+              {
+                browser: 'chromium'
+              }
+            ]
+          }
+        }
+      },
+      {
         resolve: {
           alias: {
             '~utils': resolve(import.meta.dirname, './e2e/test-utils')
