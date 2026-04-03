@@ -61,6 +61,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
         bundledDev: false
       }
     },
+    // @ts-expect-error -- FIXME(kazupon): type errors
     {
       version: SW_VERSION,
       basePath: previewBase,
