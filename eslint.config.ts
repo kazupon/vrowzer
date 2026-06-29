@@ -39,6 +39,8 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
   }),
   {
     ignores: [
+      // Generated Playwright CLI artifacts
+      '**/.playwright-cli/**',
       // FIXME: Fix lint errors in e2e tests, why they are ignored via eslint-plugin-oxlint?
       'packages/unplugin-service-worker/integration/**',
       'packages/service-worker/**',

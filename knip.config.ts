@@ -28,12 +28,13 @@ const config: KnipConfig = {
       ]
     },
     'packages/play-vrowzer': {
+      entry: ['src/**/*.ts', 'fixtures/**'],
       ignoreDependencies: [
         'vue/compiler-sfc' // Imported in vite.config.ts for Worker plugin override (not detected by knip)
       ]
     },
     'packages/rolldown': {
-      entry: ['src/index.ts', 'integration/**'],
+      entry: ['src/index.ts', 'src/utils.ts', 'integration/**'],
       ignoreDependencies: [
         // Used for bundling via resolve.alias (node polyfills)
         '@vrowzer/node-polyfill',
@@ -50,7 +51,11 @@ const config: KnipConfig = {
     'packages/service-worker-server': {
       entry: ['integration/**', 'test-public/**', 'docs/**']
     },
+    'packages/safe-port': {
+      entry: ['src/**/*.ts']
+    },
     'packages/unplugin-service-worker': {
+      bun: false,
       entry: ['src/**/*.ts', 'integration/**']
     },
     'packages/vite-plugin': {
@@ -93,6 +98,11 @@ const config: KnipConfig = {
     '@kazupon/eslint-plugin',
     '@playwright/test'
   ],
+  ignoreIssues: {
+    'packages/vite-plugin/src/extract.ts': ['types'],
+    'packages/vite-plugin/src/options.ts': ['types'],
+    'packages/vite-plugin/src/prebundle.ts': ['exports', 'types']
+  },
   exclude: [
     'duplicates' // EventEmitter exports both named and default for Node.js CJS/ESM compat
   ]

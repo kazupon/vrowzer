@@ -75,11 +75,15 @@ function parseArgs(argv: string[]) {
 
 // --- Inspect ---
 
+function parseManifestJson(content: string): ManifestResult {
+  return JSON.parse(content) as ManifestResult
+}
+
 function readCachedManifest(root: string): ManifestResult | null {
   const manifestPath = join(root, 'node_modules', '.vrowzer-manifest', 'manifest.json')
   if (existsSync(manifestPath)) {
     try {
-      return JSON.parse(readFileSync(manifestPath, 'utf-8'))
+      return parseManifestJson(readFileSync(manifestPath, 'utf-8'))
     } catch {
       return null
     }
@@ -91,7 +95,7 @@ function readManifestFile(dir: string): ManifestResult | null {
   const manifestPath = join(dir, 'vrowzer-manifest.json')
   if (existsSync(manifestPath)) {
     try {
-      return JSON.parse(readFileSync(manifestPath, 'utf-8'))
+      return parseManifestJson(readFileSync(manifestPath, 'utf-8'))
     } catch {
       return null
     }
