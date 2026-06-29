@@ -26,6 +26,7 @@ let browser: Browser
 let server: PreviewServer
 let page: Page
 let serverUrl: string
+let pageConsoleLogs: string[] = []
 
 beforeAll(async () => {
   debug('Building playground...')
@@ -55,6 +56,50 @@ beforeAll(async () => {
 
   browser = await chromium.launch({ headless: true })
   debug('Browser launched')
+
+  page = await browser.newPage()
+
+  // Collect console logs for debugging. Always keep them in memory so failures in
+  // non-debug mode still include the browser-side ready() error.
+  page.on('console', msg => {
+    const log = `[browser ${msg.type()}] ${msg.text()}`
+    pageConsoleLogs.push(log)
+    debug(log)
+  })
+  page.on('pageerror', err => {
+    const log = `[browser error] ${err.message}`
+    pageConsoleLogs.push(log)
+    debug(log)
+  })
+
+  await page.goto(serverUrl)
+
+  // Wait for ready() to complete (status becomes "Ready" or error).
+  try {
+    await page.waitForFunction(
+      () => {
+        const text = document.getElementById('status')?.textContent ?? ''
+        return text === 'Ready' || text.startsWith('Error') || text.startsWith('Failed')
+      },
+      undefined,
+      { timeout: 60000 }
+    )
+  } catch (error) {
+    const status = await page.textContent('#status')
+    throw new Error(
+      `Timed out waiting for vrowzer playground to finish initialization; status=${JSON.stringify(status)}\n${pageConsoleLogs.join('\n')}`,
+      { cause: error }
+    )
+  }
+
+  const status = await page.textContent('#status')
+  debug('Status:', status)
+
+  if (status !== 'Ready') {
+    throw new Error(
+      `Expected vrowzer playground to become Ready, got ${JSON.stringify(status)}\n${pageConsoleLogs.join('\n')}`
+    )
+  }
 }, 120000)
 
 afterAll(async () => {
@@ -66,26 +111,9 @@ afterAll(async () => {
 
 describe('Vrowzer E2E', () => {
   describe('initialization', () => {
-    test('page loads and shows initializing status', async () => {
-      page = await browser.newPage()
-
-      // Collect console logs for debugging
-      page.on('console', msg => debug(`[browser ${msg.type()}]`, msg.text()))
-      page.on('pageerror', err => debug('[browser error]', err.message))
-
-      await page.goto(serverUrl)
-
-      // Wait for ready() to complete (status becomes "Ready" or error)
-      await page.waitForFunction(
-        () => {
-          const text = document.getElementById('status')?.textContent ?? ''
-          return text === 'Ready' || text.startsWith('Error') || text.startsWith('Failed')
-        },
-        { timeout: 60000 }
-      )
-
-      debug('Status:', await page.textContent('#status'))
-    }, 60000)
+    test('page loads and shows ready status', async () => {
+      expect(await page.textContent('#status')).toBe('Ready')
+    })
 
     test('ready() resolves and status shows Ready', async () => {
       const status = await page.textContent('#status')
@@ -121,6 +149,7 @@ describe('Vrowzer E2E', () => {
           const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement
           return iframe?.contentDocument?.body?.innerText?.includes('Hello from Vrowzer!')
         },
+        undefined,
         { timeout: 30000 }
       )
 
@@ -157,6 +186,7 @@ if (import.meta.hot) {
           const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement
           return iframe?.contentDocument?.body?.innerText?.includes('Updated!')
         },
+        undefined,
         { timeout: 15000 }
       )
 

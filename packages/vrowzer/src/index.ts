@@ -314,7 +314,18 @@ function execScript(orig, origin) {
         }
         publisher.addTarget(webWorker)
 
-        // 2. Import dist client files and merge with user files
+        // 2. Start listening for WW readiness immediately. V_WW_READY is sent
+        // once at Worker startup, so the listener must be installed before any
+        // async work that could let the Worker finish evaluation first.
+        const webWorkerReadySignal = new Promise<void>(resolve => {
+          webWorker!.onmessage = (event: MessageEvent) => {
+            if (event.data.type === V_WW_READY) {
+              resolve()
+            }
+          }
+        })
+
+        // 3. Import dist client files and merge with user files
         const { default: clientCode } =
           await import('@vrowzer/vite-dev-server/dist/client/client.mjs?raw')
         const { default: envCode } =
@@ -325,52 +336,50 @@ function execScript(orig, origin) {
           '/dist/client/env.mjs': envCode
         }
 
-        // 3. Wait for WW to signal readiness, then send setup config and wait for ACK.
+        // 4. Wait for WW to signal readiness, then send setup config and wait for ACK.
         // V_WW_READY is sent by createServer() after self.onmessage is registered.
         // Without this handshake, V_WW_SETUP can be lost if the WW module evaluation
         // takes time (e.g. when user plugins import heavy modules via "vite" alias).
-        const webWorkerReady = new Promise<void>((resolve, reject) => {
-          webWorker!.onmessage = (event: MessageEvent) => {
-            if (event.data.type === V_WW_READY) {
-              // WW's self.onmessage is registered — safe to send V_WW_SETUP now.
-              // Replace handler to wait for ACK/ERROR.
-              webWorker!.onmessage = (event: MessageEvent) => {
-                if (event.data.type === V_WW_SETUP_ACK) {
-                  webWorker!.onmessage = null
-                  resolve()
-                  return
-                }
-                if (event.data.type === V_WW_SETUP_ERROR) {
-                  webWorker!.onmessage = null
-                  const errData = event.data.error ?? {}
-                  reject(
-                    new Error(`Web Worker setup failed: ${errData.message ?? 'unknown error'}`)
-                  )
-                  return
-                }
-              }
+        const webWorkerReady = async () => {
+          await withTimeout(webWorkerReadySignal, 30000, 'Web Worker ready')
 
-              // Send V_WW_SETUP after receiving V_WW_READY
-              webWorker!.postMessage({
-                type: V_WW_SETUP,
-                config: {
-                  root: '/',
-                  base: resolved.basePath,
-                  publicDir: 'public',
-                  optimizeDeps: { disabled: true },
-                  experimental: {
-                    importGlobRestoreExtension: false,
-                    hmrPartialAccept: false,
-                    enableNativePlugin: 'v2',
-                    bundledDev: false
-                  }
-                },
-                options: { basePath: resolved.basePath },
-                files: allFiles
-              })
+          await new Promise<void>((resolve, reject) => {
+            // WW's self.onmessage is registered — safe to send V_WW_SETUP now.
+            // Replace handler to wait for ACK/ERROR.
+            webWorker!.onmessage = (event: MessageEvent) => {
+              if (event.data.type === V_WW_SETUP_ACK) {
+                webWorker!.onmessage = null
+                resolve()
+                return
+              }
+              if (event.data.type === V_WW_SETUP_ERROR) {
+                webWorker!.onmessage = null
+                const errData = event.data.error ?? {}
+                reject(new Error(`Web Worker setup failed: ${errData.message ?? 'unknown error'}`))
+                return
+              }
             }
-          }
-        })
+
+            // Send V_WW_SETUP after receiving V_WW_READY
+            webWorker!.postMessage({
+              type: V_WW_SETUP,
+              config: {
+                root: '/',
+                base: resolved.basePath,
+                publicDir: 'public',
+                optimizeDeps: { disabled: true },
+                experimental: {
+                  importGlobRestoreExtension: false,
+                  hmrPartialAccept: false,
+                  enableNativePlugin: 'v2',
+                  bundledDev: false
+                }
+              },
+              options: { basePath: resolved.basePath },
+              files: allFiles
+            })
+          })
+        }
 
         // 5. Initialize Service Worker and Web Worker in parallel
         // initServiceWorker waits for both controller.ready() AND listen() completion,
@@ -381,7 +390,7 @@ function execScript(orig, origin) {
             version: resolved.serviceWorkerVersion,
             scope: resolved.serviceWorkerScope
           }),
-          withTimeout(webWorkerReady, 30000, 'Web Worker setup')
+          withTimeout(webWorkerReady(), 30000, 'Web Worker setup')
         ])
 
         // 6. Forward controller events to Vrowzer emitter

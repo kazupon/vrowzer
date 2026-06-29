@@ -159,7 +159,9 @@ export default defineConfig({
           name: 'vrowzer:integration',
           include: ['./packages/vrowzer/integration/**/*.integration-test.ts'],
           testTimeout: 60000,
-          hookTimeout: 120000
+          hookTimeout: 120000,
+          // Run integration files sequentially to avoid Service Worker registration conflicts.
+          fileParallelism: false
         }
       },
       {
