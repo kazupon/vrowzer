@@ -89,9 +89,7 @@ catalogs:
       version: 4.77.0
 
 patchedDependencies:
-  fdir@6.5.0:
-    hash: 05b05d91bdaa123ed552e3aff1ea1bb4b09892a14347297148f300df23446f64
-    path: patches/fdir@6.5.0.patch
+  fdir@6.5.0: 05b05d91bdaa123ed552e3aff1ea1bb4b09892a14347297148f300df23446f64
 
 importers:
 

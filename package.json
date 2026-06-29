@@ -2,7 +2,7 @@
   "name": "vrowzer-monorepo",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@11.9.0",
   "type": "module",
   "scripts": {
     "build": "pnpm -r run build",
@@ -97,15 +97,6 @@
     "vitest": "catalog:",
     "watr": "^4.2.1",
     "wrangler": "catalog:"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@rolldown/browser",
-      "core-js",
-      "deno",
-      "esbuild",
-      "wasm-pack"
-    ]
   },
   "lint-staged": {
     "*.ts?(x)": [
