@@ -28,6 +28,13 @@ const commonIgnorePatterns = [
   'refers/**'
 ]
 
+const fmtIgnorePatterns = [
+  ...commonIgnorePatterns,
+  'pnpm-lock.yaml',
+  'package.json',
+  'packages/vite-dev-server/**'
+]
+
 const lintIgnorePatterns = [
   ...commonIgnorePatterns,
   'packages/node-polyfill/**/*.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
@@ -55,7 +62,7 @@ export default defineConfig({
     '*': 'vp check --fix'
   },
   fmt: defineFmtConfig({
-    ignorePatterns: commonIgnorePatterns
+    ignorePatterns: fmtIgnorePatterns
   }),
   lint: defineLintConfig({
     ignorePatterns: lintIgnorePatterns,
