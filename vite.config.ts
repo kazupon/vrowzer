@@ -95,7 +95,7 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/.git/**', 'refers/**'],
     projects: [
       {
-        extends: './packages/service-worker/vitest.config.ts',
+        extends: './packages/service-worker/vite.config.ts',
         test: {
           name: 'service-worker:unit',
           include: ['./packages/service-worker/src/**/*.browser-test.ts'],
@@ -159,7 +159,7 @@ export default defineConfig({
         }
       },
       {
-        extends: './packages/fs/vitest.config.ts',
+        extends: './packages/fs/vite.config.ts',
         test: {
           name: 'fs:unit',
           include: ['./packages/fs/src/**/*.test.ts']
@@ -210,14 +210,14 @@ export default defineConfig({
         }
       },
       {
-        extends: './packages/vite-plugin/vitest.config.ts',
+        extends: './packages/vite-plugin/vite.config.ts',
         test: {
           name: 'vite-plugin:unit',
           include: ['./packages/vite-plugin/src/**/*.test.ts']
         }
       },
       {
-        extends: './packages/vrowzer/vitest.config.ts',
+        extends: './packages/vrowzer/vite.config.ts',
         test: {
           name: 'vrowzer:unit',
           include: ['./packages/vrowzer/src/**/*.test.ts']

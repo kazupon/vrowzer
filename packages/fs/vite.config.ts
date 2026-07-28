@@ -71,5 +71,8 @@ export default defineConfig({
       'readable-stream',
       '@vrowzer/node-polyfill/process'
     ]
+  },
+  test: {
+    environment: 'node'
   }
 })

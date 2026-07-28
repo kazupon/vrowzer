@@ -6,6 +6,9 @@ const config: ReturnType<typeof defineConfig> = defineConfig({
     external: ['@vitejs/devtools', 'vite'],
     publint: true,
     dts: true
+  },
+  test: {
+    environment: 'node'
   }
 })
 

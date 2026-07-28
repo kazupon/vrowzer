@@ -2,7 +2,10 @@
  * Vite configuration for @vrowzer/service-worker playground
  */
 
+import fs from 'node:fs'
+import path from 'node:path'
 import { defineConfig, lazyPlugins } from 'vite-plus'
+import pkg from './package.json' with { type: 'json' }
 
 import type { Plugin } from 'vite-plus'
 
@@ -85,7 +88,33 @@ function apiMiddleware(): Plugin {
   }
 }
 
-const isIntegrationTest = process.env.VITEST === 'true' || process.argv.includes('--port')
+const packageRoot = import.meta.dirname
+const isIntegrationServer = process.argv.includes('--port')
+// Spawned integration servers inherit VITEST, so the CLI flag distinguishes them from Vitest.
+const isVitest = process.env.VITEST === 'true' && !isIntegrationServer
+const isIntegrationTest = isVitest || isIntegrationServer
+
+function createTestAliases(): Record<string, string> {
+  const targets = Object.keys(pkg.exports).flatMap(key => {
+    if (key === './package.json') {
+      return []
+    }
+    const target = key.split('./').filter(Boolean)[0]
+    return target ? [target] : []
+  })
+
+  return targets.reduce(
+    (aliases, target) => {
+      const entryPath = path.resolve(packageRoot, `./dist/${target}.js`)
+      if (!fs.existsSync(entryPath)) {
+        throw new Error(`Build entry not found: ${entryPath}`)
+      }
+      aliases[`@vrowzer/service-worker/${target}`] = entryPath
+      return aliases
+    },
+    {} as Record<string, string>
+  )
+}
 
 const config: ReturnType<typeof defineConfig> = defineConfig({
   pack: {
@@ -95,16 +124,28 @@ const config: ReturnType<typeof defineConfig> = defineConfig({
     dts: true,
     fixedExtension: false
   },
-  root: isIntegrationTest ? '.' : './playground',
-  publicDir: isIntegrationTest ? 'test-public' : undefined,
-  plugins: lazyPlugins(async () => {
-    const { default: ServiceWorker } = await import('@vrowzer/unplugin-service-worker/vite')
-    return [ServiceWorker(), apiMiddleware()]
-  }),
+  root: path.resolve(packageRoot, isIntegrationTest ? '.' : './playground'),
+  publicDir: isIntegrationTest ? path.resolve(packageRoot, 'test-public') : undefined,
+  plugins: isVitest
+    ? []
+    : lazyPlugins(async () => {
+        const { default: ServiceWorker } = await import('@vrowzer/unplugin-service-worker/vite')
+        return [ServiceWorker(), apiMiddleware()]
+      }),
   build: {
     outDir: './dist',
     sourcemap: true
-  }
+  },
+  ...(isVitest
+    ? {
+        server: {
+          port: 5173
+        },
+        resolve: {
+          alias: createTestAliases()
+        }
+      }
+    : {})
 })
 
 export default config
