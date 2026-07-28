@@ -33,5 +33,6 @@ test-results
 # for projects
 packages/unplugin-service-worker/e2e/playground/add.wasm
 
-.notes
+.notes/
+.plans/
 .todo.md
