@@ -476,7 +476,6 @@ export function posToNumber(source: string, pos: number | Pos): number {
   const { line, column } = pos
   let start = 0
   for (let i = 0; i < line - 1 && i < lines.length; i++) {
-    // @ts-expect-error -- FIXME(kazupon): fix me
     start += lines[i].length + 1
   }
   return start + column
@@ -493,7 +492,6 @@ export function numberToPos(source: string, offset: number | Pos): Pos {
   const lines = source.slice(0, offset).split(splitRE)
   return {
     line: lines.length,
-    // @ts-expect-error -- FIXME(kazupon): fix me
     column: lines[lines.length - 1].length,
   }
 }
@@ -520,13 +518,11 @@ export function generateCodeFrame(
   let count = 0
   const res: string[] = []
   for (let i = 0; i < lines.length; i++) {
-    // @ts-expect-error -- FIXME(kazupon): fix me
     count += lines[i].length
     if (count >= start) {
       for (let j = i - range; j <= i + range || end > count; j++) {
         if (j < 0 || j >= lines.length) { continue }
         const line = j + 1
-        // @ts-expect-error -- FIXME(kazupon): fix me
         const lineLength = lines[j].length
         const pad = Math.max(start - (count - lineLength), 0)
         const underlineLength = Math.max(
@@ -552,7 +548,6 @@ export function generateCodeFrame(
           const suffix = lineLength - startIdx > MAX_DISPLAY_LEN ? ELLIPSIS : ''
           const sliceLen = MAX_DISPLAY_LEN - prefix.length - suffix.length
           displayLine =
-            // @ts-expect-error -- FIXME(kazupon): fix me
             prefix + displayLine.slice(startIdx, startIdx + sliceLen) + suffix
         }
         res.push(
@@ -615,16 +610,12 @@ export function emptyDir(dir: string, skip?: string[]): void {
         if (matched) {
           nested ??= new Map()
           const [, nestedDir, skipPath] = matched
-          //@ts-expect-error -- NOTE(kazupon): fix me
           let nestedSkip = nested.get(nestedDir)
           if (!nestedSkip) {
             nestedSkip = []
-            //@ts-expect-error -- NOTE(kazupon): fix me
             nested.set(nestedDir, nestedSkip)
           }
-          //@ts-expect-error -- NOTE(kazupon): fix me
           if (!nestedSkip.includes(skipPath)) {
-            //@ts-expect-error -- NOTE(kazupon): fix me
             nestedSkip.push(skipPath)
           }
         }
@@ -674,7 +665,6 @@ export async function recursiveReaddir(dir: string): Promise<string[]> {
   try {
     dirents = await fsp.readdir(dir, { withFileTypes: true })
   } catch (e) {
-    //@ts-expect-error -- NOTE(kazupon): fix me
     if (e.code === 'EACCES') {
       // Ignore permission errors
       return []
@@ -916,7 +906,6 @@ export function combineSourcemaps(
   if (useArrayInterface) {
     map = remapping(sourcemapList, () => null)
   } else {
-    // @ts-expect-error -- FIXME(kazupon): fix me
     map = remapping(sourcemapList[0], function loader(sourcefile) {
       // this line assumes that the length of the sourcemapList is 2
       if (sourcefile === escapedFilename && sourcemapList[mapIndex]) {
@@ -1306,7 +1295,6 @@ export function setupRollupOptionCompat<
 } {
   // if both rollupOptions and rolldownOptions are present,
   // ignore rollupOptions and use rolldownOptions
-  // @ts-expect-error -- TODO(kazupon): fix me
   buildConfig.rolldownOptions ??= buildConfig.rollupOptions
   if (
     runtimeDeprecatedPath.has(path) &&

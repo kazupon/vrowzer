@@ -1,5 +1,5 @@
 import { Transform } from 'readable-stream'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mustCall } from '../common/index.ts'
 
 describe('test-stream-transform-constructor-set-methods', () => {

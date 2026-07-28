@@ -8,9 +8,9 @@ import * as compiler from 'vue/compiler-sfc'
 import yaml from '@rollup/plugin-yaml'
 import { Vrowzer, VrowzerManifest } from '@vrowzer/vite-plugin'
 import { DevTools } from '@vitejs/devtools'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite-plus'
 
-import type { Plugin } from 'vite'
+import type { Plugin } from 'vite-plus'
 
 // Read refresh runtime source at config load time (Node.js).
 // Direct path bypasses package.json exports restriction.

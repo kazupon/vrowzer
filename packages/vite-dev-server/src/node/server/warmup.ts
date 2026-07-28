@@ -36,10 +36,8 @@ async function warmupFile(
       } catch (e) {
         // Unexpected error, log the issue but avoid an unhandled exception
         environment.logger.error(
-          // @ts-expect-error -- FIXME(kazupon): type error
           `Pre-transform error (${colors.cyan(file)}): ${e.message}`,
           {
-            // @ts-expect-error -- FIXME(kazupon): type error
             error: e,
             timestamp: true,
           },

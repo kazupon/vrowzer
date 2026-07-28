@@ -1101,8 +1101,8 @@ class TransformPluginContext
       this.filename.includes(debugSourcemapCombineFilter)
     ) {
       debugSourcemapCombine('----------', this.filename)
-      debugSourcemapCombine(this.combinedMap)
-      debugSourcemapCombine(this.sourcemapChain)
+      debugSourcemapCombine('combined map:', this.combinedMap)
+      debugSourcemapCombine('sourcemap chain:', this.sourcemapChain)
       debugSourcemapCombine('----------')
     }
 

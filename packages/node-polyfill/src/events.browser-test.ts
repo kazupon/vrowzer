@@ -19,7 +19,7 @@
  * - test-events-add-abort-listener.mjs
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vite-plus/test'
 import {
   EventEmitter,
   addAbortListener,

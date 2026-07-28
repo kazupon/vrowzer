@@ -1,3 +1,4 @@
+import { dirname } from 'node:path'
 import type * as esbuild from 'esbuild'
 import type {
   ImportKind,

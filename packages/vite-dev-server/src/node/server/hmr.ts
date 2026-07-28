@@ -1117,7 +1117,11 @@ async function readModifiedFile(file: string): Promise<string> {
 
 type InnerEmitterEvents = {
   connection: undefined
-  [key: string]: unknown // for dynamic events
+  'vite:client:connect': [data: undefined, client: HotChannelClient]
+  'vite:client:disconnect': [data: undefined, client: HotChannelClient]
+  [key: string]:
+    | undefined
+    | [data: unknown, client: HotChannelClient]
 }
 type OutsideEmitterEvents = {
   send: HotPayload

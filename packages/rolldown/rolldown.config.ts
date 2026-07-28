@@ -240,7 +240,7 @@ const postBuildPlugin: Plugin = {
         `import type { IFs } from '@vrowzer/fs'`,
         `import type { Volume } from '@vrowzer/fs'`,
         `export declare const memfs: { fs: IFs; volume: InstanceType<typeof Volume> }`,
-        `export { parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'`,
+        `export { parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult, viteJsonPlugin, viteTransformPlugin } from '@rolldown/browser/experimental'`,
         ``
       ].join('\n')
     )
@@ -271,7 +271,7 @@ const postBuildPlugin: Plugin = {
     )
     writeFileSync(
       join(distDir, 'browser', 'experimental.d.ts'),
-      `export { memfs, parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'\n`
+      `export { memfs, parseSync, parse, type ParseResult, type ParserOptions, transform, transformSync, type TransformOptions, type TransformResult, viteJsonPlugin, viteTransformPlugin } from '@rolldown/browser/experimental'\n`
     )
     // Generate type declarations for utils (variant 2)
     writeFileSync(

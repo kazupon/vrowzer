@@ -3,9 +3,9 @@
  */
 
 import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite-plus'
 
-import type { Plugin } from 'vite'
+import type { Plugin } from 'vite-plus'
 
 /**
  * Custom plugin to provide API endpoints for playground.
@@ -89,6 +89,13 @@ function apiMiddleware(): Plugin {
 const isIntegrationTest = process.env.VITEST === 'true' || process.argv.includes('--port')
 
 const config: ReturnType<typeof defineConfig> = defineConfig({
+  pack: {
+    entry: ['./src/admin.ts', './src/controller.ts', './src/protocols.ts', './src/worker.ts'],
+    clean: true,
+    publint: true,
+    dts: true,
+    fixedExtension: false
+  },
   root: isIntegrationTest ? '.' : './playground',
   publicDir: isIntegrationTest ? 'test-public' : undefined,
   plugins: [ServiceWorker(), apiMiddleware()],

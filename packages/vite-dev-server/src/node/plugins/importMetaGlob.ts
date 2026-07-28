@@ -1,19 +1,11 @@
 import type { GeneralImportGlobOptions } from '#types/importGlob'
-import type {
-  ArrayExpression,
-  Expression,
-  Literal,
-  Node,
-  SpreadElement,
-  TemplateLiteral,
-} from 'estree'
 import MagicString from 'magic-string'
 import { isAbsolute, posix } from 'node:path'
 import colors from 'picocolors'
 import picomatch from 'picomatch'
 import type { CustomPluginOptions, RollupError } from 'rolldown'
-// TODO(kazupon): Use `parseAstAsync` via `@vrowzer/oxc-parser` when it supports browser environment
-// import { parseAstAsync } from 'rolldown/parseAst'
+import type { ESTree } from 'rolldown/utils'
+import { parseAstAsync } from '@vrowzer/rolldown/parseAst'
 import { stripLiteral } from 'strip-literal'
 import { escapePath, glob } from 'tinyglobby'
 import { stringifyQuery } from 'ufo'
@@ -282,9 +274,7 @@ export async function parseImportGlob(
 
     const statementCode = code.slice(start, end)
 
-    const rootAst = ({ body: [] }).body[0]
-    // TODO(kazupon): Use `parseAstAsync` via `@vrowzer/oxc-parser` when it supports browser environment
-    // const rootAst = (await parseAstAsync(statementCode)).body[0]
+    const rootAst = (await parseAstAsync(statementCode)).body[0]
     if (rootAst.type !== 'ExpressionStatement') {
       throw err(`Expect CallExpression, got ${rootAst.type}`)
     }
@@ -295,14 +285,16 @@ export async function parseImportGlob(
     if (ast.arguments.length < 1 || ast.arguments.length > 2)
       {throw err(`Expected 1-2 arguments, but got ${ast.arguments.length}`)}
 
-    const arg1 = ast.arguments[0] as ArrayExpression | Literal | TemplateLiteral
+    const arg1 = ast.arguments[0] as ESTree.Expression
     const arg2 = ast.arguments[1] as
-      | (Node & { start: number; end: number })
+      | (ESTree.Node & { start: number; end: number })
       | undefined
 
     const globs: string[] = []
 
-    const validateLiteral = (element: Expression | SpreadElement | null) => {
+    const validateLiteral = (
+      element: ESTree.Expression | ESTree.SpreadElement | null,
+    ) => {
       if (!element) {return}
       if (element.type === 'Literal') {
         if (typeof element.value !== 'string')

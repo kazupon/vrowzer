@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite",
-    "preview": "vite preview"
+    "build": "vp build",
+    "dev": "vp dev",
+    "preview": "vp preview"
   },
   "dependencies": {
     "vue": "catalog:"

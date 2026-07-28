@@ -51,14 +51,13 @@
   },
   "scripts": {
     "_disable:typecheck": "tsgo --noEmit -p tsconfig.json",
-    "build": "tsdown",
+    "build": "vp pack",
     "prepack": "pnpm build"
   },
   "dependencies": {
     "oxlint": "catalog:"
   },
   "devDependencies": {
-    "publint": "catalog:",
-    "tsdown": "catalog:"
+    "publint": "catalog:"
   }
 }

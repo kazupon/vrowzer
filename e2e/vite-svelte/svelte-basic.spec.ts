@@ -1,12 +1,5 @@
-import { describe, expect, test } from 'vitest'
-import {
-  isBuild,
-  iframeInnerText,
-  iframeTextContent,
-  page,
-  updateFile,
-  waitForIframeSelector
-} from '~utils'
+import { describe, expect, test } from 'vite-plus/test'
+import { isBuild, iframeInnerText, page, updateFile } from '~utils'
 
 describe('svelte-basic', () => {
   test('page shows Ready status', async () => {
@@ -15,16 +8,16 @@ describe('svelte-basic', () => {
   })
 
   test('Svelte component renders correctly', async () => {
-    await waitForIframeSelector('h1')
-    const text = await iframeInnerText()
-    expect(text).toContain('Vrowzer + Svelte')
-    expect(text).toContain('count is')
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('Vrowzer + Svelte')
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('count is')
   })
 
   test('Svelte HMR - component change', async () => {
     if (isBuild) {
       return
     }
+
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('Vrowzer + Svelte')
 
     await updateFile(
       '/Counter.svelte',
@@ -40,12 +33,6 @@ describe('svelte-basic', () => {
 </button>`
     )
 
-    await page.waitForFunction(
-      () => {
-        const iframe = document.querySelector('iframe') as HTMLIFrameElement
-        return iframe?.contentDocument?.querySelector('button')?.textContent?.includes('clicks:')
-      },
-      { timeout: 10000 }
-    )
+    await expect.poll(() => iframeInnerText(), { timeout: 10000 }).toContain('clicks:')
   })
 })

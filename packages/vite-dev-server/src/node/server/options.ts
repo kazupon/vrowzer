@@ -35,5 +35,4 @@ const _serverConfigDefaults = Object.freeze({
   // hotUpdateEnvironments
 } satisfies ServerOptions)
 
-export const serverConfigDefaults: Readonly<Partial<ServerOptions>> =
-  _serverConfigDefaults
+export const serverConfigDefaults = _serverConfigDefaults

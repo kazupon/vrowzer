@@ -7,7 +7,7 @@ import { transformSync } from '@vrowzer/rolldown/utils'
 import path from 'node:path'
 import url from 'node:url'
 import colors from 'picocolors'
-import type { InternalModuleFormat, RollupError, SourceMap } from 'rolldown'
+import type { InternalModuleFormat, SourceMap } from 'rolldown'
 import type {
   TransformOptions as OxcTransformOptions,
   TransformResult as OxcTransformResult,
@@ -23,7 +23,6 @@ import {
   combineSourcemaps,
   createFilter,
   ensureWatchedFile,
-  generateCodeFrame,
   normalizePath,
 } from '../utils'
 import type { ESBuildOptions, TSCompilerOptions } from './esbuild'
@@ -122,7 +121,13 @@ export function setOxcTransformOptionsFromTsconfigOptions(
           break
         case 'react-jsxdev':
           jsxOptions.development = true
-        // eslint-disable-next-line no-fallthrough
+          jsxOptions.runtime = 'automatic'
+          // these options should not be set when using automatic runtime
+          jsxOptions.pragma = undefined
+          typescriptOptions.jsxPragma = undefined
+          jsxOptions.pragmaFrag = undefined
+          typescriptOptions.jsxPragmaFrag = undefined
+          break
         case 'react-jsx':
           jsxOptions.runtime = 'automatic'
           // these options should not be set when using automatic runtime
@@ -216,7 +221,9 @@ export async function transformWithOxc(
   inMap?: object,
   config?: ResolvedConfig,
   watcher?: FSWatcher,
-): Promise<Omit<OxcTransformResult, 'errors'> & { warnings: string[] }> {
+): Promise<
+  Omit<OxcTransformResult, 'errors' | 'warnings'> & { warnings: string[] }
+> {
   const warnings: string[] = []
   let lang = options?.lang
 
@@ -268,28 +275,24 @@ export async function transformWithOxc(
     }
   }
 
-  const result = transformSync(filename, code, resolvedOptions)
+  const result = transformSync(
+    filename,
+    code,
+    resolvedOptions,
+  ) as unknown as OxcTransformResult
 
   if (result.errors.length > 0) {
-    const firstError = result.errors[0]
-    const error: RollupError = new Error(firstError.message)
-    let frame = ''
-    frame += firstError.labels
-      .map(
-        (l) =>
-          (l.message ? `${l.message}\n` : '') +
-          generateCodeFrame(code, l.start, l.end),
-      )
-      .join('\n')
-    if (firstError.helpMessage) {
-      frame += '\n' + firstError.helpMessage
-    }
-    error.frame = frame
-    error.pos =
-      firstError.labels.length > 0 ? firstError.labels[0].start : undefined
-    throw error
+    throw new AggregateError(
+      result.errors,
+      `Transform failed with ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}`,
+    )
   }
 
+  const {
+    errors: _errors,
+    warnings: transformWarnings,
+    ...transformed
+  } = result
   let map: SourceMap
   if (inMap && result.map) {
     const nextMap = result.map
@@ -302,9 +305,12 @@ export async function transformWithOxc(
     map = result.map as SourceMap
   }
   return {
-    ...result,
+    ...transformed,
     map,
-    warnings,
+    warnings: [
+      ...warnings,
+      ...transformWarnings.map((warning) => warning.message),
+    ],
   }
 }
 

@@ -51,7 +51,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "vp pack",
     "build:docs": "typedoc --excludeInternal",
     "prepack": "pnpm build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
@@ -67,7 +67,6 @@
     "@vrowzer/vite-plugin": "workspace:*",
     "get-port-please": "catalog:",
     "publint": "catalog:",
-    "tsdown": "catalog:",
     "typedoc": "catalog:",
     "typedoc-plugin-markdown": "catalog:",
     "vite": "catalog:"

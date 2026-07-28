@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, test, vi } from 'vitest'
+import { describe, expect, expectTypeOf, test, vi } from 'vite-plus/test'
 import { safeMessagePort } from './port.ts'
 
 describe('safeMessagePort', () => {
@@ -21,7 +21,7 @@ describe('safeMessagePort', () => {
       await new Promise(resolve => setTimeout(resolve, 10))
       expect(handler).toHaveBeenCalledTimes(1)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- FIXME: event.data is typed as unknown, but we know it's { greeting: string } from the test setup
-      expect(handler.mock.calls[0][0].data).toEqual({ greeting: 'hello' })
+      expect(handler.mock.calls[0]![0].data).toEqual({ greeting: 'hello' })
     })
 
     test('start method', () => {
@@ -271,7 +271,7 @@ describe('safeMessagePort', () => {
       // Only the user message should have been received
       expect(messageHandler).toHaveBeenCalledTimes(1)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      expect(messageHandler.mock.calls[0][0].data).toBe('user message')
+      expect(messageHandler.mock.calls[0]![0].data).toBe('user message')
     })
 
     test('normal messages still delivered after heartbeat enabled', async () => {
@@ -287,7 +287,7 @@ describe('safeMessagePort', () => {
 
       expect(messageHandler).toHaveBeenCalledTimes(1)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      expect(messageHandler.mock.calls[0][0].data).toBe('hello with heartbeat')
+      expect(messageHandler.mock.calls[0]![0].data).toBe('hello with heartbeat')
 
       safe1.close()
       safe2.close()

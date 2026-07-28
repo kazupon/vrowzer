@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { inlineWasmInCode, wasmInlinePlugin } from '../index.ts'
 
 describe('wasmInlinePlugin', () => {

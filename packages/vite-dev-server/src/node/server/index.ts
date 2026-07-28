@@ -625,12 +625,12 @@ export function createServer(
     }
 
     let hot = ws
-    let server: ViteDevServer = {
+    let server = {
       config,
       middlewares,
       httpServer,
       ws,
-      // watcher,
+      watcher,
       get hot() {
         warnFutureDeprecation(config, 'removeServerHot')
         return hot
@@ -828,7 +828,7 @@ export function createServer(
       _restartPromise: null,
       _forceOptimizeOnRestart: false,
       _shortcutsState: options.previousShortcutsState,
-    }
+    } satisfies Partial<ViteDevServer> as unknown as ViteDevServer
 
     // maintain consistency with the server instance after restarting.
     const reflexServer = new Proxy(server, {
@@ -953,7 +953,6 @@ export function createServer(
         htmlFallbackMiddleware(
           root,
           config.appType === 'spa',
-          server.environments.client,
         ),
       )
     }
@@ -1161,6 +1160,8 @@ export function resolveServerOptions(
     ..._server,
     fs: {
       ..._server.fs,
+      strict: _server.fs?.strict ?? true,
+      deny: _server.fs?.deny ?? _serverConfigDefaults.fs?.deny ?? [],
       // run searchForWorkspaceRoot only if needed
       allow: raw?.fs?.allow ?? [searchForWorkspaceRoot(root)],
     },
@@ -1222,7 +1223,8 @@ export function resolveServerOptions(
     // process.env.__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS &&
     Array.isArray(server.allowedHosts)
   ) {
-    const additionalHost = process.env.__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+    const additionalHost =
+      import.meta.env.__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
     server.allowedHosts = [...server.allowedHosts, additionalHost]
   }
 

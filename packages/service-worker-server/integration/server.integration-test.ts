@@ -14,7 +14,7 @@ import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from '@playwright/test'
 import { getPort } from 'get-port-please'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { ChildProcess } from 'node:child_process'
 import type { Browser, BrowserContext, Page } from '@playwright/test'

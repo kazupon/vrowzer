@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 import type { SvcWorkerController } from '@vrowzer/service-worker/controller'
 

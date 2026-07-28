@@ -1,5 +1,5 @@
 import { Readable } from 'readable-stream'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mustCall, mustNotCall } from '../common/index.ts'
 
 describe('test-stream-readable-ended', () => {

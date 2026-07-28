@@ -1,6 +1,6 @@
 import { Writable } from 'readable-stream'
 import util from 'util'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 
 const InternalStream = function (this: InstanceType<typeof Writable>) {
   Writable.call(this as any)

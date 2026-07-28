@@ -1,5 +1,5 @@
 import * as stream from 'readable-stream'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { mustNotCall } from '../common/index.ts'
 
 class MyWritable extends stream.Writable {

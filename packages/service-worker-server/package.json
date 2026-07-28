@@ -49,7 +49,7 @@
   },
   "scripts": {
     "typecheck": "tsgo --noEmit -p tsconfig.json",
-    "build": "tsdown",
+    "build": "vp pack",
     "build:docs": "typedoc --excludeInternal",
     "prepack": "pnpm build"
   },
@@ -61,7 +61,6 @@
     "@playwright/test": "catalog:",
     "get-port-please": "catalog:",
     "publint": "catalog:",
-    "tsdown": "catalog:",
     "typedoc": "catalog:",
     "vite": "catalog:"
   }

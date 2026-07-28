@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { RollupError } from 'rolldown'
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vite-plus/test'
 import type { ViteDevServer, ViteEnv } from '../index'
 import {
   buildErrorMessage,

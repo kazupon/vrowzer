@@ -1,11 +1,12 @@
-export {
-  createNodeImportMeta
-} from './createImportMeta';
-
-// TODO: fill in later ...
+import type { ModuleEvaluator, ModuleRunnerOptions } from './types'
 
 export class ModuleRunner {
-  // TODO: fill in later ...
-}
+  constructor(
+    public options: ModuleRunnerOptions,
+    public evaluator?: ModuleEvaluator,
+  ) {}
 
-// TODO: fill in later ...
+  async close(): Promise<void> {
+    await this.options.transport.disconnect?.()
+  }
+}

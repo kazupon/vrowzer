@@ -1,6 +1,6 @@
 import { Transform } from 'readable-stream'
 import util from 'util'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vite-plus/test'
 
 function MyTransform(this: InstanceType<typeof Transform>) {
   Transform.call(this as any)

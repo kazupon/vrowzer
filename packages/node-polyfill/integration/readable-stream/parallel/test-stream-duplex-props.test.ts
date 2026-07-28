@@ -1,5 +1,5 @@
 import { Duplex } from 'readable-stream'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 
 describe('test-stream-duplex-props', () => {
   it('should set objectMode and highWaterMark for both sides', () => {

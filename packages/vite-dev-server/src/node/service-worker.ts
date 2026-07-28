@@ -224,7 +224,9 @@ export type ServerHook = (
   server: ViteDevServer,
 ) => (() => void) | void | Promise<(() => void) | void>
 
-export type HttpServer = SvcWorkerServer<ConnectWebWorkerPortMessage>
+export type HttpServer = SvcWorkerServer<
+  ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage
+>
 
 /**
  * Subset of ViteDevServer for Service Worker environment.
@@ -237,7 +239,6 @@ export type ViteDevServerForServiceWorker = Pick<ViteDevServer,
   | 'config'
   | 'watcher'
   | 'middlewares'
-  | 'httpServer'
   | 'resolvedUrls'
   | 'transformRequest'
   | 'warmupRequest'
@@ -251,7 +252,9 @@ export type ViteDevServerForServiceWorker = Pick<ViteDevServer,
   | '_currentServerPort'
   | '_configServerPort'
   | '_ssrCompatModuleRunner'
->
+> & {
+  httpServer: HttpServer
+}
 
 /**
  * Options for {@link createServer} function.
@@ -870,4 +873,3 @@ export {
 export type {
   ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage, WebWorkerServiceWorkerChannelReadyMessage
 } from '../shared/messages'
-

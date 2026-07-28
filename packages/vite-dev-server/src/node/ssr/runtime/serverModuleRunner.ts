@@ -114,7 +114,12 @@ export const createServerModuleRunnerTransport = (options: {
           'Cannot send non-custom events from the server to the client.',
         )
       }
-      options.channel.api!.innerEmitter.emit(
+      const emit = options.channel.api!.innerEmitter.emit as (
+        event: string,
+        data: unknown,
+        client: HotChannelClient,
+      ) => void
+      emit(
         payload.event,
         payload.data,
         hmrClient,

@@ -236,8 +236,6 @@ export class ErrorOverlay extends HTMLElement {
     if (err.loc) {
       this.text('.file', `${file}:${err.loc.line}:${err.loc.column}`, links)
     } else if (err.id) {
-      // NOTE(kazupon): fix type error
-      // @ts-expect-error -- ignore
       this.text('.file', file)
     }
 

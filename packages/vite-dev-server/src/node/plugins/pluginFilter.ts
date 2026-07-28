@@ -95,7 +95,6 @@ function normalizeFilter(filter: StringFilter): NormalizedStringFilter {
       include: filter,
     }
   }
-  // @ts-expect-error -- FIXME(kazupon): fix later
   return {
     include: filter.include ? arraify(filter.include) : undefined,
     exclude: filter.exclude ? arraify(filter.exclude) : undefined,

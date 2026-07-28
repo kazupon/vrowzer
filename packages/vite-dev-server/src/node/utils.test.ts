@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { getHash } from './utils'
 
 describe('getHash', () => {

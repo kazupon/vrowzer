@@ -1,4 +1,4 @@
-import { vi, afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { vi, afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 import { createSvcWorkerController } from './controller.ts'
 import * as registry from './registry.ts'
 import {

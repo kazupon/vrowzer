@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { Writable, Readable, Transform } from 'readable-stream'
 
 // @ts-ignore - exists at runtime but not in types

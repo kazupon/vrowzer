@@ -1,26 +1,29 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 import { getColor, isBuild, page, updateFile } from '~utils'
 
 async function getIframeTexts(...selectors: string[]): Promise<Record<string, string | null>> {
-  return page.evaluate(sels => {
-    const iframe = document.querySelector('iframe') as HTMLIFrameElement
-    const doc = iframe?.contentDocument
-    const result: Record<string, string | null> = {}
-    for (const sel of sels) {
-      result[sel] = doc?.querySelector(sel)?.textContent ?? null
-    }
-    return result
-  }, selectors)
-}
-
-async function waitForTestComplete() {
-  await page.waitForFunction(
-    () => {
+  const result = await page.waitForFunction(
+    sels => {
       const iframe = document.querySelector('iframe') as HTMLIFrameElement
-      return iframe?.contentDocument?.body?.dataset?.testComplete === 'true'
+      const doc = iframe?.contentDocument
+      if (doc?.body?.dataset?.testComplete !== 'true') {
+        return
+      }
+
+      const elements = sels.map(sel => doc.querySelector(sel))
+      if (elements.some(element => !element)) {
+        return
+      }
+
+      return Object.fromEntries(
+        elements.map((element, index) => [sels[index], element!.textContent])
+      )
     },
+    selectors,
     { timeout: 30000 }
   )
+
+  return (await result.jsonValue()) as Record<string, string | null>
 }
 
 describe('alias', () => {
@@ -30,7 +33,6 @@ describe('alias', () => {
   })
 
   test('fs', async () => {
-    await waitForTestComplete()
     const texts = await getIframeTexts('.fs')
     expect(texts['.fs']).toMatch('[success] alias to fs path')
   })

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { mustCall, mustNotCall, expectsError } from '../common/index.ts'
 // @ts-ignore - addAbortSignal exists at runtime but not in types
 import { Writable, addAbortSignal } from 'readable-stream'

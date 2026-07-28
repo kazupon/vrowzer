@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { mustCall, mustNotCall, assertThrowsCode } from '../common/index.ts'
 // @ts-ignore - compose exists at runtime but not in types
 import { Readable, Transform, Writable, finished, PassThrough, compose } from 'readable-stream'

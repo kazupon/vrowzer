@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite-plus'
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname)
 

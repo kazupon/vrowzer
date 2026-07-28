@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite-plus/test/config'
 import pkg from './package.json' with { type: 'json' }
 
 const __dirname = import.meta.dirname

@@ -1,5 +1,5 @@
 import { vol } from 'memfs'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vite-plus/test'
 import promises, { constants, mkdir, readFile, stat, writeFile } from './promises.ts'
 
 describe('@vrowzer/fs promises entry', () => {

@@ -2,7 +2,7 @@
  * Tests for node:crypto polyfill.
  * Based on refers/node/test/parallel/test-crypto-hash.js
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { createHash, hash, randomBytes, randomUUID } from './crypto.ts'
 
 describe('createHash', () => {

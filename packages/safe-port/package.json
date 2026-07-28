@@ -41,7 +41,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "vp pack",
     "build:docs": "typedoc --excludeInternal",
     "prepack": "pnpm build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
@@ -51,7 +51,6 @@
   },
   "devDependencies": {
     "publint": "catalog:",
-    "tsdown": "catalog:",
     "typedoc": "catalog:",
     "typedoc-plugin-markdown": "catalog:"
   }

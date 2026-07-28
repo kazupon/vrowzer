@@ -112,7 +112,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "vp pack",
     "prepack": "pnpm build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
@@ -120,7 +120,6 @@
     "@types/readable-stream": "^4.0.23",
     "premove": "^4.0.0",
     "publint": "catalog:",
-    "readable-stream": "catalog:",
-    "tsdown": "catalog:"
+    "readable-stream": "catalog:"
   }
 }

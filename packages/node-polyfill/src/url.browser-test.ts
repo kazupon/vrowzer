@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { URL as ExportedURL, fileURLToPath, pathToFileURL } from './url.ts'
 
 describe('fileURLToPath', () => {

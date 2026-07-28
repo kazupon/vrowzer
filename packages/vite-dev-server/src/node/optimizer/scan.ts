@@ -5,12 +5,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import colors from 'picocolors'
 import type { PartialResolvedId, Plugin } from 'rolldown'
-import type { TransformResult } from 'rolldown/experimental'
-// TODO(kazupon): Use `transformSync` via `@vrowzer/oxc-transform` when oxc support browser environment
-// import {
-//   scan,
-//   transformSync
-// } from 'rolldown/experimental'
+import { transformSync } from '@vrowzer/rolldown/utils'
 import { glob } from 'tinyglobby'
 import { cleanUrl } from '../../shared/utils'
 import { BaseEnvironment } from '../baseEnvironment'
@@ -410,9 +405,7 @@ function rolldownScanPlugin(
     let transpiledContents: string
     // transpile because `transformGlobImport` only expects js
     if (loader !== 'js') {
-      // TODO(kazupon): Use `transformSync` via web worker when oxc support browser environment
-      // const result = transformSync(id, contents, { lang: loader })
-      const result = { code: '', errors: [], helpersUsed: {} } as TransformResult
+      const result = transformSync(id, contents, { lang: loader })
       if (result.errors.length > 0) {
         throw new AggregateError(result.errors, 'oxc transform error')
       }
@@ -783,4 +776,3 @@ function isScannable(id: string, extensions: string[] | undefined): boolean {
     false
   )
 }
-

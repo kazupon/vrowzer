@@ -12,7 +12,7 @@ import { copyFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 import { createStaticServer } from './utils/server.ts'
 
 import type { Browser } from '@playwright/test'

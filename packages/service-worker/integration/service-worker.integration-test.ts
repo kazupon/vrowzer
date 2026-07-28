@@ -12,7 +12,7 @@ import { getPort } from 'get-port-please'
 import { spawn } from 'node:child_process'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vite-plus/test'
 
 import type { Browser, BrowserContext, Page } from '@playwright/test'
 import type { ChildProcess } from 'node:child_process'

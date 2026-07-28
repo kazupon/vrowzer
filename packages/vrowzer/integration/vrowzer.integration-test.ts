@@ -11,7 +11,7 @@ import { execSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { preview } from 'vite'
-import { afterAll, beforeAll, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import type { Browser, Page } from '@playwright/test'
 import type { PreviewServer } from 'vite'

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { Transform } from 'readable-stream'
 
 describe('test-stream-transform-split-objectmode', () => {

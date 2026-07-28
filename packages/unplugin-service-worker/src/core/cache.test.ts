@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vite-plus/test'
 import { createServiceWorkerCache } from './cache.ts'
 
 import type { ServiceWorkerCache } from './cache.ts'

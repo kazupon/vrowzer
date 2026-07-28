@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach } from 'vitest'
+import { describe, expect, test, beforeEach } from 'vite-plus/test'
 import { getRegistryKey, register, unregister, getAll, get, clear } from './registry.ts'
 
 import type { SvcWorkerController } from './controller.ts'

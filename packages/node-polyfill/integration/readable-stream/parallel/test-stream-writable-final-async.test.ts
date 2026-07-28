@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest'
+import { describe, it } from 'vite-plus/test'
 import { mustCall, mustNotCall } from '../common/index.ts'
 import { Duplex } from 'readable-stream'
 

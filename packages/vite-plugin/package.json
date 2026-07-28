@@ -50,18 +50,18 @@
     }
   },
   "scripts": {
-    "build": "tsdown && pnpm build:ide",
-    "build:ide": "vite build --config vite.ide.config.ts",
+    "build": "vp pack && pnpm build:ide",
+    "build:ide": "vp build --config vite.ide.config.ts",
     "prepack": "pnpm build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@rollup/plugin-inject": "^5.0.5",
-    "birpc": "^2.3.0",
     "@vrowzer/fs": "workspace:*",
     "@vrowzer/node-polyfill": "workspace:*",
     "@vrowzer/rolldown": "workspace:*",
     "@vrowzer/unplugin-service-worker": "workspace:*",
+    "birpc": "^2.3.0",
     "buffer": "catalog:",
     "obug": "catalog:",
     "pathe": "catalog:",
@@ -81,9 +81,7 @@
     "@vitejs/plugin-vue": "catalog:",
     "monaco-editor": "^0.55.1",
     "publint": "catalog:",
-    "tsdown": "catalog:",
     "vite": "catalog:",
-    "vitest": "catalog:",
     "vue": "catalog:"
   }
 }

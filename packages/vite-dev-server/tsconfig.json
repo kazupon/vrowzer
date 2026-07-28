@@ -7,10 +7,17 @@
     "lib": ["ESNext", "DOM", "WebWorker"],
 
     "paths": {
-      "vite/module-runner": ["./src/module-runner/runner.ts"]
+      "vite/module-runner": ["./src/module-runner/index.ts"]
     },
 
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "noUncheckedSideEffectImports": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "useUnknownInCatchVariables": false
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.browser-test.ts", "src/**/*.test.ts"]
 }
