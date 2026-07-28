@@ -160,7 +160,6 @@ const createInvokeableTransport = (
         }, timeout)
         timeoutId?.unref?.()
       }
-      // @ts-expect-error -- NOTE(kazupon): ignore ts error
       rpcPromises.set(promiseId, { resolve, reject, name, timeoutId })
 
       if (sendPromise) {
@@ -433,4 +432,3 @@ export const createMessageChannelModuleRunnerTransport = (
 //     },
 //   }
 // }
-

@@ -1,5 +1,5 @@
 import { Vrowzer, VrowzerManifest } from '@vrowzer/vite-plugin'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   plugins: [VrowzerManifest(), Vrowzer({ auto: false })],

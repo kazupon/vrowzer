@@ -6,6 +6,7 @@ import type {
   DevRuntime as DevRuntimeType,
   Messenger,
 } from 'rolldown/experimental/runtime-types'
+import { nanoid } from 'nanoid/non-secure'
 import { HMRClient, HMRContext } from '../shared/hmr'
 import { createHMRHandler } from '../shared/hmrHandler'
 import {
@@ -224,8 +225,6 @@ const hmrClient = new HMRClient(
       const importPromise = import(
         /* @vite-ignore */
         base +
-        // NOTE(kazupon): fix type error
-        // @ts-expect-error -- ignore
         acceptedPathWithoutQuery.slice(1) +
         `?${explicitImportRequired ? 'import&' : ''}t=${timestamp}${query ? `&${query}` : ''
         }`
@@ -702,6 +701,14 @@ if (isBundleMode && typeof DevRuntime !== 'undefined') {
     }
   }
 
+  const clientId = nanoid()
+
+  transport.send({
+    type: 'custom',
+    event: 'vite:module-loaded',
+    data: { modules: [], clientId },
+  })
+
   const wrappedSocket: Messenger = {
     send(message) {
       switch (message.type) {
@@ -710,7 +717,7 @@ if (isBundleMode && typeof DevRuntime !== 'undefined') {
             type: 'custom',
             event: 'vite:module-loaded',
             // clone array as the runtime reuses the array instance
-            data: { modules: message.modules.slice() },
+            data: { modules: message.modules.slice(), clientId },
           })
           break
         }
@@ -721,6 +728,6 @@ if (isBundleMode && typeof DevRuntime !== 'undefined') {
   }
     ; (globalThis as any).__rolldown_runtime__ ??= new ViteDevRuntime(
       wrappedSocket,
+      clientId,
     )
 }
-

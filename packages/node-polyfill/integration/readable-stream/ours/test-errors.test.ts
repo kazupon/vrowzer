@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 // @ts-ignore -- internal module
 import { codes as errors } from 'readable-stream/lib/ours/errors'
 

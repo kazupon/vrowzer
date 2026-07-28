@@ -48,7 +48,7 @@ function isDocumentFetchDest(c: Context<ViteEnv>) {
 // move to transformer.ts, because web-worker.ts don't want to bundler plugin and other heavy modules.
 // keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
 // TODO: consolidate this regex pattern with the url, raw, and inline checks in plugins
-// const urlRE = /[?&]url\b/
+const urlRE = /[?&]url\b/
 // const rawRE = /[?&]raw\b/
 // const inlineRE = /[?&]inline\b/
 // const svgRE = /\.svg\b/

@@ -1,5 +1,5 @@
 import { Readable } from 'readable-stream'
-import { describe, it } from 'vitest'
+import { describe, it } from 'vite-plus/test'
 import { mustCall } from '../common/index.ts'
 
 describe('test-stream-readable-constructor-set-methods', () => {

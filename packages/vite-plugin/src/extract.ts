@@ -308,7 +308,9 @@ function extractForwardedProperties(
 ): Map<string, string> {
   const props = new Map<string, string>()
   for (const p of configObj.properties) {
-    if (p.type !== 'Property') {continue}
+    if (p.type !== 'Property') {
+      continue
+    }
     const key = p.key.type === 'Identifier' ? p.key.name : null
     if (key && FORWARDED_PROPERTIES.includes(key)) {
       props.set(key, source.slice(p.value.start, p.value.end))

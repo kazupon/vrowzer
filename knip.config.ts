@@ -3,7 +3,7 @@ import type { KnipConfig } from 'knip'
 const config: KnipConfig = {
   workspaces: {
     'packages/fs': {
-      entry: ['integration/**'],
+      entry: ['src/index.ts', 'src/promises.ts', 'src/watcher/index.ts', 'integration/**'],
       ignoreDependencies: [
         // TODO(kazupon): These dependencies are used for bundling, but these might be unnecessary in 'dependecies'
         '@jsonjoy.com/fs-core',
@@ -14,7 +14,9 @@ const config: KnipConfig = {
         '@vrowzer/node-polyfill',
         'buffer',
         'premove',
-        'readable-stream'
+        'publint',
+        'readable-stream',
+        'vite'
       ]
     },
     'packages/node-polyfill': {
@@ -24,14 +26,12 @@ const config: KnipConfig = {
         'integration/readable-stream/common/**'
       ],
       ignoreDependencies: [
-        'premove' // Used by clean script
+        'premove', // Used by clean script
+        'publint'
       ]
     },
     'packages/play-vrowzer': {
-      entry: ['src/**/*.ts', 'fixtures/**'],
-      ignoreDependencies: [
-        'vue/compiler-sfc' // Imported in vite.config.ts for Worker plugin override (not detected by knip)
-      ]
+      entry: ['src/**/*.ts', 'fixtures/**']
     },
     'packages/rolldown': {
       entry: ['src/index.ts', 'src/utils.ts', 'integration/**'],
@@ -45,20 +45,38 @@ const config: KnipConfig = {
         'readable-stream'
       ]
     },
+    'packages/oxlint-plugin-service-worker': {
+      entry: ['src/index.ts'],
+      ignoreDependencies: ['publint']
+    },
     'packages/service-worker': {
-      entry: ['src/**/*.ts', 'integration/**', 'test-public/**', 'playground/**']
+      entry: [
+        'src/admin.ts',
+        'src/controller.ts',
+        'src/protocols.ts',
+        'src/types.ts',
+        'src/worker.ts',
+        'src/**/*.browser-test.ts',
+        'integration/**',
+        'test-public/**',
+        'playground/**'
+      ],
+      ignoreDependencies: ['publint', 'vite']
     },
     'packages/service-worker-server': {
-      entry: ['integration/**', 'test-public/**', 'docs/**']
+      entry: ['src/index.ts', 'integration/**', 'test-public/**', 'docs/**'],
+      ignoreDependencies: ['publint', 'vite']
     },
     'packages/safe-port': {
-      entry: ['src/**/*.ts']
+      entry: ['src/index.ts', 'src/**/*.browser-test.ts'],
+      ignoreDependencies: ['publint']
     },
     'packages/unplugin-service-worker': {
       bun: false,
       entry: ['src/**/*.ts', 'integration/**']
     },
     'packages/vite-plugin': {
+      entry: ['src/index.ts', 'src/manifest-generate.ts', 'src/ide/main.ts'],
       // TODO(kazupon): These dependencies are used for bundling, but these might be unnecessary in 'dependecies'
       ignoreDependencies: [
         '@vrowzer/fs',
@@ -66,20 +84,17 @@ const config: KnipConfig = {
         'buffer',
         'pathe',
         'readable-stream',
-        'rolldown' // Used at runtime for parseSync (extract.ts) and prebundling (prebundle.ts)
-      ],
-      // generateServiceWorkerEntry is kept for future SW plugin injection re-enablement
-      ignore: ['src/virtual.ts']
+        '@vitejs/plugin-vue'
+      ]
     },
     // TODO(kazupon): enable after fnished to port from 'vite'
     // 'packages/vite-dev-server': {
     // }
     'packages/vrowzer': {
-      entry: ['integration/**']
+      entry: ['src/index.ts', 'integration/**']
     }
   },
   ignore: [
-    '.git/**',
     '**/.output*/**',
     '**/dist/**',
     'refers/**',
@@ -89,16 +104,11 @@ const config: KnipConfig = {
     // Bundled vendor files and E2E test fixtures
     'e2e/**'
   ],
-  ignoreBinaries: [
-    'wrangler' // Used in play-vrowzer scripts, installed as devDependency in play-vrowzer
-  ],
-  ignoreDependencies: [
-    'lint-staged',
-    '@kazupon/prettier-config',
-    '@kazupon/eslint-plugin',
-    '@playwright/test'
-  ],
+  ignoreBinaries: ['vpx'],
+  ignoreDependencies: ['@kazupon/eslint-plugin'],
   ignoreIssues: {
+    'packages/service-worker/src/session.ts': ['types'],
+    'packages/service-worker/src/utils.ts': ['types'],
     'packages/vite-plugin/src/extract.ts': ['types'],
     'packages/vite-plugin/src/options.ts': ['types'],
     'packages/vite-plugin/src/prebundle.ts': ['exports', 'types']

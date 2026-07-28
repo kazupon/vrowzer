@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 // @ts-ignore -- internal path
 import { pipeline } from 'readable-stream/lib/stream/promises'
 

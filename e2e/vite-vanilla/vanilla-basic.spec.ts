@@ -1,13 +1,5 @@
-import { describe, expect, test } from 'vitest'
-import {
-  isBuild,
-  iframeInnerText,
-  iframeTextContent,
-  page,
-  updateFile,
-  waitForIframeSelector,
-  waitForIframeText
-} from '~utils'
+import { describe, expect, test } from 'vite-plus/test'
+import { isBuild, iframeInnerText, page, updateFile } from '~utils'
 
 describe('vanilla-basic', () => {
   test('page shows Ready status', async () => {
@@ -16,20 +8,19 @@ describe('vanilla-basic', () => {
   })
 
   test('preview iframe renders content', async () => {
-    await waitForIframeText('count is')
-    const text = await iframeInnerText()
-    expect(text).toContain('count is')
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('count is')
   })
 
   test('preview iframe shows YAML data', async () => {
-    const text = await iframeInnerText()
-    expect(text).toContain('Hello from YAML')
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('Hello from YAML')
   })
 
   test('HMR - update file changes preview', async () => {
     if (isBuild) {
       return
     }
+
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('count is')
 
     await updateFile(
       '/main.ts',
@@ -39,12 +30,6 @@ if (import.meta.hot) { import.meta.hot.accept() }
 `
     )
 
-    await page.waitForFunction(
-      () => {
-        const iframe = document.querySelector('iframe') as HTMLIFrameElement
-        return iframe?.contentDocument?.querySelector('h1')?.textContent === 'HMR Updated'
-      },
-      { timeout: 10000 }
-    )
+    await expect.poll(() => iframeInnerText(), { timeout: 10000 }).toContain('HMR Updated')
   })
 })

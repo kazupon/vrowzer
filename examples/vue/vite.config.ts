@@ -2,7 +2,7 @@ import { DevTools } from '@vitejs/devtools'
 import vue from '@vitejs/plugin-vue'
 import * as compiler from 'vue/compiler-sfc'
 import { Vrowzer } from '@vrowzer/vite-plugin'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite-plus'
 
 process.env.VITE_DEVTOOLS_DISABLE_CLIENT_AUTH = 'true'
 

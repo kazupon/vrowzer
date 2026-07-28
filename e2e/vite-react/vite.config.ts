@@ -3,9 +3,9 @@ import { resolve } from 'node:path'
 
 import react from '@vitejs/plugin-react'
 import { Vrowzer, VrowzerManifest } from '@vrowzer/vite-plugin'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite-plus'
 
-import type { Plugin } from 'vite'
+import type { Plugin } from 'vite-plus'
 
 const refreshRuntime = readFileSync(
   resolve(import.meta.dirname, 'node_modules/@vitejs/plugin-react/dist/refresh-runtime.js'),

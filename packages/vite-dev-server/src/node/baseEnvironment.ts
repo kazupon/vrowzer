@@ -70,7 +70,6 @@ export class PartialEnvironment {
       info(msg, opts) {
         return topLevelConfig.logger.info(msg, {
           ...opts,
-          // @ts-expect-error -- FIXME(kazupon): fix me
           environment: infoColor(environment),
         })
       },
@@ -138,4 +137,3 @@ export class BaseEnvironment extends PartialEnvironment {
 export class UnknownEnvironment extends BaseEnvironment {
   mode = 'unknown' as const
 }
-

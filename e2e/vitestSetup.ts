@@ -12,7 +12,7 @@
 import { chromium } from '@playwright/test'
 import { execSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
-import { afterAll, beforeAll, inject } from 'vitest'
+import { afterAll, beforeAll, inject } from 'vite-plus/test'
 import { createServer, preview } from 'vite'
 
 import type { Browser, Page } from '@playwright/test'

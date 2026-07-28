@@ -4,7 +4,7 @@
  * Based on Node.js readline API behavior.
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vite-plus/test'
 import {
   Interface,
   clearLine,

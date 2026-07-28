@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import {
   V_SW_CLAIM_CLIENTS,
   V_SW_SESSION_CIRCUIT_BREAKER,

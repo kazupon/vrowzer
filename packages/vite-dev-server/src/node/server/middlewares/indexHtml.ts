@@ -520,7 +520,11 @@ export function indexHtmlMiddleware(
           if (isDev) {
             // c.req.path is the original request path before base stripping,
             // equivalent to Connect's req.originalUrl
-            html = await server.transformIndexHtml(url, html, c.req.path)
+            html = await (server as ViteDevServer).transformIndexHtml(
+              url,
+              html,
+              c.req.path,
+            )
           }
           return send(c, html, 'html', {
             headers: headers as Record<string, string>,

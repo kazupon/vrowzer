@@ -2,7 +2,7 @@
  * timers browser tests
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import {
   clearImmediate,
   clearInterval,

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vite-plus/test'
 import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 import type { SvcWorkerController } from '@vrowzer/service-worker/controller'
 
@@ -63,7 +63,7 @@ describe('createServer', () => {
     test('createServer should correctly create ViteDevServer', async () => {
       // NOTE: scriptURL must use new URL(..., import.meta.url) directly here
       // for unplugin-service-worker to detect and bundle the service worker
-      // Use absolute path since publicDir is set to test-public in vitest.config.ts
+      // The browser project must serve this package's test-public directory at the root
       currentController = createSvcWorkerController({
         scriptURL: new URL('/test-sw.ts', import.meta.url),
         version: 'test-v1',

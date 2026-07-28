@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import type { ReloadSuggestInfo, StateChangeInfo } from './controller.ts'
 import { createSvcWorkerController } from './controller.ts'
 

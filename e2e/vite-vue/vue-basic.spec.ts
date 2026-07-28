@@ -1,12 +1,5 @@
-import { describe, expect, test } from 'vitest'
-import {
-  isBuild,
-  iframeInnerText,
-  iframeTextContent,
-  page,
-  updateFile,
-  waitForIframeSelector
-} from '~utils'
+import { describe, expect, test } from 'vite-plus/test'
+import { isBuild, iframeInnerText, page, updateFile } from '~utils'
 
 describe('vue-basic', () => {
   test('page shows Ready status', async () => {
@@ -15,16 +8,16 @@ describe('vue-basic', () => {
   })
 
   test('Vue SFC renders correctly', async () => {
-    await waitForIframeSelector('h1')
-    const text = await iframeInnerText()
-    expect(text).toContain('Vrowzer + Vue')
-    expect(text).toContain('count is')
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('Vrowzer + Vue')
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('count is')
   })
 
   test('Vue SFC HMR - template change', async () => {
     if (isBuild) {
       return
     }
+
+    await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('Vrowzer + Vue')
 
     await updateFile(
       '/HelloWorld.vue',
@@ -39,12 +32,6 @@ const count = ref(0)
 </template>`
     )
 
-    await page.waitForFunction(
-      () => {
-        const iframe = document.querySelector('iframe') as HTMLIFrameElement
-        return iframe?.contentDocument?.querySelector('button')?.textContent?.includes('clicks:')
-      },
-      { timeout: 10000 }
-    )
+    await expect.poll(() => iframeInnerText(), { timeout: 10000 }).toContain('clicks:')
   })
 })

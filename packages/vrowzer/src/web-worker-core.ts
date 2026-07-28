@@ -44,7 +44,6 @@ export async function initWebWorker(options?: InitWebWorkerOptions) {
   // Separate plugins from other config fields (resolve, define, etc.)
   const { plugins, ...inlineConfig } = options ?? {}
 
-  // @ts-expect-error -- FIXME(kazupon): type errors
   const server = createServer(self, {
     watcher: watcher as any,
     ...(plugins ? { plugins } : {}),

@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest'
+import { describe, it } from 'vite-plus/test'
 import { Readable, Writable } from 'readable-stream'
 
 describe('test-stream2-pipe-error-once-listener', () => {

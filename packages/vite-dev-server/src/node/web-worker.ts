@@ -189,10 +189,11 @@ export function createServer(
           // Plugins like @vitejs/plugin-vue store the server reference in configureServer
           // to enable HMR code injection in SFC transforms. Without this, Vue SFCs won't
           // have import.meta.hot.accept() and all changes trigger full page reloads.
-          for (const plugin of config.plugins) {
-            if (typeof plugin.configureServer === 'function') {
-              await plugin.configureServer(server as ViteDevServer)
-            }
+          for (const hook of config.getSortedPluginHooks('configureServer')) {
+            await hook.call(
+              clientEnv!.pluginContainer.minimalContext,
+              server as ViteDevServer,
+            )
           }
 
           // Send ACK to Main Thread with config and environment info
@@ -287,4 +288,3 @@ export type {
 } from '../shared/messages'
 export type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
 export type { ViteDevServerForWorker } from './transformer'
-

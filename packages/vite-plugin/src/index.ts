@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import inject from '@rollup/plugin-inject'
+import * as injectModule from '@rollup/plugin-inject'
 import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
 import { createDebug } from 'obug'
 import { autoManifestPlugin } from './auto-manifest.ts'
@@ -26,9 +26,13 @@ import { serverMiddlewarePlugin } from './server.ts'
 import { generateWebWorkerEntry } from './virtual.ts'
 
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
+import type { RollupInjectOptions } from '@rollup/plugin-inject'
 import type { VrowzerOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowzer:index')
+const inject = injectModule.default as unknown as (
+  options?: RollupInjectOptions
+) => Record<string, unknown>
 
 export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
   const resolvedOptions = resolveOptions(options)
@@ -147,25 +151,26 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
     }
   }
 
+  const processInjectPlugin = {
+    ...inject({
+      process: '@vrowzer/node-polyfill/process',
+      exclude: [/node_modules\/\.vite\//, /node_modules\/\.vrowzer\//]
+    }),
+    apply: 'serve'
+  } as unknown as Plugin
+  const serviceWorkerPlugin = ServiceWorker({
+    serviceWorkerAllowed: '/',
+    format: 'esm',
+    ...(resolvedOptions.serviceWorkerEntry ? { entry: resolvedOptions.serviceWorkerEntry } : {})
+  }) as unknown as Plugin
+
   const plugins: Plugin[] = [
     vrowzerConfigPlugin,
     serverMiddlewarePlugin(resolvedOptions),
-    {
-      // @ts-expect-error -- FIXME
-      ...inject({
-        process: '@vrowzer/node-polyfill/process',
-        exclude: [/node_modules\/\.vite\//, /node_modules\/\.vrowzer\//]
-      }),
-      apply: 'serve'
-    } as Plugin,
+    processInjectPlugin,
     envPlugin(resolvedOptions),
     rolldownPlugin(resolvedOptions),
-    // @ts-expect-error -- Plugin type mismatch from duplicate vite installations (esbuild version diff)
-    ServiceWorker({
-      serviceWorkerAllowed: '/',
-      format: 'esm',
-      ...(resolvedOptions.serviceWorkerEntry ? { entry: resolvedOptions.serviceWorkerEntry } : {})
-    })
+    serviceWorkerPlugin
   ]
 
   // Auto-manifest plugin: generates manifest and provides virtual:vrowzer-manifest

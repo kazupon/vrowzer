@@ -1,18 +1,113 @@
 import { resolve } from 'node:path'
-import { playwright } from '@vitest/browser-playwright'
-import { defineConfig } from 'vitest/config'
+import {
+  defineFmtConfig,
+  defineLintConfig,
+  defaultIgnoreFilesOfEnforceHeaderCommentRule
+} from '@kazupon/vp-config'
+import { defineConfig } from 'vite-plus'
+import { playwright } from 'vite-plus/test/browser-playwright'
+
+const commonIgnorePatterns = [
+  '.playwright-cli',
+  '.vscode/**/*.json',
+  '.claude/**/*.md',
+  '**/dist',
+  '**/.output',
+  '**/.output-shared',
+  '**/.notes',
+  '**/.diff',
+  '**/*.html',
+  '**/tsconfig*.json',
+  '**/__screenshots__',
+  'README.md',
+  'TODO.md',
+  'design/**/*.md',
+  'e2e/fixtures/**',
+  'packages/**/docs/**',
+  'packages/*/README.md',
+  'refers/**'
+]
+
+const fmtIgnorePatterns = [
+  ...commonIgnorePatterns,
+  'pnpm-lock.yaml',
+  'package.json',
+  'packages/vite-dev-server/**'
+]
+
+const lintIgnorePatterns = [
+  ...commonIgnorePatterns,
+  'packages/node-polyfill/**/*.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  'packages/play-vrowzer/**'
+]
+
+const headerCommentIgnoreFiles = [
+  ...defaultIgnoreFilesOfEnforceHeaderCommentRule,
+  '**/*.browser-{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  '**/*.browser-{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  '**/*.integration-{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  '**/*.e2e-{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  '**/*.{test,spec}-d.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  'scripts/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  'packages/vite-dev-server/{src,types,misc}/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  'packages/vite-dev-server/client.d.ts',
+  'packages/{rolldown,service-worker,unplugin-service-worker,service-worker-server}/{playground,e2e,test-public}/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  'examples/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  'integration/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  'e2e/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+]
 
 export default defineConfig({
+  staged: {
+    '*': 'vp check --fix'
+  },
+  fmt: defineFmtConfig({
+    ignorePatterns: fmtIgnorePatterns
+  }),
+  lint: defineLintConfig({
+    ignorePatterns: lintIgnorePatterns,
+    options: {
+      typeAware: false,
+      typeCheck: false
+    },
+    jsPlugins: [{ name: 'vite-plus', specifier: 'vite-plus/oxlint-plugin' }],
+    rules: {
+      'vite-plus/prefer-vite-plus-imports': 'error'
+    },
+    typescript: {
+      rules: {
+        'typescript/consistent-type-imports': 'off'
+      }
+    },
+    import: {
+      rules: {
+        'import/consistent-type-specifier-style': 'off'
+      }
+    },
+    comments: {
+      enForceHeaderComment: {
+        ignoreFiles: headerCommentIgnoreFiles
+      }
+    },
+    overrides: [
+      {
+        files: ['packages/vite-dev-server/**/*.{ts,mts,cts,tsx}'],
+        rules: {
+          '@typescript-eslint/triple-slash-reference': 'off'
+        }
+      }
+    ]
+  }),
   test: {
+    exclude: ['**/node_modules/**', '**/.git/**', 'refers/**'],
     projects: [
       {
-        extends: './packages/service-worker/vitest.config.ts',
+        extends: './packages/service-worker/vite.config.ts',
         test: {
           name: 'service-worker:unit',
           include: ['./packages/service-worker/src/**/*.browser-test.ts'],
           testTimeout: 30000,
           hookTimeout: 60000,
-          // Run test files sequentially to avoid SW registration conflicts across files
           fileParallelism: false,
           browser: {
             enabled: true,
@@ -59,8 +154,7 @@ export default defineConfig({
           name: 'unplugin-service-worker:integration',
           include: ['./packages/unplugin-service-worker/integration/**/*.integration-test.ts'],
           exclude: ['./packages/unplugin-service-worker/integration/bun.integration-test.ts'],
-          // bun.integration-test.ts is a spawn wrapper that runs bun test for bun.e2e_test.ts
-          testTimeout: 60000, // Extended for Bun test spawn
+          testTimeout: 60000,
           hookTimeout: 120000
         }
       },
@@ -71,26 +165,8 @@ export default defineConfig({
           include: ['./packages/vite-dev-server/src/**/*.test.ts']
         }
       },
-      // TODO(kazupon): SW-based browser tests are flaky. Plan repo-level E2E tests via play-vrowzer instead.
-      // {
-      //   extends: './packages/vite-dev-server/vitest.config.ts',
-      //   test: {
-      //     name: 'vite-dev-server:unit:browser',
-      //     include: ['./packages/vite-dev-server/src/**/*.browser-test.ts'],
-      //     browser: {
-      //       enabled: true,
-      //       headless: true,
-      //       provider: playwright(),
-      //       instances: [
-      //         {
-      //           browser: 'chromium'
-      //         }
-      //       ]
-      //     }
-      //   }
-      // },
       {
-        extends: './packages/fs/vitest.config.ts',
+        extends: './packages/fs/vite.config.ts',
         test: {
           name: 'fs:unit',
           include: ['./packages/fs/src/**/*.test.ts']
@@ -141,14 +217,14 @@ export default defineConfig({
         }
       },
       {
-        extends: './packages/vite-plugin/vitest.config.ts',
+        extends: './packages/vite-plugin/vite.config.ts',
         test: {
           name: 'vite-plugin:unit',
           include: ['./packages/vite-plugin/src/**/*.test.ts']
         }
       },
       {
-        extends: './packages/vrowzer/vitest.config.ts',
+        extends: './packages/vrowzer/vite.config.ts',
         test: {
           name: 'vrowzer:unit',
           include: ['./packages/vrowzer/src/**/*.test.ts']
@@ -160,7 +236,6 @@ export default defineConfig({
           include: ['./packages/vrowzer/integration/**/*.integration-test.ts'],
           testTimeout: 60000,
           hookTimeout: 120000,
-          // Run integration files sequentially to avoid Service Worker registration conflicts.
           fileParallelism: false
         }
       },

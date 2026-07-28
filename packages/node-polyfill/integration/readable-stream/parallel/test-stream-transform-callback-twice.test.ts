@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest'
+import { describe, it } from 'vite-plus/test'
 import { expectsError } from '../common/index.ts'
 import { Transform } from 'readable-stream'
 

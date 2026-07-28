@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 import { envPlugin } from './env.ts'
 import { resolveOptions } from './options.ts'
 

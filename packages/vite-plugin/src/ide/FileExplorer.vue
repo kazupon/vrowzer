@@ -42,11 +42,15 @@ const fileTree = computed<TreeNode[]>(() => {
 
 function sortTree(nodes: TreeNode[]) {
   nodes.sort((a, b) => {
-    if (a.isDir !== b.isDir) {return a.isDir ? -1 : 1}
+    if (a.isDir !== b.isDir) {
+      return a.isDir ? -1 : 1
+    }
     return a.name.localeCompare(b.name)
   })
   for (const node of nodes) {
-    if (node.children.length > 0) {sortTree(node.children)}
+    if (node.children.length > 0) {
+      sortTree(node.children)
+    }
   }
 }
 </script>

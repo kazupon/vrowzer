@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { mustCall, mustCallAtLeast, mustNotCall } from '../common/index.ts'
 // @ts-ignore - isDisturbed, isErrored exist at runtime but not in types
 import { isDisturbed, isErrored, Readable } from 'readable-stream'

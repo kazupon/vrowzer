@@ -19,7 +19,9 @@ const panelSizes = ref<number[]>([])
 let activeGrip = -1
 
 function initSizes() {
-  if (!container.value) {return}
+  if (!container.value) {
+    return
+  }
   const total = container.value.offsetWidth
   if (props.sizes.length > 0) {
     const sum = props.sizes.reduce((a, b) => a + b, 0)
@@ -39,7 +41,9 @@ function onGripDown(index: number, e: MouseEvent) {
     const newLeft = startLeft + delta
     const newRight = startRight - delta
 
-    if (newLeft < props.minSize || newRight < props.minSize) {return}
+    if (newLeft < props.minSize || newRight < props.minSize) {
+      return
+    }
 
     panelSizes.value[index] = newLeft
     panelSizes.value[index + 1] = newRight

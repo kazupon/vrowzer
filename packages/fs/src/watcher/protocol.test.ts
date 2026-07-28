@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test } from 'vite-plus/test'
 import { V_FS_INIT, V_FS_MKDIR, V_FS_UNLINK, V_FS_WRITE } from './protocol.ts'
 
 describe('@vrowzer/fs/watcher protocol', () => {

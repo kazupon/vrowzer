@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { MiddlewareHandler } from 'hono/types'
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 // Mock fs modules
 vi.mock('node:fs', () => ({

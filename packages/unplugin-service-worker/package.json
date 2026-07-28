@@ -64,8 +64,8 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
-    "prepack": "pnpm build",
+    "build": "vp pack",
+    "prepack": "vp run build",
     "test:integration:bun": "bun test ./integration/bun.integration-test.ts",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
@@ -81,12 +81,11 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rspack/core": "^1.7.2",
     "@vrowzer/service-worker": "workspace:*",
-    "esbuild": "^0.27.2",
+    "esbuild": "catalog:",
     "get-port-please": "catalog:",
     "html-webpack-plugin": "^5.6.5",
     "publint": "catalog:",
     "rollup": "^4.55.1",
-    "tsdown": "catalog:",
     "vite": "catalog:",
     "webpack": "^5.104.1"
   }

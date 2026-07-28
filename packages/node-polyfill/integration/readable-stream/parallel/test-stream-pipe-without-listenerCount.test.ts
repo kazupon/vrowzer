@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vite-plus/test'
 import { Stream } from 'readable-stream'
 
 // Node v24.14+ added strict type validation to EventEmitter.listenerCount()

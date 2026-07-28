@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 import { Duplex, finished } from 'readable-stream'
 
 describe('test-stream-end-of-streams', () => {

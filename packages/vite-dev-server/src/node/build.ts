@@ -31,6 +31,7 @@ import {
     joinUrlSegments,
     mergeConfig,
     mergeWithDefaults,
+    partialEncodeURIPath,
     setupRollupOptionCompat,
     unique
 } from './utils';
@@ -562,12 +563,65 @@ export function toOutputFilePathInJS(
   return joinUrlSegments(decodedBase, filename)
 }
 
+const needsEscapeRegEx = /[\n\r'\\\u2028\u2029]/
+const quoteNewlineRegEx = /([\n\r'\u2028\u2029])/g
+const backSlashRegEx = /\\/g
+
+function escapeId(id: string): string {
+  if (!needsEscapeRegEx.test(id)) { return id }
+  return id.replace(backSlashRegEx, '\\\\').replace(quoteNewlineRegEx, '\\$1')
+}
+
+const getResolveUrl = (url: string, URL = 'URL') => `new ${URL}(${url}).href`
+
+const getRelativeUrlFromDocument = (relativePath: string, umd = false) =>
+  getResolveUrl(
+    `'${escapeId(partialEncodeURIPath(relativePath))}', ${
+      umd ? `typeof document === 'undefined' ? location.href : ` : ''
+    }document.currentScript && document.currentScript.tagName.toUpperCase() === 'SCRIPT' && document.currentScript.src || document.baseURI`,
+  )
+
+const getFileUrlFromFullPath = (filePath: string) =>
+  `require('u' + 'rl').pathToFileURL(${filePath}).href`
+
+const getFileUrlFromRelativePath = (relativePath: string) =>
+  getFileUrlFromFullPath(`__dirname + '/${escapeId(relativePath)}'`)
+
+const relativeUrlMechanisms: Partial<
+  Record<InternalModuleFormat, (relativePath: string) => string>
+> = {
+  cjs: (relativePath) =>
+    `(typeof document === 'undefined' ? ${getFileUrlFromRelativePath(
+      relativePath,
+    )} : ${getRelativeUrlFromDocument(relativePath)})`,
+  es: (relativePath) =>
+    getResolveUrl(
+      `'${escapeId(partialEncodeURIPath(relativePath))}', import.meta.url`,
+    ),
+  iife: (relativePath) => getRelativeUrlFromDocument(relativePath),
+  umd: (relativePath) =>
+    `(typeof document === 'undefined' && typeof location === 'undefined' ? ${getFileUrlFromRelativePath(
+      relativePath,
+    )} : ${getRelativeUrlFromDocument(relativePath, true)})`,
+}
+
+const customRelativeUrlMechanisms = {
+  ...relativeUrlMechanisms,
+  'worker-iife': (relativePath: string) =>
+    getResolveUrl(
+      `'${escapeId(partialEncodeURIPath(relativePath))}', self.location.href`,
+    ),
+}
+
 export function createToImportMetaURLBasedRelativeRuntime(
   format: InternalModuleFormat,
   isWorker: boolean,
 ): (filename: string, importer: string) => { runtime: string } {
   const formatLong = isWorker && format === 'iife' ? 'worker-iife' : format
   const toRelativePath = customRelativeUrlMechanisms[formatLong]
+  if (!toRelativePath) {
+    throw new Error(`Unsupported output format for relative URLs: ${formatLong}`)
+  }
   return (filename, importer) => ({
     runtime: toRelativePath(
       path.posix.relative(path.dirname(importer), filename),

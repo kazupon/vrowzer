@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, afterEach } from 'vitest'
+import { describe, test, expect, vi, afterEach } from 'vite-plus/test'
 import { createMessageChannelServer, isMessageChannelServer } from './ws'
 import type { ResolvedConfig } from '../config'
 

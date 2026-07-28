@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "typecheck": "tsgo --noEmit -p tsconfig.app.json",
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build --minify false",
-    "preview": "vite preview",
+    "typecheck": "vue-tsc -b --noEmit",
+    "dev": "vp dev",
+    "build": "vue-tsc -b && vp build --minify false",
+    "preview": "vp preview",
     "preview:wrangler": "wrangler pages dev dist --port 8788"
   },
   "dependencies": {

@@ -68,9 +68,9 @@
   },
   "scripts": {
     "typecheck": "tsgo --noEmit -p tsconfig.json",
-    "build": "tsdown",
+    "build": "vp pack",
     "build:docs": "typedoc --excludeInternal",
-    "prepack": "pnpm build"
+    "prepack": "vp run build"
   },
   "dependencies": {
     "@jsonjoy.com/fs-core": "4.56.10",
@@ -80,16 +80,15 @@
   },
   "devDependencies": {
     "@playwright/test": "catalog:",
-    "pathe": "catalog:",
     "@vrowzer/node-polyfill": "workspace:*",
     "buffer": "catalog:",
     "get-port-please": "catalog:",
+    "pathe": "catalog:",
     "premove": "^4.0.0",
     "publint": "catalog:",
     "readable-stream": "catalog:",
     "typedoc": "catalog:",
     "typedoc-plugin-markdown": "catalog:",
-    "tsdown": "catalog:",
     "vite": "catalog:"
   }
 }

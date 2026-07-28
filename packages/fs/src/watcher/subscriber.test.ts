@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import fs, { existsSync, readFileSync, vol } from '../index.ts'
 import { createFileSystemSubscriber } from './subscriber.ts'
 import { createVirtualFSWatcher } from './virtual.ts'

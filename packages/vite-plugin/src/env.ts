@@ -11,7 +11,7 @@
  */
 
 import { dirname, resolve } from 'node:path'
-import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { createDebug } from 'obug'
 import { resolveAliases } from './alias.ts'
 
@@ -22,9 +22,11 @@ const debug = createDebug('vite-plugin-vrowzer:env')
 
 // Resolve picocolors browser version path.
 // picocolors doesn't export the browser file via package.json exports,
-// so we use createRequire to find the package and construct the path.
-const _require = createRequire(import.meta.url)
-const picocolorsBrowser = resolve(dirname(_require.resolve('picocolors')), 'picocolors.browser.js')
+// so we resolve its entry point and construct the path.
+const picocolorsBrowser = resolve(
+  dirname(fileURLToPath(import.meta.resolve('picocolors'))),
+  'picocolors.browser.js'
+)
 
 export function envPlugin(_options: ResolvedVrowzerOptions): Plugin {
   return {

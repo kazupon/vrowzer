@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vite-plus/test'
 // @ts-ignore -- internal module
 import BufferList from 'readable-stream/lib/internal/streams/buffer_list'
 

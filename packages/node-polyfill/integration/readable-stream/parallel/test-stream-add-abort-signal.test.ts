@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest'
+import { describe, it } from 'vite-plus/test'
 import { assertThrowsCode } from '../common/index.ts'
 // @ts-ignore - addAbortSignal exists at runtime but not in types
 import { addAbortSignal, Readable } from 'readable-stream'

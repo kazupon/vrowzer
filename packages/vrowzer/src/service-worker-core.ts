@@ -27,6 +27,7 @@ import { createServer } from '@vrowzer/vite-dev-server/service-worker'
 import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-server/messages'
 
 import type { FileSystemSyncMessage } from '@vrowzer/fs/watcher'
+import type { CreateServerOptions } from '@vrowzer/vite-dev-server/service-worker'
 import type { Plugin } from 'vite'
 
 declare const self: ServiceWorkerGlobalScope
@@ -44,6 +45,12 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
 
   const subscriber = createFileSystemSubscriber(fs)
   const previewBase = '/__preview__/'
+  const serverOptions = {
+    version: SW_VERSION,
+    basePath: previewBase,
+    ...(options?.plugins ? { plugins: options.plugins } : {}),
+    watcherFactory: () => subscriber.watcher as any
+  } as CreateServerOptions
 
   const listen = createServer(
     self,
@@ -61,13 +68,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
         bundledDev: false
       }
     },
-    // @ts-expect-error -- FIXME(kazupon): type errors
-    {
-      version: SW_VERSION,
-      basePath: previewBase,
-      ...(options?.plugins ? { plugins: options.plugins } : {}),
-      watcherFactory: () => subscriber.watcher as any
-    }
+    serverOptions
   )
 
   // Start the Vite dev server at the top level (not inside activate event).
