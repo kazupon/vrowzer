@@ -45,7 +45,6 @@ const config: ReturnType<typeof defineConfig> = defineConfig(
       'examples/**',
       'refers/**',
       'vite.config.ts',
-      'vitest.config.ts',
       '**/vite.config.ts',
       '**/vitest.config.ts',
       // FIXME: Fix lint errors in e2e tests.

@@ -33,10 +33,10 @@ jobs:
           pnpm gen:manifest packages/play-vrowzer/package.json -p packages/play-vrowzer/fixtures/vite-svelte -o packages/play-vrowzer/fixtures/vite-svelte/vrowzer-manifest.json -t svelte --name "Vrowzer + Svelte"
 
       - name: Build vite-dev-server
-        run: pnpm --filter vite-dev-server build
+        run: vp run vite-dev-server#build
 
       - name: Build play-vrowzer
-        run: pnpm --filter play-vrowzer build
+        run: vp run play-vrowzer#build
 
       - name: Create cloudflare pages project (if not exists)
         uses: cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3.14.1
