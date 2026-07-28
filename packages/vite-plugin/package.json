@@ -50,9 +50,9 @@
     }
   },
   "scripts": {
-    "build": "vp pack && pnpm build:ide",
+    "build": "vp pack && vp run build:ide",
     "build:ide": "vp build --config vite.ide.config.ts",
-    "prepack": "pnpm build",
+    "prepack": "vp run build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -65,6 +65,7 @@
     "buffer": "catalog:",
     "obug": "catalog:",
     "pathe": "catalog:",
+    "picocolors": "^1.1.1",
     "readable-stream": "catalog:",
     "rolldown": "catalog:",
     "ws": "^8.18.0"

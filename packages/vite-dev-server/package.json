@@ -85,15 +85,15 @@
   },
   "scripts": {
     "typecheck": "tsgo --noEmit -p tsconfig.json",
-    "build": "premove dist && pnpm build-bundle && pnpm build-types",
+    "build": "premove dist && vp run build-bundle && vp run build-types",
     "build-bundle": "rolldown --config rolldown.config.ts",
-    "build-types": "pnpm build-types-roll && pnpm build-types-messages && pnpm build-types-check",
+    "build-types": "vp run build-types-roll && vp run build-types-messages && vp run build-types-check",
     "build-types-messages": "tsc src/shared/messages.ts --declaration --emitDeclarationOnly --outDir dist/shared --skipLibCheck",
     "build-types-check": "echo 'build-types-check'",
     "build-types-roll": "rolldown --config rolldown.dts.config.ts",
-    "dev": "premove dist && pnpm build-bundle -w",
-    "test": "pnpm --dir ../.. exec vp test run --project vite-dev-server:unit:node",
-    "test:watch": "pnpm --dir ../.. exec vp test watch --project vite-dev-server:unit:node"
+    "dev": "premove dist && vp run build-bundle -- -w",
+    "test": "vp test run --root ../.. --project vite-dev-server:unit:node",
+    "test:watch": "vp test watch --root ../.. --project vite-dev-server:unit:node"
   },
   "dependencies": {
     "rolldown": "catalog:"

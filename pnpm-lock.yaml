@@ -800,6 +800,9 @@ importers:
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
       readable-stream:
         specifier: 'catalog:'
         version: 4.7.0

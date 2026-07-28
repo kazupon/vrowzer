@@ -52,7 +52,7 @@
   "scripts": {
     "_disable:typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "vp pack",
-    "prepack": "pnpm build"
+    "prepack": "vp run build"
   },
   "dependencies": {
     "oxlint": "catalog:"

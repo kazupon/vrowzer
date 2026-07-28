@@ -47,7 +47,7 @@
   },
   "scripts": {
     "build": "rolldown -c rolldown.config.ts",
-    "prepack": "pnpm build",
+    "prepack": "vp run build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {

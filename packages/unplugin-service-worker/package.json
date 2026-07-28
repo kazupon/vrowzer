@@ -65,7 +65,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "prepack": "pnpm build",
+    "prepack": "vp run build",
     "test:integration:bun": "bun test ./integration/bun.integration-test.ts",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },

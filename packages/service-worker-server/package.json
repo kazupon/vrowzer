@@ -51,7 +51,7 @@
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "vp pack",
     "build:docs": "typedoc --excludeInternal",
-    "prepack": "pnpm build"
+    "prepack": "vp run build"
   },
   "dependencies": {
     "@kazupon/jts-utils": "catalog:",

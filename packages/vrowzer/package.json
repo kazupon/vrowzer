@@ -53,7 +53,7 @@
   "scripts": {
     "build": "vp pack",
     "build:docs": "typedoc --excludeInternal",
-    "prepack": "pnpm build",
+    "prepack": "vp run build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {

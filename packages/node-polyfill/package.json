@@ -113,7 +113,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "prepack": "pnpm build",
+    "prepack": "vp run build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "devDependencies": {
