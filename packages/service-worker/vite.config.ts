@@ -2,8 +2,7 @@
  * Vite configuration for @vrowzer/service-worker playground
  */
 
-import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
-import { defineConfig } from 'vite-plus'
+import { defineConfig, lazyPlugins } from 'vite-plus'
 
 import type { Plugin } from 'vite-plus'
 
@@ -98,7 +97,10 @@ const config: ReturnType<typeof defineConfig> = defineConfig({
   },
   root: isIntegrationTest ? '.' : './playground',
   publicDir: isIntegrationTest ? 'test-public' : undefined,
-  plugins: [ServiceWorker(), apiMiddleware()],
+  plugins: lazyPlugins(async () => {
+    const { default: ServiceWorker } = await import('@vrowzer/unplugin-service-worker/vite')
+    return [ServiceWorker(), apiMiddleware()]
+  }),
   build: {
     outDir: './dist',
     sourcemap: true

@@ -91,7 +91,7 @@
     "build-types-messages": "tsc src/shared/messages.ts --declaration --emitDeclarationOnly --outDir dist/shared --skipLibCheck",
     "build-types-check": "echo 'build-types-check'",
     "build-types-roll": "rolldown --config rolldown.dts.config.ts",
-    "dev": "premove dist && vp run build-bundle -- -w",
+    "dev": "premove dist && vp run build-bundle --watch",
     "test": "vp test run --root ../.. --project vite-dev-server:unit:node",
     "test:watch": "vp test watch --root ../.. --project vite-dev-server:unit:node"
   },
