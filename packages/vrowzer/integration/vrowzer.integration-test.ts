@@ -28,6 +28,61 @@ let page: Page
 let serverUrl: string
 let pageConsoleLogs: string[] = []
 
+interface PreviewResponse {
+  status: number
+  body: string
+}
+
+async function addPreviewFiles(files: Record<string, string>): Promise<void> {
+  await page.evaluate(filesToAdd => {
+    const vrowzer = (window as any).__vrowzer__
+    for (const [filePath, content] of Object.entries(filesToAdd)) {
+      vrowzer.addFile(filePath, content)
+    }
+  }, files)
+}
+
+async function fetchFromPreview(requestPath: string): Promise<PreviewResponse> {
+  return page.evaluate(async path => {
+    const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement | null
+    if (!iframe?.contentWindow) {
+      throw new Error('Preview iframe is not available')
+    }
+
+    const response = await iframe.contentWindow.fetch(`/__preview__${path}`)
+    return {
+      status: response.status,
+      body: await response.text()
+    }
+  }, requestPath)
+}
+
+async function waitForPreviewResponse(
+  requestPath: string,
+  expectedStatus: number
+): Promise<PreviewResponse> {
+  let response: PreviewResponse | undefined
+
+  await expect
+    .poll(
+      async () => {
+        try {
+          response = await fetchFromPreview(requestPath)
+          return response.status
+        } catch {
+          return undefined
+        }
+      },
+      { timeout: 10_000 }
+    )
+    .toBe(expectedStatus)
+
+  if (!response) {
+    throw new Error(`No preview response for ${requestPath}`)
+  }
+  return response
+}
+
 beforeAll(async () => {
   debug('Building playground...')
   execSync('npx vite build', { cwd: PLAYGROUND_DIR, stdio: E2E_DEBUG ? 'inherit' : 'pipe' })
@@ -208,6 +263,56 @@ if (import.meta.hot) {
       })
 
       expect(swState).toBe('activated')
+    })
+  })
+
+  describe('filesystem security', () => {
+    const deniedFiles = {
+      '/.npmrc': 'NPMRC_SECRET_CANARY',
+      '/.yarnrc.yml': 'YARNRC_SECRET_CANARY',
+      '/secret.key': 'PRIVATE_KEY_SECRET_CANARY'
+    }
+    const cases = [
+      {
+        name: 'denies .npmrc through the static path',
+        requestPath: '/.npmrc',
+        canary: deniedFiles['/.npmrc']
+      },
+      {
+        name: 'denies .npmrc through the /@fs/ path',
+        requestPath: '/@fs/.npmrc',
+        canary: deniedFiles['/.npmrc']
+      },
+      {
+        name: 'denies .yarnrc.yml through the static path',
+        requestPath: '/.yarnrc.yml',
+        canary: deniedFiles['/.yarnrc.yml']
+      },
+      {
+        name: 'denies .yarnrc.yml through the /@fs/ path',
+        requestPath: '/@fs/.yarnrc.yml',
+        canary: deniedFiles['/.yarnrc.yml']
+      },
+      {
+        name: 'denies .key through the static path',
+        requestPath: '/secret.key',
+        canary: deniedFiles['/secret.key']
+      },
+      {
+        name: 'denies .key through the /@fs/ path',
+        requestPath: '/@fs/secret.key',
+        canary: deniedFiles['/secret.key']
+      }
+    ]
+
+    beforeAll(async () => {
+      await addPreviewFiles(deniedFiles)
+    })
+
+    test.each(cases)('$name', async ({ requestPath, canary }) => {
+      const response = await waitForPreviewResponse(requestPath, 403)
+      expect(response.body).toContain('403 Restricted')
+      expect(response.body).not.toContain(canary)
     })
   })
 })
