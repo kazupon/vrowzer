@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "typecheck": "vue-tsc -b --noEmit",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "dev": "vp dev",
-    "build": "vue-tsc -b && vp build --minify false",
+    "build": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vp build --minify false",
     "preview": "vp preview",
     "preview:wrangler": "wrangler pages dev dist --port 8788"
   },
@@ -28,8 +28,9 @@
     "@vitejs/plugin-vue": "catalog:",
     "@vrowzer/vite-plugin": "workspace:*",
     "@vue/tsconfig": "^0.8.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "catalog:",
-    "vue-tsc": "^3.1.4",
+    "vue-tsc": "^3.3.8",
     "wrangler": "catalog:"
   }
 }

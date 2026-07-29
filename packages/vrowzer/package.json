@@ -54,7 +54,7 @@
     "build": "vp pack",
     "build:docs": "tsx ../../scripts/api-references.ts",
     "prepack": "vp run build",
-    "typecheck": "tsgo --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@kazupon/jts-utils": "catalog:",

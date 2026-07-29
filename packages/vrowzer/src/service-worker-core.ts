@@ -50,7 +50,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
     basePath: previewBase,
     ...(options?.plugins ? { plugins: options.plugins } : {}),
     watcherFactory: () => subscriber.watcher as any
-  } as CreateServerOptions
+  } as unknown as CreateServerOptions
 
   const listen = createServer(
     self,

@@ -6,6 +6,7 @@ export default defineConfig({
   pack: {
     platform: 'browser',
     entry: ['./src/index.ts'],
+    tsconfig: './tsconfig.build.json',
     publint: true,
     dts: true,
     fixedExtension: false,

@@ -10,6 +10,7 @@ catalog:
   '@playwright/test': 1.57.0
   '@types/node': ^25.5.0
   '@vitest/browser-playwright': 4.1.10
+  typescript: 7.0.2
   esbuild: 0.27.3
   get-port-please: ^3.2.0
   magic-string: ^0.30.21
@@ -43,6 +44,7 @@ peerDependencyRules:
     - vite
     - vitest
   allowedVersions:
+    typescript: '6'
     vite: '*'
     vitest: '*'
 

@@ -53,7 +53,7 @@
     "build": "vp pack && vp run build:ide",
     "build:ide": "vp build --config vite.ide.config.ts",
     "prepack": "vp run build",
-    "typecheck": "tsgo --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@rollup/plugin-inject": "^5.0.5",

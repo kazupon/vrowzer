@@ -60,7 +60,7 @@
     }
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vp pack",
     "build:docs": "tsx ../../scripts/api-references.ts",
     "play": "vp dev --config vite.config.ts",

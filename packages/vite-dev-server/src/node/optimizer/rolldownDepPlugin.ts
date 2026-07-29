@@ -319,7 +319,11 @@ export function rolldownDepPlugin(
 
           let match: RegExpExecArray | null
           while ((match = assetImportMetaUrlRE.exec(cleanString))) {
-            const [[startIndex, endIndex], [urlStart, urlEnd]] = match.indices!
+            const matchRange = match.indices?.[0]
+            const urlRange = match.indices?.[1]
+            if (!matchRange || !urlRange) { continue }
+            const [startIndex, endIndex] = matchRange
+            const [urlStart, urlEnd] = urlRange
             if (hasViteIgnoreRE.test(code.slice(startIndex, urlStart))) { continue }
 
             const rawUrl = code.slice(urlStart, urlEnd)

@@ -530,7 +530,7 @@ export function createSvcWorker(
       }
     }
 
-    function handleMessageError(event: MessageEvent) {
+    function handleMessageError(event: ExtendableMessageEvent) {
       console.error('createSvcWorker: messageerror on main handler', event)
     }
 

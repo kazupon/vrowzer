@@ -357,7 +357,9 @@ export function extractImportExpressionFromClassicScript(
   let match: RegExpExecArray | null
   inlineImportRE.lastIndex = 0
   while ((match = inlineImportRE.exec(cleanCode))) {
-    const [, [urlStart, urlEnd]] = match.indices!
+    const urlRange = match.indices?.[1]
+    if (!urlRange) { continue }
+    const [urlStart, urlEnd] = urlRange
     const start = urlStart + 1
     const end = urlEnd - 1
     scriptUrls.push({
@@ -863,4 +865,3 @@ function serializeAttrs(attrs: HtmlTagDescriptor['attrs']): string {
 function incrementIndent(indent: string = '') {
   return `${indent}${indent[0] === '\t' ? '\t' : '  '}`
 }
-

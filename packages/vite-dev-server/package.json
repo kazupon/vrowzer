@@ -84,11 +84,11 @@
     "#dep-types/*": "./src/types/*.d.ts"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit -p tsconfig.json",
+    "typecheck": "tsc6 --noEmit -p tsconfig.json",
     "build": "premove dist && vp run build-bundle && vp run build-types",
     "build-bundle": "rolldown --config rolldown.config.ts",
     "build-types": "vp run build-types-roll && vp run build-types-messages && vp run build-types-check",
-    "build-types-messages": "tsc src/shared/messages.ts --declaration --emitDeclarationOnly --outDir dist/shared --skipLibCheck",
+    "build-types-messages": "tsc6 --ignoreConfig src/shared/messages.ts --declaration --emitDeclarationOnly --outDir dist/shared --skipLibCheck",
     "build-types-check": "echo 'build-types-check'",
     "build-types-roll": "rolldown --config rolldown.dts.config.ts",
     "dev": "premove dist && vp run build-bundle --watch",
@@ -156,6 +156,7 @@
     "stylus": ">=0.54.8",
     "tinyglobby": "^0.2.15",
     "tsconfck": "^3.1.6",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "ufo": "^1.6.2",
     "vite": "catalog:"
   }

@@ -49,7 +49,7 @@
     }
   },
   "scripts": {
-    "_disable:typecheck": "tsgo --noEmit -p tsconfig.json",
+    "_disable:typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vp pack",
     "prepack": "vp run build"
   },

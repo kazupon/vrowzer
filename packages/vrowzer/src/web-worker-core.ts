@@ -22,6 +22,7 @@ import { createFileSystemSubscriber, createVirtualFSWatcher } from '@vrowzer/fs/
 import { createServer } from '@vrowzer/vite-dev-server/web-worker'
 
 import type { FileSystemSyncMessage } from '@vrowzer/fs/watcher'
+import type { CreateServerOptions } from '@vrowzer/vite-dev-server/web-worker'
 import type { Plugin, UserConfig } from 'vite'
 
 declare const self: DedicatedWorkerGlobalScope
@@ -44,7 +45,7 @@ export async function initWebWorker(options?: InitWebWorkerOptions) {
   // Separate plugins from other config fields (resolve, define, etc.)
   const { plugins, ...inlineConfig } = options ?? {}
 
-  const server = createServer(self, {
+  const serverOptions = {
     watcher: watcher as any,
     ...(plugins ? { plugins } : {}),
     ...(Object.keys(inlineConfig).length > 0 ? { inlineConfig } : {}),
@@ -58,7 +59,8 @@ export async function initWebWorker(options?: InitWebWorkerOptions) {
         }
       }
     }
-  })
+  } as unknown as CreateServerOptions
+  const server = createServer(self, serverOptions)
 
   // Wait for V_WW_SETUP — loads transformer + DevEnvironment
   await server.listen()

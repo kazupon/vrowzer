@@ -8,5 +8,5 @@ export type WatchEventName = "add" | "addDir" | "change" | "unlink" | "unlinkDir
 
 ## Tags
 
-- `@license` — MIT
 - `@author` — kazuya kawaguchi (a.k.a. kazupon)
+- `@license` — MIT

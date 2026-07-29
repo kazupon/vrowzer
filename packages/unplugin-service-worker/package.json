@@ -67,7 +67,7 @@
     "build": "vp pack",
     "prepack": "vp run build",
     "test:integration:bun": "bun test ./integration/bun.integration-test.ts",
-    "typecheck": "tsgo --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "magic-string": "^0.30.17",
