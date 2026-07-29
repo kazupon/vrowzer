@@ -268,11 +268,12 @@ if (import.meta.hot) {
 
   describe('filesystem security', () => {
     const deniedFiles = {
+      '/.env': 'ENV_SECRET_CANARY',
       '/.npmrc': 'NPMRC_SECRET_CANARY',
       '/.yarnrc.yml': 'YARNRC_SECRET_CANARY',
       '/secret.key': 'PRIVATE_KEY_SECRET_CANARY'
     }
-    const cases = [
+    const staticCases = [
       {
         name: 'denies .npmrc through the static path',
         requestPath: '/.npmrc',
@@ -304,12 +305,60 @@ if (import.meta.hot) {
         canary: deniedFiles['/secret.key']
       }
     ]
+    const transformQueryCases = [
+      {
+        name: 'raw query before import',
+        filePath: '/.npmrc',
+        query: '?raw&import',
+        canary: deniedFiles['/.npmrc']
+      },
+      {
+        name: 'import before raw query',
+        filePath: '/.npmrc',
+        query: '?import&raw',
+        canary: deniedFiles['/.npmrc']
+      },
+      {
+        name: 'url query',
+        filePath: '/.yarnrc.yml',
+        query: '?url&import',
+        canary: deniedFiles['/.yarnrc.yml']
+      },
+      {
+        name: 'inline query',
+        filePath: '/secret.key',
+        query: '?inline&import',
+        canary: deniedFiles['/secret.key']
+      },
+      {
+        name: 'SVG-like query',
+        filePath: '/.env',
+        query: '?.svg?import',
+        canary: deniedFiles['/.env']
+      }
+    ]
+    const transformCases = [
+      { name: 'the normal path', prefix: '' },
+      { name: 'the /@fs/ path', prefix: '/@fs' }
+    ].flatMap(({ name: routeName, prefix }) =>
+      transformQueryCases.map(({ name, filePath, query, canary }) => ({
+        name: `denies ${name} through ${routeName}`,
+        requestPath: `${prefix}${filePath}${query}`,
+        canary
+      }))
+    )
 
     beforeAll(async () => {
       await addPreviewFiles(deniedFiles)
     })
 
-    test.each(cases)('$name', async ({ requestPath, canary }) => {
+    test.each(staticCases)('$name', async ({ requestPath, canary }) => {
+      const response = await waitForPreviewResponse(requestPath, 403)
+      expect(response.body).toContain('403 Restricted')
+      expect(response.body).not.toContain(canary)
+    })
+
+    test.each(transformCases)('$name', async ({ requestPath, canary }) => {
       const response = await waitForPreviewResponse(requestPath, 403)
       expect(response.body).toContain('403 Restricted')
       expect(response.body).not.toContain(canary)
