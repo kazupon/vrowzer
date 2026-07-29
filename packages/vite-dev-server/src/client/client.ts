@@ -2,10 +2,7 @@
 
 import type { ErrorPayload, HotPayload } from '#types/hmrPayload'
 import type { ViteHotContext } from '#types/hot'
-import type {
-  DevRuntime as DevRuntimeType,
-  Messenger,
-} from 'rolldown/experimental/runtime-types'
+import type { DevRuntime as DevRuntimeType } from 'rolldown/experimental/runtime-types'
 import { nanoid } from 'nanoid/non-secure'
 import { HMRClient, HMRContext } from '../shared/hmr'
 import { createHMRHandler } from '../shared/hmrHandler'
@@ -695,39 +692,8 @@ if (isBundleMode && typeof DevRuntime !== 'undefined') {
       ctx._internal = { updateStyle, removeStyle }
       return ctx
     }
-
-    override applyUpdates(_boundaries: [string, string][]): void {
-      // noop, handled in the HMR client
-    }
   }
 
   const clientId = nanoid()
-
-  transport.send({
-    type: 'custom',
-    event: 'vite:module-loaded',
-    data: { modules: [], clientId },
-  })
-
-  const wrappedSocket: Messenger = {
-    send(message) {
-      switch (message.type) {
-        case 'hmr:module-registered': {
-          transport.send({
-            type: 'custom',
-            event: 'vite:module-loaded',
-            // clone array as the runtime reuses the array instance
-            data: { modules: message.modules.slice(), clientId },
-          })
-          break
-        }
-        default:
-          throw new Error(`Unknown message type: ${JSON.stringify(message)}`)
-      }
-    },
-  }
-    ; (globalThis as any).__rolldown_runtime__ ??= new ViteDevRuntime(
-      wrappedSocket,
-      clientId,
-    )
+  ;(globalThis as any).__rolldown_runtime__ ??= new ViteDevRuntime(clientId)
 }

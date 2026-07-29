@@ -6,7 +6,7 @@
  */
 
 // These imports work because @vrowzer/rolldown pre-bundles all dependencies
-import { rolldown } from '@vrowzer/rolldown/browser'
+import { VERSION, rolldown } from '@vrowzer/rolldown/browser'
 import { memfs } from '@vrowzer/rolldown/browser/experimental'
 
 window.testState = { status: 'initializing', result: null, error: null }
@@ -30,7 +30,7 @@ async function run() {
 
     window.testState = {
       status: 'success',
-      result: { code, fileName: output[0].fileName },
+      result: { code, fileName: output[0].fileName, version: VERSION },
       error: null
     }
 

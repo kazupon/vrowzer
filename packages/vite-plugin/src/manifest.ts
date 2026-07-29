@@ -17,7 +17,7 @@
 
 import { readFileSync } from 'node:fs'
 import { dirname, extname, resolve } from 'node:path'
-import { minifySync } from 'rolldown/experimental'
+import { minifySync } from 'rolldown/utils'
 import { createDebug } from 'obug'
 
 import type { Plugin } from 'vite'

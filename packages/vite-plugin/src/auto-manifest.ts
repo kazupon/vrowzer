@@ -16,7 +16,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { extname, join, resolve } from 'node:path'
-import { minifySync } from 'rolldown/experimental'
+import { minifySync } from 'rolldown/utils'
 import { createDebug } from 'obug'
 import { generateManifest } from './manifest-generate.ts'
 

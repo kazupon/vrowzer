@@ -769,9 +769,9 @@ async function bundleServiceWorkerWithRolldown(
 
   const { output } = await bundle.generate({
     format,
-    // ESM format: inline dynamic imports to produce a single file.
+    // ESM format: disable code splitting to produce a single file.
     // Modules marked as external are preserved as import() calls.
-    ...(format === 'esm' && { inlineDynamicImports: true }),
+    ...(format === 'esm' && { codeSplitting: false }),
     sourcemap: options.sourcemap ? 'inline' : false,
     minify: options.minify ?? false
   })

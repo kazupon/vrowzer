@@ -37,10 +37,14 @@ async function run() {
       )
     }
 
-    // Test 3: Write via @vrowzer/fs, bundle with rolldown
+    // Test 3: Write a source larger than the default 10KB fs-proxy payload,
+    // then bundle it with rolldown.
+    const largePayload = 'x'.repeat(16 * 1024)
     vol.fromJSON({
-      '/src/index.js': 'import { add } from "./math.js"\nconsole.log(add(1, 2))',
-      '/src/math.js': 'export function add(a, b) { return a + b }'
+      '/src/index.js':
+        'import { add } from "./math.js"\nimport { large } from "./large.js"\nconsole.log(add(1, 2), large)',
+      '/src/math.js': 'export function add(a, b) { return a + b }',
+      '/src/large.js': `export const large = ${JSON.stringify(largePayload)}`
     })
 
     const bundle = await rolldown({ input: '/src/index.js', cwd: '/' })
@@ -51,7 +55,8 @@ async function run() {
       result: {
         sharedRead: true,
         bundleCode: output[0].code,
-        fileName: output[0].fileName
+        fileName: output[0].fileName,
+        largeSourceBundled: output[0].code.includes(largePayload)
       },
       error: null
     }
