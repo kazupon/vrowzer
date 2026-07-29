@@ -1,6 +1,6 @@
 name: Deploy Vrowzer Playground
 on:
-  workflow_dispatch: # eslint-disable-line yml/no-empty-mapping-value -- disalbe
+  workflow_dispatch:
 
 jobs:
   deploy:

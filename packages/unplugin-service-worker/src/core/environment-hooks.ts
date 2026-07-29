@@ -101,7 +101,7 @@ function wrapEnvironmentResolveId(
     importer: string | undefined,
     options: unknown
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- ignore
+    // oxlint-disable-next-line typescript/no-unsafe-return -- ignore
     return fn.call(injectEnvironmentInContext(this, environment), id, importer, options)
   }
 
@@ -121,7 +121,7 @@ function wrapEnvironmentLoad(
 
   const fn = getHookHandler(hook as ObjectHook<Function>)
   const handler = function (this: unknown, id: string, ...args: unknown[]) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- ignore
+    // oxlint-disable-next-line typescript/no-unsafe-return -- ignore
     return fn.call(injectEnvironmentInContext(this, environment), id, ...args)
   }
 
@@ -141,7 +141,7 @@ function wrapEnvironmentTransform(
 
   const fn = getHookHandler(hook as ObjectHook<Function>)
   const handler = function (this: unknown, code: string, id: string, ...args: unknown[]) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- ignore
+    // oxlint-disable-next-line typescript/no-unsafe-return -- ignore
     return fn.call(injectEnvironmentInContext(this, environment), code, id, ...args)
   }
 
@@ -152,7 +152,7 @@ function wrapEnvironmentTransform(
  * Wrap a generic hook to inject environment
  */
 function wrapEnvironmentHook(environment: Environment, plugin: Plugin, hookName: string): unknown {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- ignore
+  // oxlint-disable-next-line typescript/no-unsafe-assignment, typescript/no-unsafe-member-access -- ignore
   const hook = (plugin as any)[hookName]
   if (!hook) {
     return undefined
@@ -164,7 +164,7 @@ function wrapEnvironmentHook(environment: Environment, plugin: Plugin, hookName:
   }
 
   const handler = function (this: unknown, ...args: unknown[]) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- ignore
+    // oxlint-disable-next-line typescript/no-unsafe-return -- ignore
     return fn.call(injectEnvironmentInContext(this, environment), ...args)
   }
 
@@ -186,7 +186,7 @@ export function injectEnvironmentToHooks(environment: Environment, plugin: Plugi
   const { resolveId, load, transform } = plugin
 
   // Clone the plugin (supports class instances)
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore
+  // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore
   const clone: Plugin = Object.assign(
     Object.create(Object.getPrototypeOf(plugin) as object),
     plugin
@@ -217,7 +217,7 @@ export function injectEnvironmentToHooks(environment: Environment, plugin: Plugi
       }
       default:
         if (ROLLDOWN_HOOKS.includes(hook)) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- ignore
+          // oxlint-disable-next-line typescript/no-unsafe-member-access -- ignore
           ;(clone as any)[hook] = wrapEnvironmentHook(environment, plugin, hook)
         }
         break

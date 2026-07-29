@@ -59,7 +59,7 @@ export function convertEsbuildPluginToRolldownPlugin(
                 ? [
                   {
                     name: p.name,
-                    // eslint-disable-next-line @typescript-eslint/no-empty-function
+                    // oxlint-disable-next-line typescript/no-empty-function
                     setup() { },
                   },
                 ]

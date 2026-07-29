@@ -18,9 +18,9 @@ export function promisify<TArgs extends unknown[], TResult>(
 ): (...args: TArgs) => Promise<TResult> {
   return (...args: TArgs) =>
     new Promise<TResult>((resolve, reject) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- general utility function, type safety is the caller's responsibility
+      // oxlint-disable-next-line typescript/no-unsafe-call -- general utility function, type safety is the caller's responsibility
       ;(fn as Function)(...args, (err: unknown, result: TResult) => {
-        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- we want to allow rejecting with non-Error values for compatibility with Node.js callback conventions
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- we want to allow rejecting with non-Error values for compatibility with Node.js callback conventions
         err ? reject(err) : resolve(result)
       })
     })

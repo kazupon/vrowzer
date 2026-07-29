@@ -94,7 +94,7 @@ async function startDevServer(options: {
       }
     })
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- For testing
+    // oxlint-disable-next-line typescript/no-misused-promises -- For testing
     const pollId = setInterval(async () => {
       if (settled) {
         return
@@ -154,7 +154,7 @@ async function callControllerMethod(
       if (!controller) {
         throw new Error('Controller not available')
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access -- For testing
+      // oxlint-disable-next-line typescript/no-unsafe-call, typescript/no-unsafe-return, typescript/no-unsafe-member-access -- For testing
       return (controller as any)[method](...args)
     },
     { method, args }
@@ -284,7 +284,7 @@ describe('Controller API (createSvcWorkerController)', () => {
     // Try to create another controller with same options
     const isSameInstance = await page.evaluate(async () => {
       const { createSvcWorkerController } =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
       const existingController = window.testState.controller
       if (!existingController) {
@@ -393,7 +393,7 @@ describe('Controller API (createSvcWorkerController)', () => {
     // Then create a controller with 'strict' policy expecting v2
     const result = await page.evaluate(async () => {
       const { createSvcWorkerController } =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
 
       // Dispose existing controller
@@ -448,7 +448,7 @@ describe('Controller API (createSvcWorkerController)', () => {
     // Then create a controller with 'force' policy
     const result = await page.evaluate(async () => {
       const { createSvcWorkerController } =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
 
       // Dispose existing controller
@@ -698,7 +698,7 @@ describe('Admin API', () => {
 
     const controllers = await page.evaluate(async () => {
       const admin =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/admin.ts')>('/dist/admin.js')!
       const all = admin.getAllControllers()
       return all.map((c: { version: string; state: string }) => ({
@@ -721,7 +721,7 @@ describe('Admin API', () => {
 
     const controller = await page.evaluate(async () => {
       const admin =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/admin.ts')>('/dist/admin.js')!
       const testController = window.testState.controller
       if (!testController) {
@@ -751,7 +751,7 @@ describe('Admin API', () => {
     // SvcWorkerSessionCircuitBreakerResult: {mode, terminated, cachesCleared}
     const results = await page.evaluate(async () => {
       const admin =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/admin.ts')>('/dist/admin.js')!
       const resultMap = await admin.suspendAllServiceWorkers()
       const resultsArray: Array<{ key: string; mode: string }> = []
@@ -780,7 +780,7 @@ describe('Admin API', () => {
     // Suspend first
     await page.evaluate(async () => {
       const admin =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/admin.ts')>('/dist/admin.js')!
       await admin.suspendAllServiceWorkers()
     })
@@ -791,7 +791,7 @@ describe('Admin API', () => {
     // `SvcWorkerSessionResumeResult` is an empty object - success is indicated by Promise resolving
     const resultCount = await page.evaluate(async () => {
       const admin =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/admin.ts')>('/dist/admin.js')!
       const resultMap = await admin.resumeAllServiceWorkers()
       return resultMap.size
@@ -814,7 +814,7 @@ describe('Admin API', () => {
 
     await page.evaluate(async () => {
       const admin =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/admin.ts')>('/dist/admin.js')!
       admin.disposeAllControllers()
     })
@@ -822,7 +822,7 @@ describe('Admin API', () => {
     // After disposal, getAllControllers should return empty
     const count = await page.evaluate(async () => {
       const admin =
-        // oxlint-disable-next-line no-unsafe-optional-chaining, @typescript-eslint(no-non-null-asserted-optional-chain -- For testing
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
         await window.dynamicImport?.<typeof import('../src/admin.ts')>('/dist/admin.js')!
       return admin.getAllControllers().length
     })

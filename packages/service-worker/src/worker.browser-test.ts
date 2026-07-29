@@ -79,7 +79,7 @@ describe('createSvcWorker', () => {
 
       self.addEventListener('fetch', () => {})
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method --- Intentional
+      // oxlint-disable-next-line typescript/unbound-method --- Intentional
       expect(mockSelf.addEventListener).toHaveBeenCalledWith('fetch', expect.any(Function))
     })
 
@@ -140,7 +140,7 @@ describe('createSvcWorker', () => {
 
       mockSelf._dispatchEvent('message', messageEvent)
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method --- Intentional
+      // oxlint-disable-next-line typescript/unbound-method --- Intentional
       expect(mockSelf.skipWaiting).toHaveBeenCalled()
     })
   })

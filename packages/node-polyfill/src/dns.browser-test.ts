@@ -262,7 +262,7 @@ describe('Resolver class', () => {
 describe('promises API', () => {
   it('lookup should return a promise', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const result = await promises.lookup('localhost')
     expect(result).toHaveProperty('address')
     expect(result).toHaveProperty('family')
@@ -270,14 +270,14 @@ describe('promises API', () => {
 
   it('lookup with all: true should return array', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const result = await promises.lookup('localhost', { all: true })
     expect(Array.isArray(result)).toBe(true)
   })
 
   it('lookupService should return a promise', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const result = await promises.lookupService('127.0.0.1', 80)
     expect(result).toHaveProperty('hostname')
     expect(result).toHaveProperty('service')
@@ -285,28 +285,28 @@ describe('promises API', () => {
 
   it('resolve should return empty array', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const result = await promises.resolve('example.com')
     expect(result).toEqual([])
   })
 
   it('resolve4 should return empty array', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const result = await promises.resolve4('example.com')
     expect(result).toEqual([])
   })
 
   it('resolve6 should return empty array', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const result = await promises.resolve6('example.com')
     expect(result).toEqual([])
   })
 
   it('reverse should return empty array', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const result = await promises.reverse('127.0.0.1')
     expect(result).toEqual([])
   })
@@ -318,16 +318,16 @@ describe('promises API', () => {
 
   it('Resolver should be constructable', () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const resolver = new promises.Resolver()
     expect(resolver).toBeDefined()
   })
 
   it('Resolver.resolve should return a promise', async () => {
     // @ts-expect-error -- ignore
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-assignment -- ignore for testing
     const resolver = new promises.Resolver()
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- ignore for testing
+    // oxlint-disable-next-line typescript/no-unsafe-call, typescript/no-unsafe-assignment, typescript/no-unsafe-member-access -- ignore for testing
     const result = await resolver.resolve('example.com')
     expect(result).toEqual([])
   })

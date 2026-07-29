@@ -29,7 +29,7 @@ describe('test-stream-pipeline-uncaught', () => {
         s,
         async function (source: AsyncIterable<Buffer>) {
           for await (const _chunk of source) {
-          } // eslint-disable-line no-unused-vars, no-empty
+          } // oxlint-disable-line no-unused-vars, no-empty
         },
         mustSucceed(() => {
           throw new Error('error')

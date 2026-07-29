@@ -328,6 +328,6 @@ window.testApp = {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init)
 } else {
-  // oxlint-disable-next-line @typescript-eslint/no-floating-promises
+  // oxlint-disable-next-line typescript/no-floating-promises
   init()
 }

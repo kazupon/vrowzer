@@ -676,7 +676,7 @@ export class BasicMinimalPluginContext<Meta = PluginContextMeta> {
   ) { }
 
   // FIXME: properly support this later
-  // eslint-disable-next-line @typescript-eslint/class-literal-property-style
+  // oxlint-disable-next-line typescript/class-literal-property-style
   get pluginName(): string {
     return ''
   }

@@ -22,7 +22,7 @@ import { CLIENT_PUBLIC_PATH } from '../../constants'
 import { pad } from '../../utils'
 import type { ViteDevServer, ViteEnv } from '../index'
 
-// eslint-disable-next-line no-control-regex
+// oxlint-disable-next-line no-control-regex
 const ansiRegex = /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g
 
 function strip(str: string): string {

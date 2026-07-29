@@ -35,7 +35,7 @@ export async function createStaticServer(
 ): Promise<StaticServer> {
   const port = await getPort({ port: preferredPort ?? 3000 })
 
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- for testing
+  // oxlint-disable-next-line typescript/no-misused-promises -- for testing
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://localhost:${port}`)
     let filePath = join(root, url.pathname)

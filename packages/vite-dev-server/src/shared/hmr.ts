@@ -93,7 +93,7 @@ export class HMRContext implements ViteHotContext {
   }
 
   // Kept for backward compatibility (#11036)
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  // oxlint-disable-next-line typescript/no-empty-function
   decline(): void { }
 
   invalidate(message: string): void {

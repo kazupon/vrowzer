@@ -19,7 +19,7 @@ export async function buildWithBun(playgroundDir: string, outputDir: string): Pr
   await mkdir(join(outputDir, 'assets'), { recursive: true })
 
   // @ts-ignore -- Bun global
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- for testing
+  // oxlint-disable-next-line typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access -- for testing
   const result = await globalThis.Bun.build({
     entrypoints: [join(playgroundDir, 'main.js')],
     outdir: join(outputDir, 'assets'),
@@ -36,11 +36,11 @@ export async function buildWithBun(playgroundDir: string, outputDir: string): Pr
     ]
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- for testing
+  // oxlint-disable-next-line typescript/no-unsafe-member-access -- for testing
   if (!result.success) {
     return {
       success: false,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument -- for testing
+      // oxlint-disable-next-line typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-argument -- for testing
       error: new Error(result.logs.map((l: { message: string }) => l.message).join('\n'))
     }
   }

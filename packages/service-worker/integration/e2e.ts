@@ -13,7 +13,7 @@ const scope = params.get('scope') || '/'
 const swType = params.get('type') || 'module'
 
 window.dynamicImport = function <T = unknown>(url: string): Promise<T> {
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval, @typescript-eslint/no-unsafe-call -- NOTE: For vitest, avoid SSR dynamic import analysis
+  // oxlint-disable-next-line typescript/no-implied-eval, typescript/no-unsafe-call -- NOTE: For vitest, avoid SSR dynamic import analysis
   return new Function('url', 'return import(url)')(url) as Promise<T>
 }
 
@@ -87,5 +87,5 @@ async function init() {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-floating-promises -- for testing
+// oxlint-disable-next-line typescript/no-floating-promises -- for testing
 init()

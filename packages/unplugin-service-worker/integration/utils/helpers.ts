@@ -67,7 +67,7 @@ export async function callControllerMethod(
       if (!controller) {
         throw new Error('Controller not available')
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access -- for testing
+      // oxlint-disable-next-line typescript/no-unsafe-call, typescript/no-unsafe-return, typescript/no-unsafe-member-access -- for testing
       return (controller as any)[method](...args)
     },
     { method, args }

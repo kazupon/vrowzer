@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* oxlint-disable typescript/ban-ts-comment */
 
 // @ts-ignore `esbuild` may not be installed
 import type esbuild from 'esbuild'
 
-/* eslint-enable @typescript-eslint/ban-ts-comment */
+/* oxlint-enable typescript/ban-ts-comment */
 
 export type EsbuildTarget = string | string[]
 

@@ -49,21 +49,21 @@ export function createImportMetaResolver(): ImportMetaResolver | undefined {
   }
 
   // Use registerHooks if available as it's more performant
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins -- we check the existence
+  // oxlint-disable-next-line node/no-unsupported-features/node-builtins -- we check the existence
   if (module.registerHooks) {
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins -- we checked the existence
+    // oxlint-disable-next-line node/no-unsupported-features/node-builtins -- we checked the existence
     module.registerHooks({ resolve: customizationHookResolve })
     return importMetaResolveWithCustomHook
   }
 
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins -- we check the existence
+  // oxlint-disable-next-line node/no-unsupported-features/node-builtins -- we check the existence
   if (!module.register) {
     return
   }
 
   try {
     const hookModuleContent = `data:text/javascript,${encodeURI(customizationHooksModule)}`
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins -- we checked the existence
+    // oxlint-disable-next-line node/no-unsupported-features/node-builtins -- we checked the existence
     module.register(hookModuleContent)
   } catch (e) {
     // For `--experimental-network-imports` flag that exists in Node before v22

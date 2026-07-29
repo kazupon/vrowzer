@@ -21,7 +21,7 @@
 
 import { fs, vol } from '@vrowzer/fs'
 import { createFileSystemSubscriber } from '@vrowzer/fs/watcher'
-import client from '@vrowzer/vite-dev-server/dist/client/client.mjs?raw' // eslint-disable-line import/default -- ignore for raw import
+import client from '@vrowzer/vite-dev-server/dist/client/client.mjs?raw' // oxlint-disable-line import/default -- ignore for raw import
 import env from '@vrowzer/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer } from '@vrowzer/vite-dev-server/service-worker'
 import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-server/messages'
@@ -78,7 +78,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
   // every time the SW script loads, ensuring the server is always initialized.
   const listenPromise = listen()
   let listenReady = false
-  // eslint-disable-next-line no-floating-promises -- ignore for service worker timing
+  // oxlint-disable-next-line typescript/no-floating-promises -- ignore for service worker timing
   listenPromise.then(() => {
     listenReady = true
   })
@@ -91,7 +91,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
     if (message?.type === V_SW_LISTEN_READY_PING && listenReady) {
       const clientId = (event.source as Client | null)?.id
       if (clientId) {
-        // eslint-disable-next-line no-floating-promises -- ignore for vrowzer preview system negotiation timing
+        // oxlint-disable-next-line typescript/no-floating-promises -- ignore for vrowzer preview system negotiation timing
         self.clients.get(clientId).then(client => {
           client?.postMessage({ type: V_SW_LISTEN_READY })
         })

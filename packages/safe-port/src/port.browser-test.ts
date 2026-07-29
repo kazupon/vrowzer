@@ -20,7 +20,7 @@ describe('safeMessagePort', () => {
 
       await new Promise(resolve => setTimeout(resolve, 10))
       expect(handler).toHaveBeenCalledTimes(1)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- FIXME: event.data is typed as unknown, but we know it's { greeting: string } from the test setup
+      // oxlint-disable-next-line typescript/no-unsafe-member-access -- FIXME: event.data is typed as unknown, but we know it's { greeting: string } from the test setup
       expect(handler.mock.calls[0]![0].data).toEqual({ greeting: 'hello' })
     })
 
@@ -270,7 +270,7 @@ describe('safeMessagePort', () => {
 
       // Only the user message should have been received
       expect(messageHandler).toHaveBeenCalledTimes(1)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      // oxlint-disable-next-line typescript/no-unsafe-member-access
       expect(messageHandler.mock.calls[0]![0].data).toBe('user message')
     })
 
@@ -286,7 +286,7 @@ describe('safeMessagePort', () => {
       await new Promise(resolve => setTimeout(resolve, 10))
 
       expect(messageHandler).toHaveBeenCalledTimes(1)
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      // oxlint-disable-next-line typescript/no-unsafe-member-access
       expect(messageHandler.mock.calls[0]![0].data).toBe('hello with heartbeat')
 
       safe1.close()

@@ -106,7 +106,7 @@ export function resolveEnvPrefix({
     )
   }
   if (envPrefix.some((prefix) => /\s/.test(prefix))) {
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console.warn(
       colors.yellow(
         `[vite] Warning: envPrefix option contains values with whitespace, which does not work in practice.`,

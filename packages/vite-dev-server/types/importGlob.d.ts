@@ -39,7 +39,7 @@ export type GeneralImportGlobOptions = ImportGlobOptions<boolean, string>
  * the Worker interface will be merged correctly.
  */
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  // oxlint-disable-next-line typescript/no-empty-object-type
   interface Worker {}
 }
 

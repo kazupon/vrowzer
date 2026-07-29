@@ -48,7 +48,7 @@ export interface WorkerFunctions {
  * where the Hono server and fetch handler operate.
  * Currently empty — will be extended for HMR relay, etc.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+// oxlint-disable-next-line typescript/no-empty-object-type
 export interface ServiceWorkerFunctions {
   // Future:
   // hmrUpdate: (payload: HotPayload) => void

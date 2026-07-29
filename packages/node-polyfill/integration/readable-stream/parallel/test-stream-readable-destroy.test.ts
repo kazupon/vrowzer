@@ -371,7 +371,7 @@ describe('test-stream-readable-destroy', () => {
         }) as (...args: unknown[]) => void
       )
       ;(async () => {
-        // eslint-disable-next-line no-unused-vars, no-empty
+        // oxlint-disable-next-line no-unused-vars, no-empty
         for await (const _chunk of read) {
         }
       })().catch(() => {})

@@ -220,7 +220,7 @@ export class EventEmitter {
   static init(this: EventEmitter, opts?: { captureRejections?: boolean }): void {
     if (
       this._events === undefined ||
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- checking if _events is the prototype's own property
+      // oxlint-disable-next-line typescript/no-unsafe-member-access -- checking if _events is the prototype's own property
       this._events === Object.getPrototypeOf(this)?._events
     ) {
       this._events = Object.create(null) as EventMap
@@ -283,7 +283,7 @@ export class EventEmitter {
     }
 
     if (typeof handler === 'function') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- handler is guaranteed to be a Function by the type guard above
+      // oxlint-disable-next-line typescript/no-unsafe-assignment -- handler is guaranteed to be a Function by the type guard above
       const result = Reflect.apply(handler, this, args)
       if (result !== undefined && result !== null) {
         addCatch(this, result, type, args)
@@ -291,7 +291,7 @@ export class EventEmitter {
     } else {
       const listeners = arrayClone(handler)
       for (const listener of listeners) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- handler is guaranteed to be a Function by the type guard above
+        // oxlint-disable-next-line typescript/no-unsafe-assignment -- handler is guaranteed to be a Function by the type guard above
         const result = Reflect.apply(listener, this, args)
         if (result !== undefined && result !== null) {
           addCatch(this, result, type, args)
@@ -623,7 +623,7 @@ export async function once(
       if (signal != null) {
         eventTargetAgnosticRemoveListener(signal, 'abort', abortListener)
       }
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- we want to allow rejecting with non-Error values for compatibility with Node.js callback conventions
+      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- we want to allow rejecting with non-Error values for compatibility with Node.js callback conventions
       reject(err)
     }
 
@@ -689,7 +689,7 @@ export function on(
       }
 
       if (error) {
-        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- we want to allow rejecting with non-Error values for compatibility with Node.js callback conventions
+        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- we want to allow rejecting with non-Error values for compatibility with Node.js callback conventions
         const p = Promise.reject(error)
         error = null
         return p
@@ -755,7 +755,7 @@ export function on(
 
   function eventHandler(value: unknown[]): void {
     if (unconsumedPromises.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- we know resolve is a function
+      // oxlint-disable-next-line typescript/no-unsafe-call -- we know resolve is a function
       unconsumedPromises.shift()!.resolve(createIterResult(value, false))
     } else {
       unconsumedEvents.push(value)
@@ -764,12 +764,12 @@ export function on(
 
   function errorHandler(err: unknown): void {
     if (unconsumedPromises.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- we know resolve is a function
+      // oxlint-disable-next-line typescript/no-unsafe-call -- we know resolve is a function
       unconsumedPromises.shift()!.reject(err)
     } else {
       error = err
     }
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises -- we want to trigger unhandled rejection if the error is not consumed
+    // oxlint-disable-next-line typescript/no-floating-promises -- we want to trigger unhandled rejection if the error is not consumed
     closeHandler()
   }
 
@@ -779,7 +779,7 @@ export function on(
     finished = true
     const doneResult = createIterResult(undefined as unknown as unknown[], true)
     while (unconsumedPromises.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- we know resolve is a function
+      // oxlint-disable-next-line typescript/no-unsafe-call -- we know resolve is a function
       unconsumedPromises.shift()!.resolve(doneResult)
     }
     return Promise.resolve(doneResult)

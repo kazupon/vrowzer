@@ -187,7 +187,7 @@ export class Interface extends EventEmitter {
 
     const handler = (line: string) => {
       if (typeof callback === 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- callback is validated as function above
+        // oxlint-disable-next-line typescript/no-unsafe-call -- callback is validated as function above
         callback(line)
       }
     }
@@ -288,9 +288,9 @@ export function createInterface(
 }
 
 class PromiseInterface extends Interface {
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- intentionally returns Promise
+  // oxlint-disable-next-line typescript/no-misused-promises -- intentionally returns Promise
   question(query: string, options?: { signal?: AbortSignal }): Promise<string>
-  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- intentionally returns Promise
+  // oxlint-disable-next-line typescript/no-misused-promises -- intentionally returns Promise
   question(
     query: string,
     optionsOrCb?: { signal?: AbortSignal } | Function,

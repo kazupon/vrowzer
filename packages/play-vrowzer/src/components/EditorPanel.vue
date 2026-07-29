@@ -4,7 +4,7 @@ import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
 import type { VrowzerManifest } from '../../fixtures/types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
+// oxlint-disable-next-line typescript/no-explicit-any -- monaco.languages.typescript is marked as deprecated in types but still works at runtime
 const ts = (monaco.languages as any).typescript
 
 const props = defineProps<{ manifest: VrowzerManifest }>()

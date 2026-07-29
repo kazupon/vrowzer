@@ -14,5 +14,5 @@
 
 import { initWebWorker } from './web-worker-core'
 
-// eslint-disable-next-line no-floating-promises -- ignore for web worker timing
+// oxlint-disable-next-line typescript/no-floating-promises -- ignore for web worker timing
 initWebWorker()

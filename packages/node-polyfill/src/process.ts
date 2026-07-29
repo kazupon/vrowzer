@@ -29,7 +29,7 @@ function _drainQueue(): void {
   _draining = true
   let item = _queue.shift()
   while (item) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- ignore for polyfill
+    // oxlint-disable-next-line typescript/no-unsafe-call -- ignore for polyfill
     item.fn(...item.args)
     item = _queue.shift()
   }

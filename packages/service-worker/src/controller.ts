@@ -452,7 +452,7 @@ export function createSvcWorkerController(
         // See: https://x.com/jarredsumner/status/2017825694731145388
         const timeoutId = setTimeout(abortController.abort.bind(abortController), timeout)
         // Re-establish session with new controller
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+        // oxlint-disable-next-line typescript/no-floating-promises -- Intentional
         establishSession(controller, abortController.signal).finally(() => clearTimeout(timeoutId))
       }
     }

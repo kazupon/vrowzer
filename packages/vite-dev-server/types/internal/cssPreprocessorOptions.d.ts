@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* oxlint-disable typescript/ban-ts-comment */
 
 // @ts-ignore `sass` may not be installed
 import type DartSass from 'sass'
@@ -9,7 +9,7 @@ import type Less from 'less'
 // @ts-ignore `stylus` may not be installed
 import type Stylus from 'stylus'
 
-/* eslint-enable @typescript-eslint/ban-ts-comment */
+/* oxlint-enable typescript/ban-ts-comment */
 
 // https://github.com/type-challenges/type-challenges/issues/29285
 type IsAny<T> = boolean extends (T extends never ? true : false) ? true : false
@@ -32,6 +32,6 @@ export type StylusPreprocessorBaseOptions = Omit<Stylus.RenderOptions, 'filename
 declare global {
   // LESS' types somewhat references this which doesn't make sense in Node,
   // so we have to shim it
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  // oxlint-disable-next-line typescript/no-empty-object-type
   interface HTMLLinkElement {}
 }

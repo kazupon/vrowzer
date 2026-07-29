@@ -28,12 +28,8 @@ yarn add -D @vrowzer/unplugin-service-worker
 bun add -D @vrowzer/unplugin-service-worker
 ```
 
-<!-- eslint-disable markdown/no-missing-label-refs -->
-
 > [!NOTE]
 > This plugin requires `@vrowzer/service-worker` to be installed in your project.
-
-<!-- eslint-enable markdown/no-missing-label-refs -->
 
 <details>
 <summary>Vite</summary><br>
@@ -276,12 +272,8 @@ dist/
 └── index.html
 ```
 
-<!-- eslint-disable markdown/no-missing-label-refs -->
-
 > [!NOTE]
 > The default scope of a Service Worker is determined by its script location. By placing the script at root, you can register it with `scope: '/'` without needing the `Service-Worker-Allowed` HTTP header.
-
-<!-- eslint-enable markdown/no-missing-label-refs -->
 
 ### WASM Support
 
@@ -338,15 +330,11 @@ ServiceWorker({
 })
 ```
 
-<!-- eslint-disable markdown/no-missing-label-refs -->
-
 > [!NOTE]
 > In development mode, WASM is always inlined regardless of the `assets` or `plugins` option, because the dev server cannot serve additional asset files alongside the Service Worker.
 
 > [!NOTE]
 > `wasmUrlPlugin()` is a rolldown plugin for the Service Worker bundler. It works with all bundlers that use rolldown internally (Vite, Rolldown, Rollup, esbuild, Farm, Bun), but **does not work with webpack or rspack** as they use their own child compiler for Service Worker bundling.
-
-<!-- eslint-enable markdown/no-missing-label-refs -->
 
 ## ⚙️ Options
 

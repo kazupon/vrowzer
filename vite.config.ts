@@ -93,7 +93,7 @@ export default defineConfig({
       {
         files: ['packages/vite-dev-server/**/*.{ts,mts,cts,tsx}'],
         rules: {
-          '@typescript-eslint/triple-slash-reference': 'off'
+          'typescript/triple-slash-reference': 'off'
         }
       }
     ]

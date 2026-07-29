@@ -363,7 +363,7 @@ export const createMessageChannelModuleRunnerTransport = (
 // because commented out codes as a context hint for sync with the original code from the forked source using the AI agent.
 //
 // export const createWebSocketModuleRunnerTransport = (options: {
-//   // eslint-disable-next-line n/no-unsupported-features/node-builtins
+//   // oxlint-disable-next-line node/no-unsupported-features/node-builtins
 //   createConnection: () => WebSocket
 //   pingInterval?: number
 // }): Required<
@@ -371,7 +371,7 @@ export const createMessageChannelModuleRunnerTransport = (
 // > => {
 //   const pingInterval = options.pingInterval ?? 30000
 //
-//   // eslint-disable-next-line n/no-unsupported-features/node-builtins
+//   // oxlint-disable-next-line node/no-unsupported-features/node-builtins
 //   let ws: WebSocket | undefined
 //   let pingIntervalId: ReturnType<typeof setInterval> | undefined
 //   return {

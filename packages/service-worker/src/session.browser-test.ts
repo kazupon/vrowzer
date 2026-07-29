@@ -75,7 +75,7 @@ describe('createSession', () => {
 
       expect(session.connected).toBe(true)
       expect(session.version).toBe('v1.0.0')
-      // eslint-disable-next-line @typescript-eslint/unbound-method -- for testing
+      // oxlint-disable-next-line typescript/unbound-method -- for testing
       expect(mockServiceWorker.postMessage).toHaveBeenCalled()
 
       session.close()

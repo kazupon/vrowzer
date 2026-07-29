@@ -104,8 +104,6 @@ const config: KnipConfig = {
     // Bundled vendor files and E2E test fixtures
     'e2e/**'
   ],
-  ignoreBinaries: ['vpx'],
-  ignoreDependencies: ['@kazupon/eslint-plugin'],
   ignoreIssues: {
     'packages/service-worker/src/session.ts': ['types'],
     'packages/service-worker/src/utils.ts': ['types'],

@@ -344,7 +344,7 @@ export function createSvcWorker(
         }
 
         case V_SW_SESSION_CIRCUIT_BREAKER: {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+          // oxlint-disable-next-line typescript/no-floating-promises -- Intentional
           handleCircuitBreaker(data, port)
           break
         }
@@ -491,7 +491,7 @@ export function createSvcWorker(
             startHeartbeat()
 
             // Cleanup stale sessions on new connection
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Intentional
+            // oxlint-disable-next-line typescript/no-floating-promises -- Intentional
             cleanupStaleSessions()
 
             // Send init response with suspended status for state recovery after page reload
@@ -583,7 +583,7 @@ export function createSvcWorker(
         const ext = extensions
         const descriptor = Object.getOwnPropertyDescriptor(ext, prop)
         if (descriptor?.get) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- for generic
+          // oxlint-disable-next-line typescript/no-unsafe-return -- for generic
           return descriptor.get.call(ext)
         }
 
@@ -598,12 +598,12 @@ export function createSvcWorker(
       // Fallback to native property
       // NOTE: Use `target` instead of `receiver` to ensure native getters (like `clients`)
       // are called with the correct `this` context (`ServiceWorkerGlobalScope`)
-      const value = Reflect.get(target, prop, target) // eslint-disable-line @typescript-eslint/no-unsafe-assignment -- for generic
+      const value = Reflect.get(target, prop, target) // oxlint-disable-line typescript/no-unsafe-assignment -- for generic
       if (typeof value === 'function') {
         return (value as (...args: unknown[]) => unknown).bind(target)
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- for generic
+      // oxlint-disable-next-line typescript/no-unsafe-return -- for generic
       return value
     },
 

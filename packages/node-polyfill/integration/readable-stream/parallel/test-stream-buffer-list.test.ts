@@ -14,7 +14,7 @@ describe('test-stream-buffer-list', () => {
   it('buffer list iterator with no elements', () => {
     const list = new BufferList()
     let len = 0
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // oxlint-disable-next-line typescript/no-unused-vars
     for (const _x of list) {
       len++
     }

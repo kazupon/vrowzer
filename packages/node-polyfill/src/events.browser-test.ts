@@ -348,7 +348,7 @@ describe('captureRejections', () => {
     const ee = new EventEmitter({ captureRejections: true })
     const error = new Error('async fail')
 
-    // eslint-disable-next-line @typescript-eslint/require-await -- ignore for testing
+    // oxlint-disable-next-line typescript/require-await -- ignore for testing
     ee.on('test', async () => {
       throw error
     })
@@ -369,7 +369,7 @@ describe('captureRejections', () => {
     const handler = vi.fn()
     ;(ee as unknown as Record<symbol, Function>)[Symbol.for('nodejs.rejection')] = handler
 
-    // eslint-disable-next-line @typescript-eslint/require-await -- ignore for testing
+    // oxlint-disable-next-line typescript/require-await -- ignore for testing
     ee.on('test', async () => {
       throw error
     })

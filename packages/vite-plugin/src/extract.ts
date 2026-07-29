@@ -29,7 +29,7 @@ import type {
 
 const debug = createDebug('vite-plugin-vrowzer:extract')
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- reserved for future options (e.g. pluginOverrides)
+// oxlint-disable-next-line typescript/no-empty-object-type -- reserved for future options (e.g. pluginOverrides)
 export interface ExtractOptions {}
 
 export interface ExtractResult {

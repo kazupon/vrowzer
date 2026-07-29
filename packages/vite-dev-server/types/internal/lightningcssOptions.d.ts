@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* oxlint-disable typescript/ban-ts-comment */
 
 // @ts-ignore `lightningcss` may not be installed
 import type Lightningcss from 'lightningcss'
 
-/* eslint-enable @typescript-eslint/ban-ts-comment */
+/* oxlint-enable typescript/ban-ts-comment */
 
 export type LightningCSSOptions = Omit<
   Lightningcss.BundleAsyncOptions<Lightningcss.CustomAtRules>,

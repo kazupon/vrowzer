@@ -45,7 +45,7 @@ export async function buildWithWebpack(
           })
         ]
       },
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises -- for testing
+      // oxlint-disable-next-line typescript/no-misused-promises -- for testing
       async (err, stats) => {
         if (err) {
           reject(err)

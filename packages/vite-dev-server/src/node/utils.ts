@@ -1274,7 +1274,7 @@ const rollupOptionsDeprecationCall = (() => {
     const method = import.meta.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
     // NOTE(kazupon): comment out for code maintenance with vite original code syncing
     // const method = process.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
-    // eslint-disable-next-line no-console
+    // oxlint-disable-next-line no-console
     console[method](
       '`optimizeDeps.rollupOptions` / `ssr.optimizeDeps.rollupOptions` is deprecated. ' +
       'Use `optimizeDeps.rolldownOptions` instead. Note that this option may be set by a plugin. ' +

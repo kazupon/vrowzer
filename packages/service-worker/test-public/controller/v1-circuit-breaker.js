@@ -44,7 +44,7 @@ function handleSessionMessage(clientId, port, data) {
     }
 
     case 'V_SW_SESSION_CIRCUIT_BREAKER': {
-      // oxlint-disable-next-line @typescript-eslint/no-floating-promises -- For testing
+      // oxlint-disable-next-line typescript/no-floating-promises -- For testing
       handleCircuitBreaker(data, port)
       break
     }

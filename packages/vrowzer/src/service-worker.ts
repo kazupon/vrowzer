@@ -15,7 +15,7 @@
 
 import { initServiceWorker } from './service-worker-core'
 
-// eslint-disable-next-line no-floating-promises -- ignore for initialization timing
+// oxlint-disable-next-line typescript/no-floating-promises -- ignore for initialization timing
 initServiceWorker()
 
 export {}

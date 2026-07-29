@@ -21,7 +21,6 @@ dist
 *.sln
 *.sw?
 
-.eslintcache
 tsconfig.tsbuildinfo
 __screenshots__
 test-results

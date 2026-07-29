@@ -274,7 +274,7 @@ describe('injectEnvironmentToHooks', () => {
       const wrapped = injectEnvironmentToHooks(fakeEnvironment, original)
       // customProperty is not in ROLLDOWN_HOOKS, so it should be the original
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- ignore for testing
+      // oxlint-disable-next-line typescript/no-unsafe-member-access -- ignore for testing
       expect((wrapped as any).customProperty).toBe(customFn)
     })
   })

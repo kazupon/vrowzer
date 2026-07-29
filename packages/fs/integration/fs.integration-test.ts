@@ -89,7 +89,7 @@ async function startDevServer(options: {
       }
     })
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    // oxlint-disable-next-line typescript/no-misused-promises
     const pollId = setInterval(async () => {
       if (settled) {
         return

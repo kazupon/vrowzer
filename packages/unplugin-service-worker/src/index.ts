@@ -250,9 +250,9 @@ function normalizeAlias(alias: unknown): Record<string, string> | undefined {
     const result: Record<string, string> = {}
     for (const item of alias) {
       if (item && typeof item === 'object' && 'find' in item && 'replacement' in item) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call -- ignore
+        // oxlint-disable-next-line typescript/no-unsafe-assignment, typescript/no-unsafe-member-access, typescript/no-unsafe-call -- ignore
         const find = typeof item.find === 'string' ? item.find : item.find.toString()
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- ignore
+        // oxlint-disable-next-line typescript/no-unsafe-member-access -- ignore
         result[find] = item.replacement as string
       }
     }
@@ -926,7 +926,7 @@ function setupWebpackLikeCompiler(
         // Run after optimization but before summarizing
         stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_INLINE
       },
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises -- ignore
+      // oxlint-disable-next-line typescript/no-misused-promises -- ignore
       async (assets, callback) => {
         try {
           // Bundle pending Service Workers using child compiler
@@ -1065,7 +1065,7 @@ function createViteConfigureServer(ctx: PluginContext, options: OptionsResolved)
   return (serverArg: unknown) => {
     const server = serverArg as ViteDevServer
     // Middleware to handle Service Worker requests in dev mode
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- ignore
+    // oxlint-disable-next-line typescript/no-misused-promises -- ignore
     server.middlewares.use(async (req, res, next) => {
       const url = req.url
       if (!url) {
