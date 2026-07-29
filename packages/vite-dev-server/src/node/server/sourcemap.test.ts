@@ -1,7 +1,31 @@
-import { describe, expect, it } from 'vite-plus/test'
-import { genSourceMapUrl, getCodeWithSourcemap } from './sourcemap'
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+
+const fsPromises = vi.hoisted(() => ({
+  readFile: vi.fn<(filePath: string, encoding: string) => Promise<string>>(),
+  realpath: vi.fn<(filePath: string) => Promise<string>>(),
+}))
+
+vi.mock('node:fs/promises', () => ({
+  default: fsPromises,
+}))
+
+import type { Logger } from '../logger'
+import { isWindows } from '../../shared/utils'
+import {
+  extractSourcemapFromFile,
+  genSourceMapUrl,
+  getCodeWithSourcemap,
+  getNodeModulesPackageRoot,
+  injectSourcesContent,
+} from './sourcemap'
 
 import type { SourceMap } from 'rolldown'
+
+function createLogger() {
+  return {
+    warnOnce: vi.fn<(message: string) => void>(),
+  } as unknown as Logger
+}
 
 /**
  * Decode base64 to UTF-8 string (browser compatible)
@@ -14,6 +38,199 @@ function base64ToUtf8(base64: string): string {
   }
   return new TextDecoder().decode(bytes)
 }
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  fsPromises.realpath.mockImplementation(async (filePath: string) => filePath)
+  fsPromises.readFile.mockRejectedValue(new Error('ENOENT'))
+})
+
+describe('getNodeModulesPackageRoot', () => {
+  const cases = [
+    {
+      name: 'returns undefined for path outside node_modules',
+      input: '/project/src/foo.ts',
+      expected: undefined,
+    },
+    {
+      name: 'returns undefined for plain filename',
+      input: 'foo.js',
+      expected: undefined,
+    },
+    {
+      name: 'unscoped package',
+      input: '/project/node_modules/foo/index.js',
+      expected: '/project/node_modules/foo',
+    },
+    {
+      name: 'unscoped package in nested directory',
+      input: '/project/node_modules/foo/dist/bar.js',
+      expected: '/project/node_modules/foo',
+    },
+    {
+      name: 'scoped package',
+      input: '/project/node_modules/@scope/pkg/dist/foo.js',
+      expected: '/project/node_modules/@scope/pkg',
+    },
+    {
+      name: 'scoped package at root level',
+      input: '/project/node_modules/@scope/pkg/index.js',
+      expected: '/project/node_modules/@scope/pkg',
+    },
+    {
+      name: 'nested node_modules uses the last segment',
+      input: '/project/node_modules/foo/node_modules/bar/index.js',
+      expected: '/project/node_modules/foo/node_modules/bar',
+    },
+    {
+      name: 'package name without subdirectory',
+      input: '/project/node_modules/foo',
+      expected: '/project/node_modules/foo',
+    },
+    {
+      name: 'scoped package name without subdirectory',
+      input: '/project/node_modules/@scope/pkg',
+      expected: '/project/node_modules/@scope/pkg',
+    },
+  ]
+
+  it.each(cases)('$name', ({ input, expected }) => {
+    expect(getNodeModulesPackageRoot(input)).toBe(expected)
+  })
+
+  it.skipIf(!isWindows)('normalizes a Windows-style package path', () => {
+    expect(
+      getNodeModulesPackageRoot(
+        'D:\\project\\node_modules\\foo\\dist\\bar.js',
+      ),
+    ).toBe('D:/project/node_modules/foo')
+  })
+
+  it.skipIf(!isWindows)(
+    'normalizes a Windows-style scoped package path',
+    () => {
+      expect(
+        getNodeModulesPackageRoot(
+          'D:\\project\\node_modules\\@scope\\pkg\\index.js',
+        ),
+      ).toBe('D:/project/node_modules/@scope/pkg')
+    },
+  )
+})
+
+describe('injectSourcesContent', () => {
+  it('reads sources inside a dependency package and blocks sources outside it', async () => {
+    const logger = createLogger()
+    const map = {
+      sources: ['src/index.ts', '../../secret.txt'],
+      sourceRoot: '..',
+    }
+
+    fsPromises.readFile.mockImplementation(async (filePath: string) => {
+      if (filePath === '/project/node_modules/example/src/index.ts') {
+        return 'export const value = 1'
+      }
+      if (filePath === '/project/secret.txt') {
+        return 'secret'
+      }
+      throw new Error('ENOENT')
+    })
+
+    await injectSourcesContent(
+      map,
+      '/project/node_modules/example/dist/index.js',
+      logger,
+    )
+
+    expect(map.sourcesContent).toEqual(['export const value = 1', null])
+    expect(fsPromises.readFile).toHaveBeenCalledTimes(1)
+    expect(fsPromises.readFile).toHaveBeenCalledWith(
+      '/project/node_modules/example/src/index.ts',
+      'utf-8',
+    )
+    expect(fsPromises.readFile).not.toHaveBeenCalledWith(
+      '/project/secret.txt',
+      'utf-8',
+    )
+    expect(logger.warnOnce).toHaveBeenCalledWith(
+      expect.stringContaining('points to a source file outside its package'),
+    )
+  })
+
+  it('does not apply the dependency package boundary to project sources', async () => {
+    const logger = createLogger()
+    const map = {
+      sources: ['../../shared.ts'],
+    }
+
+    fsPromises.readFile.mockResolvedValue('export const shared = true')
+
+    await injectSourcesContent(map, '/project/src/index.js', logger)
+
+    expect(map.sourcesContent).toEqual(['export const shared = true'])
+    expect(fsPromises.readFile).toHaveBeenCalledWith('/shared.ts', 'utf-8')
+    expect(logger.warnOnce).not.toHaveBeenCalled()
+  })
+})
+
+describe('extractSourcemapFromFile', () => {
+  const sourceMap: SourceMap = {
+    version: 3,
+    sources: ['index.ts'],
+    sourcesContent: ['export const value = 1'],
+    names: [],
+    mappings: 'AAAA',
+  }
+
+  it('reads an external sourcemap inside a dependency package', async () => {
+    const logger = createLogger()
+    fsPromises.readFile.mockResolvedValue(JSON.stringify(sourceMap))
+
+    const result = await extractSourcemapFromFile(
+      'export const value = 1\n//# sourceMappingURL=index.js.map',
+      '/project/node_modules/example/dist/index.js',
+      logger,
+    )
+
+    expect(result?.map).toEqual(sourceMap)
+    expect(fsPromises.readFile).toHaveBeenCalledWith(
+      '/project/node_modules/example/dist/index.js.map',
+      'utf-8',
+    )
+    expect(logger.warnOnce).not.toHaveBeenCalled()
+  })
+
+  it('blocks an external sourcemap outside a dependency package', async () => {
+    const logger = createLogger()
+
+    const result = await extractSourcemapFromFile(
+      'export const value = 1\n//# sourceMappingURL=../../../secret.map',
+      '/project/node_modules/example/dist/index.js',
+      logger,
+    )
+
+    expect(result?.map).toEqual({})
+    expect(fsPromises.readFile).not.toHaveBeenCalled()
+    expect(logger.warnOnce).toHaveBeenCalledWith(
+      expect.stringContaining('references a map file outside its package'),
+    )
+  })
+
+  it('does not apply the dependency package boundary to a project sourcemap', async () => {
+    const logger = createLogger()
+    fsPromises.readFile.mockResolvedValue(JSON.stringify(sourceMap))
+
+    const result = await extractSourcemapFromFile(
+      'export const value = 1\n//# sourceMappingURL=../../shared.map',
+      '/project/src/index.js',
+      logger,
+    )
+
+    expect(result?.map).toEqual(sourceMap)
+    expect(fsPromises.readFile).toHaveBeenCalledWith('/shared.map', 'utf-8')
+    expect(logger.warnOnce).not.toHaveBeenCalled()
+  })
+})
 
 describe('genSourceMapUrl', () => {
   it('should generate data URL from string', () => {

@@ -294,7 +294,7 @@ async function loadAndTransform(
     }
     if (code) {
       try {
-        const extracted = await extractSourcemapFromFile(code, file)
+        const extracted = await extractSourcemapFromFile(code, file, logger)
         if (extracted) {
           code = extracted.code
           map = extracted.map
@@ -558,4 +558,3 @@ export function getModuleTypeFromId(id: string): ModuleType | undefined {
     }
   }
 }
-
