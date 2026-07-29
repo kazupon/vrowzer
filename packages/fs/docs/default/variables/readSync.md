@@ -1,25 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: readSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / readSync
-
-# Variable: readSync()
+## Signature
 
 ```ts
-const readSync: (fd, buffer, offset, length, position) => number = fs.readSync;
+export const readSync = fs.readSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-| `buffer` | \| `Buffer`\<`ArrayBufferLike`\> \| `ArrayBufferView`\<`ArrayBufferLike`\> \| `DataView`\<`ArrayBufferLike`\> |
-| `offset` | `number` |
-| `length` | `number` |
-| `position` | `number` \| `null` |
-
-## Returns
-
-`number`

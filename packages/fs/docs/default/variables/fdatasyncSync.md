@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: fdatasyncSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / fdatasyncSync
-
-# Variable: fdatasyncSync()
+## Signature
 
 ```ts
-const fdatasyncSync: (fd) => void = fs.fdatasyncSync;
+export const fdatasyncSync = fs.fdatasyncSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-
-## Returns
-
-`void`

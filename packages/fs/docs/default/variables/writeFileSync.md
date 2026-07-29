@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: writeFileSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / writeFileSync
-
-# Variable: writeFileSync()
+## Signature
 
 ```ts
-const writeFileSync: (id, data, options?) => void = fs.writeFileSync;
+export const writeFileSync = fs.writeFileSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `TFileId` |
-| `data` | `TData` |
-| `options?` | `IWriteFileOptions` |
-
-## Returns
-
-`void`

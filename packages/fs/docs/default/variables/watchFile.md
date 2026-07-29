@@ -1,52 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: watchFile
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / watchFile
-
-# Variable: watchFile()
+## Signature
 
 ```ts
-const watchFile: {
-  (path, listener): StatWatcher;
-  (path, options, listener): StatWatcher;
-} = fs.watchFile;
+export const watchFile = fs.watchFile
 ```
-
-## Call Signature
-
-```ts
-(path, listener): StatWatcher;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `listener` | (`curr`, `prev`) => `void` |
-
-### Returns
-
-`StatWatcher`
-
-## Call Signature
-
-```ts
-(
-   path, 
-   options, 
-   listener): StatWatcher;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options` | `IWatchFileOptions` |
-| `listener` | (`curr`, `prev`) => `void` |
-
-### Returns
-
-`StatWatcher`

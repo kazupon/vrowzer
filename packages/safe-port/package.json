@@ -42,7 +42,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "build:docs": "typedoc --excludeInternal",
+    "build:docs": "tsx ../../scripts/api-references.ts",
     "prepack": "vp run build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
@@ -50,8 +50,6 @@
     "@kazupon/jts-utils": "catalog:"
   },
   "devDependencies": {
-    "publint": "catalog:",
-    "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:"
+    "publint": "catalog:"
   }
 }

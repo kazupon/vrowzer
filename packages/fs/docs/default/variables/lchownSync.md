@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: lchownSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / lchownSync
-
-# Variable: lchownSync()
+## Signature
 
 ```ts
-const lchownSync: (path, uid, gid) => void = fs.lchownSync;
+export const lchownSync = fs.lchownSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `uid` | `number` |
-| `gid` | `number` |
-
-## Returns
-
-`void`

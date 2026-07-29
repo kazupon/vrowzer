@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionPongMessage
-
 # Function: createSvcWorkerSessionPongMessage()
 
-```ts
-function createSvcWorkerSessionPongMessage(id): SvcWorkerSessionPongMessage;
-```
+Create a [service worker 'V_SW_SESSION_PONG' message](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionPongMessage.md).
 
-Create a [service worker 'V\_SW\_SESSION\_PONG' message](../interfaces/SvcWorkerSessionPongMessage.md).
+## Signature
+
+```ts
+export function createSvcWorkerSessionPongMessage(id: string): SvcWorkerSessionPongMessage
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `id` | `string` | The ID of the PING message to respond to |
 
 ## Returns
 
-[`SvcWorkerSessionPongMessage`](../interfaces/SvcWorkerSessionPongMessage.md)
-
-The constructed SvcWorkerSessionPongMessage
+[`SvcWorkerSessionPongMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionPongMessage.md) — The constructed SvcWorkerSessionPongMessage

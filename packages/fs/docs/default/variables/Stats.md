@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: Stats
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / Stats
-
-# Variable: Stats()
+## Signature
 
 ```ts
-const Stats: (...args) => Stats = fs.Stats;
+export const Stats = fs.Stats
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| ...`args` | `any`[] |
-
-## Returns
-
-`Stats`

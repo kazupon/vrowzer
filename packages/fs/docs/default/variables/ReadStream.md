@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: ReadStream
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / ReadStream
-
-# Variable: ReadStream()
+## Signature
 
 ```ts
-const ReadStream: (...args) => IReadStream = fs.ReadStream;
+export const ReadStream = fs.ReadStream
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| ...`args` | `any`[] |
-
-## Returns
-
-`IReadStream`

@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: unlinkSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / unlinkSync
-
-# Variable: unlinkSync()
+## Signature
 
 ```ts
-const unlinkSync: (path) => void = fs.unlinkSync;
+export const unlinkSync = fs.unlinkSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-
-## Returns
-
-`void`

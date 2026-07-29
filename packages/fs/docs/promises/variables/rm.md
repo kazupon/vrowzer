@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: rm
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / rm
-
-# Variable: rm()
+## Signature
 
 ```ts
-const rm: (path, options?) => Promise<void>;
+export const rm = promises.rm.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IRmOptions` |
-
-## Returns
-
-`Promise`\<`void`\>

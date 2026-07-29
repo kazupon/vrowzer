@@ -1,19 +1,13 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSkipWaitingMessage
-
 # Function: createSvcWorkerSkipWaitingMessage()
 
-```ts
-function createSvcWorkerSkipWaitingMessage(): SvcWorkerSkipWaitingMessage;
-```
+Create a [service worker 'V_SW_SKIP_WAITING' message](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSkipWaitingMessage.md).
 
-Create a [service worker 'V\_SW\_SKIP\_WAITING' message](../interfaces/SvcWorkerSkipWaitingMessage.md).
+## Signature
+
+```ts
+export function createSvcWorkerSkipWaitingMessage(): SvcWorkerSkipWaitingMessage
+```
 
 ## Returns
 
-[`SvcWorkerSkipWaitingMessage`](../interfaces/SvcWorkerSkipWaitingMessage.md)
-
-The constructed [SvcWorkerSkipWaitingMessage](../interfaces/SvcWorkerSkipWaitingMessage.md)
+[`SvcWorkerSkipWaitingMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSkipWaitingMessage.md) — The constructed [SvcWorkerSkipWaitingMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSkipWaitingMessage.md)

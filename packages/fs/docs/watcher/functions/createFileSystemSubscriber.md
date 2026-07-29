@@ -1,26 +1,20 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / createFileSystemSubscriber
-
 # Function: createFileSystemSubscriber()
 
-```ts
-function createFileSystemSubscriber(fs, options?): Readonly<FileSystemSubscriber>;
-```
+Create a [FileSystemSubscriber](/packages/fs/docs/watcher/interfaces/FileSystemSubscriber.md) instance.
 
-Create a [FileSystemSubscriber](../interfaces/FileSystemSubscriber.md) instance.
+## Signature
+
+```ts
+export function createFileSystemSubscriber(fs: FileSystemInterfaces, options?: CreateFileSystemSubscriberOptions): Readonly<FileSystemSubscriber>
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fs` | [`FileSystemInterfaces`](../interfaces/FileSystemInterfaces.md) | fs instance to use for vol operations. Must be explicitly passed to avoid module instance mismatch when bundlers create separate copies of @vrowzer/fs. |
-| `options?` | [`CreateFileSystemSubscriberOptions`](../interfaces/CreateFileSystemSubscriberOptions.md) | Options including optional external watcher |
+| Name | Type | Description |
+| --- | --- | --- |
+| `fs` | [`FileSystemInterfaces`](/packages/fs/docs/watcher/interfaces/FileSystemInterfaces.md) | fs instance to use for vol operations. Must be explicitly passed to avoid module instance mismatch when bundlers create separate copies of @vrowzer/fs. |
+| `options` | [`CreateFileSystemSubscriberOptions`](/packages/fs/docs/watcher/interfaces/CreateFileSystemSubscriberOptions.md) | Options including optional external watcher _(optional)_ |
 
 ## Returns
 
-`Readonly`\<[`FileSystemSubscriber`](../interfaces/FileSystemSubscriber.md)\>
-
-FileSystemSubscriber instance with a VirtualFSWatcher
+`Readonly`\<[`FileSystemSubscriber`](/packages/fs/docs/watcher/interfaces/FileSystemSubscriber.md)\> — FileSystemSubscriber instance with a VirtualFSWatcher

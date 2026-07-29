@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: chmod
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / chmod
-
-# Variable: chmod()
+## Signature
 
 ```ts
-const chmod: (path, mode) => Promise<void>;
+export const chmod = promises.chmod.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode` | `TMode` |
-
-## Returns
-
-`Promise`\<`void`\>

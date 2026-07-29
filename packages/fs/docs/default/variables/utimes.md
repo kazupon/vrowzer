@@ -1,24 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: utimes
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / utimes
-
-# Variable: utimes()
+## Signature
 
 ```ts
-const utimes: (path, atime, mtime, callback) => void = fs.utimes;
+export const utimes = fs.utimes
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `atime` | `TTime` |
-| `mtime` | `TTime` |
-| `callback` | `TCallback`\<`void`\> |
-
-## Returns
-
-`void`

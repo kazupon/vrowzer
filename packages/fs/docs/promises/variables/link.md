@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: link
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / link
-
-# Variable: link()
+## Signature
 
 ```ts
-const link: (existingPath, newPath) => Promise<void>;
+export const link = promises.link.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `existingPath` | `PathLike` |
-| `newPath` | `PathLike` |
-
-## Returns
-
-`Promise`\<`void`\>

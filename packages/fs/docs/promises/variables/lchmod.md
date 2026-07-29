@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: lchmod
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / lchmod
-
-# Variable: lchmod()
+## Signature
 
 ```ts
-const lchmod: (path, mode) => Promise<void>;
+export const lchmod = promises.lchmod.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode` | `TMode` |
-
-## Returns
-
-`Promise`\<`void`\>

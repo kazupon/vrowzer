@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: linkSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / linkSync
-
-# Variable: linkSync()
+## Signature
 
 ```ts
-const linkSync: (existingPath, newPath) => void = fs.linkSync;
+export const linkSync = fs.linkSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `existingPath` | `PathLike` |
-| `newPath` | `PathLike` |
-
-## Returns
-
-`void`

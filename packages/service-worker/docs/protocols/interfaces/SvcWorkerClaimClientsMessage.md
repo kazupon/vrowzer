@@ -1,19 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerClaimClientsMessage
-
 # Interface: SvcWorkerClaimClientsMessage
 
 CLAIM_CLIENTS message (Page -> Service Worker).
 
 ## Extends
 
-- [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md)
+- [`SvcWorkerMessageBase`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerMessageBase.md)
+
+## Signature
+
+```ts
+export interface SvcWorkerClaimClientsMessage extends SvcWorkerMessageBase
+```
 
 ## Properties
 
-| Property | Type | Overrides |
-| ------ | ------ | ------ |
-| <a id="property-type"></a> `type` | `"V_SW_CLAIM_CLIENTS"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `type` | `typeof` [`V_SW_CLAIM_CLIENTS`](/packages/service-worker/docs/protocols/variables/V_SW_CLAIM_CLIENTS.md) |  |

@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: globSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / globSync
-
-# Variable: globSync()
+## Signature
 
 ```ts
-const globSync: (pattern, options?) => string[] = fs.globSync;
+export const globSync = fs.globSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `pattern` | `string` |
-| `options?` | `IGlobOptions` |
-
-## Returns
-
-`string`[]

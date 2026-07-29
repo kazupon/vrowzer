@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: readFileSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / readFileSync
-
-# Variable: readFileSync()
+## Signature
 
 ```ts
-const readFileSync: (file, options?) => TDataOut = fs.readFileSync;
+export const readFileSync = fs.readFileSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `file` | `TFileId` |
-| `options?` | `string` \| `IReadFileOptions` |
-
-## Returns
-
-`TDataOut`

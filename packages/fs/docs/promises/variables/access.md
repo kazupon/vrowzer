@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: access
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / access
-
-# Variable: access()
+## Signature
 
 ```ts
-const access: (path, mode?) => Promise<void>;
+export const access = promises.access.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode?` | `number` |
-
-## Returns
-
-`Promise`\<`void`\>

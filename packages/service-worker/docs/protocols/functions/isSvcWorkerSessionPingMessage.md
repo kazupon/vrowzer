@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionPingMessage
-
 # Function: isSvcWorkerSessionPingMessage()
 
-```ts
-function isSvcWorkerSessionPingMessage(message): message is SvcWorkerSessionPingMessage;
-```
+Type guard for [SvcWorkerSessionPingMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionPingMessage.md).
 
-Type guard for [SvcWorkerSessionPingMessage](../interfaces/SvcWorkerSessionPingMessage.md).
+## Signature
+
+```ts
+export function isSvcWorkerSessionPingMessage(message: unknown): message is SvcWorkerSessionPingMessage
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `message` | `unknown` | The message to check |
 
 ## Returns
 
-`message is SvcWorkerSessionPingMessage`
-
-True if the message is a SvcWorkerSessionPingMessage, false otherwise
+`message` `is` [`SvcWorkerSessionPingMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionPingMessage.md) — True if the message is a SvcWorkerSessionPingMessage, false otherwise

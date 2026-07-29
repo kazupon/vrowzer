@@ -1,20 +1,20 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionPingMessage
-
 # Interface: SvcWorkerSessionPingMessage
 
 PING message (Service Worker -> Page via session MessagePort).
 
 ## Extends
 
-- [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md)
+- [`SvcWorkerMessageBase`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerMessageBase.md)
+
+## Signature
+
+```ts
+export interface SvcWorkerSessionPingMessage extends SvcWorkerMessageBase
+```
 
 ## Properties
 
-| Property | Type | Overrides |
-| ------ | ------ | ------ |
-| <a id="property-id"></a> `id` | `string` | - |
-| <a id="property-type"></a> `type` | `"V_SW_SESSION_PING"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `id` | `string` |  |
+| `type` | `typeof` [`V_SW_SESSION_PING`](/packages/service-worker/docs/protocols/variables/V_SW_SESSION_PING.md) |  |

@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: rename
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / rename
-
-# Variable: rename()
+## Signature
 
 ```ts
-const rename: (oldPath, newPath, callback) => void = fs.rename;
+export const rename = fs.rename
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `oldPath` | `PathLike` |
-| `newPath` | `PathLike` |
-| `callback` | `TCallback`\<`void`\> |
-
-## Returns
-
-`void`

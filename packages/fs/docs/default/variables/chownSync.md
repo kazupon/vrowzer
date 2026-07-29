@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: chownSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / chownSync
-
-# Variable: chownSync()
+## Signature
 
 ```ts
-const chownSync: (path, uid, gid) => void = fs.chownSync;
+export const chownSync = fs.chownSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `uid` | `number` |
-| `gid` | `number` |
-
-## Returns
-
-`void`

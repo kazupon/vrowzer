@@ -1,15 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / FileSystemSyncMessage
-
 # Type Alias: FileSystemSyncMessage
 
+## Signature
+
 ```ts
-type FileSystemSyncMessage = 
-  | FSWriteMessage
-  | FSUnlinkMessage
-  | FSMkdirMessage
-  | FSInitMessage;
+export type FileSystemSyncMessage = FSWriteMessage | FSUnlinkMessage | FSMkdirMessage | FSInitMessage
 ```

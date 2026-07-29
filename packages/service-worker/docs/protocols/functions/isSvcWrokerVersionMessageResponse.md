@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / isSvcWrokerVersionMessageResponse
-
 # Function: isSvcWrokerVersionMessageResponse()
 
-```ts
-function isSvcWrokerVersionMessageResponse(message): message is SvcWorkerVersionResponse;
-```
+Type guard for [SvcWorkerVersionMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerVersionMessage.md).
 
-Type guard for [SvcWorkerVersionMessage](../interfaces/SvcWorkerVersionMessage.md).
+## Signature
+
+```ts
+export function isSvcWrokerVersionMessageResponse(message: unknown): message is SvcWorkerVersionResponse
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `message` | `unknown` | The message to check |
 
 ## Returns
 
-`message is SvcWorkerVersionResponse`
-
-True if the message is a SvcWorkerVersionMessage, false otherwise
+`message` `is` [`SvcWorkerVersionResponse`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerVersionResponse.md) — True if the message is a SvcWorkerVersionMessage, false otherwise

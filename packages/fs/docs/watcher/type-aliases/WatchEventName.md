@@ -1,11 +1,12 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / WatchEventName
-
 # Type Alias: WatchEventName
 
+## Signature
+
 ```ts
-type WatchEventName = "add" | "addDir" | "change" | "unlink" | "unlinkDir";
+export type WatchEventName = "add" | "addDir" | "change" | "unlink" | "unlinkDir"
 ```
+
+## Tags
+
+- `@license` — MIT
+- `@author` — kazuya kawaguchi (a.k.a. kazupon)

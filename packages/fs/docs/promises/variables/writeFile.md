@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: writeFile
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / writeFile
-
-# Variable: writeFile()
+## Signature
 
 ```ts
-const writeFile: (id, data, options?) => Promise<void>;
+export const writeFile = promises.writeFile.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `TFileHandle` |
-| `data` | `TPromisesData` |
-| `options?` | `IWriteFileOptions` |
-
-## Returns
-
-`Promise`\<`void`\>

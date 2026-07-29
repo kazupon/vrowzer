@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: readFile
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / readFile
-
-# Variable: readFile()
+## Signature
 
 ```ts
-const readFile: (id, options?) => Promise<TDataOut>;
+export const readFile = promises.readFile.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `TFileHandle` |
-| `options?` | `string` \| `IReadFileOptions` |
-
-## Returns
-
-`Promise`\<`TDataOut`\>

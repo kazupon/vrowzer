@@ -1,33 +1,27 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / terminateAllServiceWorkers
-
 # Function: terminateAllServiceWorkers()
-
-```ts
-function terminateAllServiceWorkers(options?): Promise<Map<string, SvcWorkerSessionCircuitBreakerResult>>;
-```
 
 Terminate all registered service workers (hard kill / circuit breaker trip).
 
 This trips the circuit breaker on all service workers, causing them
 to unregister themselves. This is a destructive operation.
 
+## Signature
+
+```ts
+export async function terminateAllServiceWorkers(options?: TerminateOptions): Promise<Map<string, SvcWorkerSessionCircuitBreakerResult>>
+```
+
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options?` | [`TerminateOptions`](../interfaces/TerminateOptions.md) | Terminate options |
+| Name | Type | Description |
+| --- | --- | --- |
+| `options` | [`TerminateOptions`](/packages/service-worker/docs/admin/interfaces/TerminateOptions.md) | Terminate options _(optional)_ |
 
 ## Returns
 
-`Promise`\<`Map`\<`string`, [`SvcWorkerSessionCircuitBreakerResult`](../../protocols/interfaces/SvcWorkerSessionCircuitBreakerResult.md)\>\>
+`Promise`\<`Map`\<`string`, [`SvcWorkerSessionCircuitBreakerResult`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionCircuitBreakerResult.md)\>\> — Map of registry keys to terminate results
 
-Map of registry keys to terminate results
-
-## Example
+## Examples
 
 ```ts
 import { terminateAllServiceWorkers } from '@vrowzer/service-worker/admin'

@@ -1,15 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: FSWatcher
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / FSWatcher
-
-# Variable: FSWatcher()
+## Signature
 
 ```ts
-const FSWatcher: () => FSWatcher = fs.FSWatcher;
+export const FSWatcher = fs.FSWatcher
 ```
-
-## Returns
-
-`FSWatcher`

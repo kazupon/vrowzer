@@ -1,25 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: symlinkSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / symlinkSync
-
-# Variable: symlinkSync()
+## Signature
 
 ```ts
-const symlinkSync: (target, path, type?) => void = fs.symlinkSync;
+export const symlinkSync = fs.symlinkSync
 ```
-
-`type` argument works only on Windows.
-
-## Parameters
-
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | `PathLike` | - |
-| `path` | `PathLike` | - |
-| `type?` | `Type` | - |
-
-## Returns
-
-`void`

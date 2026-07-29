@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionTerminatedMessage
-
 # Function: createSvcWorkerSessionTerminatedMessage()
 
-```ts
-function createSvcWorkerSessionTerminatedMessage(reason): SvcWorkerSessionTerminatedMessage;
-```
+Create a [SvcWorkerSessionTerminatedMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionTerminatedMessage.md).
 
-Create a [SvcWorkerSessionTerminatedMessage](../interfaces/SvcWorkerSessionTerminatedMessage.md).
+## Signature
+
+```ts
+export function createSvcWorkerSessionTerminatedMessage(reason: SvcWorkerTerminatedReason): SvcWorkerSessionTerminatedMessage
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `reason` | `"unregister"` | The reason for termination |
+| Name | Type | Description |
+| --- | --- | --- |
+| `reason` | [`SvcWorkerTerminatedReason`](/packages/service-worker/docs/protocols/type-aliases/SvcWorkerTerminatedReason.md) | The reason for termination |
 
 ## Returns
 
-[`SvcWorkerSessionTerminatedMessage`](../interfaces/SvcWorkerSessionTerminatedMessage.md)
-
-The constructed message
+[`SvcWorkerSessionTerminatedMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionTerminatedMessage.md) — The constructed message

@@ -1,31 +1,25 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [worker](../index.md) / createSvcWorker
-
 # Function: createSvcWorker()
-
-```ts
-function createSvcWorker(self, options): SvcWorker;
-```
 
 Create a Service Worker wrapper with Proxy-based transparent access
 
+## Signature
+
+```ts
+export function createSvcWorker(self: ServiceWorkerGlobalScope, options: SvcWorkerOptions): SvcWorker
+```
+
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `self` | `ServiceWorkerGlobalScope` | The ServiceWorkerGlobalScope instance (typically `self` in a service worker) |
-| `options` | [`SvcWorkerOptions`](../interfaces/SvcWorkerOptions.md) | Configuration options including version |
+| `options` | [`SvcWorkerOptions`](/packages/service-worker/docs/worker/interfaces/SvcWorkerOptions.md) | Configuration options including version |
 
 ## Returns
 
-[`SvcWorker`](../interfaces/SvcWorker.md)
+[`SvcWorker`](/packages/service-worker/docs/worker/interfaces/SvcWorker.md) — A [SvcWorker](/packages/service-worker/docs/worker/interfaces/SvcWorker.md) instance that wraps the native service worker
 
-A [SvcWorker](../interfaces/SvcWorker.md) instance that wraps the native service worker
-
-## Example
+## Examples
 
 ```ts
 import { createSvcWorker } from '@vrowzer/service-worker/worker'

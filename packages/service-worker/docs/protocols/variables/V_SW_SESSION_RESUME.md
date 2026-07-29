@@ -1,13 +1,9 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_SESSION\_RESUME
-
-# Variable: V\_SW\_SESSION\_RESUME
-
-```ts
-const V_SW_SESSION_RESUME: "V_SW_SESSION_RESUME" = 'V_SW_SESSION_RESUME';
-```
+# Variable: V_SW_SESSION_RESUME
 
 Message type constant for resume operations.
+
+## Signature
+
+```ts
+export const V_SW_SESSION_RESUME = 'V_SW_SESSION_RESUME'
+```

@@ -1,26 +1,26 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / FileSystemInterfaces
-
 # Interface: FileSystemInterfaces
 
 Minimal fs interface required by FileSystemSubscriber.
+
+## Signature
+
+```ts
+export interface FileSystemInterfaces
+```
 
 ## Methods
 
 ### existsSync()
 
 ```ts
-existsSync(path): boolean;
+existsSync(path: string): boolean;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `path` | `string` |  |
 
 #### Returns
 
@@ -31,15 +31,15 @@ existsSync(path): boolean;
 ### mkdirSync()
 
 ```ts
-mkdirSync(path, options?): void;
+mkdirSync(path: string, options?: any): void;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
-| `options?` | `any` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `path` | `string` |  |
+| `options` | `any` | _optional_ |
 
 #### Returns
 
@@ -50,14 +50,14 @@ mkdirSync(path, options?): void;
 ### unlinkSync()
 
 ```ts
-unlinkSync(path): void;
+unlinkSync(path: string): void;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `path` | `string` |  |
 
 #### Returns
 
@@ -68,19 +68,16 @@ unlinkSync(path): void;
 ### writeFileSync()
 
 ```ts
-writeFileSync(
-   path, 
-   data, 
-   options?): void;
+writeFileSync(path: string, data: any, options?: any): void;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
-| `data` | `any` |
-| `options?` | `any` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `path` | `string` |  |
+| `data` | `any` |  |
+| `options` | `any` | _optional_ |
 
 #### Returns
 

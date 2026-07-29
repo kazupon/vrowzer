@@ -1,13 +1,9 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / V\_SW\_VERSION
-
-# Variable: V\_SW\_VERSION
-
-```ts
-const V_SW_VERSION: "V_SW_VERSION" = 'V_SW_VERSION';
-```
+# Variable: V_SW_VERSION
 
 Managed service worker version.
+
+## Signature
+
+```ts
+export const V_SW_VERSION = 'V_SW_VERSION'
+```

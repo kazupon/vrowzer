@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: lchmod
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / lchmod
-
-# Variable: lchmod()
+## Signature
 
 ```ts
-const lchmod: (path, mode, callback) => void = fs.lchmod;
+export const lchmod = fs.lchmod
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode` | `TMode` |
-| `callback` | `TCallback`\<`void`\> |
-
-## Returns
-
-`void`

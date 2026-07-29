@@ -1,9 +1,3 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / FileSystemPublisher
-
 # Interface: FileSystemPublisher
 
 Publisher for broadcasting filesystem operations to Workers.
@@ -13,21 +7,27 @@ API is modeled after `node:fs` for familiarity:
 - `unlink` deletes a file
 - `mkdir` creates a directory
 
+## Signature
+
+```ts
+export interface FileSystemPublisher
+```
+
 ## Methods
 
 ### addTarget()
 
 ```ts
-addTarget(target): void;
+addTarget(target: FileSystemPublisherTarget): void;
 ```
 
 Add a postMessage target.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`FileSystemPublisherTarget`](FileSystemPublisherTarget.md) | The target to add (e.g. Worker, ServiceWorker) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `target` | [`FileSystemPublisherTarget`](/packages/fs/docs/watcher/interfaces/FileSystemPublisherTarget.md) | The target to add (e.g. Worker, ServiceWorker) |
 
 #### Returns
 
@@ -38,17 +38,17 @@ Add a postMessage target.
 ### initFiles()
 
 ```ts
-initFiles(files?, binaryFiles?): void;
+initFiles(files?: Record<string, string>, binaryFiles?: Record<string, ArrayBuffer>): void;
 ```
 
 Initialize files in bulk.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `files?` | `Record`\<`string`, `string`\> | Text files: path -> UTF-8 string content |
-| `binaryFiles?` | `Record`\<`string`, `ArrayBuffer`\> | Binary files: path -> ArrayBuffer content (transferred) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `files` | `Record<string, string>` | Text files: path -> UTF-8 string content _(optional)_ |
+| `binaryFiles` | `Record<string, ArrayBuffer>` | Binary files: path -> ArrayBuffer content (transferred) _(optional)_ |
 
 #### Returns
 
@@ -59,15 +59,15 @@ Initialize files in bulk.
 ### mkdir()
 
 ```ts
-mkdir(path): void;
+mkdir(path: string): void;
 ```
 
 Create a directory.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `path` | `string` | Path of the directory to create. Must end with '/' to distinguish from files. |
 
 #### Returns
@@ -79,16 +79,16 @@ Create a directory.
 ### removeTarget()
 
 ```ts
-removeTarget(target): void;
+removeTarget(target: FileSystemPublisherTarget): void;
 ```
 
 Remove a postMessage target.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`FileSystemPublisherTarget`](FileSystemPublisherTarget.md) | The target to remove (e.g. Worker, ServiceWorker) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `target` | [`FileSystemPublisherTarget`](/packages/fs/docs/watcher/interfaces/FileSystemPublisherTarget.md) | The target to remove (e.g. Worker, ServiceWorker) |
 
 #### Returns
 
@@ -99,15 +99,15 @@ Remove a postMessage target.
 ### unlink()
 
 ```ts
-unlink(path): void;
+unlink(path: string): void;
 ```
 
 Delete a file.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `path` | `string` | Path of the file to delete. Must not end with '/' (directories use mkdir with path ending in '/'). |
 
 #### Returns
@@ -119,17 +119,17 @@ Delete a file.
 ### writeFile()
 
 ```ts
-writeFile(path, content): void;
+writeFile(path: string, content: string | ArrayBuffer): void;
 ```
 
 Write a file. Encoding is inferred: string → text, ArrayBuffer → binary.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `path` | `string` | Path of the file to write. Must not end with '/' (directories use mkdir with path ending in '/'). |
-| `content` | `string` \| `ArrayBuffer` | Content of the file. Type determines encoding: - string: UTF-8 text content - ArrayBuffer: binary content (transferred via postMessage's transfer list for zero-copy performance) |
+| `content` | `string \| ArrayBuffer` | Content of the file. Type determines encoding: - string: UTF-8 text content - ArrayBuffer: binary content (transferred via postMessage's transfer list for zero-copy performance) |
 
 #### Returns
 

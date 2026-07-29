@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: chmodSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / chmodSync
-
-# Variable: chmodSync()
+## Signature
 
 ```ts
-const chmodSync: (path, mode) => void = fs.chmodSync;
+export const chmodSync = fs.chmodSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode` | `TMode` |
-
-## Returns
-
-`void`

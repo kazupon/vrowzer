@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: futimesSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / futimesSync
-
-# Variable: futimesSync()
+## Signature
 
 ```ts
-const futimesSync: (fd, atime, mtime) => void = fs.futimesSync;
+export const futimesSync = fs.futimesSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-| `atime` | `TTime` |
-| `mtime` | `TTime` |
-
-## Returns
-
-`void`

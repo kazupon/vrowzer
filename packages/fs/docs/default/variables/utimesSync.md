@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: utimesSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / utimesSync
-
-# Variable: utimesSync()
+## Signature
 
 ```ts
-const utimesSync: (path, atime, mtime) => void = fs.utimesSync;
+export const utimesSync = fs.utimesSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `atime` | `TTime` |
-| `mtime` | `TTime` |
-
-## Returns
-
-`void`

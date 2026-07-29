@@ -1,10 +1,4 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionGenericResponse
-
-# Interface: SvcWorkerSessionGenericResponse\<T\>
+# Interface: SvcWorkerSessionGenericResponse&lt;T&gt;
 
 Generic session response interface.
 
@@ -13,18 +7,24 @@ circuit breaker and resume operations.
 
 Response matching is done by the `id` field.
 
+## Signature
+
+```ts
+export interface SvcWorkerSessionGenericResponse<T = unknown>
+```
+
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` | `unknown` |
+| Name |
+| --- |
+| `T` = `unknown` |
 
 ## Properties
 
-| Property | Type | Description |
-| ------ | ------ | ------ |
-| <a id="property-data"></a> `data?` | `T` | Response data if successful |
-| <a id="property-error"></a> `error?` | `string` | Error message if failed |
-| <a id="property-id"></a> `id` | `string` | The request ID for response matching |
-| <a id="property-success"></a> `success` | `boolean` | Whether the operation succeeded |
-| <a id="property-type"></a> `type` | `string` | The message type (same as request type) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `data` _(optional)_ | `T` | Response data if successful |
+| `error` _(optional)_ | `string` | Error message if failed |
+| `id` | `string` | The request ID for response matching |
+| `success` | `boolean` | Whether the operation succeeded |
+| `type` | `string` | The message type (same as request type) |

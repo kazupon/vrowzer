@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: rmdir
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / rmdir
-
-# Variable: rmdir()
+## Signature
 
 ```ts
-const rmdir: (path, options?) => Promise<void>;
+export const rmdir = promises.rmdir.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IRmdirOptions` |
-
-## Returns
-
-`Promise`\<`void`\>

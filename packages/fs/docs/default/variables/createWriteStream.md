@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: createWriteStream
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / createWriteStream
-
-# Variable: createWriteStream()
+## Signature
 
 ```ts
-const createWriteStream: (path, options?) => IWriteStream = fs.createWriteStream;
+export const createWriteStream = fs.createWriteStream
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `string` \| `IWriteStreamOptions` |
-
-## Returns
-
-`IWriteStream`

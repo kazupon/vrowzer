@@ -1,18 +1,18 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [worker](../index.md) / SvcWorkerOptions
-
 # Interface: SvcWorkerOptions
 
-Service Worker options for [createSvcWorker](../functions/createSvcWorker.md)
+Service Worker options for [createSvcWorker](/packages/service-worker/docs/worker/functions/createSvcWorker.md)
+
+## Signature
+
+```ts
+export interface SvcWorkerOptions
+```
 
 ## Properties
 
-| Property | Type | Description |
-| ------ | ------ | ------ |
-| <a id="property-debug"></a> `debug?` | \{ (...`data`): `void`; (...`data`): `void`; (...`data`): `void`; \} | Debug logger function |
-| <a id="property-heartbeatinterval"></a> `heartbeatInterval?` | `number` | Heartbeat interval in milliseconds **Default** `30000` |
-| <a id="property-sessiontimeout"></a> `sessionTimeout?` | `number` | Timeout after which a session is considered stale (no PONG received) **Default** `60000` |
-| <a id="property-version"></a> `version` | `string` | The version of this service worker This is used to identify the service worker when communicating with SvcWorkerController |
+| Name | Type | Description |
+| --- | --- | --- |
+| `debug` _(optional)_ | `Console['debug']` | Debug logger function |
+| `heartbeatInterval` _(optional)_ | `number` | Heartbeat interval in milliseconds **Default:** `30000` |
+| `sessionTimeout` _(optional)_ | `number` | Timeout after which a session is considered stale (no PONG received) **Default:** `60000` |
+| `version` | `string` | The version of this service worker This is used to identify the service worker when communicating with [SvcWorkerController](/packages/service-worker/docs/controller/interfaces/SvcWorkerController.md) |

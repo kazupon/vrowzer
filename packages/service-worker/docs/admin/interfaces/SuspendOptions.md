@@ -1,16 +1,16 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / SuspendOptions
-
 # Interface: SuspendOptions
 
 Options for suspend operations.
 
+## Signature
+
+```ts
+export interface SuspendOptions
+```
+
 ## Properties
 
-| Property | Type | Description |
-| ------ | ------ | ------ |
-| <a id="property-clearcaches"></a> `clearCaches?` | `boolean` | Whether to clear all caches when suspending. |
-| <a id="property-signal"></a> `signal?` | `AbortSignal` | Optional abort signal to cancel the operation. |
+| Name | Type | Description |
+| --- | --- | --- |
+| `clearCaches` _(optional)_ | `boolean` | Whether to clear all caches when suspending. |
+| `signal` _(optional)_ | `AbortSignal` | Optional abort signal to cancel the operation. |

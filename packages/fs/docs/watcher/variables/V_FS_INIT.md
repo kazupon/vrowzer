@@ -1,11 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: V_FS_INIT
 
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / V\_FS\_INIT
-
-# Variable: V\_FS\_INIT
+## Signature
 
 ```ts
-const V_FS_INIT: "V_FS_INIT";
+export const V_FS_INIT = 'V_FS_INIT' as const
 ```

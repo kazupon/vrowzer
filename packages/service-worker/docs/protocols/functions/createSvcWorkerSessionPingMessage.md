@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionPingMessage
-
 # Function: createSvcWorkerSessionPingMessage()
 
-```ts
-function createSvcWorkerSessionPingMessage(id): SvcWorkerSessionPingMessage;
-```
+Create a [service worker 'V_SW_SESSION_PING' message](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionPingMessage.md).
 
-Create a [service worker 'V\_SW\_SESSION\_PING' message](../interfaces/SvcWorkerSessionPingMessage.md).
+## Signature
+
+```ts
+export function createSvcWorkerSessionPingMessage(id: string): SvcWorkerSessionPingMessage
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `id` | `string` | The unique ID for the ping message |
 
 ## Returns
 
-[`SvcWorkerSessionPingMessage`](../interfaces/SvcWorkerSessionPingMessage.md)
-
-The constructed [SvcWorkerSessionPingMessage](../interfaces/SvcWorkerSessionPingMessage.md)
+[`SvcWorkerSessionPingMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionPingMessage.md) — The constructed [SvcWorkerSessionPingMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionPingMessage.md)

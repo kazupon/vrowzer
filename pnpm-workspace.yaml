@@ -16,10 +16,10 @@ catalog:
   oxlint: 1.75.0
   publint: ^0.3.18
   rolldown: 1.0.0-rc.12
-  typedoc: ^0.28.18
-  typedoc-plugin-markdown: ^4.11.0
   vite: npm:@voidzero-dev/vite-plus-core@0.2.6
   vite-plus: 0.2.6
+  vitepress: ^2.0.0-alpha.17
+  vitepress-api-references: ^0.2.1
   pathe: ^2.0.3
   '@oxc-project/types': 0.122.0
   obug: ^2.1.1

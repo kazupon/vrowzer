@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: close
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / close
-
-# Variable: close()
+## Signature
 
 ```ts
-const close: (fd, callback) => void = fs.close;
+export const close = fs.close
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-| `callback` | `TCallback`\<`void`\> |
-
-## Returns
-
-`void`

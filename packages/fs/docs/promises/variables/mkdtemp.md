@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: mkdtemp
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / mkdtemp
-
-# Variable: mkdtemp()
+## Signature
 
 ```ts
-const mkdtemp: (prefix, options?) => Promise<TDataOut>;
+export const mkdtemp = promises.mkdtemp.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `prefix` | `string` |
-| `options?` | `IOptions` |
-
-## Returns
-
-`Promise`\<`TDataOut`\>

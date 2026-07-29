@@ -1,52 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: truncate
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / truncate
-
-# Variable: truncate()
+## Signature
 
 ```ts
-const truncate: {
-  (id, callback): any;
-  (id, len, callback): any;
-} = fs.truncate;
+export const truncate = fs.truncate
 ```
-
-## Call Signature
-
-```ts
-(id, callback): any;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `TFileId` |
-| `callback` | `TCallback`\<`void`\> |
-
-### Returns
-
-`any`
-
-## Call Signature
-
-```ts
-(
-   id, 
-   len, 
-   callback): any;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `TFileId` |
-| `len` | `number` |
-| `callback` | `TCallback`\<`void`\> |
-
-### Returns
-
-`any`

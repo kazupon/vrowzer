@@ -69,7 +69,7 @@
   "scripts": {
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "vp pack",
-    "build:docs": "typedoc --excludeInternal",
+    "build:docs": "tsx ../../scripts/api-references.ts",
     "prepack": "vp run build"
   },
   "dependencies": {
@@ -87,8 +87,6 @@
     "premove": "^4.0.0",
     "publint": "catalog:",
     "readable-stream": "catalog:",
-    "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:",
     "vite": "catalog:"
   }
 }

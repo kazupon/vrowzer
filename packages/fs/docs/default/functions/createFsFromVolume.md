@@ -1,21 +1,17 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / createFsFromVolume
-
 # Function: createFsFromVolume()
 
+## Signature
+
 ```ts
-function createFsFromVolume(vol): IFs;
+export declare function createFsFromVolume(vol: Volume): IFs
 ```
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `vol` | [`Volume`](../classes/Volume.md) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `vol` | [`Volume`](/packages/fs/docs/default/classes/Volume.md) |  |
 
 ## Returns
 
-[`IFs`](../namespaces/memfsExported/interfaces/IFs.md)
+[`IFs`](/packages/fs/docs/default/interfaces/IFs.md)

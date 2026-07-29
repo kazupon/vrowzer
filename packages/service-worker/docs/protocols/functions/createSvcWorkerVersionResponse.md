@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerVersionResponse
-
 # Function: createSvcWorkerVersionResponse()
 
-```ts
-function createSvcWorkerVersionResponse(version): SvcWorkerVersionResponse;
-```
+Create a [service worker 'V_SW_VERSION' response](/packages/service-worker/docs/protocols/interfaces/SvcWorkerVersionResponse.md).
 
-Create a [service worker 'V\_SW\_VERSION' response](../interfaces/SvcWorkerVersionResponse.md).
+## Signature
+
+```ts
+export function createSvcWorkerVersionResponse(version: string): SvcWorkerVersionResponse
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `version` | `string` | The version string of the service worker |
 
 ## Returns
 
-[`SvcWorkerVersionResponse`](../interfaces/SvcWorkerVersionResponse.md)
-
-The constructed [SvcWorkerVersionResponse](../interfaces/SvcWorkerVersionResponse.md)
+[`SvcWorkerVersionResponse`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerVersionResponse.md) — The constructed [SvcWorkerVersionResponse](/packages/service-worker/docs/protocols/interfaces/SvcWorkerVersionResponse.md)

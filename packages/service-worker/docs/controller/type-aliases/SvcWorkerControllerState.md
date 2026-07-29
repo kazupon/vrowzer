@@ -1,24 +1,8 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [controller](../index.md) / SvcWorkerControllerState
-
 # Type Alias: SvcWorkerControllerState
 
-```ts
-type SvcWorkerControllerState = 
-  | "installing"
-  | "waiting"
-  | "activating"
-  | "activated"
-  | "suspended"
-  | "terminated";
-```
+[Service Worker Controller](/packages/service-worker/docs/controller/interfaces/SvcWorkerController.md) state.
 
-[Service Worker Controller](../interfaces/SvcWorkerController.md) state.
-
-Note that while it's similar to the state provided by ServiceWorkerState \| service worker state, it's not identical.
+Note that while it's similar to the state provided by service worker state, it's not identical.
 It has been adjusted to be easier for the Service worker controller to handle the expected service worker.
 
 State changes timings:
@@ -38,3 +22,9 @@ State transitions:
 - `activated` → `terminated`: terminate() called (hard kill / circuit breaker tripped)
 - `suspended` → `activated`: resume() called (circuit breaker disengaged)
 - `suspended` → `terminated`: terminate() called (hard kill / circuit breaker tripped)
+
+## Signature
+
+```ts
+export type SvcWorkerControllerState = "installing" | "waiting" | "activating" | "activated" | "suspended" | "terminated"
+```

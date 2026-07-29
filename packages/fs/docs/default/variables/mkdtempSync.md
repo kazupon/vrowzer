@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: mkdtempSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / mkdtempSync
-
-# Variable: mkdtempSync()
+## Signature
 
 ```ts
-const mkdtempSync: (prefix, options?) => TDataOut = fs.mkdtempSync;
+export const mkdtempSync = fs.mkdtempSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `prefix` | `string` |
-| `options?` | `IOptions` |
-
-## Returns
-
-`TDataOut`

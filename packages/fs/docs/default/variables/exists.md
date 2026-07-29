@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: exists
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / exists
-
-# Variable: exists()
+## Signature
 
 ```ts
-const exists: (path, callback) => void = fs.exists;
+export const exists = fs.exists
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `callback` | (`exists`) => `void` |
-
-## Returns
-
-`void`

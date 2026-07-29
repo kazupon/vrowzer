@@ -1,33 +1,27 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / suspendAllServiceWorkers
-
 # Function: suspendAllServiceWorkers()
-
-```ts
-function suspendAllServiceWorkers(options?): Promise<Map<string, SvcWorkerSessionCircuitBreakerResult>>;
-```
 
 Suspend all registered service workers (soft kill / circuit breaker).
 
 This engages the circuit breaker on all service workers, disabling
 their functionality without unregistering them.
 
+## Signature
+
+```ts
+export async function suspendAllServiceWorkers(options?: SuspendOptions): Promise<Map<string, SvcWorkerSessionCircuitBreakerResult>>
+```
+
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options?` | [`SuspendOptions`](../interfaces/SuspendOptions.md) | Suspend options |
+| Name | Type | Description |
+| --- | --- | --- |
+| `options` | [`SuspendOptions`](/packages/service-worker/docs/admin/interfaces/SuspendOptions.md) | Suspend options _(optional)_ |
 
 ## Returns
 
-`Promise`\<`Map`\<`string`, [`SvcWorkerSessionCircuitBreakerResult`](../../protocols/interfaces/SvcWorkerSessionCircuitBreakerResult.md)\>\>
+`Promise`\<`Map`\<`string`, [`SvcWorkerSessionCircuitBreakerResult`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionCircuitBreakerResult.md)\>\> — Map of registry keys to suspend results
 
-Map of registry keys to suspend results
-
-## Example
+## Examples
 
 ```ts
 import { suspendAllServiceWorkers } from '@vrowzer/service-worker/admin'

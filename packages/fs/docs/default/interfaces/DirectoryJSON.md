@@ -1,16 +1,16 @@
-[**@vrowzer/fs**](../../index.md)
+# Interface: DirectoryJSON&lt;T&gt;
 
-***
+## Signature
 
-[@vrowzer/fs](../../index.md) / [default](../index.md) / DirectoryJSON
-
-# Interface: DirectoryJSON\<T\>
+```ts
+export interface DirectoryJSON<T extends DirectoryContent = DirectoryContent>
+```
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` *extends* `DirectoryContent` | `DirectoryContent` |
+| Name |
+| --- |
+| `T` *extends* `DirectoryContent` = `DirectoryContent` |
 
 ## Indexable
 

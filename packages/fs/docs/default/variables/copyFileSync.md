@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: copyFileSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / copyFileSync
-
-# Variable: copyFileSync()
+## Signature
 
 ```ts
-const copyFileSync: (src, dest, flags?) => void = fs.copyFileSync;
+export const copyFileSync = fs.copyFileSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `src` | `PathLike` |
-| `dest` | `PathLike` |
-| `flags?` | `number` |
-
-## Returns
-
-`void`

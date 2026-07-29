@@ -1,9 +1,3 @@
-[**@vrowzer/service-worker**](../index.md)
-
-***
-
-[@vrowzer/service-worker](../index.md) / worker
-
 # worker
 
 Service Worker Module
@@ -47,17 +41,18 @@ console.log(sw.sessionCount) // 0
 
 | Function | Description |
 | ------ | ------ |
-| [createSvcWorker](functions/createSvcWorker.md) | Create a Service Worker wrapper with Proxy-based transparent access |
+| [createSvcWorker](/packages/service-worker/docs/worker/functions/createSvcWorker.md) | Create a Service Worker wrapper with Proxy-based transparent access |
 
 ## Classes
 
 | Class | Description |
 | ------ | ------ |
-| [SvcWorkerError](classes/SvcWorkerError.md) | Service Worker Error |
+| [SvcWorkerError](/packages/service-worker/docs/worker/classes/SvcWorkerError.md) | Service Worker Error |
 
 ## Interfaces
 
 | Interface | Description |
 | ------ | ------ |
-| [SvcWorker](interfaces/SvcWorker.md) | Service Worker interface that extends ServiceWorkerGlobalScope |
-| [SvcWorkerOptions](interfaces/SvcWorkerOptions.md) | Service Worker options for [createSvcWorker](functions/createSvcWorker.md) |
+| [SvcWorker](/packages/service-worker/docs/worker/interfaces/SvcWorker.md) | Service Worker interface that extends ServiceWorkerGlobalScope |
+| [SvcWorkerOptions](/packages/service-worker/docs/worker/interfaces/SvcWorkerOptions.md) | Service Worker options for [createSvcWorker](/packages/service-worker/docs/worker/functions/createSvcWorker.md) |
+

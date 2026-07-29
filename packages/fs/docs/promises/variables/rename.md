@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: rename
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / rename
-
-# Variable: rename()
+## Signature
 
 ```ts
-const rename: (oldPath, newPath) => Promise<void>;
+export const rename = promises.rename.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `oldPath` | `PathLike` |
-| `newPath` | `PathLike` |
-
-## Returns
-
-`Promise`\<`void`\>

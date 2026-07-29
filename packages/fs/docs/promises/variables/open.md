@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: open
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / open
-
-# Variable: open()
+## Signature
 
 ```ts
-const open: (path, flags?, mode?) => Promise<IFileHandle>;
+export const open = promises.open.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `flags?` | `TFlags` |
-| `mode?` | `TMode` |
-
-## Returns
-
-`Promise`\<`IFileHandle`\>

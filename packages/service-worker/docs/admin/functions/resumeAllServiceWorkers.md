@@ -1,33 +1,27 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / resumeAllServiceWorkers
-
 # Function: resumeAllServiceWorkers()
-
-```ts
-function resumeAllServiceWorkers(signal?): Promise<Map<string, SvcWorkerSessionResumeResult>>;
-```
 
 Resume all suspended service workers.
 
 This disengages the circuit breaker on all suspended service workers,
 restoring their functionality.
 
+## Signature
+
+```ts
+export async function resumeAllServiceWorkers(signal?: AbortSignal): Promise<Map<string, SvcWorkerSessionResumeResult>>
+```
+
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `signal?` | `AbortSignal` | Optional abort signal to cancel the operation |
+| Name | Type | Description |
+| --- | --- | --- |
+| `signal` | `AbortSignal` | Optional abort signal to cancel the operation _(optional)_ |
 
 ## Returns
 
-`Promise`\<`Map`\<`string`, [`SvcWorkerSessionResumeResult`](../../protocols/interfaces/SvcWorkerSessionResumeResult.md)\>\>
+`Promise`\<`Map`\<`string`, [`SvcWorkerSessionResumeResult`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionResumeResult.md)\>\> — Map of registry keys to resume results
 
-Map of registry keys to resume results
-
-## Example
+## Examples
 
 ```ts
 import { resumeAllServiceWorkers } from '@vrowzer/service-worker/admin'

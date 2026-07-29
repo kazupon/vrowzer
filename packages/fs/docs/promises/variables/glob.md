@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: glob
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / glob
-
-# Variable: glob()
+## Signature
 
 ```ts
-const glob: (pattern, options?) => Promise<string[]>;
+export const glob = promises.glob.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `pattern` | `string` |
-| `options?` | `IGlobOptions` |
-
-## Returns
-
-`Promise`\<`string`[]\>

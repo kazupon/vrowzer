@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionCircuitBreakerMessage
-
 # Function: isSvcWorkerSessionCircuitBreakerMessage()
-
-```ts
-function isSvcWorkerSessionCircuitBreakerMessage(message): message is SvcWorkerSessionCircuitBreakerMessage;
-```
 
 Type guard for circuit breaker messages
 
+## Signature
+
+```ts
+export function isSvcWorkerSessionCircuitBreakerMessage(message: unknown): message is SvcWorkerSessionCircuitBreakerMessage
+```
+
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `message` | `unknown` | The message to check |
 
 ## Returns
 
-`message is SvcWorkerSessionCircuitBreakerMessage`
-
-True if the message is a circuit breaker message
+`message` `is` [`SvcWorkerSessionCircuitBreakerMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionCircuitBreakerMessage.md) — True if the message is a circuit breaker message

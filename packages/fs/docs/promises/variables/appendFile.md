@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: appendFile
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / appendFile
-
-# Variable: appendFile()
+## Signature
 
 ```ts
-const appendFile: (path, data, options?) => Promise<void>;
+export const appendFile = promises.appendFile.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `TFileHandle` |
-| `data` | `TData` |
-| `options?` | `string` \| `IAppendFileOptions` |
-
-## Returns
-
-`Promise`\<`void`\>

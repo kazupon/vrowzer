@@ -1,15 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: StatWatcher
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / StatWatcher
-
-# Variable: StatWatcher()
+## Signature
 
 ```ts
-const StatWatcher: () => StatWatcher = fs.StatWatcher;
+export const StatWatcher = fs.StatWatcher
 ```
-
-## Returns
-
-`StatWatcher`

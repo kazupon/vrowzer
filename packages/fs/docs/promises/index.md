@@ -1,9 +1,3 @@
-[**@vrowzer/fs**](../index.md)
-
-***
-
-[@vrowzer/fs](../index.md) / promises
-
 # promises
 
 `node:fs/promises` compatible entry point
@@ -12,37 +6,37 @@
 
 | Variable | Description |
 | ------ | ------ |
-| [access](variables/access.md) | - |
-| [appendFile](variables/appendFile.md) | - |
-| [chmod](variables/chmod.md) | - |
-| [chown](variables/chown.md) | - |
-| [copyFile](variables/copyFile.md) | - |
-| [default](variables/default.md) | - |
-| [FileHandle](variables/FileHandle.md) | - |
-| [glob](variables/glob.md) | - |
-| [lchmod](variables/lchmod.md) | - |
-| [lchown](variables/lchown.md) | - |
-| [link](variables/link.md) | - |
-| [lstat](variables/lstat.md) | - |
-| [mkdir](variables/mkdir.md) | - |
-| [mkdtemp](variables/mkdtemp.md) | - |
-| [open](variables/open.md) | - |
-| [readdir](variables/readdir.md) | - |
-| [readFile](variables/readFile.md) | - |
-| [readlink](variables/readlink.md) | - |
-| [realpath](variables/realpath.md) | - |
-| [rename](variables/rename.md) | - |
-| [rm](variables/rm.md) | - |
-| [rmdir](variables/rmdir.md) | - |
-| [stat](variables/stat.md) | - |
-| [symlink](variables/symlink.md) | - |
-| [truncate](variables/truncate.md) | - |
-| [unlink](variables/unlink.md) | - |
-| [utimes](variables/utimes.md) | - |
-| [writeFile](variables/writeFile.md) | - |
+| [access](/packages/fs/docs/promises/variables/access.md) |  |
+| [appendFile](/packages/fs/docs/promises/variables/appendFile.md) |  |
+| [chmod](/packages/fs/docs/promises/variables/chmod.md) |  |
+| [chown](/packages/fs/docs/promises/variables/chown.md) |  |
+| [copyFile](/packages/fs/docs/promises/variables/copyFile.md) |  |
+| [FileHandle](/packages/fs/docs/promises/variables/FileHandle.md) |  |
+| [glob](/packages/fs/docs/promises/variables/glob.md) |  |
+| [lchmod](/packages/fs/docs/promises/variables/lchmod.md) |  |
+| [lchown](/packages/fs/docs/promises/variables/lchown.md) |  |
+| [link](/packages/fs/docs/promises/variables/link.md) |  |
+| [lstat](/packages/fs/docs/promises/variables/lstat.md) |  |
+| [mkdir](/packages/fs/docs/promises/variables/mkdir.md) |  |
+| [mkdtemp](/packages/fs/docs/promises/variables/mkdtemp.md) |  |
+| [open](/packages/fs/docs/promises/variables/open.md) |  |
+| [readdir](/packages/fs/docs/promises/variables/readdir.md) |  |
+| [readFile](/packages/fs/docs/promises/variables/readFile.md) |  |
+| [readlink](/packages/fs/docs/promises/variables/readlink.md) |  |
+| [realpath](/packages/fs/docs/promises/variables/realpath.md) |  |
+| [rename](/packages/fs/docs/promises/variables/rename.md) |  |
+| [rm](/packages/fs/docs/promises/variables/rm.md) |  |
+| [rmdir](/packages/fs/docs/promises/variables/rmdir.md) |  |
+| [stat](/packages/fs/docs/promises/variables/stat.md) |  |
+| [symlink](/packages/fs/docs/promises/variables/symlink.md) |  |
+| [truncate](/packages/fs/docs/promises/variables/truncate.md) |  |
+| [unlink](/packages/fs/docs/promises/variables/unlink.md) |  |
+| [utimes](/packages/fs/docs/promises/variables/utimes.md) |  |
+| [writeFile](/packages/fs/docs/promises/variables/writeFile.md) |  |
 
 ## References
 
 ### constants
 
-Re-exports [constants](../default/variables/constants.md)
+Re-exports [constants](/packages/fs/docs/default/variables/constants.md)
+

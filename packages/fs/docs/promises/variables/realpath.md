@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: realpath
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / realpath
-
-# Variable: realpath()
+## Signature
 
 ```ts
-const realpath: (path, options?) => Promise<TDataOut>;
+export const realpath = promises.realpath.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `string` \| `IRealpathOptions` |
-
-## Returns
-
-`Promise`\<`TDataOut`\>

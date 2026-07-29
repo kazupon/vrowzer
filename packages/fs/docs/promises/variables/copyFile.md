@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: copyFile
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / copyFile
-
-# Variable: copyFile()
+## Signature
 
 ```ts
-const copyFile: (src, dest, flags?) => Promise<void>;
+export const copyFile = promises.copyFile.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `src` | `PathLike` |
-| `dest` | `PathLike` |
-| `flags?` | `number` |
-
-## Returns
-
-`Promise`\<`void`\>

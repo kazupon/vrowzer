@@ -1,25 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: truncateSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / truncateSync
-
-# Variable: truncateSync()
+## Signature
 
 ```ts
-const truncateSync: (id, len?) => void = fs.truncateSync;
+export const truncateSync = fs.truncateSync
 ```
-
-`id` should be a file descriptor or a path. `id` as file descriptor will
-not be supported soon.
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `TFileId` |
-| `len?` | `number` |
-
-## Returns
-
-`void`

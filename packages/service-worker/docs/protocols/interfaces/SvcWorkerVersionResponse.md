@@ -1,20 +1,20 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerVersionResponse
-
 # Interface: SvcWorkerVersionResponse
 
 VERSION response message (Service Worker -> Page via MessagePort).
 
 ## Extends
 
-- [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md)
+- [`SvcWorkerMessageBase`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerMessageBase.md)
+
+## Signature
+
+```ts
+export interface SvcWorkerVersionResponse extends SvcWorkerMessageBase
+```
 
 ## Properties
 
-| Property | Type | Overrides |
-| ------ | ------ | ------ |
-| <a id="property-type"></a> `type` | `"V_SW_VERSION"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |
-| <a id="property-version"></a> `version` | `string` | - |
+| Name | Type | Description |
+| --- | --- | --- |
+| `type` | `typeof` [`V_SW_VERSION`](/packages/service-worker/docs/protocols/variables/V_SW_VERSION.md) |  |
+| `version` | `string` |  |

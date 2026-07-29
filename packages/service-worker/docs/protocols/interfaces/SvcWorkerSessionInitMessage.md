@@ -1,9 +1,3 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionInitMessage
-
 # Interface: SvcWorkerSessionInitMessage
 
 SESSION_INIT message (Page -> Service Worker).
@@ -11,10 +5,16 @@ Sent with a MessagePort to establish a persistent session.
 
 ## Extends
 
-- [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md)
+- [`SvcWorkerMessageBase`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerMessageBase.md)
+
+## Signature
+
+```ts
+export interface SvcWorkerSessionInitMessage extends SvcWorkerMessageBase
+```
 
 ## Properties
 
-| Property | Type | Overrides |
-| ------ | ------ | ------ |
-| <a id="property-type"></a> `type` | `"V_SW_SESSION_INIT"` | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `type` | `typeof` [`V_SW_SESSION_INIT`](/packages/service-worker/docs/protocols/variables/V_SW_SESSION_INIT.md) |  |

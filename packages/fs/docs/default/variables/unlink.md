@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: unlink
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / unlink
-
-# Variable: unlink()
+## Signature
 
 ```ts
-const unlink: (path, callback) => void = fs.unlink;
+export const unlink = fs.unlink
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `callback` | `TCallback`\<`void`\> |
-
-## Returns
-
-`void`

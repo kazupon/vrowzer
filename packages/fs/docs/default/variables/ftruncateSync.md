@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: ftruncateSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / ftruncateSync
-
-# Variable: ftruncateSync()
+## Signature
 
 ```ts
-const ftruncateSync: (fd, len?) => void = fs.ftruncateSync;
+export const ftruncateSync = fs.ftruncateSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-| `len?` | `number` |
-
-## Returns
-
-`void`

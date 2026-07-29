@@ -1,8 +1,4 @@
-**vrowzer**
-
-***
-
-# vrowzer
+# API Documentation
 
 Vrowzer - Preview with Vite HMR flavor for the browser
 
@@ -25,11 +21,11 @@ const ready = await vrowzer.ready({
 
 if (ready) {
   // Mount preview iframe into a container element
-  await vrowzer.mount(document.getElementById('preview-container'))
+  vrowzer.mount(document.getElementById('preview-container'))
 }
 
 // Update files (triggers HMR)
-await vrowzer.updateFile(
+vrowzer.updateFile(
   '/main.js',
   `
   document.getElementById('app').innerHTML = '<h1>Updated!</h1>'
@@ -42,12 +38,19 @@ await vrowzer.updateFile(
 
 | Function | Description |
 | ------ | ------ |
-| [Vrowzer](functions/Vrowzer.md) | Factory function to create a [Vrowzer](functions/Vrowzer.md) instance. |
+| [Vrowzer](/packages/vrowzer/docs/default/functions/Vrowzer.md) | Factory function to create a [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) instance. |
 
 ## Interfaces
 
 | Interface | Description |
 | ------ | ------ |
-| [Vrowzer](interfaces/Vrowzer.md) | The main interface for the Vrowzer preview environment. |
-| [VrowzerConfig](interfaces/VrowzerConfig.md) | VrowzerConfig defines the configuration options for [`Vrowzer.ready`](interfaces/Vrowzer.md#ready) |
-| [VrowzerOptions](interfaces/VrowzerOptions.md) | VrowzerOptions defines the configuration options for [Vrowzer](functions/Vrowzer.md). |
+| [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) | The main interface for the Vrowzer preview environment. |
+| [VrowzerConfig](/packages/vrowzer/docs/default/interfaces/VrowzerConfig.md) | VrowzerConfig defines the configuration options for [`Vrowzer.ready`](/packages/vrowzer/docs/default/interfaces/Vrowzer.md#method-ready) |
+| [VrowzerOptions](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md) | VrowzerOptions defines the configuration options for [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md). |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [VrowzerEventMap](/packages/vrowzer/docs/default/type-aliases/VrowzerEventMap.md) | Event map for [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md). |
+

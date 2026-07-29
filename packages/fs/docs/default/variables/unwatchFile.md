@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: unwatchFile
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / unwatchFile
-
-# Variable: unwatchFile()
+## Signature
 
 ```ts
-const unwatchFile: (path, listener?) => void = fs.unwatchFile;
+export const unwatchFile = fs.unwatchFile
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `listener?` | (`curr`, `prev`) => `void` |
-
-## Returns
-
-`void`

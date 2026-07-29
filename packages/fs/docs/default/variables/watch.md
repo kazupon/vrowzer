@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: watch
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / watch
-
-# Variable: watch()
+## Signature
 
 ```ts
-const watch: (path, options?, listener?) => FSWatcher = fs.watch;
+export const watch = fs.watch
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `string` \| `IWatchOptions` |
-| `listener?` | (`eventType`, `filename`) => `void` |
-
-## Returns
-
-`FSWatcher`

@@ -1,11 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: V_FS_MKDIR
 
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / V\_FS\_MKDIR
-
-# Variable: V\_FS\_MKDIR
+## Signature
 
 ```ts
-const V_FS_MKDIR: "V_FS_MKDIR";
+export const V_FS_MKDIR = 'V_FS_MKDIR' as const
 ```

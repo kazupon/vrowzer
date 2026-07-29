@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: chown
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / chown
-
-# Variable: chown()
+## Signature
 
 ```ts
-const chown: (path, uid, gid) => Promise<void>;
+export const chown = promises.chown.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `uid` | `number` |
-| `gid` | `number` |
-
-## Returns
-
-`Promise`\<`void`\>

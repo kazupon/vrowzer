@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: readdir
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / readdir
-
-# Variable: readdir()
+## Signature
 
 ```ts
-const readdir: (path, options?) => Promise<TDataOut[] | IDirent[]>;
+export const readdir = promises.readdir.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `string` \| `IReaddirOptions` |
-
-## Returns
-
-`Promise`\<`TDataOut`[] \| `IDirent`[]\>

@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: link
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / link
-
-# Variable: link()
+## Signature
 
 ```ts
-const link: (existingPath, newPath, callback) => void = fs.link;
+export const link = fs.link
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `existingPath` | `PathLike` |
-| `newPath` | `PathLike` |
-| `callback` | `TCallback`\<`void`\> |
-
-## Returns
-
-`void`

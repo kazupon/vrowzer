@@ -1,19 +1,13 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerClaimClientsMessage
-
 # Function: createSvcWorkerClaimClientsMessage()
 
-```ts
-function createSvcWorkerClaimClientsMessage(): SvcWorkerClaimClientsMessage;
-```
+Create a [service worker 'V_SW_CLAIM_CLIENTS' message](/packages/service-worker/docs/protocols/interfaces/SvcWorkerClaimClientsMessage.md).
 
-Create a [service worker 'V\_SW\_CLAIM\_CLIENTS' message](../interfaces/SvcWorkerClaimClientsMessage.md).
+## Signature
+
+```ts
+export function createSvcWorkerClaimClientsMessage(): SvcWorkerClaimClientsMessage
+```
 
 ## Returns
 
-[`SvcWorkerClaimClientsMessage`](../interfaces/SvcWorkerClaimClientsMessage.md)
-
-The constructed [SvcWorkerClaimClientsMessage](../interfaces/SvcWorkerClaimClientsMessage.md)
+[`SvcWorkerClaimClientsMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerClaimClientsMessage.md) — The constructed [SvcWorkerClaimClientsMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerClaimClientsMessage.md)

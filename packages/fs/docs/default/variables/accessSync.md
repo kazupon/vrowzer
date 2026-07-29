@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: accessSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / accessSync
-
-# Variable: accessSync()
+## Signature
 
 ```ts
-const accessSync: (path, mode?) => void = fs.accessSync;
+export const accessSync = fs.accessSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode?` | `number` |
-
-## Returns
-
-`void`

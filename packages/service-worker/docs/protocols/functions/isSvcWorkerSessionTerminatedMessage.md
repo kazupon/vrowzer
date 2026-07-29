@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionTerminatedMessage
-
 # Function: isSvcWorkerSessionTerminatedMessage()
 
-```ts
-function isSvcWorkerSessionTerminatedMessage(message): message is SvcWorkerSessionTerminatedMessage;
-```
+Type guard for [SvcWorkerSessionTerminatedMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionTerminatedMessage.md).
 
-Type guard for [SvcWorkerSessionTerminatedMessage](../interfaces/SvcWorkerSessionTerminatedMessage.md).
+## Signature
+
+```ts
+export function isSvcWorkerSessionTerminatedMessage(message: unknown): message is SvcWorkerSessionTerminatedMessage
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `message` | `unknown` | The message to check |
 
 ## Returns
 
-`message is SvcWorkerSessionTerminatedMessage`
-
-True if the message is a SvcWorkerSessionTerminatedMessage
+`message` `is` [`SvcWorkerSessionTerminatedMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionTerminatedMessage.md) — True if the message is a SvcWorkerSessionTerminatedMessage

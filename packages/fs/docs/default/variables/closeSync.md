@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: closeSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / closeSync
-
-# Variable: closeSync()
+## Signature
 
 ```ts
-const closeSync: (fd) => void = fs.closeSync;
+export const closeSync = fs.closeSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-
-## Returns
-
-`void`

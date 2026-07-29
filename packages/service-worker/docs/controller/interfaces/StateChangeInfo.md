@@ -1,17 +1,17 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [controller](../index.md) / StateChangeInfo
-
 # Interface: StateChangeInfo
 
-[Service Worker Controller](SvcWorkerController.md) state change information.
+[Service Worker Controller](/packages/service-worker/docs/controller/interfaces/SvcWorkerController.md) state change information.
+
+## Signature
+
+```ts
+export interface StateChangeInfo
+```
 
 ## Properties
 
-| Property | Type | Description |
-| ------ | ------ | ------ |
-| <a id="property-serviceworker"></a> `serviceWorker` | `ServiceWorker` | The ServiceWorker \| service worker instance that triggered the state change. |
-| <a id="property-state"></a> `state` | [`SvcWorkerControllerState`](../type-aliases/SvcWorkerControllerState.md) | The current state of the [SvcWorkerController](SvcWorkerController.md). |
-| <a id="property-version"></a> `version` | `string` | The version of the service worker that triggered the state change. |
+| Name | Type | Description |
+| --- | --- | --- |
+| `serviceWorker` | `ServiceWorker` | The service worker instance that triggered the state change. |
+| `state` | [`SvcWorkerControllerState`](/packages/service-worker/docs/controller/type-aliases/SvcWorkerControllerState.md) | The current state of the [SvcWorkerController](/packages/service-worker/docs/controller/interfaces/SvcWorkerController.md). |
+| `version` | `string` | The version of the service worker that triggered the state change. |

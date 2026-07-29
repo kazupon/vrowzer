@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: stat
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / stat
-
-# Variable: stat()
+## Signature
 
 ```ts
-const stat: (path, options?) => Promise<IStats<TStatNumber>>;
+export const stat = promises.stat.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IStatOptions` |
-
-## Returns
-
-`Promise`\<`IStats`\<`TStatNumber`\>\>

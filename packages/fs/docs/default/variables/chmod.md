@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: chmod
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / chmod
-
-# Variable: chmod()
+## Signature
 
 ```ts
-const chmod: (path, mode, callback) => void = fs.chmod;
+export const chmod = fs.chmod
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode` | `TMode` |
-| `callback` | `TCallback`\<`void`\> |
-
-## Returns
-
-`void`

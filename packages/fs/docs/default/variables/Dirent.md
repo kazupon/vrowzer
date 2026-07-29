@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: Dirent
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / Dirent
-
-# Variable: Dirent()
+## Signature
 
 ```ts
-const Dirent: (...args) => Dirent = fs.Dirent;
+export const Dirent = fs.Dirent
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| ...`args` | `any`[] |
-
-## Returns
-
-`Dirent`

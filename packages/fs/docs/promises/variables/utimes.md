@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: utimes
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / utimes
-
-# Variable: utimes()
+## Signature
 
 ```ts
-const utimes: (path, atime, mtime) => Promise<void>;
+export const utimes = promises.utimes.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `atime` | `TTime` |
-| `mtime` | `TTime` |
-
-## Returns
-
-`Promise`\<`void`\>

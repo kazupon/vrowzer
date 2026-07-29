@@ -1,30 +1,21 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionInitResponse
-
 # Function: createSvcWorkerSessionInitResponse()
 
-```ts
-function createSvcWorkerSessionInitResponse(
-   success, 
-   version, 
-   suspended?): SvcWorkerSessionInitResponse;
-```
+Create a [service worker 'V_SW_SESSION_INIT' response](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitResponse.md).
 
-Create a [service worker 'V\_SW\_SESSION\_INIT' response](../interfaces/SvcWorkerSessionInitResponse.md).
+## Signature
+
+```ts
+export function createSvcWorkerSessionInitResponse(success: boolean, version: string, suspended?: boolean): SvcWorkerSessionInitResponse
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `success` | `boolean` | Whether the session initialization was successful |
 | `version` | `string` | The version of the service worker |
-| `suspended?` | `boolean` | Whether the service worker is in suspended state (optional for backward compatibility) |
+| `suspended` | `boolean` | Whether the service worker is in suspended state (optional for backward compatibility) _(optional)_ |
 
 ## Returns
 
-[`SvcWorkerSessionInitResponse`](../interfaces/SvcWorkerSessionInitResponse.md)
-
-The constructed [SvcWorkerSessionInitResponse](../interfaces/SvcWorkerSessionInitResponse.md)
+[`SvcWorkerSessionInitResponse`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitResponse.md) — The constructed [SvcWorkerSessionInitResponse](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitResponse.md)

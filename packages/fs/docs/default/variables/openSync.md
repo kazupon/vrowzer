@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: openSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / openSync
-
-# Variable: openSync()
+## Signature
 
 ```ts
-const openSync: (path, flags, mode?) => number = fs.openSync;
+export const openSync = fs.openSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `flags` | `TFlags` |
-| `mode?` | `TMode` |
-
-## Returns
-
-`number`

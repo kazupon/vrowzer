@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: truncate
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / truncate
-
-# Variable: truncate()
+## Signature
 
 ```ts
-const truncate: (path, len?) => Promise<void>;
+export const truncate = promises.truncate.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `len?` | `number` |
-
-## Returns
-
-`Promise`\<`void`\>

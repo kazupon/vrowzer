@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: appendFileSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / appendFileSync
-
-# Variable: appendFileSync()
+## Signature
 
 ```ts
-const appendFileSync: (id, data, options?) => void = fs.appendFileSync;
+export const appendFileSync = fs.appendFileSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `TFileId` |
-| `data` | `TData` |
-| `options?` | `string` \| `IAppendFileOptions` |
-
-## Returns
-
-`void`

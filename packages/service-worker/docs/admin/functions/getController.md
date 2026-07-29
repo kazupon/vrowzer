@@ -1,34 +1,25 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / getController
-
 # Function: getController()
-
-```ts
-function getController(scriptURL, version): 
-  | SvcWorkerController
-  | undefined;
-```
 
 Get a controller by its script URL and version.
 
+## Signature
+
+```ts
+export function getController(scriptURL: URL, version: string): SvcWorkerController | undefined
+```
+
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `scriptURL` | `URL` | The service worker script URL (must be a URL object) |
 | `version` | `string` | The service worker version |
 
 ## Returns
 
-  \| [`SvcWorkerController`](../../controller/interfaces/SvcWorkerController.md)
-  \| `undefined`
+[`SvcWorkerController`](/packages/service-worker/docs/controller/interfaces/SvcWorkerController.md) | `undefined` — The controller if found, undefined otherwise
 
-The controller if found, undefined otherwise
-
-## Example
+## Examples
 
 ```ts
 import { getController } from '@vrowzer/service-worker/admin'

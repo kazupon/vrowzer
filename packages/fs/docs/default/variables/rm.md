@@ -1,52 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: rm
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / rm
-
-# Variable: rm()
+## Signature
 
 ```ts
-const rm: {
-  (path, callback): void;
-  (path, options, callback): void;
-} = fs.rm;
+export const rm = fs.rm
 ```
-
-## Call Signature
-
-```ts
-(path, callback): void;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `callback` | `TCallback`\<`void`\> |
-
-### Returns
-
-`void`
-
-## Call Signature
-
-```ts
-(
-   path, 
-   options, 
-   callback): void;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options` | `IRmOptions` |
-| `callback` | `TCallback`\<`void`\> |
-
-### Returns
-
-`void`

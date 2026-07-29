@@ -1,11 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / promises
-
 # Variable: promises
 
+## Signature
+
 ```ts
-const promises: FsPromisesApi = fs.promises;
+export const promises = fs.promises
 ```

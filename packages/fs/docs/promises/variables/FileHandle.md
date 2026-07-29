@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: FileHandle
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / FileHandle
-
-# Variable: FileHandle()
+## Signature
 
 ```ts
-const FileHandle: (...args) => IFileHandle = promises.FileHandle;
+export const FileHandle = promises.FileHandle
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| ...`args` | `unknown`[] |
-
-## Returns
-
-`IFileHandle`

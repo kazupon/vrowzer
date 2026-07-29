@@ -1,24 +1,18 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / getAllControllers
-
 # Function: getAllControllers()
-
-```ts
-function getAllControllers(): readonly SvcWorkerController[];
-```
 
 Get all registered service worker controllers.
 
+## Signature
+
+```ts
+export function getAllControllers(): readonly SvcWorkerController[]
+```
+
 ## Returns
 
-readonly [`SvcWorkerController`](../../controller/interfaces/SvcWorkerController.md)[]
+`readonly` [`SvcWorkerController`](/packages/service-worker/docs/controller/interfaces/SvcWorkerController.md)\[\] — A readonly array of all registered controllers
 
-A readonly array of all registered controllers
-
-## Example
+## Examples
 
 ```ts
 import { getAllControllers } from '@vrowzer/service-worker/admin'

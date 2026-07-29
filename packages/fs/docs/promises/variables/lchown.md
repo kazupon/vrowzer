@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: lchown
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / lchown
-
-# Variable: lchown()
+## Signature
 
 ```ts
-const lchown: (path, uid, gid) => Promise<void>;
+export const lchown = promises.lchown.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `uid` | `number` |
-| `gid` | `number` |
-
-## Returns
-
-`Promise`\<`void`\>

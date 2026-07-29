@@ -1,52 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: fstat
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / fstat
-
-# Variable: fstat()
+## Signature
 
 ```ts
-const fstat: {
-  (fd, callback): void;
-  (fd, options, callback): void;
-} = fs.fstat;
+export const fstat = fs.fstat
 ```
-
-## Call Signature
-
-```ts
-(fd, callback): void;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-| `callback` | `TCallback`\<`Stats`\<`TStatNumber`\>\> |
-
-### Returns
-
-`void`
-
-## Call Signature
-
-```ts
-(
-   fd, 
-   options, 
-   callback): void;
-```
-
-### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-| `options` | `IFStatOptions` |
-| `callback` | `TCallback`\<`Stats`\<`TStatNumber`\>\> |
-
-### Returns
-
-`void`

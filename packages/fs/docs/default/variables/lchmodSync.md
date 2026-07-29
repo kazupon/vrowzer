@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: lchmodSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / lchmodSync
-
-# Variable: lchmodSync()
+## Signature
 
 ```ts
-const lchmodSync: (path, mode) => void = fs.lchmodSync;
+export const lchmodSync = fs.lchmodSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `mode` | `TMode` |
-
-## Returns
-
-`void`

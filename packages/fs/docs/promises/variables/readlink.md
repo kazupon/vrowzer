@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: readlink
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / readlink
-
-# Variable: readlink()
+## Signature
 
 ```ts
-const readlink: (path, options?) => Promise<TDataOut>;
+export const readlink = promises.readlink.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IOptions` |
-
-## Returns
-
-`Promise`\<`TDataOut`\>

@@ -1,38 +1,29 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionResumeResponse
-
 # Function: createSvcWorkerSessionResumeResponse()
-
-```ts
-function createSvcWorkerSessionResumeResponse<T>(
-   id, 
-   success, 
-value?): SvcWorkerSessionGenericResponse<T>;
-```
 
 Create a resume response message.
 
+## Signature
+
+```ts
+export function createSvcWorkerSessionResumeResponse<T = unknown>(id: string, success: boolean, value: { data?: T; error?: string } = {}): SvcWorkerSessionGenericResponse<T>
+```
+
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` | `unknown` |
+| Name |
+| --- |
+| `T` = `unknown` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `id` | `string` | The request ID |
 | `success` | `boolean` | Whether the operation succeeded |
-| `value` | \{ `data?`: `T`; `error?`: `string`; \} | Optional data or error message |
-| `value.data?` | `T` | - |
-| `value.error?` | `string` | - |
+| `value` | `{ data?: T; error?: string }` | Optional data or error message _(optional, default: {})_ |
+| `value.data?` | `T` | _optional_ |
+| `value.error?` | `string` | _optional_ |
 
 ## Returns
 
-[`SvcWorkerSessionGenericResponse`](../interfaces/SvcWorkerSessionGenericResponse.md)\<`T`\>
-
-The constructed resume response message
+[`SvcWorkerSessionGenericResponse`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionGenericResponse.md)\<`T`\> — The constructed resume response message

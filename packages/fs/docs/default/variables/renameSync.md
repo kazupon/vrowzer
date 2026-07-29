@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: renameSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / renameSync
-
-# Variable: renameSync()
+## Signature
 
 ```ts
-const renameSync: (oldPath, newPath) => void = fs.renameSync;
+export const renameSync = fs.renameSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `oldPath` | `PathLike` |
-| `newPath` | `PathLike` |
-
-## Returns
-
-`void`

@@ -1,9 +1,3 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / VirtualFSWatcher
-
 # Interface: VirtualFSWatcher
 
 chokidar compatible FSWatcher interface for virtual filesystems.
@@ -11,42 +5,54 @@ chokidar compatible FSWatcher interface for virtual filesystems.
 This interface is the base type that vite-dev-server's `FSWatcher` extends.
 The `notify()` method is specific to VirtualFSWatcher.
 
+## Signature
+
+```ts
+export interface VirtualFSWatcher
+```
+
+## Properties
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `options` | [`VirtualWatchOptions`](/packages/fs/docs/watcher/interfaces/VirtualWatchOptions.md) |  |
+
 ## Methods
 
 ### add()
 
 ```ts
-add(paths): VirtualFSWatcher;
+add(paths: string | ReadonlyArray<string>): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `paths` | `string` \| readonly `string`[] |
+| Name | Type | Description |
+| --- | --- | --- |
+| `paths` | `string \| ReadonlyArray<string>` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### addListener()
 
 ```ts
-addListener(event, listener): VirtualFSWatcher;
+addListener(event: string, listener: (...args: any[]) => void): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| `listener` | (...`args`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `listener` | `(...args: any[]) => void` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
@@ -58,22 +64,22 @@ close(): Promise<void>;
 
 #### Returns
 
-`Promise`\<`void`\>
+`Promise<void>`
 
 ***
 
 ### emit()
 
 ```ts
-emit(event, ...args): boolean;
+emit(event: string, ...args: any[]): boolean;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| ...`args` | `any`[] |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `args` | `any[]` |  |
 
 #### Returns
 
@@ -89,7 +95,7 @@ eventNames(): string[];
 
 #### Returns
 
-`string`[]
+`string[]`
 
 ***
 
@@ -108,26 +114,32 @@ getMaxListeners(): number;
 ### getWatched()
 
 ```ts
-getWatched(): object;
+getWatched(): { [directory: string]: string[] };
 ```
 
 #### Returns
 
 `object`
 
+##### Indexable
+
+```ts
+[directory: string]: string[]
+```
+
 ***
 
 ### listenerCount()
 
 ```ts
-listenerCount(event): number;
+listenerCount(event: string): number;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
 
 #### Returns
 
@@ -138,25 +150,25 @@ listenerCount(event): number;
 ### listeners()
 
 ```ts
-listeners(event): Function[];
+listeners(event: string): Function[];
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
 
 #### Returns
 
-`Function`[]
+`Function[]`
 
 ***
 
 ### notify()
 
 ```ts
-notify(event, path): void;
+notify(event: WatchEventName, path: string): void;
 ```
 
 Notify the watcher of a file event.
@@ -164,10 +176,10 @@ Called by FileSystemSubscriber when a V_FS_* message is received.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`WatchEventName`](../type-aliases/WatchEventName.md) |
-| `path` | `string` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | [`WatchEventName`](/packages/fs/docs/watcher/type-aliases/WatchEventName.md) |  |
+| `path` | `string` |  |
 
 #### Returns
 
@@ -178,217 +190,227 @@ Called by FileSystemSubscriber when a V_FS_* message is received.
 ### off()
 
 ```ts
-off(event, listener): VirtualFSWatcher;
+off(event: string, listener: (...args: any[]) => void): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| `listener` | (...`args`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `listener` | `(...args: any[]) => void` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### on()
 
-#### Call Signature
-
 ```ts
-on(event, listener): VirtualFSWatcher;
+on(event: 'add' | 'addDir' | 'change', listener: (path: string, stats?: any) => void): VirtualFSWatcher;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"change"` \| `"add"` \| `"addDir"` |
-| `listener` | (`path`, `stats?`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `"add" \| "addDir" \| "change"` |  |
+| `listener` | `(path: string, stats?: any) => void` |  |
 
-##### Returns
+#### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
-#### Call Signature
+***
 
-```ts
-on(event, listener): VirtualFSWatcher;
-```
-
-##### Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"all"` |
-| `listener` | (`eventName`, `path`, `stats?`) => `void` |
-
-##### Returns
-
-`VirtualFSWatcher`
-
-#### Call Signature
+### on()
 
 ```ts
-on(event, listener): VirtualFSWatcher;
+on(event: 'all', listener: (eventName: WatchEventName, path: string, stats?: any) => void): VirtualFSWatcher;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"error"` |
-| `listener` | (`error`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `"all"` |  |
+| `listener` | (`eventName`: [`WatchEventName`](/packages/fs/docs/watcher/type-aliases/WatchEventName.md), `path`: `string`, `stats`?: `any`) =\> `void` |  |
 
-##### Returns
+#### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
-#### Call Signature
+***
+
+### on()
 
 ```ts
-on(event, listener): VirtualFSWatcher;
+on(event: 'error', listener: (error: Error) => void): VirtualFSWatcher;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"raw"` |
-| `listener` | (`eventName`, `path`, `details`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `"error"` |  |
+| `listener` | `(error: Error) => void` |  |
 
-##### Returns
+#### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
-#### Call Signature
+***
+
+### on()
 
 ```ts
-on(event, listener): VirtualFSWatcher;
+on(event: 'raw', listener: (eventName: string, path: string, details: any) => void): VirtualFSWatcher;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"ready"` |
-| `listener` | () => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `"raw"` |  |
+| `listener` | `(eventName: string, path: string, details: any) => void` |  |
 
-##### Returns
+#### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
-#### Call Signature
+***
+
+### on()
 
 ```ts
-on(event, listener): VirtualFSWatcher;
+on(event: 'ready', listener: () => void): VirtualFSWatcher;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"unlink"` \| `"unlinkDir"` |
-| `listener` | (`path`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `"ready"` |  |
+| `listener` | `() => void` |  |
 
-##### Returns
+#### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
-#### Call Signature
+***
+
+### on()
 
 ```ts
-on(event, listener): VirtualFSWatcher;
+on(event: 'unlink' | 'unlinkDir', listener: (path: string) => void): VirtualFSWatcher;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| `listener` | (...`args`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `"unlink" \| "unlinkDir"` |  |
+| `listener` | `(path: string) => void` |  |
 
-##### Returns
+#### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
+
+***
+
+### on()
+
+```ts
+on(event: string, listener: (...args: any[]) => void): VirtualFSWatcher;
+```
+
+#### Parameters
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `listener` | `(...args: any[]) => void` |  |
+
+#### Returns
+
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### once()
 
 ```ts
-once(event, listener): VirtualFSWatcher;
+once(event: string, listener: (...args: any[]) => void): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| `listener` | (...`args`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `listener` | `(...args: any[]) => void` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### prependListener()
 
 ```ts
-prependListener(event, listener): VirtualFSWatcher;
+prependListener(event: string, listener: (...args: any[]) => void): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| `listener` | (...`args`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `listener` | `(...args: any[]) => void` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### prependOnceListener()
 
 ```ts
-prependOnceListener(event, listener): VirtualFSWatcher;
+prependOnceListener(event: string, listener: (...args: any[]) => void): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| `listener` | (...`args`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `listener` | `(...args: any[]) => void` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### rawListeners()
 
 ```ts
-rawListeners(event): Function[];
+rawListeners(event: string): Function[];
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
 
 #### Returns
 
-`Function`[]
+`Function[]`
 
 ***
 
@@ -400,62 +422,62 @@ ref(): VirtualFSWatcher;
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### removeAllListeners()
 
 ```ts
-removeAllListeners(event?): VirtualFSWatcher;
+removeAllListeners(event?: string): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event?` | `string` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` | _optional_ |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### removeListener()
 
 ```ts
-removeListener(event, listener): VirtualFSWatcher;
+removeListener(event: string, listener: (...args: any[]) => void): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `string` |
-| `listener` | (...`args`) => `void` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `event` | `string` |  |
+| `listener` | `(...args: any[]) => void` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### setMaxListeners()
 
 ```ts
-setMaxListeners(n): VirtualFSWatcher;
+setMaxListeners(n: number): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `n` | `number` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `n` | `number` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
@@ -467,28 +489,22 @@ unref(): VirtualFSWatcher;
 
 #### Returns
 
-`VirtualFSWatcher`
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)
 
 ***
 
 ### unwatch()
 
 ```ts
-unwatch(paths): VirtualFSWatcher;
+unwatch(paths: string | ReadonlyArray<string>): VirtualFSWatcher;
 ```
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `paths` | `string` \| readonly `string`[] |
+| Name | Type | Description |
+| --- | --- | --- |
+| `paths` | `string \| ReadonlyArray<string>` |  |
 
 #### Returns
 
-`VirtualFSWatcher`
-
-## Properties
-
-| Property | Type |
-| ------ | ------ |
-| <a id="property-options"></a> `options` | [`VirtualWatchOptions`](VirtualWatchOptions.md) |
+[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)

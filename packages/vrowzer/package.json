@@ -52,7 +52,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "build:docs": "typedoc --excludeInternal",
+    "build:docs": "tsx ../../scripts/api-references.ts",
     "prepack": "vp run build",
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
@@ -67,8 +67,6 @@
     "@vrowzer/vite-plugin": "workspace:*",
     "get-port-please": "catalog:",
     "publint": "catalog:",
-    "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:",
     "vite": "catalog:"
   }
 }

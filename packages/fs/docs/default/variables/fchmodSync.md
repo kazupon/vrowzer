@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: fchmodSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / fchmodSync
-
-# Variable: fchmodSync()
+## Signature
 
 ```ts
-const fchmodSync: (fd, mode) => void = fs.fchmodSync;
+export const fchmodSync = fs.fchmodSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `fd` | `number` |
-| `mode` | `TMode` |
-
-## Returns
-
-`void`

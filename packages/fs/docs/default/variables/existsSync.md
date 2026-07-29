@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: existsSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / existsSync
-
-# Variable: existsSync()
+## Signature
 
 ```ts
-const existsSync: (path) => boolean = fs.existsSync;
+export const existsSync = fs.existsSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-
-## Returns
-
-`boolean`

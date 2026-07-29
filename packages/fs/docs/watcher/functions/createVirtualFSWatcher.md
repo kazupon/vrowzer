@@ -1,25 +1,19 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / createVirtualFSWatcher
-
 # Function: createVirtualFSWatcher()
-
-```ts
-function createVirtualFSWatcher(options?): Readonly<VirtualFSWatcher>;
-```
 
 Create a VirtualFSWatcher instance.
 
+## Signature
+
+```ts
+export function createVirtualFSWatcher(options: VirtualWatchOptions = {}): Readonly<VirtualFSWatcher>
+```
+
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`VirtualWatchOptions`](../interfaces/VirtualWatchOptions.md) | Watch options (structural compatibility with chokidar WatchOptions) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `options` | [`VirtualWatchOptions`](/packages/fs/docs/watcher/interfaces/VirtualWatchOptions.md) | Watch options (structural compatibility with chokidar WatchOptions) _(optional, default: {})_ |
 
 ## Returns
 
-`Readonly`\<[`VirtualFSWatcher`](../interfaces/VirtualFSWatcher.md)\>
-
-VirtualFSWatcher instance
+`Readonly`\<[`VirtualFSWatcher`](/packages/fs/docs/watcher/interfaces/VirtualFSWatcher.md)\> — VirtualFSWatcher instance

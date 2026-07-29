@@ -1,20 +1,20 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / SvcWorkerSessionTerminatedMessage
-
 # Interface: SvcWorkerSessionTerminatedMessage
 
 Terminated notification message (Service Worker -> Page via session MessagePort)
 
 ## Extends
 
-- [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md)
+- [`SvcWorkerMessageBase`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerMessageBase.md)
+
+## Signature
+
+```ts
+export interface SvcWorkerSessionTerminatedMessage extends SvcWorkerMessageBase
+```
 
 ## Properties
 
-| Property | Type | Description | Overrides |
-| ------ | ------ | ------ | ------ |
-| <a id="property-reason"></a> `reason` | `"unregister"` | The reason for termination | - |
-| <a id="property-type"></a> `type` | `"V_SW_SESSION_TERMINATED"` | - | [`SvcWorkerMessageBase`](SvcWorkerMessageBase.md).[`type`](SvcWorkerMessageBase.md#property-type) |
+| Name | Type | Description |
+| --- | --- | --- |
+| `reason` | [`SvcWorkerTerminatedReason`](/packages/service-worker/docs/protocols/type-aliases/SvcWorkerTerminatedReason.md) | The reason for termination |
+| `type` | `typeof` [`V_SW_SESSION_TERMINATED`](/packages/service-worker/docs/protocols/variables/V_SW_SESSION_TERMINATED.md) |  |

@@ -1,19 +1,13 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / createSvcWorkerSessionInitMessage
-
 # Function: createSvcWorkerSessionInitMessage()
 
-```ts
-function createSvcWorkerSessionInitMessage(): SvcWorkerSessionInitMessage;
-```
+Create a [service worker 'V_SW_SESSION_INIT' message](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitMessage.md).
 
-Create a [service worker 'V\_SW\_SESSION\_INIT' message](../interfaces/SvcWorkerSessionInitMessage.md).
+## Signature
+
+```ts
+export function createSvcWorkerSessionInitMessage(): SvcWorkerSessionInitMessage
+```
 
 ## Returns
 
-[`SvcWorkerSessionInitMessage`](../interfaces/SvcWorkerSessionInitMessage.md)
-
-The constructed [SvcWorkerSessionInitMessage](../interfaces/SvcWorkerSessionInitMessage.md)
+[`SvcWorkerSessionInitMessage`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitMessage.md) — The constructed [SvcWorkerSessionInitMessage](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitMessage.md)

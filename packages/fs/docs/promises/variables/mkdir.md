@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: mkdir
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / mkdir
-
-# Variable: mkdir()
+## Signature
 
 ```ts
-const mkdir: (path, options?) => Promise<string | undefined>;
+export const mkdir = promises.mkdir.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IMkdirOptions` \| `TMode` |
-
-## Returns
-
-`Promise`\<`string` \| `undefined`\>

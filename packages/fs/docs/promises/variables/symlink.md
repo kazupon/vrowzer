@@ -1,23 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: symlink
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / symlink
-
-# Variable: symlink()
+## Signature
 
 ```ts
-const symlink: (target, path, type?) => Promise<void>;
+export const symlink = promises.symlink.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `target` | `PathLike` |
-| `path` | `PathLike` |
-| `type?` | `Type` |
-
-## Returns
-
-`Promise`\<`void`\>

@@ -1,25 +1,21 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [admin](../index.md) / disposeAllControllers
-
 # Function: disposeAllControllers()
-
-```ts
-function disposeAllControllers(): void;
-```
 
 Dispose all registered controllers.
 
 This will clean up resources but will NOT terminate the service workers.
-Use [terminateAllServiceWorkers](terminateAllServiceWorkers.md) to terminate service workers.
+Use [terminateAllServiceWorkers](/packages/service-worker/docs/admin/functions/terminateAllServiceWorkers.md) to terminate service workers.
+
+## Signature
+
+```ts
+export function disposeAllControllers(): void
+```
 
 ## Returns
 
 `void`
 
-## Example
+## Examples
 
 ```ts
 import { disposeAllControllers } from '@vrowzer/service-worker/admin'

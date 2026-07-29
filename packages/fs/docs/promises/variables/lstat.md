@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: lstat
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / lstat
-
-# Variable: lstat()
+## Signature
 
 ```ts
-const lstat: (path, options?) => Promise<IStats<TStatNumber>>;
+export const lstat = promises.lstat.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IStatOptions` |
-
-## Returns
-
-`Promise`\<`IStats`\<`TStatNumber`\>\>

@@ -1,21 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: unlink
 
-***
-
-[@vrowzer/fs](../../index.md) / [promises](../index.md) / unlink
-
-# Variable: unlink()
+## Signature
 
 ```ts
-const unlink: (path) => Promise<void>;
+export const unlink = promises.unlink.bind(promises)
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-
-## Returns
-
-`Promise`\<`void`\>

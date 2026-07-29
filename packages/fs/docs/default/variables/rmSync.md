@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: rmSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / rmSync
-
-# Variable: rmSync()
+## Signature
 
 ```ts
-const rmSync: (path, options?) => void = fs.rmSync;
+export const rmSync = fs.rmSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IRmOptions` |
-
-## Returns
-
-`void`

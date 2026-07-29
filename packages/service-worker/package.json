@@ -62,7 +62,7 @@
   "scripts": {
     "typecheck": "tsgo --noEmit -p tsconfig.json",
     "build": "vp pack",
-    "build:docs": "typedoc --excludeInternal",
+    "build:docs": "tsx ../../scripts/api-references.ts",
     "play": "vp dev --config vite.config.ts",
     "play:build": "vp build --config vite.config.ts",
     "play:preview": "vp preview --config vite.config.ts",
@@ -74,8 +74,6 @@
     "@vrowzer/unplugin-service-worker": "workspace:*",
     "get-port-please": "catalog:",
     "publint": "catalog:",
-    "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:",
     "vite": "catalog:"
   }
 }

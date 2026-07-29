@@ -1,25 +1,19 @@
-[**@vrowzer/service-worker**](../../index.md)
-
-***
-
-[@vrowzer/service-worker](../../index.md) / [protocols](../index.md) / isSvcWorkerSessionInitResponse
-
 # Function: isSvcWorkerSessionInitResponse()
 
-```ts
-function isSvcWorkerSessionInitResponse(message): message is SvcWorkerSessionInitResponse;
-```
+Type guard for [SvcWorkerSessionInitResponse](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitResponse.md).
 
-Type guard for [SvcWorkerSessionInitResponse](../interfaces/SvcWorkerSessionInitResponse.md).
+## Signature
+
+```ts
+export function isSvcWorkerSessionInitResponse(message: unknown): message is SvcWorkerSessionInitResponse
+```
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Name | Type | Description |
+| --- | --- | --- |
 | `message` | `unknown` | The message to check |
 
 ## Returns
 
-`message is SvcWorkerSessionInitResponse`
-
-True if the message is a SvcWorkerSessionInitResponse, false otherwise
+`message` `is` [`SvcWorkerSessionInitResponse`](/packages/service-worker/docs/protocols/interfaces/SvcWorkerSessionInitResponse.md) — True if the message is a SvcWorkerSessionInitResponse, false otherwise

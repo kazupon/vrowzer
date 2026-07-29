@@ -1,47 +1,47 @@
-[**@vrowzer/fs**](../../index.md)
-
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / FileSystemPublisherTarget
-
 # Interface: FileSystemPublisherTarget
 
 A postMessage target compatible like Service Worker and Web Worker APIs.
+
+## Signature
+
+```ts
+export interface FileSystemPublisherTarget
+```
 
 ## Methods
 
 ### postMessage()
 
-#### Call Signature
-
 ```ts
-postMessage(message, transfer): void;
+postMessage(message: any, transfer: Transferable[]): void;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `message` | `any` |
-| `transfer` | `Transferable`[] |
+| Name | Type | Description |
+| --- | --- | --- |
+| `message` | `any` |  |
+| `transfer` | `Transferable[]` |  |
 
-##### Returns
+#### Returns
 
 `void`
 
-#### Call Signature
+***
+
+### postMessage()
 
 ```ts
-postMessage(message, options?): void;
+postMessage(message: any, options?: StructuredSerializeOptions): void;
 ```
 
-##### Parameters
+#### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `message` | `any` |
-| `options?` | `StructuredSerializeOptions` |
+| Name | Type | Description |
+| --- | --- | --- |
+| `message` | `any` |  |
+| `options` | `StructuredSerializeOptions` | _optional_ |
 
-##### Returns
+#### Returns
 
 `void`

@@ -1,11 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: V_FS_UNLINK
 
-***
-
-[@vrowzer/fs](../../index.md) / [watcher](../index.md) / V\_FS\_UNLINK
-
-# Variable: V\_FS\_UNLINK
+## Signature
 
 ```ts
-const V_FS_UNLINK: "V_FS_UNLINK";
+export const V_FS_UNLINK = 'V_FS_UNLINK' as const
 ```

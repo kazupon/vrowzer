@@ -1,22 +1,7 @@
-[**@vrowzer/fs**](../../index.md)
+# Variable: readlinkSync
 
-***
-
-[@vrowzer/fs](../../index.md) / [default](../index.md) / readlinkSync
-
-# Variable: readlinkSync()
+## Signature
 
 ```ts
-const readlinkSync: (path, options?) => TDataOut = fs.readlinkSync;
+export const readlinkSync = fs.readlinkSync
 ```
-
-## Parameters
-
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `PathLike` |
-| `options?` | `IOptions` |
-
-## Returns
-
-`TDataOut`
