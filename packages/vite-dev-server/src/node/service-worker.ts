@@ -17,6 +17,7 @@ import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
+import { deserializeRpcMessage, serializeRpcMessage } from '../shared/rpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
@@ -679,6 +680,8 @@ export function createServer(
               {
                 post: rpcData => port.postMessage(rpcData),
                 on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
+                serialize: serializeRpcMessage,
+                deserialize: deserializeRpcMessage,
                 timeout: 30_000,
               }
             )

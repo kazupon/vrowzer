@@ -14,6 +14,95 @@
 
 import type { TransformOptions, TransformResult } from '../node/server/transformRequest'
 
+const serializedRpcErrorMarker = '__vrowzerRpcError'
+
+interface ErrorWithMetadata extends Error {
+  code?: unknown
+  id?: unknown
+}
+
+interface SerializedRpcError {
+  [serializedRpcErrorMarker]: true
+  name: string
+  message: string
+  stack?: string
+  code?: string
+  id?: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isSerializedRpcError(value: unknown): value is SerializedRpcError {
+  return (
+    isRecord(value) &&
+    value[serializedRpcErrorMarker] === true &&
+    typeof value.name === 'string' &&
+    typeof value.message === 'string' &&
+    (value.stack === undefined || typeof value.stack === 'string') &&
+    (value.code === undefined || typeof value.code === 'string') &&
+    (value.id === undefined || typeof value.id === 'string')
+  )
+}
+
+/**
+ * Preserve Error metadata that the structured clone algorithm omits.
+ * birpc response errors are stored in the top-level `e` property.
+ */
+export function serializeRpcMessage(message: unknown): unknown {
+  if (!isRecord(message) || !(message.e instanceof Error)) {
+    return message
+  }
+
+  const error = message.e as ErrorWithMetadata
+  const code = typeof error.code === 'string' ? error.code : undefined
+  const id = typeof error.id === 'string' ? error.id : undefined
+
+  if (code === undefined && id === undefined) {
+    return message
+  }
+
+  return {
+    ...message,
+    e: {
+      [serializedRpcErrorMarker]: true,
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code,
+      id,
+    } satisfies SerializedRpcError,
+  }
+}
+
+/**
+ * Restore an Error serialized by {@link serializeRpcMessage}.
+ */
+export function deserializeRpcMessage(message: unknown): unknown {
+  if (!isRecord(message) || !isSerializedRpcError(message.e)) {
+    return message
+  }
+
+  const serializedError = message.e
+  const error = new Error(serializedError.message) as ErrorWithMetadata
+  error.name = serializedError.name
+  if (serializedError.stack !== undefined) {
+    error.stack = serializedError.stack
+  }
+  if (serializedError.code !== undefined) {
+    error.code = serializedError.code
+  }
+  if (serializedError.id !== undefined) {
+    error.id = serializedError.id
+  }
+
+  return {
+    ...message,
+    e: error,
+  }
+}
+
 /**
  * Functions provided by the Web Worker (callable from Service Worker)
  *
