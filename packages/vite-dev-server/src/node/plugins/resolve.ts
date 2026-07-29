@@ -765,6 +765,9 @@ function resolveSubpathImports(
     }
   }
 
+  if (importsPath == null) {
+    return
+  }
   return importsPath + postfix
 }
 
