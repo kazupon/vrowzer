@@ -33,6 +33,11 @@ interface PreviewResponse {
   body: string
 }
 
+interface SourceMapPayload {
+  sourcesContent?: (string | null)[]
+  [key: string]: unknown
+}
+
 async function addPreviewFiles(files: Record<string, string>): Promise<void> {
   await page.evaluate(filesToAdd => {
     const vrowzer = (window as any).__vrowzer__
@@ -81,6 +86,47 @@ async function waitForPreviewResponse(
     throw new Error(`No preview response for ${requestPath}`)
   }
   return response
+}
+
+async function waitForPreviewBodyContaining(
+  requestPath: string,
+  expectedContent: string
+): Promise<PreviewResponse> {
+  let response: PreviewResponse | undefined
+
+  await expect
+    .poll(
+      async () => {
+        try {
+          response = await fetchFromPreview(requestPath)
+          return response.body
+        } catch {
+          return undefined
+        }
+      },
+      { timeout: 10_000 }
+    )
+    .toContain(expectedContent)
+
+  if (!response) {
+    throw new Error(`No preview response for ${requestPath}`)
+  }
+  return response
+}
+
+function createInlineSourceMapComment(map: SourceMapPayload): string {
+  return `//# sourceMappingURL=data:application/json;base64,${btoa(JSON.stringify(map))}`
+}
+
+function extractInlineSourceMap(code: string): SourceMapPayload {
+  const matches = [
+    ...code.matchAll(/sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+)/g)
+  ]
+  const encoded = matches.at(-1)?.[1]
+  if (!encoded) {
+    throw new Error('Response does not contain an inline source map')
+  }
+  return JSON.parse(atob(encoded)) as SourceMapPayload
 }
 
 beforeAll(async () => {
@@ -361,6 +407,71 @@ if (import.meta.hot) {
       const response = await waitForPreviewResponse(requestPath, 403)
       expect(response.body).toContain('403 Restricted')
       expect(response.body).not.toContain(canary)
+    })
+  })
+
+  describe('dependency sourcemap security', () => {
+    const sourceCanary = 'PROJECT_SOURCE_SECRET_CANARY'
+    const externalMapCanary = 'PROJECT_MAP_SECRET_CANARY'
+    const inlineDependencyPath = '/node_modules/vrowzer-malicious-inline/index.js'
+    const externalDependencyPath = '/node_modules/vrowzer-malicious-external/index.js'
+    const inlineMap: SourceMapPayload = {
+      version: 3,
+      sources: ['../../project-secret.ts'],
+      sourcesContent: [null],
+      names: [],
+      mappings: 'AAAA'
+    }
+    const externalMap: SourceMapPayload = {
+      version: 3,
+      sources: ['index.ts'],
+      sourcesContent: [externalMapCanary],
+      names: [],
+      mappings: 'AAAA'
+    }
+
+    beforeAll(async () => {
+      await addPreviewFiles({
+        '/project-secret.ts': sourceCanary,
+        '/project-secret.map': JSON.stringify(externalMap),
+        '/node_modules/vrowzer-malicious-inline/package.json': JSON.stringify({
+          name: 'vrowzer-malicious-inline',
+          version: '0.0.0',
+          type: 'module'
+        }),
+        [inlineDependencyPath]: [
+          'export const value = "inline"',
+          createInlineSourceMapComment(inlineMap)
+        ].join('\n'),
+        '/node_modules/vrowzer-malicious-external/package.json': JSON.stringify({
+          name: 'vrowzer-malicious-external',
+          version: '0.0.0',
+          type: 'module'
+        }),
+        [externalDependencyPath]: [
+          'export const value = "external"',
+          '//# sourceMappingURL=../../project-secret.map'
+        ].join('\n')
+      })
+    })
+
+    test('does not inject package-external source content into an inline dependency map', async () => {
+      await waitForPreviewBodyContaining('/project-secret.ts?raw&import', sourceCanary)
+
+      const response = await waitForPreviewResponse(`${inlineDependencyPath}?import`, 200)
+      const responseMap = extractInlineSourceMap(response.body)
+
+      expect(responseMap.sourcesContent).toEqual([null])
+      expect(JSON.stringify(responseMap)).not.toContain(sourceCanary)
+    })
+
+    test('does not load a package-external sourcemap file', async () => {
+      await waitForPreviewBodyContaining('/project-secret.map', externalMapCanary)
+
+      const response = await waitForPreviewResponse(`${externalDependencyPath}?import`, 200)
+      const responseMap = extractInlineSourceMap(response.body)
+
+      expect(JSON.stringify(responseMap)).not.toContain(externalMapCanary)
     })
   })
 })
