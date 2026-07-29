@@ -235,23 +235,22 @@ if (import.meta.hot) {
         )
       })
 
-      // Wait for the update to reflect in the iframe
-      await page.waitForFunction(
-        () => {
-          const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement
-          return iframe?.contentDocument?.body?.innerText?.includes('Updated!')
-        },
-        undefined,
-        { timeout: 15000 }
-      )
-
-      const text = await page.evaluate(() => {
-        const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement
-        return iframe?.contentDocument?.body?.innerText
-      })
-
-      expect(text).toContain('Updated!')
-      expect(text).toContain('1 + 1 = 2')
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const iframe = document.querySelector(
+                '#preview-container iframe'
+              ) as HTMLIFrameElement | null
+              const text = iframe?.contentDocument?.body?.innerText
+              return {
+                updated: text?.includes('Updated!') ?? false,
+                result: text?.includes('1 + 1 = 2') ?? false
+              }
+            }),
+          { timeout: 15_000 }
+        )
+        .toEqual({ updated: true, result: true })
     }, 30000)
   })
 
