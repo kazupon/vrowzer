@@ -197,6 +197,53 @@ describe('HMRClient', () => {
 
       await expect(client.prunePaths(['/unknown'])).resolves.toBeUndefined()
     })
+
+    test('creates new hot data when a pruned module is recreated', async () => {
+      const client = new HMRClient(mockLogger, mockTransport, mockImportUpdatedModule)
+      const context = new HMRContext(client, '/module1')
+      const previousData = context.data
+      const disposeCallback = vi.fn<(data: unknown) => void>()
+      const pruneCallback = vi.fn<(data: unknown) => void>()
+
+      previousData.persisted = true
+      context.dispose(disposeCallback)
+      context.prune(pruneCallback)
+
+      await client.prunePaths(['/module1'])
+
+      expect(disposeCallback).toHaveBeenCalledWith(previousData)
+      expect(pruneCallback).toHaveBeenCalledWith(previousData)
+      expect(client.dataMap.has('/module1')).toBe(false)
+
+      const recreatedContext = new HMRContext(client, '/module1')
+      expect(recreatedContext.data).toEqual({})
+      expect(recreatedContext.data).not.toBe(previousData)
+    })
+
+    test.each(['dispose', 'prune'] as const)(
+      'clears hot data when the %s callback rejects',
+      async (callbackType) => {
+        const client = new HMRClient(mockLogger, mockTransport, mockImportUpdatedModule)
+        const context = new HMRContext(client, '/module1')
+        const data = context.data
+        const error = new Error(`${callbackType} failed`)
+        const callback = vi
+          .fn<(data: unknown) => Promise<void>>()
+          .mockRejectedValue(error)
+
+        data.persisted = true
+        if (callbackType === 'dispose') {
+          context.dispose(callback)
+        } else {
+          context.prune(callback)
+        }
+
+        await expect(client.prunePaths(['/module1'])).rejects.toBe(error)
+
+        expect(callback).toHaveBeenCalledWith(data)
+        expect(client.dataMap.has('/module1')).toBe(false)
+      },
+    )
   })
 
   describe('queueUpdate', () => {
@@ -260,6 +307,7 @@ describe('HMRClient', () => {
 
     test('calls dispose callback before importing', async () => {
       const callOrder: string[] = []
+      const data = { preserved: true }
 
       mockImportUpdatedModule = vi.fn().mockImplementation(async () => {
         callOrder.push('import')
@@ -268,7 +316,7 @@ describe('HMRClient', () => {
 
       const client = new HMRClient(mockLogger, mockTransport, mockImportUpdatedModule)
 
-      client.dataMap.set('/module.js', { preserved: true })
+      client.dataMap.set('/module.js', data)
       client.disposeMap.set('/module.js', () => {
         callOrder.push('dispose')
       })
@@ -287,6 +335,7 @@ describe('HMRClient', () => {
       await client.queueUpdate(update)
 
       expect(callOrder).toEqual(['dispose', 'import'])
+      expect(client.dataMap.get('/module.js')).toBe(data)
     })
 
     test('logs debug message after successful update', async () => {
