@@ -72,6 +72,13 @@ function createApp(middleware: MiddlewareHandler<ViteEnv>) {
   return app
 }
 
+function requestWithRawUrl(app: Hono<ViteEnv>, pathname: string) {
+  return app.fetch({
+    method: 'GET',
+    url: `http://localhost${pathname}`,
+  } as Request)
+}
+
 describe('servePublicMiddleware', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -138,6 +145,20 @@ describe('servePublicMiddleware', () => {
 
       const res = await app.request('/public-file.js?url&t=123')
       expect(await res.text()).toBe('fallthrough')
+    })
+
+    test.each([
+      ['encoded parent segment', '/assets/%2e%2e/secret.js'],
+      ['encoded backslash', '/assets/admin%5Csecret.js'],
+      ['repeated slash', '/assets//secret.js'],
+    ])('should reject %s', async (_, pathname) => {
+      const server = createMockServer()
+      const app = createApp(servePublicMiddleware(server))
+
+      const res = await requestWithRawUrl(app, pathname)
+
+      expect(await res.text()).toBe('fallthrough')
+      expect(fsp.readFile).not.toHaveBeenCalled()
     })
   })
 
@@ -273,6 +294,20 @@ describe('serveStaticMiddleware', () => {
       const res = await app.request('/%invalid%uri')
       expect(await res.text()).toBe('fallthrough')
     })
+
+    test.each([
+      ['encoded parent segment', '/assets/%2e%2e/secret.js'],
+      ['encoded backslash', '/assets/admin%5Csecret.js'],
+      ['repeated slash', '/assets//secret.js'],
+    ])('should reject %s', async (_, pathname) => {
+      const server = createMockServer()
+      const app = createApp(serveStaticMiddleware(server))
+
+      const res = await requestWithRawUrl(app, pathname)
+
+      expect(await res.text()).toBe('fallthrough')
+      expect(fsp.readFile).not.toHaveBeenCalled()
+    })
   })
 
   describe('file serving', () => {
@@ -334,6 +369,18 @@ describe('serveStaticMiddleware', () => {
 
       const res = await app.request('/image.png')
       expect(res.headers.get('X-Custom-Header')).toBe('test-value')
+    })
+
+    test('should serve an empty file', async () => {
+      vi.mocked(fsp.readFile).mockResolvedValue(Buffer.alloc(0))
+
+      const server = createMockServer({ root: '/project' })
+      const app = createApp(serveStaticMiddleware(server))
+
+      const res = await app.request('/empty.txt')
+
+      expect(res.status).toBe(200)
+      expect((await res.arrayBuffer()).byteLength).toBe(0)
     })
   })
 
@@ -401,6 +448,20 @@ describe('serveRawFsMiddleware', () => {
 
       const res = await app.request('/@fs/%invalid%uri')
       expect(await res.text()).toBe('fallthrough')
+    })
+
+    test.each([
+      ['encoded parent segment', '/@fs/project/%2e%2e/secret.js'],
+      ['encoded backslash', '/@fs/project/admin%5Csecret.js'],
+      ['repeated slash', '/@fs/project//secret.js'],
+    ])('should reject %s', async (_, pathname) => {
+      const server = createMockServer()
+      const app = createApp(serveRawFsMiddleware(server))
+
+      const res = await requestWithRawUrl(app, pathname)
+
+      expect(await res.text()).toBe('fallthrough')
+      expect(fsp.readFile).not.toHaveBeenCalled()
     })
   })
 

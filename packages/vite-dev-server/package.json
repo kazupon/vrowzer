@@ -130,7 +130,7 @@
     "esbuild": "catalog:",
     "escape-html": "^1.0.3",
     "estree-walker": "^3.0.3",
-    "hono": "^4.7.10",
+    "hono": "^4.12.32",
     "less": "^4.0.0",
     "lightningcss": "^1.30.2",
     "magic-string": "catalog:",

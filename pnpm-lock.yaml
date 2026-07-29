@@ -651,8 +651,8 @@ importers:
         specifier: ^3.0.3
         version: 3.0.3
       hono:
-        specifier: ^4.7.10
-        version: 4.11.4
+        specifier: ^4.12.32
+        version: 4.12.32
       less:
         specifier: ^4.0.0
         version: 4.5.1
@@ -5262,8 +5262,8 @@ packages:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
 
-  hono@4.11.4:
-    resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
+  hono@4.12.32:
+    resolution: {integrity: sha512-XcuyW9qE2kJn07PkecMOBd5Vq/hMy7mmGw+idz1yblbg9N17ijJODrvPkn7/dwL3Kulj8LcRJ69DLOWf91dRUg==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -11596,7 +11596,7 @@ snapshots:
 
   he@1.2.0: {}
 
-  hono@4.11.4: {}
+  hono@4.12.32: {}
 
   hookable@5.5.3: {}
 
