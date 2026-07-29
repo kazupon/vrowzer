@@ -303,7 +303,7 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
     await onHMRUpdate(isUnlink ? 'delete' : 'create', file)
   }
 
-  watcher.on('change', async (file) => {
+  const onFileChange = async (file: string) => {
     debug?.('watcher change:', file)
 
     file = normalizePath(file)
@@ -320,14 +320,18 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
     }
 
     await onHMRUpdate('update', file)
+  }
+
+  watcher.on('change', (file) => {
+    onFileChange(file).catch((e) => server.config.logger.error(e))
   })
 
-  watcher.on('add', async (file) => {
-    onFileAddUnlink(file, false)
+  watcher.on('add', (file) => {
+    onFileAddUnlink(file, false).catch((e) => server.config.logger.error(e))
   })
 
-  watcher.on('unlink', async (file) => {
-    onFileAddUnlink(file, true)
+  watcher.on('unlink', (file) => {
+    onFileAddUnlink(file, true).catch((e) => server.config.logger.error(e))
   })
 }
 
