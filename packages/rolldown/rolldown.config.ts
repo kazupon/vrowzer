@@ -35,9 +35,9 @@ function resolveRolldownDist(): string {
 
 const rolldownDist = resolveRolldownDist()
 
-// IPC buffer size for fs-proxy (default: 16 + 10240 = 10256 bytes ≈ 10KB)
-// Increase to 10MB to handle larger source files in Worker threads
-const FS_PROXY_BUFFER_SIZE = 16 + 10 * 1024 * 1024
+// IPC payload size for fs-proxy (default: 10240 bytes, excluding its 16-byte header).
+// Increase to 10MB to handle larger source files in Worker threads.
+const FS_PROXY_PAYLOAD_SIZE = 10 * 1024 * 1024
 
 // ---------------------------------------------------------------------------
 // Shared plugins
@@ -92,21 +92,26 @@ const useSharedFsSingletonPlugin: Plugin = {
   name: 'use-shared-fs-singleton',
   transform: {
     filter: { id: /rolldown-binding\.wasi-browser\.js$/ },
-    handler(code) {
+    handler(code, id) {
       // Replace: import { memfs } from '@napi-rs/wasm-runtime/fs'
       //          export const { fs: __fs, vol: __volume } = memfs()
       // With:    import { fs as __fs, vol as __volume } from '@vrowzer/fs'
-      let replaced = code.replace(
-        /import\s*\{\s*memfs\s*\}\s*from\s*['"]@napi-rs\/wasm-runtime\/fs['"]/,
-        "import { fs as __fs, vol as __volume } from '@vrowzer/fs'"
-      )
-      replaced = replaced.replace(
-        /export\s+const\s*\{\s*fs:\s*__fs,\s*vol:\s*__volume\s*\}\s*=\s*memfs\(\)/,
-        'export { __fs, __volume }'
-      )
-      if (replaced === code) {
-        return null
+      const memfsImportRE = /import\s*\{\s*memfs\s*\}\s*from\s*['"]@napi-rs\/wasm-runtime\/fs['"]/
+      const memfsInitializationRE =
+        /export\s+const\s*\{\s*fs:\s*__fs,\s*vol:\s*__volume\s*\}\s*=\s*memfs\(\)/
+      const missingPatterns = [
+        !memfsImportRE.test(code) && 'memfs import',
+        !memfsInitializationRE.test(code) && 'memfs initialization'
+      ].filter(Boolean)
+      if (missingPatterns.length > 0) {
+        throw new Error(
+          `[use-shared-fs-singleton] Missing ${missingPatterns.join(' and ')} in ${id}`
+        )
       }
+
+      const replaced = code
+        .replace(memfsImportRE, "import { fs as __fs, vol as __volume } from '@vrowzer/fs'")
+        .replace(memfsInitializationRE, 'export { __fs, __volume }')
       return { code: replaced, moduleType: 'js' }
     }
   }
@@ -156,19 +161,17 @@ const expandFsProxyBufferPlugin: Plugin = {
   name: 'expand-fs-proxy-buffer',
   transform: {
     filter: { id: /fs-proxy\.js$/ },
-    handler(code) {
-      const replaced = code
-        .replace(
-          /new SharedArrayBuffer\(16\s*\+\s*10240\)/g,
-          `new SharedArrayBuffer(${FS_PROXY_BUFFER_SIZE})`
+    handler(code, id) {
+      const responsePayloadSizeRE = /const\s+RESPONSE_PAYLOAD_SIZE\s*=\s*10240\b/
+      if (!responsePayloadSizeRE.test(code)) {
+        throw new Error(
+          `[expand-fs-proxy-buffer] Missing RESPONSE_PAYLOAD_SIZE definition in ${id}`
         )
-        .replace(
-          /new SharedArrayBuffer\(10256\)/g,
-          `new SharedArrayBuffer(${FS_PROXY_BUFFER_SIZE})`
-        )
-      if (replaced === code) {
-        return null
       }
+      const replaced = code.replace(
+        responsePayloadSizeRE,
+        `const RESPONSE_PAYLOAD_SIZE = ${FS_PROXY_PAYLOAD_SIZE}`
+      )
       return { code: replaced, moduleType: 'js' }
     }
   }
@@ -191,19 +194,24 @@ function createRewriteUrlsPlugin(prefix: string): Plugin {
     name: 'rewrite-urls',
     transform: {
       filter: { id: /rolldown-binding\.wasi-browser\.js$/ },
-      handler(code) {
+      handler(code, id) {
+        const workerUrlRE = /new URL\(['"]\.\/wasi-worker-browser\.mjs['"],\s*import\.meta\.url\)/
+        const wasmUrlRE =
+          /new URL\(['"]\.\/rolldown-binding\.wasm32-wasi\.wasm['"],\s*import\.meta\.url\)/
+        const missingPatterns = [
+          !workerUrlRE.test(code) && 'Worker URL',
+          !wasmUrlRE.test(code) && 'WASM URL'
+        ].filter(Boolean)
+        if (missingPatterns.length > 0) {
+          throw new Error(`[rewrite-urls] Missing ${missingPatterns.join(' and ')} in ${id}`)
+        }
+
         const replaced = code
+          .replace(workerUrlRE, `new URL('${prefix}worker.js', '' + import.meta.url)`)
           .replace(
-            /new URL\(['"]\.\/wasi-worker-browser\.mjs['"],\s*import\.meta\.url\)/g,
-            `new URL('${prefix}worker.js', '' + import.meta.url)`
-          )
-          .replace(
-            /new URL\(['"]\.\/rolldown-binding\.wasm32-wasi\.wasm['"],\s*import\.meta\.url\)/g,
+            wasmUrlRE,
             `new URL('${prefix}rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
           )
-        if (replaced === code) {
-          return null
-        }
         return { code: replaced, moduleType: 'js' }
       }
     }
@@ -249,10 +257,10 @@ const postBuildPlugin: Plugin = {
     writeFileSync(
       join(distDir, 'utils.d.ts'),
       [
-        `export { transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'`,
-        `export { parse, parseSync, type ParseResult, type ParserOptions } from '@rolldown/browser/experimental'`,
-        `export { minify, minifySync, type MinifyOptions, type MinifyResult } from '@rolldown/browser/experimental'`,
-        `export { TsconfigCache } from '@rolldown/browser/experimental'`,
+        `export { transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/utils'`,
+        `export { parse, parseSync, type ParseResult, type ParserOptions } from '@rolldown/browser/utils'`,
+        `export { minify, minifySync, type MinifyOptions, type MinifyResult } from '@rolldown/browser/utils'`,
+        `export { TsconfigCache } from '@rolldown/browser/utils'`,
         ``
       ].join('\n')
     )
@@ -277,10 +285,10 @@ const postBuildPlugin: Plugin = {
     writeFileSync(
       join(distDir, 'browser', 'utils.d.ts'),
       [
-        `export { transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/experimental'`,
-        `export { parse, parseSync, type ParseResult, type ParserOptions } from '@rolldown/browser/experimental'`,
-        `export { minify, minifySync, type MinifyOptions, type MinifyResult } from '@rolldown/browser/experimental'`,
-        `export { TsconfigCache } from '@rolldown/browser/experimental'`,
+        `export { transform, transformSync, type TransformOptions, type TransformResult } from '@rolldown/browser/utils'`,
+        `export { parse, parseSync, type ParseResult, type ParserOptions } from '@rolldown/browser/utils'`,
+        `export { minify, minifySync, type MinifyOptions, type MinifyResult } from '@rolldown/browser/utils'`,
+        `export { TsconfigCache } from '@rolldown/browser/utils'`,
         ``
       ].join('\n')
     )
@@ -343,7 +351,7 @@ export default defineConfig([
       index: join(rolldownDist, 'index.browser.mjs'),
       experimental: join(rolldownDist, 'experimental-index.browser.mjs'),
       parseAst: join(rolldownDist, 'parse-ast-index.mjs'),
-      utils: join(__dirname, 'src/utils.ts')
+      utils: join(rolldownDist, 'utils-index.browser.mjs')
     },
     platform: 'browser',
     resolve: commonResolve,
@@ -351,6 +359,7 @@ export default defineConfig([
       redirectCjsBindingToBrowserPlugin,
       useSharedFsSingletonPlugin,
       replaceWasmRuntimeFsExternalPlugin,
+      expandFsProxyBufferPlugin,
       replaceNodeGlobalsPlugin,
       rewriteUrlsPlugin,
       postBuildPlugin
@@ -372,7 +381,7 @@ export default defineConfig([
       index: join(rolldownDist, 'index.browser.mjs'),
       experimental: join(rolldownDist, 'experimental-index.browser.mjs'),
       parseAst: join(rolldownDist, 'parse-ast-index.mjs'),
-      utils: join(__dirname, 'src/utils.ts')
+      utils: join(rolldownDist, 'utils-index.browser.mjs')
     },
     platform: 'browser',
     resolve: bundledResolve,
@@ -380,6 +389,7 @@ export default defineConfig([
       redirectCjsBindingToBrowserPlugin,
       useSharedFsSingletonPlugin,
       replaceWasmRuntimeFsBundledPlugin,
+      expandFsProxyBufferPlugin,
       replaceNodeGlobalsPlugin,
       rewriteUrlsForBrowserPlugin
     ],

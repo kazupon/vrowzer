@@ -33,8 +33,7 @@ export async function buildWithRolldown(
     format: 'es',
     entryFileNames: 'assets/[name]-[hash].js',
     chunkFileNames: 'assets/[name]-[hash].js',
-    // Ensure SW is bundled as standalone (no code-splitting for SW)
-    inlineDynamicImports: false
+    codeSplitting: true
   })
 
   await bundle.close()

@@ -34,7 +34,7 @@ const config: KnipConfig = {
       entry: ['src/**/*.ts', 'fixtures/**']
     },
     'packages/rolldown': {
-      entry: ['src/index.ts', 'src/utils.ts', 'integration/**'],
+      entry: ['src/index.ts', 'integration/**'],
       ignoreDependencies: [
         // Used for bundling via resolve.alias (node polyfills)
         '@vrowzer/node-polyfill',

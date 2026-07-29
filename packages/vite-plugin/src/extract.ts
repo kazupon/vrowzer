@@ -13,7 +13,7 @@
  * @license MIT
  */
 
-import { parseSync } from 'rolldown/experimental'
+import { parseSync } from 'rolldown/utils'
 import { createDebug } from 'obug'
 
 import type {

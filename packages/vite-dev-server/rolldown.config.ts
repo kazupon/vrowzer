@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import MagicString from 'magic-string'
 import type { Plugin } from 'rolldown'
 import { defineConfig } from 'rolldown'
+import rolldownPackage from 'rolldown/package.json' with { type: 'json' }
 import pkg from './package.json' with { type: 'json' }
 // import { init, parse } from 'es-module-lexer'
 // import licensePlugin from './rollupLicensePlugin'
@@ -45,6 +46,7 @@ const sharedNodeOptions = defineConfig({
       'process.env.NODE_ENV': JSON.stringify('development'), // vrowzer always runs in dev mode (resolveConfig uses this for isProduction)
       'process.platform': JSON.stringify('browser'), // for `tinyglobby` polyfill
       '__VROWZER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
+      '__VROWZER_ROLLDOWN_VERSION__': JSON.stringify(rolldownPackage.version),
     }
   },
   treeshake: {
@@ -424,6 +426,34 @@ const transformerConfig = defineConfig({
           if (existsSync(workerSrc)) {
             copyFileSync(workerSrc, path.resolve(dir, 'rolldown-worker.js'))
           }
+        }
+      }
+    },
+    {
+      name: 'validate-rolldown-version',
+      generateBundle(_options, bundle) {
+        const utilsChunk = Object.values(bundle).find(
+          chunk =>
+            chunk.type === 'chunk' &&
+            Object.keys(chunk.modules).some(id =>
+              id.replaceAll('\\', '/').endsWith('/src/node/utils.ts')
+            )
+        )
+        if (!utilsChunk || utilsChunk.type !== 'chunk') {
+          throw new Error('[validate-rolldown-version] Could not find the utils output chunk')
+        }
+
+        const expectedDeclaration =
+          `const rolldownVersion = ${JSON.stringify(rolldownPackage.version)};`
+        if (!utilsChunk.code.includes(expectedDeclaration)) {
+          throw new Error(
+            `[validate-rolldown-version] Expected ${expectedDeclaration} in ${utilsChunk.fileName}`
+          )
+        }
+        if (utilsChunk.code.includes('__VROWZER_ROLLDOWN_VERSION__')) {
+          throw new Error(
+            `[validate-rolldown-version] Unresolved version placeholder in ${utilsChunk.fileName}`
+          )
         }
       }
     }

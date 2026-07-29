@@ -124,6 +124,7 @@ describe('standalone build (./browser)', () => {
     expect(testState.result).not.toBeNull()
     expect(testState.result.code).toContain('add')
     expect(testState.result.code).toContain('console.log')
+    expect(testState.result.version).toBe('1.2.0')
 
     await context.close()
   })
@@ -160,9 +161,11 @@ describe('shared build (./) — memfs instance sharing with @vrowzer/fs', () => 
     // Verify memfs instances are shared
     expect(testState.result.sharedRead).toBe(true)
 
-    // Verify rolldown can bundle files written via @vrowzer/fs
+    // Verify rolldown can bundle files written via @vrowzer/fs, including
+    // source larger than the default 10KB fs-proxy payload.
     expect(testState.result.bundleCode).toContain('add')
     expect(testState.result.bundleCode).toContain('console.log')
+    expect(testState.result.largeSourceBundled).toBe(true)
 
     await context.close()
   })
