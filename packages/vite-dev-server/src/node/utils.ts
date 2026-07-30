@@ -11,7 +11,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { PreviewServer } from './preview'
-import type { ViteDevServer } from './server'
+import type { ServerOptions, ViteDevServer } from './server'
 // import { fileURLToPath } from 'node:url'
 import { createDebug as debug, enable as debugEnable } from 'obug'
 import type { TransformResult } from 'rolldown'
@@ -1350,6 +1350,76 @@ export function hasBothRollupOptionsAndRolldownOptions(
   return false
 }
 
+const wsOptionKeys = [
+  'protocol',
+  'host',
+  'port',
+  'clientPort',
+  'path',
+  'timeout',
+  'server',
+] as const
+
+const hmrWsOptionsDeprecationCall = /* @__PURE__ */ (() => {
+  let logged = false
+  return () => {
+    if (logged) { return }
+    logged = true
+    const method = import.meta.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
+    // NOTE(kazupon): use import.meta.env in browser and Worker environments.
+    // const method = process.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
+    // oxlint-disable-next-line no-console
+    console[method](
+      '`server.hmr.protocol/host/port/path/clientPort/timeout/server` is deprecated. ' +
+      'Use `server.ws.*` instead. Note that this option may be set by a plugin. ' +
+      (method === 'trace'
+        ? 'Showing trace because VITE_DEPRECATION_TRACE is set.'
+        : 'Set VITE_DEPRECATION_TRACE=1 to see where it is called.'),
+    )
+  }
+})()
+
+export function setupHmrWsOptionCompat(
+  serverConfig: Pick<ServerOptions, 'hmr' | 'ws'>,
+): void {
+  if (serverConfig.hmr === false || serverConfig.ws === false) {
+    return
+  }
+  if (serverConfig.hmr === true) {
+    serverConfig.hmr = {}
+  }
+
+  const hmrConfig = serverConfig.hmr
+  const wsConfig = serverConfig.ws ? { ...serverConfig.ws } : {}
+  if (hmrConfig) {
+    for (const key of wsOptionKeys) {
+      if (hmrConfig[key] !== undefined) {
+        // @ts-expect-error same value for same key
+        wsConfig[key] ??= hmrConfig[key]
+      }
+    }
+  }
+  serverConfig.ws = wsConfig
+
+  const hmrProxy = hmrConfig || {}
+  for (const key of wsOptionKeys) {
+    Object.defineProperty(hmrProxy, key, {
+      get() {
+        return (serverConfig.ws as Record<string, unknown>)?.[key]
+      },
+      set(newValue) {
+        hmrWsOptionsDeprecationCall()
+        if (typeof serverConfig.ws === 'object') {
+          ;(serverConfig.ws as Record<string, unknown>)[key] = newValue
+        }
+      },
+      configurable: true,
+      enumerable: true,
+    })
+  }
+  serverConfig.hmr = hmrProxy
+}
+
 function mergeConfigRecursively(
   defaults: Record<string, any>,
   overrides: Record<string, any>,
@@ -1358,6 +1428,18 @@ function mergeConfigRecursively(
   const merged: Record<string, any> = { ...defaults }
   if (rollupOptionsRootPaths.has(rootPath)) {
     setupRollupOptionCompat(merged, rootPath)
+  }
+  if (rootPath === 'server') {
+    setupHmrWsOptionCompat(merged)
+  }
+  if (rootPath === 'server.hmr') {
+    for (const key of wsOptionKeys) {
+      Object.defineProperty(
+        merged,
+        key,
+        Object.getOwnPropertyDescriptor(defaults, key)!,
+      )
+    }
   }
 
   for (const key in overrides) {
@@ -1400,7 +1482,10 @@ function mergeConfigRecursively(
         ...backwardCompatibleWorkerPlugins(value),
       ]
       continue
-    } else if (key === 'server' && rootPath === 'server.hmr') {
+    } else if (
+      key === 'server' &&
+      (rootPath === 'server.hmr' || rootPath === 'server.ws')
+    ) {
       merged[key] = value
       continue
     }

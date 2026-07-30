@@ -42,10 +42,11 @@ import {
   isInNodeModules,
   isParentDirectory,
   mergeWithDefaults,
-  normalizePath
+  normalizePath,
+  setupHmrWsOptionCompat,
 } from '../utils'
 import type { DevEnvironment } from './environment'
-import type { HmrOptions, NormalizedHotChannel } from './hmr'
+import type { HmrOptions, NormalizedHotChannel, WsOptions } from './hmr'
 import { baseMiddleware } from './middlewares/base'
 import { errorMiddleware } from './middlewares/error'
 import { htmlFallbackMiddleware } from './middlewares/htmlFallback'
@@ -79,10 +80,12 @@ export interface ServerOptions extends CommonServerOptions {
    */
   hmr?: HmrOptions | boolean
   /**
-   * Do not start the websocket connection.
-   * @experimental
+   * Configure MessageChannel connection options.
+   * Set to `false` to disable the MessageChannel server and connection.
+   *
+   * WebSocket-specific address options are retained for Vite config compatibility.
    */
-  ws?: false
+  ws?: WsOptions | false
   /**
    * Warm-up files to transform and cache the results in advance. This improves the
    * initial page load during server starts and prevents transform waterfalls.
@@ -1162,6 +1165,8 @@ export function resolveServerOptions(
     },
     raw ?? {},
   )
+
+  setupHmrWsOptionCompat(_server)
 
   const server: ResolvedServerOptions = {
     ..._server,

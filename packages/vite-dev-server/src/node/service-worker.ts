@@ -56,7 +56,7 @@ import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
 import type { MinimalPluginContextWithoutEnvironment } from './plugin'
 import type { DevEnvironment } from './server/environment'
-import type { HmrOptions } from './server/hmr'
+import type { HmrOptions, WsOptions } from './server/hmr'
 import type { ViteDevServer } from './server/index'
 import type { ShortcutsState } from './shortcuts'
 import type { RequiredExceptFor } from './typeUtils'
@@ -69,10 +69,12 @@ export interface ServerOptions extends CommonServerOptions {
    */
   hmr?: HmrOptions | boolean
   /**
-   * Do not start the websocket connection.
-   * @experimental
+   * Configure MessageChannel connection options.
+   * Set to `false` to disable the MessageChannel server and connection.
+   *
+   * WebSocket-specific address options are retained for Vite config compatibility.
    */
-  ws?: false
+  ws?: WsOptions | false
   /**
    * Warm-up files to transform and cache the results in advance. This improves the
    * initial page load during server starts and prevents transform waterfalls.
@@ -800,7 +802,8 @@ export type {
   NormalizedHotChannelClient,
   NormalizedServerHotChannel,
   ServerHotChannel,
-  ServerHotChannelApi
+  ServerHotChannelApi,
+  WsOptions
 } from './server/hmr'
 
 // === MessageChannel HMR server ===

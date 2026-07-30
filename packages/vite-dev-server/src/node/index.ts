@@ -47,6 +47,8 @@ export type {
   HotPayload, PrunePayload, Update, UpdatePayload
 } from '#types/hmrPayload'
 
+export type { HmrOptions, WsOptions } from './server/hmr'
+
 // TODO: fill in later ...
 
 export type {

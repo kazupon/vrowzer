@@ -512,7 +512,8 @@ export type {
   HmrContext, HmrOptions, HotChannel,
   HotChannelClient,
   HotChannelListener, HotUpdateOptions, NormalizedHotChannel,
-  NormalizedHotChannelClient, NormalizedServerHotChannel, ServerHotChannel, ServerHotChannelApi
+  NormalizedHotChannelClient, NormalizedServerHotChannel, ServerHotChannel, ServerHotChannelApi,
+  WsOptions
 } from './server/hmr'
 
 // === MessageChannel HMR server ===
