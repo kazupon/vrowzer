@@ -147,6 +147,10 @@ function isBareRelative(url: string) {
   return wordCharRE.test(url[0]) && !url.includes(':')
 }
 
+function getHtmlDirnameForRelativeUrl(htmlPath: string): string {
+  return htmlPath.endsWith('/') ? htmlPath : path.posix.dirname(htmlPath)
+}
+
 const processNodeUrl = (
   url: string,
   useSrcSetReplacer: boolean,
@@ -184,7 +188,7 @@ const processNodeUrl = (
       } else if (url[0] === '.' || isBareRelative(url)) {
         preTransformUrl = path.posix.join(
           config.base,
-          path.posix.dirname(htmlPath),
+          getHtmlDirnameForRelativeUrl(htmlPath),
           url,
         )
       }

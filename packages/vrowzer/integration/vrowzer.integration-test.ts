@@ -474,4 +474,60 @@ if (import.meta.hot) {
       expect(JSON.stringify(responseMap)).not.toContain(externalMapCanary)
     })
   })
+
+  describe('trailing slash HTML paths', () => {
+    test('pre-transforms relative modules from the trailing slash directory', async () => {
+      await addPreviewFiles({
+        '/trailing-slash-test.js': `
+import warmupUrls from 'virtual:vrowzer-test-trailing-slash'
+globalThis.__vrowzerTrailingSlashWarmupUrls = warmupUrls
+`,
+        '/trailing-slash/dir/filename.js': 'export const filename = true',
+        '/trailing-slash/other.js': 'export const other = true'
+      })
+
+      await waitForPreviewBodyContaining(
+        '/trailing-slash/dir/filename.js?import',
+        'filename = true'
+      )
+      await waitForPreviewBodyContaining('/trailing-slash/other.js?import', 'other = true')
+
+      await page.evaluate(() => {
+        const iframe = document.querySelector(
+          '#preview-container iframe'
+        ) as HTMLIFrameElement | null
+        const iframeDocument = iframe?.contentDocument
+        if (!iframeDocument) {
+          throw new Error('Preview iframe is not available')
+        }
+
+        const script = iframeDocument.createElement('script')
+        script.type = 'module'
+        script.src = '/__preview__/trailing-slash-test.js'
+        iframeDocument.head.append(script)
+      })
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const iframe = document.querySelector(
+                '#preview-container iframe'
+              ) as HTMLIFrameElement | null
+              return (iframe?.contentWindow as any)?.__vrowzerTrailingSlashWarmupUrls
+            }),
+          { timeout: 15_000 }
+        )
+        .toBeTruthy()
+
+      const warmupUrls = await page.evaluate(() => {
+        const iframe = document.querySelector(
+          '#preview-container iframe'
+        ) as HTMLIFrameElement | null
+        return (iframe?.contentWindow as any)?.__vrowzerTrailingSlashWarmupUrls
+      })
+
+      expect(warmupUrls).toEqual(['/trailing-slash/dir/filename.js', '/trailing-slash/other.js'])
+    })
+  })
 })
