@@ -855,7 +855,7 @@ async function prepareRolldownOptimizerRun(
       legalComments: 'none',
       ...rolldownOptions.output,
       format: 'esm',
-      sourcemap: true,
+      sourcemap: 'hidden',
       dir: processingCacheDir,
       entryFileNames: '[name].js',
     })
