@@ -40,10 +40,11 @@ export async function resolvePlugins(
     // Using dynamic import() guarded by __VROWZER_SERVICE_WORKER__ build-time constant
     // enables rolldown DCE(Dead Code Elimination) to eliminate these plugins and their heavy dependencies
     // (postcss, oxc-parser, es-module-lexer, etc.) from the Service Worker bundle.
-    const [preAliasMod, aliasMod, resolveMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod] = await Promise.all([
+    const [preAliasMod, aliasMod, resolveMod, htmlMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod] = await Promise.all([
       import('./preAlias'),
       import('@rollup/plugin-alias'),
       import('./resolve'),
+      import('./html'),
       import('./css'),
       import('./oxc'),
       import('./json'),
@@ -54,6 +55,7 @@ export async function resolvePlugins(
     const preAliasPlugin = preAliasMod.preAliasPlugin
     const aliasPlugin = aliasMod.default
     const resolvePlugin = resolveMod.resolvePlugin
+    const htmlInlineProxyPlugin = htmlMod.htmlInlineProxyPlugin
     const cssPlugin = cssMod.cssPlugin
     const cssPostPlugin = cssMod.cssPostPlugin
     const cssAnalysisPlugin = cssMod.cssAnalysisPlugin
@@ -84,7 +86,7 @@ export async function resolvePlugins(
         optimizeDeps: true,
         externalize: true,
       }),
-      // htmlInlineProxyPlugin(config),
+      htmlInlineProxyPlugin(config),
       cssPlugin(config),
       // esbuildBannerFooterCompatPlugin(config),
       config.oxc !== false && oxcPlugin(config),

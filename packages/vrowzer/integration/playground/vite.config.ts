@@ -65,9 +65,70 @@ function trailingSlashWebWorkerPlugin(): Plugin {
   }
 }
 
+function fsHtmlProxyWebWorkerPlugin(): Plugin {
+  const virtualId = 'virtual:vrowzer-test-fs-html-proxy'
+  const resolvedVirtualId = `\0${virtualId}`
+  const inlineModuleHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>HTML proxy</title>
+  </head>
+  <body>
+    <script type="module">
+      export const marker = 'inline proxy loaded'
+    </script>
+  </body>
+</html>`
+  const htmlPaths = {
+    fsPath: '/@fs/fs-html-proxy/fs.html',
+    rootPath: '/fs-html-proxy/root.html'
+  }
+  let runtimeServer: ViteDevServer | undefined
+
+  return {
+    name: 'vrowzer-test:fs-html-proxy-web-worker',
+    apply: 'serve',
+    configureServer(server) {
+      const middlewares = (server as { middlewares?: unknown }).middlewares
+      if (server.config.root !== '/' || middlewares) {
+        return
+      }
+
+      runtimeServer = server
+    },
+    resolveId(id) {
+      if (id === virtualId) {
+        return resolvedVirtualId
+      }
+    },
+    async load(id) {
+      if (id !== resolvedVirtualId) {
+        return
+      }
+      if (!runtimeServer) {
+        throw new Error('Web Worker dev server is not available')
+      }
+
+      const proxyUrls: Record<string, string> = {}
+      for (const [name, htmlPath] of Object.entries(htmlPaths)) {
+        const transformed = await runtimeServer.transformIndexHtml(htmlPath, inlineModuleHtml)
+        const proxyUrl = transformed.match(/src="([^"]*html-proxy[^"]*)"/)?.[1]
+        if (!proxyUrl) {
+          throw new Error(`HTML proxy URL was not generated for ${htmlPath}`)
+        }
+        proxyUrls[name] = proxyUrl
+      }
+
+      return `export default ${JSON.stringify(proxyUrls)}`
+    }
+  }
+}
+
 export default defineConfig({
   plugins: [
     trailingSlashWebWorkerPlugin(),
+    fsHtmlProxyWebWorkerPlugin(),
     Vrowzer({
       auto: false,
       basePath: '/__preview__/',

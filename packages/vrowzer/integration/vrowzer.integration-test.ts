@@ -530,4 +530,85 @@ globalThis.__vrowzerTrailingSlashWarmupUrls = warmupUrls
       expect(warmupUrls).toEqual(['/trailing-slash/dir/filename.js', '/trailing-slash/other.js'])
     })
   })
+
+  describe('/@fs/ HTML proxy cache', () => {
+    test('loads inline modules from /@fs/ and root HTML paths', async () => {
+      const inlineModuleHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>HTML proxy</title>
+  </head>
+  <body>
+    <script type="module">
+      export const marker = 'inline proxy loaded'
+    </script>
+  </body>
+</html>`
+
+      await addPreviewFiles({
+        '/fs-html-proxy-test.js': `
+import proxyUrls from 'virtual:vrowzer-test-fs-html-proxy'
+
+const results = {}
+for (const [name, url] of Object.entries(proxyUrls)) {
+  try {
+    const module = await import(/* @vite-ignore */ url)
+    results[name] = { marker: module.marker }
+  } catch (error) {
+    results[name] = {
+      error: error instanceof Error ? error.message : String(error)
+    }
+  }
+}
+globalThis.__vrowzerFsHtmlProxyResults = results
+`,
+        '/fs-html-proxy/fs.html': inlineModuleHtml,
+        '/fs-html-proxy/root.html': inlineModuleHtml,
+        '/fs-html-proxy/sentinel.js': 'export const sentinel = true'
+      })
+
+      await waitForPreviewBodyContaining('/fs-html-proxy/sentinel.js?import', 'sentinel = true')
+
+      await page.evaluate(() => {
+        const iframe = document.querySelector(
+          '#preview-container iframe'
+        ) as HTMLIFrameElement | null
+        const iframeDocument = iframe?.contentDocument
+        if (!iframeDocument) {
+          throw new Error('Preview iframe is not available')
+        }
+
+        const script = iframeDocument.createElement('script')
+        script.type = 'module'
+        script.src = '/__preview__/fs-html-proxy-test.js'
+        iframeDocument.head.append(script)
+      })
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const iframe = document.querySelector(
+                '#preview-container iframe'
+              ) as HTMLIFrameElement | null
+              return (iframe?.contentWindow as any)?.__vrowzerFsHtmlProxyResults
+            }),
+          { timeout: 15_000 }
+        )
+        .toBeTruthy()
+
+      const results = await page.evaluate(() => {
+        const iframe = document.querySelector(
+          '#preview-container iframe'
+        ) as HTMLIFrameElement | null
+        return (iframe?.contentWindow as any)?.__vrowzerFsHtmlProxyResults
+      })
+
+      expect(results).toEqual({
+        fsPath: { marker: 'inline proxy loaded' },
+        rootPath: { marker: 'inline proxy loaded' }
+      })
+    })
+  })
 })
