@@ -125,10 +125,52 @@ function fsHtmlProxyWebWorkerPlugin(): Plugin {
   }
 }
 
+function postcssOnceExitWebWorkerPlugin(): Plugin {
+  return {
+    name: 'vrowzer-test:postcss-once-exit-web-worker',
+    apply: 'serve',
+    config() {
+      return {
+        resolve: {
+          alias: [
+            {
+              find: './injected-bg.png',
+              replacement: '/postcss-once-exit/injected-source/injected-bg.png'
+            }
+          ]
+        },
+        css: {
+          postcss: {
+            plugins: [
+              {
+                postcssPlugin: 'vrowzer-test:inject-url-once-exit',
+                OnceExit(root, { postcss }) {
+                  root.walkAtRules('inject-url-once-exit', atRule => {
+                    atRule.remove()
+                    root.prepend(
+                      postcss.parse(
+                        '.inject-url-once-exit { background-image: url(./injected-bg.png) }',
+                        {
+                          from: '/postcss-once-exit/injected-source/injected.css'
+                        }
+                      )
+                    )
+                  })
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+
 export default defineConfig({
   plugins: [
     trailingSlashWebWorkerPlugin(),
     fsHtmlProxyWebWorkerPlugin(),
+    postcssOnceExitWebWorkerPlugin(),
     Vrowzer({
       auto: false,
       basePath: '/__preview__/',

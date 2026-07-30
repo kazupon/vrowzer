@@ -611,4 +611,23 @@ globalThis.__vrowzerFsHtmlProxyResults = results
       })
     })
   })
+
+  describe('PostCSS URL rewriting', () => {
+    test('rewrites URLs injected by a OnceExit plugin', async () => {
+      await addPreviewFiles({
+        '/postcss-once-exit/entry.css': '@inject-url-once-exit;',
+        '/postcss-once-exit/injected-source/injected.css': '',
+        '/postcss-once-exit/injected-source/injected-bg.png': 'injected background',
+        '/postcss-once-exit/sentinel.js': 'export const sentinel = true'
+      })
+
+      await waitForPreviewBodyContaining('/postcss-once-exit/sentinel.js?import', 'sentinel = true')
+
+      const response = await waitForPreviewResponse('/postcss-once-exit/entry.css?direct', 200)
+
+      expect(response.body).toContain('.inject-url-once-exit')
+      expect(response.body).toContain('/postcss-once-exit/injected-source/injected-bg.png')
+      expect(response.body).not.toContain('url(./injected-bg.png)')
+    })
+  })
 })
