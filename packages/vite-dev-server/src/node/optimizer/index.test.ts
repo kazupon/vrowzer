@@ -1,0 +1,141 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import type { ResolvedConfig } from '../config'
+import type { Environment } from '../environment'
+import type { OptimizedDepInfo } from './index'
+
+type FakeRolldownOutput = {
+  output: []
+}
+
+const rolldownMocks = vi.hoisted(() => ({
+  close: vi.fn<() => Promise<void>>(),
+  rolldown: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  write: vi.fn<(...args: unknown[]) => Promise<FakeRolldownOutput>>(),
+}))
+
+vi.mock('@vrowzer/rolldown', () => ({
+  rolldown: rolldownMocks.rolldown,
+}))
+
+vi.mock('../plugins/oxc', () => ({
+  transformWithOxc: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+}))
+
+vi.mock('./rolldownDepPlugin', () => ({
+  rolldownCjsExternalPlugin: vi.fn<(...args: unknown[]) => unknown>(),
+  rolldownDepPlugin: vi.fn<(...args: unknown[]) => []>(() => []),
+}))
+
+vi.mock('./scan', () => ({
+  ScanEnvironment: class {},
+  scanImports: vi.fn<(...args: unknown[]) => unknown>(),
+}))
+
+vi.mock('./resolve', () => ({
+  createOptimizeDepsIncludeResolver:
+    vi.fn<(...args: unknown[]) => unknown>(),
+  expandGlobIds: vi.fn<(...args: unknown[]) => string[]>(() => []),
+}))
+
+import { runOptimizeDeps } from './index'
+
+let root: string
+
+function createEnvironment(): Environment {
+  const config = {
+    assetsInclude: () => false,
+    cacheDir: path.join(root, 'node_modules/.vite'),
+    consumer: 'client',
+    createResolver: () => async () => undefined,
+    isProduction: false,
+    keepProcessEnv: false,
+    mode: 'development',
+    optimizeDeps: {
+      exclude: [],
+      extensions: [],
+      rolldownOptions: {},
+    },
+    optimizeDepsPluginNames: [],
+    plugins: [],
+    resolve: {
+      builtins: [],
+    },
+    root,
+    ssr: {
+      target: 'webworker',
+    },
+  } as unknown as ResolvedConfig
+
+  return {
+    config,
+    getTopLevelConfig: () => config,
+    name: 'client',
+  } as unknown as Environment
+}
+
+function createDepsInfo(): Record<string, OptimizedDepInfo> {
+  const id = 'example'
+  return {
+    [id]: {
+      browserHash: 'browser-hash',
+      exportsData: Promise.resolve({
+        exports: ['value'],
+        hasModuleSyntax: true,
+      }),
+      file: path.join(root, 'node_modules/.vite/deps/example.js'),
+      id,
+      src: path.join(root, 'example.js'),
+    },
+  }
+}
+
+beforeEach(() => {
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'vrowzer-optimizer-'))
+  rolldownMocks.close.mockReset()
+  rolldownMocks.rolldown.mockReset()
+  rolldownMocks.write.mockReset()
+  rolldownMocks.close.mockResolvedValue()
+  rolldownMocks.rolldown.mockResolvedValue({
+    close: rolldownMocks.close,
+    write: rolldownMocks.write,
+  })
+})
+
+afterEach(() => {
+  fs.rmSync(root, { force: true, recursive: true })
+})
+
+describe('runOptimizeDeps bundle lifecycle', () => {
+  it('closes the bundle after a successful write', async () => {
+    rolldownMocks.write.mockResolvedValue({ output: [] })
+
+    const result = await runOptimizeDeps(
+      createEnvironment(),
+      createDepsInfo(),
+    ).result
+
+    expect(rolldownMocks.write).toHaveBeenCalledOnce()
+    expect(rolldownMocks.close).toHaveBeenCalledOnce()
+    expect(rolldownMocks.write.mock.invocationCallOrder[0]).toBeLessThan(
+      rolldownMocks.close.mock.invocationCallOrder[0],
+    )
+    result.cancel()
+  })
+
+  it('closes the bundle when write rejects', async () => {
+    rolldownMocks.write.mockRejectedValue(new Error('write failed'))
+
+    await expect(
+      runOptimizeDeps(createEnvironment(), createDepsInfo()).result,
+    ).rejects.toThrow('Error during dependency optimization:\n\nwrite failed')
+
+    expect(rolldownMocks.write).toHaveBeenCalledOnce()
+    expect(rolldownMocks.close).toHaveBeenCalledOnce()
+    expect(rolldownMocks.write.mock.invocationCallOrder[0]).toBeLessThan(
+      rolldownMocks.close.mock.invocationCallOrder[0],
+    )
+  })
+})
