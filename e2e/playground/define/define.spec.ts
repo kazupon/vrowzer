@@ -193,18 +193,19 @@ describe('define', () => {
     const marker = 'vrowzer-forward-console value=42'
     const startIndex = browserLogs.length
 
-    await page.evaluate(() => {
-      const iframe = document.querySelector('iframe') as HTMLIFrameElement
-      iframe.contentWindow!.console.error('vrowzer-forward-console value=%d', 42)
-    })
-
     await expect
       .poll(
-        () =>
-          browserLogs
+        async () => {
+          await page.evaluate(() => {
+            const iframe = document.querySelector('iframe') as HTMLIFrameElement
+            iframe.contentWindow!.console.error('vrowzer-forward-console value=%d', 42)
+          })
+
+          return browserLogs
             .slice(startIndex)
             .map(stripVTControlCharacters)
-            .some(log => log.includes(`[console.error] ${marker}`)),
+            .some(log => log.includes(`[console.error] ${marker}`))
+        },
         { timeout: 10000 }
       )
       .toBe(true)
