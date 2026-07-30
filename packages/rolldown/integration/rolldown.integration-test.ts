@@ -224,4 +224,28 @@ describe('utils build (./utils) — transformSync, parseSync, minifySync in brow
 
     await context.close()
   })
+
+  test('transformSync respects custom JSX options without loading tsconfig', async () => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+
+    if (E2E_DEBUG) {
+      page.on('console', msg => debug('[CONSOLE]', msg.type(), msg.text()))
+      page.on('pageerror', err => debug('[PAGE_ERROR]', err.message))
+    }
+
+    await page.goto(server.url)
+    const testState = await waitForTestState(page)
+
+    expect(testState.status).toBe('success')
+    expect(testState.error).toBeNull()
+    expect(testState.result).not.toBeNull()
+    expect(testState.result.jsxNoErrors).toBe(true)
+    expect(testState.result.jsxUsesVueRuntime).toBe(true)
+    expect(testState.result.jsxAvoidsReactRuntime).toBe(true)
+    expect(testState.result.jsxKeepsGlob).toBe(true)
+    expect(testState.result.jsxOutput).toContain('vue/jsx-dev-runtime')
+
+    await context.close()
+  })
 })

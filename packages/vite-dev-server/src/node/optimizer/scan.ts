@@ -5,6 +5,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import colors from 'picocolors'
 import type { PartialResolvedId, Plugin } from 'rolldown'
+import type { TransformOptions as OxcTransformOptions } from 'rolldown/utils'
 import { transformSync } from '@vrowzer/rolldown/utils'
 import { glob } from 'tinyglobby'
 import { cleanUrl } from '../../shared/utils'
@@ -262,10 +263,6 @@ async function prepareRolldownScanner(
   const { plugins: pluginsFromConfig = [], ...rolldownOptions } =
     environment.config.optimizeDeps.rolldownOptions ?? {}
 
-  const plugins = await asyncFlatten(arraify(pluginsFromConfig))
-
-  plugins.push(...rolldownScanPlugin(environment, deps, missing, entries))
-
   const transformOptions = deepClone(rolldownOptions.transform) ?? {}
   if (transformOptions.jsx === undefined) {
     transformOptions.jsx = {}
@@ -278,6 +275,19 @@ async function prepareRolldownScanner(
   if (typeof transformOptions.jsx === 'object') {
     transformOptions.jsx.development ??= !environment.config.isProduction
   }
+  const transformSyncJsxOptions: OxcTransformOptions['jsx'] =
+    transformOptions.jsx === false ? undefined : transformOptions.jsx
+
+  const plugins = await asyncFlatten(arraify(pluginsFromConfig))
+  plugins.push(
+    ...rolldownScanPlugin(
+      environment,
+      deps,
+      missing,
+      entries,
+      transformSyncJsxOptions,
+    ),
+  )
 
   async function build() {
     // TODO(kazupon): disable now, because vite optimize complexity is high, via use web worker
@@ -355,6 +365,7 @@ function rolldownScanPlugin(
   depImports: Record<string, string>,
   missing: Record<string, string>,
   entries: string[],
+  jsxOptions: OxcTransformOptions['jsx'],
 ): Plugin[] {
   const seen = new Map<string, string | undefined>()
   async function resolveId(
@@ -408,7 +419,11 @@ function rolldownScanPlugin(
     let transpiledContents: string
     // transpile because `transformGlobImport` only expects js
     if (loader !== 'js') {
-      const result = transformSync(id, contents, { lang: loader })
+      const result = transformSync(id, contents, {
+        ...(jsxOptions !== undefined ? { jsx: jsxOptions } : {}),
+        lang: loader,
+        tsconfig: false,
+      })
       if (result.errors.length > 0) {
         throw new AggregateError(result.errors, 'oxc transform error')
       }
