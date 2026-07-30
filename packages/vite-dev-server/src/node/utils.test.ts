@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { describe, expect, it, vi } from 'vite-plus/test'
 import {
   flattenId,
+  getFileStartIndex,
   getHash,
   mergeConfig,
   setupHmrWsOptionCompat,
@@ -47,6 +48,20 @@ describe('flattenId', () => {
 
     expect(result).not.toContain('+')
     expect(result).toBe('ravelinjs_core_____track_____encrypt_____promise')
+  })
+})
+
+describe('getFileStartIndex', () => {
+  it('returns zero without a hashbang', () => {
+    expect(getFileStartIndex('console.log("hello")\n')).toBe(0)
+  })
+
+  it('returns the first index after a hashbang', () => {
+    const hashbang = '#!/usr/bin/env node\n'
+
+    expect(getFileStartIndex(`${hashbang}console.log("hello")\n`)).toBe(
+      hashbang.length,
+    )
   })
 })
 
