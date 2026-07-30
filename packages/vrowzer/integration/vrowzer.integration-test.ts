@@ -475,6 +475,24 @@ if (import.meta.hot) {
     })
   })
 
+  describe('?raw sourcemaps', () => {
+    test('does not inject a fallback sourcemap', async () => {
+      const rawContent = ['first line', 'second line', 'third line', ''].join('\n')
+
+      await addPreviewFiles({
+        '/raw-sourcemap/content.txt': rawContent
+      })
+
+      const response = await waitForPreviewBodyContaining(
+        '/raw-sourcemap/content.txt?raw&import',
+        `export default ${JSON.stringify(rawContent)}`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.body).not.toContain('sourceMappingURL=data:application/json;base64,')
+    })
+  })
+
   describe('trailing slash HTML paths', () => {
     test('pre-transforms relative modules from the trailing slash directory', async () => {
       await addPreviewFiles({
