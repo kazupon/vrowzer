@@ -546,6 +546,7 @@ export {
 
 // === Config ===
 export { defineConfig, resolveConfig } from './config'
+export type { HtmlAssetSource } from './assetSource'
 export type {
   DevEnvironmentOptions, EnvironmentOptions, InlineConfig, ResolvedConfig, ResolvedDevEnvironmentOptions, ResolvedEnvironmentOptions
 } from './config'

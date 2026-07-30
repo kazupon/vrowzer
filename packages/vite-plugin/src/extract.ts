@@ -305,7 +305,7 @@ export function extractWorkerConfig(
  * Config properties that should be forwarded to Worker config.
  * These are extracted as raw source code from the config object.
  */
-const FORWARDED_PROPERTIES = ['define']
+const FORWARDED_PROPERTIES = ['define', 'html']
 
 function extractForwardedProperties(
   source: string,

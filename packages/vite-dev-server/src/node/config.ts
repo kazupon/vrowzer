@@ -17,6 +17,7 @@ import colors from 'picocolors'
 import picomatch from 'picomatch'
 import type { NormalizedOutputOptions, PluginContextMeta, RolldownOptions } from 'rolldown'
 import type { AnymatchFn } from '../types/anymatch'
+import type { HtmlAssetSource } from './assetSource'
 import { PartialEnvironment } from './baseEnvironment'
 import type {
   BuildEnvironmentOptions,
@@ -528,6 +529,23 @@ export interface HTMLOptions {
    * Make sure that this placeholder will be replaced with a unique value for each request by the server.
    */
   cspNonce?: string
+  /**
+   * Define additional HTML elements and attributes to be treated as asset sources.
+   * This extends the built-in list that includes standard elements like `<img src>`, `<video src>`, etc.
+   *
+   * @example
+   * ```ts
+   * html: {
+   *   additionalAssetSources: {
+   *     // Custom web component
+   *     'html-import': { srcAttributes: ['src'] },
+   *     // Add data-* attributes to existing element
+   *     'img': { srcAttributes: ['data-src-dark', 'data-src-light'] }
+   *   }
+   * }
+   * ```
+   */
+  additionalAssetSources?: Record<string, HtmlAssetSource>
 }
 
 export interface FutureOptions {

@@ -28,6 +28,7 @@ export type {
   UserConfigFnObject,
   UserConfigFnPromise
 } from './config'
+export type { HtmlAssetSource } from './assetSource'
 
 export type {
   DepOptimizationConfig, DepOptimizationMetadata,

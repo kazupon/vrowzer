@@ -162,6 +162,32 @@ describe('define', () => {
     expect(texts['.optional-env']).toBe(JSON.parse(defines['process.env.SOMEVAR']))
   })
 
+  test('rewrites configured HTML asset sources selected by the filter', async () => {
+    const result = await page.waitForFunction(() => {
+      const iframe = document.querySelector('iframe') as HTMLIFrameElement
+      const doc = iframe?.contentDocument
+      if (doc?.body?.dataset?.testComplete !== 'true') {
+        return
+      }
+
+      const rewritten = doc.querySelector('#rewritten-custom-asset')
+      const untouched = doc.querySelector('#untouched-custom-asset')
+      if (!rewritten || !untouched) {
+        return
+      }
+
+      return {
+        rewritten: rewritten.getAttribute('data-src'),
+        untouched: untouched.getAttribute('data-src')
+      }
+    })
+
+    expect(await result.jsonValue()).toEqual({
+      rewritten: '/__preview__/data.json',
+      untouched: '/data.json'
+    })
+  })
+
   // Skipped: Requires testEnvQueryParamsPlugin which replaces __VITE_ENV_WITH_QUERY__
   // with '/@vite/env?foo' at build time. In vrowzer, this plugin is not available because
   // it's a host-side transform that doesn't apply to the preview iframe content.

@@ -221,6 +221,31 @@ export default defineConfig({
     expect(result.code).not.toContain('4173')
   })
 
+  test('forwards inline html additional asset sources', () => {
+    const source = `
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [],
+  html: {
+    additionalAssetSources: {
+      'my-asset': {
+        srcAttributes: ['data-src'],
+        filter: ({ attributes }) => attributes.kind === 'image'
+      }
+    }
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts')
+
+    expect(result.unsupported).toEqual([])
+    expect(result.code).toContain('html: {')
+    expect(result.code).toContain('additionalAssetSources')
+    expect(result.code).toContain("srcAttributes: ['data-src']")
+    expect(result.code).toContain("filter: ({ attributes }) => attributes.kind === 'image'")
+  })
+
   test('handles multiple plugins with mixed imports', () => {
     const source = `
 import vue from '@vitejs/plugin-vue'

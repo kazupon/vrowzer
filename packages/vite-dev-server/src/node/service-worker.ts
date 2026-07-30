@@ -766,6 +766,7 @@ export { getRequestPath } from './server/middlewares/utils'
 
 // === Config ===
 export { defineConfig, resolveConfig, sortUserPlugins } from './config'
+export type { HtmlAssetSource } from './assetSource'
 export type {
   AppType,
   ConfigEnv,
