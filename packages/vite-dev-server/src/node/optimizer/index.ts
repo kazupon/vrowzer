@@ -789,7 +789,7 @@ async function prepareRolldownOptimizerRun(
         jsxLoader = true
       }
       const flatId = flattenId(id)
-      flatIdDeps[flatId] = src
+      flatIdDeps[flatId] = isWindows ? src.replaceAll('/', '\\') : src
       idToExports[id] = exportsData
     }),
   )
