@@ -36,6 +36,15 @@ type LoadHandler = (
   id: string,
 ) => LoadResult | Promise<LoadResult>
 
+type TransformHook = {
+  filter: { code: RegExp }
+  handler: (
+    this: PluginContext,
+    code: string,
+    id: string,
+  ) => unknown | Promise<unknown>
+}
+
 const context = {} as PluginContext
 
 function getResolveIdHandler(plugin: Plugin): ResolveIdHandler {
@@ -52,6 +61,17 @@ function getLoadHandler(plugin: Plugin): LoadHandler {
     throw new Error(`Plugin "${plugin.name}" has no load hook`)
   }
   return typeof hook === 'function' ? hook : hook.handler
+}
+
+function getTransformHook(plugin: Plugin): TransformHook {
+  const hook = plugin.transform
+  if (!hook || typeof hook === 'function') {
+    throw new Error(`Plugin "${plugin.name}" has no object transform hook`)
+  }
+  if (!(hook.filter?.code instanceof RegExp)) {
+    throw new Error(`Plugin "${plugin.name}" has no RegExp code filter`)
+  }
+  return hook as TransformHook
 }
 
 function createPlugins(resolved: string) {
@@ -134,5 +154,37 @@ describe('rolldownDepPlugin asset entrypoints', () => {
       id: resolved,
       external: 'absolute',
     })
+  })
+})
+
+describe('rolldownDepPlugin asset URL transform filter', () => {
+  const resolved = '/project/node_modules/pkg/index.js'
+  const id = '/project/node_modules/pkg/index.js'
+
+  test('does not match unrelated new URL and import.meta.url expressions', () => {
+    const { depPlugin } = createPlugins(resolved)
+    const { filter } = getTransformHook(depPlugin)
+    const largeCode =
+      `new URL('https://example.com');\n`.repeat(200) +
+      `var a = 1;\n`.repeat(200_000) +
+      `console.log(import.meta.url);\n`
+
+    filter.code.lastIndex = 0
+    expect(filter.code.test(largeCode)).toBe(false)
+  })
+
+  test('matches and transforms a valid asset URL with a fresh regex', async () => {
+    const { depPlugin } = createPlugins(resolved)
+    const transform = getTransformHook(depPlugin)
+    const code = `const asset = new URL('./asset.png', import.meta.url)`
+
+    transform.filter.code.lastIndex = 0
+    expect(transform.filter.code.test(code)).toBe(true)
+    expect(transform.filter.code.lastIndex).toBeGreaterThan(0)
+
+    expect(await transform.handler.call(context, code, id)).toMatchObject({
+      code: `const asset = new URL('' + "../../pkg/asset.png", import.meta.url)`,
+    })
+    transform.filter.code.lastIndex = 0
   })
 })

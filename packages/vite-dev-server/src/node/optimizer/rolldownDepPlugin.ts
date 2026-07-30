@@ -25,6 +25,9 @@ import { createBackCompatIdResolver } from '../idResolver'
 import { isWindows } from '../../shared/utils'
 import { hasViteIgnoreRE } from '../plugins/importAnalysis'
 
+const assetImportMetaUrlRE: RegExp =
+  /\bnew\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*(?:,\s*)?\)/dg
+
 const externalWithConversionNamespace =
   'vite:dep-pre-bundle:external-conversion'
 const convertedExternalPrefix = 'vite-dep-pre-bundle-external:'
@@ -316,16 +319,15 @@ export function rolldownDepPlugin(
       },
       transform: {
         filter: {
-          code: /new\s+URL.+import\.meta\.url/s,
+          code: assetImportMetaUrlRE,
         },
         async handler(code, id) {
           let s: MagicString | undefined
-          const assetImportMetaUrlRE =
-            /\bnew\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*(?:,\s*)?\)/dg
+          const re = new RegExp(assetImportMetaUrlRE)
           const cleanString = stripLiteral(code)
 
           let match: RegExpExecArray | null
-          while ((match = assetImportMetaUrlRE.exec(cleanString))) {
+          while ((match = re.exec(cleanString))) {
             const matchRange = match.indices?.[0]
             const urlRange = match.indices?.[1]
             if (!matchRange || !urlRange) { continue }
