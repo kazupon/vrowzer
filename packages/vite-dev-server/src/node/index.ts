@@ -54,6 +54,7 @@ export type { HmrOptions, WsOptions } from './server/hmr'
 
 export type {
   CustomEventMap,
+  ForwardConsolePayload,
   InferCustomEventPayload,
   InvalidatePayload
 } from '#types/customEvent'

@@ -52,6 +52,10 @@ import type { ListenOptions, SvcWorkerServer } from '@vrowzer/service-worker-ser
 import type { BlankSchema, Env } from 'hono/types'
 import type { ConnectWebWorkerPortMessage, ViteMessageChannelInitMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
+import type {
+  ForwardConsoleOptions,
+  ResolvedForwardConsoleOptions,
+} from '../shared/forwardConsole'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
 import type { MinimalPluginContextWithoutEnvironment } from './plugin'
@@ -156,6 +160,11 @@ export interface ServerOptions extends CommonServerOptions {
     server: ViteDevServer,
     hmr: (environment: DevEnvironment) => Promise<void>,
   ) => Promise<void>
+  /**
+   * Forward browser console logs and unhandled errors to the Vrowzer
+   * Web Worker dev server console.
+   */
+  forwardConsole?: boolean | ForwardConsoleOptions
 }
 
 export interface ResolvedServerOptions extends Omit<
@@ -170,7 +179,7 @@ export interface ResolvedServerOptions extends Omit<
     | 'origin'
     | 'hotUpdateEnvironments'
   >,
-  'fs' | 'middlewareMode' | 'sourcemapIgnoreList'
+  'fs' | 'middlewareMode' | 'sourcemapIgnoreList' | 'forwardConsole'
 > {
   fs: Required<FileSystemServeOptions>
   middlewareMode: NonNullable<ServerOptions['middlewareMode']>
@@ -178,6 +187,7 @@ export interface ResolvedServerOptions extends Omit<
     ServerOptions['sourcemapIgnoreList'],
     false | undefined
   >
+  forwardConsole: ResolvedForwardConsoleOptions
 }
 
 export interface FileSystemServeOptions {

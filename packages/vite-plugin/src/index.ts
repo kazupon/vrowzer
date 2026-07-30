@@ -125,7 +125,8 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
         viteConfigSource,
         viteConfigPath,
         {
-          serverOrigin: config.server.origin
+          serverOrigin: config.server.origin,
+          serverForwardConsole: config.server.forwardConsole
         }
       )
 

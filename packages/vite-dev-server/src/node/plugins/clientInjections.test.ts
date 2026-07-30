@@ -28,6 +28,11 @@ describe('clientInjectionsPlugin', () => {
           timeout: 54_321,
           overlay: false,
         },
+        forwardConsole: {
+          enabled: true,
+          unhandledErrors: false,
+          logLevels: ['error', 'log'],
+        },
       },
       webSocketToken: 'test-token',
       experimental: {
@@ -53,6 +58,7 @@ describe('clientInjectionsPlugin', () => {
         'const hmrBase = __HMR_BASE__',
         'const timeout = __HMR_TIMEOUT__',
         'const overlay = __HMR_ENABLE_OVERLAY__',
+        'const forwardConsole = __SERVER_FORWARD_CONSOLE__',
       ].join('\n'),
       CLIENT_ENTRY,
     )
@@ -64,6 +70,9 @@ describe('clientInjectionsPlugin', () => {
     expect(result).toContain('const hmrBase = "/hmr"')
     expect(result).toContain('const timeout = 12345')
     expect(result).toContain('const overlay = false')
+    expect(result).toContain(
+      'const forwardConsole = {"enabled":true,"unhandledErrors":false,"logLevels":["error","log"]}',
+    )
     expect(result).not.toContain('legacy.example.com')
     expect(result).not.toContain('54321')
   })

@@ -1,5 +1,6 @@
+import { stripVTControlCharacters } from 'node:util'
 import { describe, expect, test } from 'vite-plus/test'
-import { page } from '~utils'
+import { browserLogs, page } from '~utils'
 
 const defines: Record<string, any> = {
   __EXP__: 'false',
@@ -186,6 +187,63 @@ describe('define', () => {
       rewritten: '/__preview__/data.json',
       untouched: '/data.json'
     })
+  })
+
+  test('forwards console errors while preserving the iframe console output', async () => {
+    const marker = 'vrowzer-forward-console value=42'
+    const startIndex = browserLogs.length
+
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe') as HTMLIFrameElement
+      iframe.contentWindow!.console.error('vrowzer-forward-console value=%d', 42)
+    })
+
+    await expect
+      .poll(
+        () =>
+          browserLogs
+            .slice(startIndex)
+            .map(stripVTControlCharacters)
+            .some(log => log.includes(`[console.error] ${marker}`)),
+        { timeout: 10000 }
+      )
+      .toBe(true)
+
+    const logs = browserLogs.slice(startIndex).map(stripVTControlCharacters)
+    expect(
+      logs.some(log => log.includes('vrowzer-forward-console') && !log.includes('[console.error]'))
+    ).toBe(true)
+  })
+
+  test('maps unhandled runtime errors to the original source', async () => {
+    const startIndex = browserLogs.length
+
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe') as HTMLIFrameElement
+      ;(
+        iframe.contentDocument!.querySelector('#forward-console-error') as HTMLButtonElement
+      ).click()
+    })
+
+    await expect
+      .poll(
+        () =>
+          browserLogs
+            .slice(startIndex)
+            .map(stripVTControlCharacters)
+            .find(log =>
+              log.includes('[Unhandled error] Error: vrowzer forward console runtime error')
+            ),
+        { timeout: 10000 }
+      )
+      .toContain('main.ts:')
+
+    const output = browserLogs
+      .slice(startIndex)
+      .map(stripVTControlCharacters)
+      .find(log => log.includes('[Unhandled error] Error: vrowzer forward console runtime error'))!
+    expect(output).toContain('throwForwardConsoleError main.ts:')
+    expect(output).toContain("throw new Error('vrowzer forward console runtime error')")
   })
 
   // Skipped: Requires testEnvQueryParamsPlugin which replaces __VITE_ENV_WITH_QUERY__

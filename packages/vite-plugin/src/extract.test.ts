@@ -200,6 +200,61 @@ export default defineConfig({
     expect(result.code).not.toContain('watch: null')
   })
 
+  test('forwards resolved server origin and forward console options', () => {
+    const source = `
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    origin: computedOrigin,
+    forwardConsole: false,
+    port: 4173
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts', {
+      serverOrigin: 'https://assets.example.test',
+      serverForwardConsole: {
+        enabled: true,
+        unhandledErrors: false,
+        logLevels: ['error', 'log']
+      }
+    })
+
+    expect(result.unsupported).toEqual([])
+    expect(result.code).toContain(
+      'server: { origin: "https://assets.example.test", forwardConsole: {"enabled":true,"unhandledErrors":false,"logLevels":["error","log"]} }'
+    )
+    expect(result.code).not.toContain('computedOrigin')
+    expect(result.code).not.toContain('forwardConsole: false')
+    expect(result.code).not.toContain('port: 4173')
+  })
+
+  test('forwards resolved forward console options without an origin', () => {
+    const source = `
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [vue()]
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts', {
+      serverForwardConsole: {
+        enabled: false,
+        unhandledErrors: false,
+        logLevels: []
+      }
+    })
+
+    expect(result.unsupported).toEqual([])
+    expect(result.code).toContain(
+      'server: { forwardConsole: {"enabled":false,"unhandledErrors":false,"logLevels":[]} }'
+    )
+  })
+
   test('does not forward server config without a resolved origin', () => {
     const source = `
 import vue from '@vitejs/plugin-vue'
@@ -209,6 +264,7 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     origin: 'https://source.example.test',
+    forwardConsole: true,
     port: 4173
   }
 })
@@ -218,6 +274,7 @@ export default defineConfig({
     expect(result.unsupported).toEqual([])
     expect(result.code).not.toContain('server:')
     expect(result.code).not.toContain('source.example.test')
+    expect(result.code).not.toContain('forwardConsole')
     expect(result.code).not.toContain('4173')
   })
 

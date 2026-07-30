@@ -32,6 +32,14 @@ const debug = createDebug('vite-plugin-vrowzer:extract')
 export interface ExtractOptions {
   /** Resolved server origin to forward to the Worker config. */
   serverOrigin?: string | undefined
+  /** Host-resolved forward-console options to forward to the Worker config. */
+  serverForwardConsole?:
+    | {
+        enabled: boolean
+        unhandledErrors: boolean
+        logLevels: readonly string[]
+      }
+    | undefined
 }
 
 export interface ExtractResult {
@@ -283,8 +291,15 @@ export function extractWorkerConfig(
 
   // 8b. Find top-level config properties to forward (define, etc.)
   const forwardedProps = extractForwardedProperties(source, configObj as ObjectExpression)
+  const forwardedServerProps: string[] = []
   if (options.serverOrigin !== undefined) {
-    forwardedProps.set('server', `{ origin: ${JSON.stringify(options.serverOrigin)} }`)
+    forwardedServerProps.push(`origin: ${JSON.stringify(options.serverOrigin)}`)
+  }
+  if (options.serverForwardConsole !== undefined) {
+    forwardedServerProps.push(`forwardConsole: ${JSON.stringify(options.serverForwardConsole)}`)
+  }
+  if (forwardedServerProps.length > 0) {
+    forwardedProps.set('server', `{ ${forwardedServerProps.join(', ')} }`)
   }
 
   // 9. Generate Worker config source

@@ -65,6 +65,11 @@ export async function resolvePlugins(
     const importAnalysisPlugin = importAnalysisMod.importAnalysisPlugin
     const assetPlugin = assetMod.assetPlugin
     const clientInjectionsPlugin = clientInjectionsMod.clientInjectionsPlugin
+    const forwardConsole = config.server.forwardConsole.enabled
+      ? (await import('./forwardConsole')).forwardConsolePlugin({
+          environments: ['client'],
+        })
+      : null
 
     return [
       // optimizedDepsPlugin(),
@@ -95,6 +100,7 @@ export async function resolvePlugins(
       // wasmHelperPlugin(config),
       // webWorkerPlugin(config),
       assetPlugin(config),
+      forwardConsole,
 
       ...normalPlugins,
 

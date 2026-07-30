@@ -8,6 +8,10 @@ import path from 'node:path'
 import colors from 'picocolors'
 import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
+import type {
+  ForwardConsoleOptions,
+  ResolvedForwardConsoleOptions,
+} from '../../shared/forwardConsole'
 import type { InlineConfig, ResolvedConfig } from '../config'
 import { isResolvedConfig, resolveConfig } from '../config'
 import { initPublicFiles } from '../publicDir'
@@ -61,7 +65,10 @@ import { transformMiddleware } from './middlewares/transform'
 import type { ModuleNode } from './mixedModuleGraph'
 import { ModuleGraph } from './mixedModuleGraph'
 // NOTE(kazupon): `./options` importing for avoid circular dependency
-import { serverConfigDefaults as _serverConfigDefaults } from './options'
+import {
+  resolveForwardConsoleOptions,
+  serverConfigDefaults as _serverConfigDefaults,
+} from './options'
 import type { PluginContainer } from './pluginContainer'
 import {
   BasicMinimalPluginContext,
@@ -73,6 +80,7 @@ import type { MessageChannelServer } from './ws'
 import { createMessageChannelServer } from './ws'
 
 export * from './middlewares/utils'
+export { resolveForwardConsoleOptions } from './options'
 
 export interface ServerOptions extends CommonServerOptions {
   /**
@@ -167,6 +175,11 @@ export interface ServerOptions extends CommonServerOptions {
     server: ViteDevServer,
     hmr: (environment: DevEnvironment) => Promise<void>,
   ) => Promise<void>
+  /**
+   * Forward browser console logs and unhandled errors to the Vrowzer
+   * Web Worker dev server console.
+   */
+  forwardConsole?: boolean | ForwardConsoleOptions
 }
 
 export interface ResolvedServerOptions extends Omit<
@@ -181,7 +194,7 @@ export interface ResolvedServerOptions extends Omit<
     | 'origin'
     | 'hotUpdateEnvironments'
   >,
-  'fs' | 'middlewareMode' | 'sourcemapIgnoreList'
+  'fs' | 'middlewareMode' | 'sourcemapIgnoreList' | 'forwardConsole'
 > {
   fs: Required<FileSystemServeOptions>
   middlewareMode: NonNullable<ServerOptions['middlewareMode']>
@@ -189,6 +202,7 @@ export interface ResolvedServerOptions extends Omit<
     ServerOptions['sourcemapIgnoreList'],
     false | undefined
   >
+  forwardConsole: ResolvedForwardConsoleOptions
 }
 
 export interface FileSystemServeOptions {
@@ -1147,6 +1161,7 @@ function resolvedAllowDir(root: string, dir: string): string {
 //   perEnvironmentStartEndDuringDev: false,
 //   perEnvironmentWatchChangeDuringDev: false,
 //   // hotUpdateEnvironments
+//   forwardConsole: undefined,
 // } satisfies ServerOptions)
 // export const serverConfigDefaults: Readonly<Partial<ServerOptions>> =
 //   _serverConfigDefaults
@@ -1181,6 +1196,7 @@ export function resolveServerOptions(
       _server.sourcemapIgnoreList === false
         ? () => false
         : _server.sourcemapIgnoreList,
+    forwardConsole: resolveForwardConsoleOptions(_server.forwardConsole),
   }
 
   let allowDirs = server.fs.allow
