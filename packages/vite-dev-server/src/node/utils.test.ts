@@ -1,6 +1,11 @@
 import crypto from 'node:crypto'
 import { describe, expect, it, vi } from 'vite-plus/test'
-import { getHash, mergeConfig, setupHmrWsOptionCompat } from './utils'
+import {
+  flattenId,
+  getHash,
+  mergeConfig,
+  setupHmrWsOptionCompat,
+} from './utils'
 
 describe('getHash', () => {
   function cryptoHash(text: string, length = 8): string {
@@ -32,6 +37,16 @@ describe('getHash', () => {
     const text = 'pad test'
     const length = 80
     expect(getHash(text, length)).toBe(cryptoHash(text, length))
+  })
+})
+
+describe('flattenId', () => {
+  it('should replace + symbols in package subpath exports', () => {
+    const id = 'ravelinjs/core+track+encrypt+promise'
+    const result = flattenId(id)
+
+    expect(result).not.toContain('+')
+    expect(result).toBe('ravelinjs_core_____track_____encrypt_____promise')
   })
 })
 
