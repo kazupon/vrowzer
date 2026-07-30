@@ -19,9 +19,10 @@ export async function resolvePlugins(
   postPlugins: Plugin[],
 ): Promise<Plugin[]> {
   const isBuild = config.command === 'build'
-  const isBundled = config.isBundled
   const isWorker = config.isWorker
-  const buildPlugins = isBundled
+  const anyEnvBundled =
+    isBuild || Object.values(config.environments).some((env) => env.isBundled)
+  const buildPlugins = anyEnvBundled
     ? await (await import('../build')).resolveBuildPlugins(config)
     : { pre: [], post: [] }
   const { modulePreload } = config.build
@@ -66,9 +67,9 @@ export async function resolvePlugins(
     const clientInjectionsPlugin = clientInjectionsMod.clientInjectionsPlugin
 
     return [
-      // !isBundled ? optimizedDepsPlugin() : null,
+      // optimizedDepsPlugin(),
       // !isWorker ? watchPackageDataPlugin(config.packageCache) : null,
-      !isBundled && preAliasPlugin(config),
+      preAliasPlugin(config),
       aliasPlugin({
         // @ts-expect-error aliasPlugin receives rollup types
         entries: config.resolve.alias,
@@ -112,13 +113,9 @@ export async function resolvePlugins(
       ...buildPlugins.post,
 
       // internal server-only plugins are always applied after everything else
-      ...(isBundled
-        ? []
-        : [
-          clientInjectionsPlugin(config),
-          cssAnalysisPlugin(config),
-          importAnalysisPlugin(config)
-        ]),
+      clientInjectionsPlugin(config),
+      cssAnalysisPlugin(config),
+      importAnalysisPlugin(config),
     ].filter(Boolean) as Plugin[]
   }
 }

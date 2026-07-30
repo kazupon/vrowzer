@@ -261,6 +261,10 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
   return {
     name: 'vite:import-analysis',
 
+    applyToEnvironment(environment) {
+      return !environment.config.isBundled
+    },
+
     async transform(source, importer) {
       const environment = this.environment as DevEnvironment
       const ssr = environment.config.consumer === 'server'

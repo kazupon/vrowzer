@@ -12,7 +12,7 @@ import type {
   TransformOptions as OxcTransformOptions,
   TransformResult as OxcTransformResult,
 } from 'rolldown/utils'
-import { type Environment, perEnvironmentPlugin } from '..'
+import type { Environment } from '..'
 import { cleanUrl } from '../../shared/utils'
 import type { ResolvedConfig } from '../config'
 import { JS_TYPES_RE, VITE_PACKAGE_DIR } from '../constants'
@@ -325,35 +325,6 @@ function resolveTsconfigTarget(target: string | undefined): number | 'next' {
 }
 
 export function oxcPlugin(config: ResolvedConfig): Plugin {
-  if (config.isBundled && config.nativePluginEnabledLevel >= 1) {
-    return perEnvironmentPlugin('native:transform', (environment) => {
-      const {
-        jsxInject,
-        include = /\.(m?ts|[jt]sx)$/,
-        exclude = /\.js$/,
-        jsxRefreshInclude,
-        jsxRefreshExclude,
-        ..._transformOptions
-      } = config.oxc as Exclude<OxcOptions, false | undefined>
-
-      const transformOptions: OxcTransformOptions = _transformOptions
-      transformOptions.sourcemap =
-        environment.config.mode !== 'build' ||
-        !!environment.config.build.sourcemap
-
-      return nativeTransformPlugin({
-        root: environment.config.root,
-        include,
-        exclude,
-        jsxRefreshInclude,
-        jsxRefreshExclude,
-        isServerConsumer: environment.config.consumer === 'server',
-        jsxInject,
-        transformOptions,
-      })
-    })
-  }
-
   const options = config.oxc as OxcOptions
   const {
     jsxInject,
@@ -423,6 +394,41 @@ export function oxcPlugin(config: ResolvedConfig): Plugin {
 
   return {
     name: 'vite:oxc',
+    applyToEnvironment(environment) {
+      if (
+        environment.config.isBundled &&
+        config.nativePluginEnabledLevel >= 1
+      ) {
+        const {
+          jsxInject,
+          include = /\.(m?ts|[jt]sx)$/,
+          exclude = /\.js$/,
+          jsxRefreshInclude,
+          jsxRefreshExclude,
+          ..._transformOptions
+        } = environment.config.oxc as Exclude<
+          OxcOptions,
+          false | undefined
+        >
+
+        const transformOptions: OxcTransformOptions = _transformOptions
+        transformOptions.sourcemap =
+          environment.config.mode !== 'build' ||
+          !!environment.config.build.sourcemap
+
+        return nativeTransformPlugin({
+          root: environment.config.root,
+          include,
+          exclude,
+          jsxRefreshInclude,
+          jsxRefreshExclude,
+          isServerConsumer: environment.config.consumer === 'server',
+          jsxInject,
+          transformOptions,
+        })
+      }
+      return true
+    },
     configureServer(_server) {
       server = _server
     },
