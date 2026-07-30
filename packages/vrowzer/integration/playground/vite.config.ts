@@ -166,26 +166,14 @@ function postcssOnceExitWebWorkerPlugin(): Plugin {
   }
 }
 
-function serverOriginWebWorkerPlugin(): Plugin {
-  return {
-    name: 'vrowzer-test:server-origin-web-worker',
-    apply: 'serve',
-    config() {
-      return {
-        server: {
-          origin: 'https://assets.vrowzer.test'
-        }
-      }
-    }
-  }
-}
-
 export default defineConfig({
+  server: {
+    origin: 'https://assets.vrowzer.test'
+  },
   plugins: [
     trailingSlashWebWorkerPlugin(),
     fsHtmlProxyWebWorkerPlugin(),
     postcssOnceExitWebWorkerPlugin(),
-    serverOriginWebWorkerPlugin(),
     Vrowzer({
       auto: false,
       basePath: '/__preview__/',

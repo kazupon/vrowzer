@@ -29,8 +29,10 @@ import type {
 
 const debug = createDebug('vite-plugin-vrowzer:extract')
 
-// oxlint-disable-next-line typescript/no-empty-object-type -- reserved for future options (e.g. pluginOverrides)
-export interface ExtractOptions {}
+export interface ExtractOptions {
+  /** Resolved server origin to forward to the Worker config. */
+  serverOrigin?: string | undefined
+}
 
 export interface ExtractResult {
   code: string
@@ -91,7 +93,7 @@ function isViteImport(source: string): boolean {
 export function extractWorkerConfig(
   source: string,
   configPath: string,
-  _options: ExtractOptions = {}
+  options: ExtractOptions = {}
 ): ExtractResult {
   const unsupported: string[] = []
 
@@ -281,6 +283,9 @@ export function extractWorkerConfig(
 
   // 8b. Find top-level config properties to forward (define, etc.)
   const forwardedProps = extractForwardedProperties(source, configObj as ObjectExpression)
+  if (options.serverOrigin !== undefined) {
+    forwardedProps.set('server', `{ origin: ${JSON.stringify(options.serverOrigin)} }`)
+  }
 
   // 9. Generate Worker config source
   const code = generateWorkerSource(

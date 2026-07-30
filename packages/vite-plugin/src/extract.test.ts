@@ -169,6 +169,58 @@ export default {
     expect(result.code).toContain('plugins: []')
   })
 
+  test('forwards only the resolved server origin', () => {
+    const source = `
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    origin: computedOrigin,
+    port: 4173,
+    proxy: { '/api': 'http://localhost:3000' },
+    fs: { strict: false },
+    hmr: { port: 4174 },
+    watch: null
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts', {
+      serverOrigin: 'https://assets.example.test'
+    })
+
+    expect(result.unsupported).toEqual([])
+    expect(result.code).toContain('server: { origin: "https://assets.example.test" }')
+    expect(result.code).not.toContain('computedOrigin')
+    expect(result.code).not.toContain('port: 4173')
+    expect(result.code).not.toContain("proxy: { '/api'")
+    expect(result.code).not.toContain('fs: { strict: false }')
+    expect(result.code).not.toContain('hmr: { port: 4174 }')
+    expect(result.code).not.toContain('watch: null')
+  })
+
+  test('does not forward server config without a resolved origin', () => {
+    const source = `
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    origin: 'https://source.example.test',
+    port: 4173
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts')
+
+    expect(result.unsupported).toEqual([])
+    expect(result.code).not.toContain('server:')
+    expect(result.code).not.toContain('source.example.test')
+    expect(result.code).not.toContain('4173')
+  })
+
   test('handles multiple plugins with mixed imports', () => {
     const source = `
 import vue from '@vitejs/plugin-vue'
