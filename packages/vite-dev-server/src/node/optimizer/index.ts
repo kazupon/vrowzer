@@ -832,8 +832,8 @@ async function prepareRolldownOptimizerRun(
       plugins,
       platform,
       transform: {
-        ...rolldownOptions.transform,
         target: ESBUILD_BASELINE_WIDELY_AVAILABLE_TARGET,
+        ...rolldownOptions.transform,
         define,
       },
       resolve: {
