@@ -630,4 +630,25 @@ globalThis.__vrowzerFsHtmlProxyResults = results
       expect(response.body).not.toContain('url(./injected-bg.png)')
     })
   })
+
+  describe('CSS server.origin', () => {
+    test('applies server.origin to public URLs', async () => {
+      const expectedUrl = 'https://assets.vrowzer.test/__preview__/server-origin-icon.png'
+
+      await addPreviewFiles({
+        '/public/server-origin-icon.png': 'server origin icon',
+        '/server-origin/entry.css':
+          ".server-origin-public { background-image: url('/server-origin-icon.png'); }"
+      })
+
+      const response = await waitForPreviewBodyContaining(
+        '/server-origin/entry.css?direct',
+        expectedUrl
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.body).toContain(expectedUrl)
+      expect(response.body).not.toContain("url('/__preview__/server-origin-icon.png')")
+    })
+  })
 })
