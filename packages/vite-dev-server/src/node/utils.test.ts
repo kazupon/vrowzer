@@ -47,7 +47,36 @@ describe('flattenId', () => {
     const result = flattenId(id)
 
     expect(result).not.toContain('+')
-    expect(result).toBe('ravelinjs_core_____track_____encrypt_____promise')
+    expect(result).toBe('ravelinjs_core_02b_track_02b_encrypt_02b_promise')
+  })
+
+  it('escapes underscores', () => {
+    expect(flattenId('foo_bar')).toBe('foo___bar')
+    expect(flattenId('foo__bar')).toBe('foo____bar')
+    expect(flattenId('foo___bar')).toBe('foo_____bar')
+    expect(flattenId('foo____bar')).toBe('foo______bar')
+  })
+
+  it('escapes slashes', () => {
+    expect(flattenId('foo/bar')).toBe('foo_bar')
+  })
+
+  it('escapes dots', () => {
+    expect(flattenId('foo.bar')).toBe('foo__bar')
+  })
+
+  it('escapes invalid URL path characters', () => {
+    expect(flattenId('foo#bar')).toBe('foo_023_bar')
+    expect(flattenId('foo$bar')).toBe('foo_024_bar')
+    expect(flattenId('foo*bar')).toBe('foo_02a_bar')
+    expect(flattenId('foo+bar')).toBe('foo_02b_bar')
+  })
+
+  it('escapes nested IDs', () => {
+    expect(flattenId('foo>bar')).toBe('foo_n_bar')
+    expect(flattenId('foo >bar')).toBe('foo_n_bar')
+    expect(flattenId('foo> bar')).toBe('foo_n_bar')
+    expect(flattenId('foo > bar')).toBe('foo_n_bar')
   })
 })
 
