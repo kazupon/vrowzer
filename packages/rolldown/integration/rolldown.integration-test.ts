@@ -167,6 +167,10 @@ describe('shared build (./) — memfs instance sharing with @vrowzer/fs', () => 
     expect(testState.result.bundleCode).toContain('console.log')
     expect(testState.result.largeSourceBundled).toBe(true)
 
+    // Verify Rolldown resolves path aliases using the closest tsconfig.json.
+    expect(testState.result.closestTsconfigResolved).toBe(true)
+    expect(testState.result.parentTsconfigIgnored).toBe(true)
+
     await context.close()
   })
 })

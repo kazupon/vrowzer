@@ -15,9 +15,8 @@ import {
   KNOWN_ASSET_TYPES,
   SPECIAL_QUERY_RE,
 } from '../constants'
-import { loadTsconfigJsonForFile } from '../plugins/esbuild'
 import { transformGlobImport } from '../plugins/importMetaGlob'
-import { setOxcTransformOptionsFromTsconfigOptions } from '../plugins/oxc'
+import { getRollupJsxPresets } from '../plugins/oxc'
 import type { DevEnvironment } from '../server/environment'
 import type { EnvironmentPluginContainer } from '../server/pluginContainer'
 import { createEnvironmentPluginContainer } from '../server/pluginContainer'
@@ -267,20 +266,15 @@ async function prepareRolldownScanner(
 
   plugins.push(...rolldownScanPlugin(environment, deps, missing, entries))
 
-  // The plugin pipeline automatically loads the closest tsconfig.json.
-  // But Rolldown doesn't support reading tsconfig.json (https://github.com/rolldown/rolldown/issues/4968).
-  // Due to syntax incompatibilities between the experimental decorators in TypeScript and TC39 decorators,
-  // we cannot simply set `"experimentalDecorators": true` or `false`. (https://github.com/vitejs/vite/pull/15206#discussion_r1417414715)
-  // Therefore, we use the closest tsconfig.json from the root to make it work in most cases.
-  const { tsconfig } = await loadTsconfigJsonForFile(
-    path.join(environment.config.root, '_dummy.js'),
-  )
   const transformOptions = deepClone(rolldownOptions.transform) ?? {}
-  setOxcTransformOptionsFromTsconfigOptions(
-    transformOptions,
-    tsconfig.compilerOptions,
-    [], // NOTE: ignore warnings as the same warning will be shown by the plugin container
-  )
+  if (transformOptions.jsx === undefined) {
+    transformOptions.jsx = {}
+  } else if (
+    transformOptions.jsx === 'react' ||
+    transformOptions.jsx === 'react-jsx'
+  ) {
+    transformOptions.jsx = getRollupJsxPresets(transformOptions.jsx)
+  }
   if (typeof transformOptions.jsx === 'object') {
     transformOptions.jsx.development ??= !environment.config.isProduction
   }
