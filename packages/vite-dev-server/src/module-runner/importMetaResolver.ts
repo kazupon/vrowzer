@@ -1,6 +1,9 @@
 import type { ResolveFnOutput, ResolveHookContext } from 'node:module'
 
-export type ImportMetaResolver = (specifier: string, importer: string) => string
+export type ImportMetaResolver = (
+  specifier: string,
+  importer: string | URL,
+) => string
 
 const customizationHookNamespace = 'vite-module-runner:import-meta-resolve/v1/'
 const customizationHooksModule = /* js */ `
@@ -78,7 +81,7 @@ export function createImportMetaResolver(): ImportMetaResolver | undefined {
 
 function importMetaResolveWithCustomHook(
   specifier: string,
-  importer: string,
+  importer: string | URL,
 ): string {
   return import.meta.resolve(
     `${customizationHookNamespace}${JSON.stringify([specifier, importer])}`,

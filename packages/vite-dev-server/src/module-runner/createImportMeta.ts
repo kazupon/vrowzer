@@ -22,7 +22,7 @@ export function createDefaultImportMeta(
     dirname: isWindows ? toWindowsPath(dirname) : dirname,
     url: href,
     env: envProxy,
-    resolve(_id: string, _parent?: string) {
+    resolve(_id: string, _parent?: string | URL) {
       throw new Error('[module runner] "import.meta.resolve" is not supported.')
     },
     // should be replaced during transformation
@@ -32,8 +32,7 @@ export function createDefaultImportMeta(
         `file transformation. Make sure to reference it by the full name.`,
       )
     },
-    // @types/node adds `main` to `import.meta`, but we don't add that for the defaultImportMeta
-  } satisfies Omit<ModuleRunnerImportMeta, 'main'> as any
+  }
 }
 
 /**
@@ -50,7 +49,7 @@ export function createNodeImportMeta(
   return {
     ...defaultMeta,
     main: false,
-    resolve(id: string, parent?: string) {
+    resolve(id: string, parent?: string | URL) {
       const resolver = importMetaResolver ?? defaultMeta.resolve
       return resolver(id, parent ?? href)
     },
