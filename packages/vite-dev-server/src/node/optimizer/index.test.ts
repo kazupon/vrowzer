@@ -74,6 +74,9 @@ function createEnvironment(
   return {
     config,
     getTopLevelConfig: () => config,
+    logger: {
+      info: vi.fn<(...args: unknown[]) => void>(),
+    },
     name: 'client',
   } as unknown as Environment
 }
@@ -107,6 +110,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   fs.rmSync(root, { force: true, recursive: true })
 })
 
@@ -154,5 +158,39 @@ describe('runOptimizeDeps bundle lifecycle', () => {
     expect(rolldownMocks.write.mock.invocationCallOrder[0]).toBeLessThan(
       rolldownMocks.close.mock.invocationCallOrder[0],
     )
+  })
+
+  it('logs when bundling takes longer than one second', async () => {
+    vi.useFakeTimers()
+    let resolveWrite!: (output: FakeRolldownOutput) => void
+    let resolveWriteStarted!: () => void
+    const writeStarted = new Promise<void>((resolve) => {
+      resolveWriteStarted = resolve
+    })
+    rolldownMocks.write.mockImplementation(() => {
+      resolveWriteStarted()
+      return new Promise((resolve) => {
+        resolveWrite = resolve
+      })
+    })
+    const environment = createEnvironment()
+
+    const optimization = runOptimizeDeps(environment, createDepsInfo())
+    await writeStarted
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(environment.logger.info).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(environment.logger.info).toHaveBeenCalledOnce()
+    expect(environment.logger.info).toHaveBeenCalledWith(
+      '[optimizer] bundling dependencies...',
+      { timestamp: true },
+    )
+
+    resolveWrite({ output: [] })
+    const result = await optimization.result
+    expect(vi.getTimerCount()).toBe(0)
+    await result.cancel()
   })
 })

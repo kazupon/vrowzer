@@ -26,6 +26,12 @@ const optimizerMocks = vi.hoisted(() => {
 
   return {
     createMetadata,
+    discoverProjectDependencies: vi.fn<
+      (...args: unknown[]) => {
+        cancel: () => Promise<void>
+        result: Promise<Record<string, string>>
+      }
+    >(),
     initDepsOptimizerMetadata: vi.fn<
       (...args: unknown[]) => DepOptimizationMetadata
     >(createMetadata),
@@ -51,10 +57,7 @@ vi.mock('./index', () => ({
   createIsOptimizedDepUrl: () => () => false,
   depsFromOptimizedDepInfo: () => ({}),
   depsLogString: (ids: string[]) => ids.join(', '),
-  discoverProjectDependencies: () => ({
-    cancel: () => Promise.resolve(),
-    result: Promise.resolve({}),
-  }),
+  discoverProjectDependencies: optimizerMocks.discoverProjectDependencies,
   extractExportsData: () =>
     Promise.resolve({ exports: [], hasModuleSyntax: true }),
   getOptimizedDepPath: (_environment: unknown, id: string) =>
@@ -87,11 +90,17 @@ function createEnvironment(): DevEnvironment {
       info: vi.fn<(...args: unknown[]) => void>(),
     },
     name: 'client',
+    waitForRequestsIdle: () => new Promise(() => {}),
   } as unknown as DevEnvironment
 }
 
 beforeEach(() => {
   vi.useFakeTimers()
+  optimizerMocks.discoverProjectDependencies.mockReset()
+  optimizerMocks.discoverProjectDependencies.mockReturnValue({
+    cancel: () => Promise.resolve(),
+    result: Promise.resolve({}),
+  })
   optimizerMocks.initDepsOptimizerMetadata.mockClear()
   optimizerMocks.loadCachedDepOptimizationMetadata.mockReset()
   optimizerMocks.runOptimizeDeps.mockReset()
@@ -145,6 +154,45 @@ describe('createDepsOptimizer initialization', () => {
 
     expect(vi.getTimerCount()).toBe(1)
     expect(optimizerMocks.runOptimizeDeps).not.toHaveBeenCalled()
+    await optimizer.close()
+  })
+
+  it('logs when dependency scanning takes longer than one second', async () => {
+    let resolveDiscovery!: (deps: Record<string, string>) => void
+    const discoveryResult = new Promise<Record<string, string>>((resolve) => {
+      resolveDiscovery = resolve
+    })
+    optimizerMocks.discoverProjectDependencies.mockReturnValue({
+      cancel: () => Promise.resolve(),
+      result: discoveryResult,
+    })
+    optimizerMocks.loadCachedDepOptimizationMetadata.mockResolvedValue(
+      undefined,
+    )
+    optimizerMocks.runOptimizeDeps.mockReturnValue({
+      cancel: () => Promise.resolve(),
+      result: new Promise(() => {}),
+    })
+    const environment = createEnvironment()
+    const optimizer = createDepsOptimizer(environment)
+
+    await optimizer.init()
+    const scanProcessing = optimizer.scanProcessing
+    expect(scanProcessing).toBeDefined()
+
+    await vi.advanceTimersByTimeAsync(999)
+    expect(environment.logger.info).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(environment.logger.info).toHaveBeenCalledOnce()
+    expect(environment.logger.info).toHaveBeenCalledWith(
+      '[optimizer] scanning dependencies...',
+      { timestamp: true },
+    )
+
+    resolveDiscovery({})
+    await scanProcessing
+    expect(vi.getTimerCount()).toBe(0)
     await optimizer.close()
   })
 })
