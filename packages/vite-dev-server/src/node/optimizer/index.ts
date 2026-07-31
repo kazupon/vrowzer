@@ -1250,6 +1250,11 @@ const lockfileFormats = [
     checkPatchesDir: false,
     manager: 'pnpm',
   },
+  {
+    path: 'aube-lock.yaml',
+    checkPatchesDir: false,
+    manager: 'aube',
+  },
 
   // discouraged package manager lockfiles
   // or deprecated lockfiles

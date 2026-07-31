@@ -129,6 +129,15 @@ describe('initDepsOptimizerMetadata', () => {
 
     expect(metadata.lockfileHash).toBe(getHash(packageLock))
   })
+
+  it('uses an Aube lockfile in dependency metadata', () => {
+    const aubeLock = 'lockfileVersion: 1'
+    fs.writeFileSync(path.join(root, 'aube-lock.yaml'), aubeLock)
+
+    const metadata = initDepsOptimizerMetadata(createEnvironment())
+
+    expect(metadata.lockfileHash).toBe(getHash(aubeLock))
+  })
 })
 
 describe('runOptimizeDeps bundle lifecycle', () => {
