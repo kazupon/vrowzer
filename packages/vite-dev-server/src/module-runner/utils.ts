@@ -1,10 +1,21 @@
 import * as pathe from 'pathe'
 import { isWindows } from '../shared/utils'
 
-export const decodeBase64: typeof atob =
-  typeof atob !== 'undefined'
-    ? atob
-    : (str: string) => Buffer.from(str, 'base64').toString('utf-8')
+const textDecoder = new TextDecoder()
+
+export const decodeBase64: (base64: string) => string = (() => {
+  // Capture the binding at module load: realms may legitimately delete
+  // `globalThis.Buffer` afterwards (e.g. browser-parity tests), and this
+  // decoder runs lazily while preparing stack traces
+  const capturedBuffer = typeof Buffer === 'function' ? Buffer : undefined
+  if (capturedBuffer && typeof capturedBuffer.from === 'function') {
+    return (base64: string) =>
+      capturedBuffer.from(base64, 'base64').toString('utf-8')
+  }
+
+  return (base64: string) =>
+    textDecoder.decode(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)))
+})()
 
 const CHAR_FORWARD_SLASH = 47
 const CHAR_BACKWARD_SLASH = 92
