@@ -20,7 +20,10 @@ import { transformGlobImport } from '../plugins/importMetaGlob'
 import { getRollupJsxPresets } from '../plugins/oxc'
 import type { DevEnvironment } from '../server/environment'
 import type { EnvironmentPluginContainer } from '../server/pluginContainer'
-import { createEnvironmentPluginContainer } from '../server/pluginContainer'
+import {
+  ERR_CLOSED_SERVER,
+  createEnvironmentPluginContainer,
+} from '../server/pluginContainer'
 import {
   arraify,
   asyncFlatten,
@@ -173,6 +176,17 @@ export function scanImports(environment: ScanEnvironment): {
         missing,
       }
     } catch (e) {
+      // The scanner runs in the background and may still be crawling when the
+      // server is closed. In that case resolutions reject with
+      // `ERR_CLOSED_SERVER` and the scan build fails.
+      if (
+        e.errors?.some(
+          (error: { pluginCode?: string }) =>
+            error.pluginCode === ERR_CLOSED_SERVER,
+        )
+      ) {
+        return
+      }
       const prependMessage = colors.red(`\
   Failed to scan for dependencies from entries:
   ${entries.join('\n')}
