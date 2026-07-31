@@ -94,6 +94,27 @@ function createEnvironment(): DevEnvironment {
   } as unknown as DevEnvironment
 }
 
+function createOptimizationResult(ids: string[]) {
+  const metadata = optimizerMocks.createMetadata()
+  for (const id of ids) {
+    const depInfo: OptimizedDepInfo = {
+      browserHash: `browser-hash-${id}`,
+      file: `/node_modules/.vite/deps/${id}.js`,
+      fileHash: `file-hash-${id}`,
+      id,
+      src: `/node_modules/${id}/index.js`,
+    }
+    metadata.optimized[id] = depInfo
+    metadata.depInfoList.push(depInfo)
+  }
+
+  return {
+    cancel: vi.fn<() => void>(),
+    commit: vi.fn<() => Promise<void>>(() => Promise.resolve()),
+    metadata,
+  }
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   optimizerMocks.discoverProjectDependencies.mockReset()
@@ -156,6 +177,44 @@ describe('createDepsOptimizer initialization', () => {
     expect(optimizerMocks.runOptimizeDeps).not.toHaveBeenCalled()
     await optimizer.close()
   })
+
+  it.each([
+    {
+      dependencies: ['react'],
+      expectedMessage: 'dependency optimized: react',
+    },
+    {
+      dependencies: ['react', 'react-dom'],
+      expectedMessage: 'dependencies optimized: react, react-dom',
+    },
+  ])(
+    'logs newly optimized dependencies with the correct label',
+    async ({ dependencies, expectedMessage }) => {
+      optimizerMocks.loadCachedDepOptimizationMetadata.mockResolvedValue(
+        optimizerMocks.createMetadata(),
+      )
+      optimizerMocks.runOptimizeDeps.mockReturnValue({
+        cancel: vi.fn<() => Promise<void>>(() => Promise.resolve()),
+        result: Promise.resolve(createOptimizationResult(dependencies)),
+      })
+      const environment = createEnvironment()
+      const optimizer = createDepsOptimizer(environment)
+      await optimizer.init()
+
+      for (const dependency of dependencies) {
+        optimizer.registerMissingImport(
+          dependency,
+          `/node_modules/${dependency}/index.js`,
+        )
+      }
+
+      await vi.advanceTimersByTimeAsync(300)
+      expect(environment.logger.info).toHaveBeenCalledWith(expectedMessage, {
+        timestamp: true,
+      })
+      await optimizer.close()
+    },
+  )
 
   it('logs when dependency scanning takes longer than one second', async () => {
     let resolveDiscovery!: (deps: Record<string, string>) => void
