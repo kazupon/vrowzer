@@ -138,6 +138,30 @@ describe('initDepsOptimizerMetadata', () => {
 
     expect(metadata.lockfileHash).toBe(getHash(aubeLock))
   })
+
+  it('uses a Nub lockfile in dependency metadata', () => {
+    const nubLock = 'lockfileVersion: 9'
+    fs.writeFileSync(path.join(root, 'nub.lock'), nubLock)
+
+    const metadata = initDepsOptimizerMetadata(createEnvironment())
+
+    expect(metadata.lockfileHash).toBe(getHash(nubLock))
+  })
+
+  it('includes a Nub patches directory timestamp in dependency metadata', () => {
+    const nubLock = 'lockfileVersion: 9'
+    const patchesDir = path.join(root, 'patches')
+    fs.writeFileSync(path.join(root, 'nub.lock'), nubLock)
+    fs.mkdirSync(patchesDir)
+    fs.utimesSync(patchesDir, new Date(0), new Date(0))
+    const patchesMtime = fs.statSync(patchesDir).mtimeMs
+
+    const metadata = initDepsOptimizerMetadata(createEnvironment())
+
+    expect(metadata.lockfileHash).toBe(
+      getHash(nubLock + patchesMtime.toString()),
+    )
+  })
 })
 
 describe('runOptimizeDeps bundle lifecycle', () => {

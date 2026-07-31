@@ -1255,6 +1255,11 @@ const lockfileFormats = [
     checkPatchesDir: false,
     manager: 'aube',
   },
+  {
+    path: 'nub.lock',
+    checkPatchesDir: 'patches',
+    manager: 'nub',
+  },
 
   // discouraged package manager lockfiles
   // or deprecated lockfiles
