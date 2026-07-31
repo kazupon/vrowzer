@@ -77,9 +77,26 @@ describe('CJS import interop', () => {
       transformed.indexOf('console.log'),
     )
   })
+
+  it('uses bundler interop for a dynamic import from an ambiguous importer', async () => {
+    const transformed = await rewriteCjsImport('import("ms")', false)
+
+    expect(transformed).toContain("import('/deps/ms.js').then(m =>")
+    expect(transformed).toContain('m.default, 0))')
+  })
+
+  it('uses Node interop for a dynamic import from an explicit importer', async () => {
+    const transformed = await rewriteCjsImport('import("ms")', true)
+
+    expect(transformed).toContain("import('/deps/ms.js').then(m =>")
+    expect(transformed).toContain('m.default, 1))')
+  })
 })
 
-async function rewriteCjsImport(source: string): Promise<string> {
+async function rewriteCjsImport(
+  source: string,
+  isNodeMode = false,
+): Promise<string> {
   await init
   const [imports] = parse(source)
   const str = new MagicString(source)
@@ -90,7 +107,7 @@ async function rewriteCjsImport(source: string): Promise<string> {
     '/deps/ms.js',
     0,
     '/entry.js',
-    false,
+    isNodeMode,
     config,
   )
 

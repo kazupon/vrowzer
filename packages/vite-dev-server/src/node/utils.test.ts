@@ -1,12 +1,59 @@
 import crypto from 'node:crypto'
+import path from 'node:path'
 import { describe, expect, it, vi } from 'vite-plus/test'
+import type { PackageCache, PackageData } from './packages'
 import {
   flattenId,
   getFileStartIndex,
   getHash,
+  isFilePathFormatExplicit,
   mergeConfig,
   setupHmrWsOptionCompat,
 } from './utils'
+
+describe('isFilePathFormatExplicit', () => {
+  it.each(['entry.mjs', 'entry.mts', 'entry.cjs', 'entry.cts'])(
+    'treats the %s extension as explicit',
+    (filePath) => {
+      expect(isFilePathFormatExplicit(filePath)).toBe(true)
+    },
+  )
+
+  it('treats virtual modules as explicitly ESM', () => {
+    expect(isFilePathFormatExplicit('\0virtual.js')).toBe(true)
+  })
+
+  it('does not resolve a relative id against the current working directory', () => {
+    expect(isFilePathFormatExplicit('src/entry.js')).toBe(false)
+  })
+
+  it.each(['module', 'commonjs'])(
+    'recognizes a nearest package with type %s',
+    (type) => {
+      const directory = path.resolve('project/src')
+      const packageCache = createPackageCache(directory, type)
+
+      expect(
+        isFilePathFormatExplicit(
+          path.join(directory, 'entry.js'),
+          packageCache,
+        ),
+      ).toBe(true)
+    },
+  )
+
+  it('keeps a file ambiguous when the nearest package has no type', () => {
+    const directory = path.resolve('project/src')
+    const packageCache = createPackageCache(directory)
+
+    expect(
+      isFilePathFormatExplicit(
+        path.join(directory, 'entry.js'),
+        packageCache,
+      ),
+    ).toBe(false)
+  })
+})
 
 describe('getHash', () => {
   function cryptoHash(text: string, length = 8): string {
@@ -40,6 +87,14 @@ describe('getHash', () => {
     expect(getHash(text, length)).toBe(cryptoHash(text, length))
   })
 })
+
+function createPackageCache(directory: string, type?: string): PackageCache {
+  const packageData = {
+    data: { type },
+  } as PackageData
+
+  return new Map([[`fnpd_${directory}`, packageData]])
+}
 
 describe('flattenId', () => {
   it('should replace + symbols in package subpath exports', () => {

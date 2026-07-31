@@ -461,6 +461,35 @@ export function isFilePathESM(
   }
 }
 
+/**
+ * Whether the file's module format is explicitly determined as ESM or CJS by
+ * its extension or the nearest `package.json` `"type"` field, as opposed to
+ * being ambiguous.
+ */
+export function isFilePathFormatExplicit(
+  filePath: string,
+  packageCache?: PackageCache,
+): boolean {
+  if (/\.[mc][jt]s$/.test(filePath)) {
+    return true
+  }
+  if (filePath.startsWith('\0')) {
+    // treat virtual modules as ESM
+    return true
+  }
+  if (!path.isAbsolute(filePath)) {
+    // should not rely on `process.cwd()` as that would depend on
+    // the environment and make it unreproducible
+    return false
+  }
+  try {
+    const pkg = findNearestPackageData(path.dirname(filePath), packageCache)
+    return pkg?.data.type === 'module' || pkg?.data.type === 'commonjs'
+  } catch {
+    return false
+  }
+}
+
 export const splitRE: RegExp = /\r?\n/g
 
 const range: number = 2
