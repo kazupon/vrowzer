@@ -6,10 +6,45 @@ import {
   flattenId,
   getFileStartIndex,
   getHash,
+  isFilePathESM,
   isFilePathFormatExplicit,
   mergeConfig,
   setupHmrWsOptionCompat,
 } from './utils'
+
+describe('isFilePathESM', () => {
+  it('treats virtual modules as ESM without consulting package type', () => {
+    const filePath = '\0rolldown/runtime.js'
+    const packageCache = createPackageCache(
+      path.dirname(filePath),
+      'commonjs',
+    )
+
+    expect(isFilePathESM(filePath, packageCache)).toBe(true)
+  })
+
+  it('does not resolve a relative id against the current working directory', () => {
+    const filePath = 'src/entry.js'
+    const packageCache = createPackageCache(path.dirname(filePath), 'module')
+
+    expect(isFilePathESM(filePath, packageCache)).toBe(false)
+  })
+
+  it.each([
+    { type: 'module', expected: true },
+    { type: 'commonjs', expected: false },
+  ])(
+    'uses the nearest package type for an absolute $type file',
+    ({ type, expected }) => {
+      const directory = path.resolve('project/src')
+      const packageCache = createPackageCache(directory, type)
+
+      expect(
+        isFilePathESM(path.join(directory, 'entry.js'), packageCache),
+      ).toBe(expected)
+    },
+  )
+})
 
 describe('isFilePathFormatExplicit', () => {
   it.each(['entry.mjs', 'entry.mts', 'entry.cjs', 'entry.cts'])(
