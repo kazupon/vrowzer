@@ -44,7 +44,7 @@ function createScanEnvironment(buildInput?: unknown) {
   const config = {
     build: {
       outDir: 'dist',
-      rollupOptions: { input: buildInput },
+      rolldownOptions: { input: buildInput },
     },
     consumer: 'client',
     esbuild: false,
@@ -127,7 +127,7 @@ describe('scanImports', () => {
     const warn = vi.fn<(...args: unknown[]) => void>()
     const config = {
       build: {
-        rollupOptions: { input },
+        rolldownOptions: { input },
       },
       consumer: 'client',
       esbuild: false,

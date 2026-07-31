@@ -87,6 +87,28 @@ async function resolveMixedClientConfig() {
   )
 }
 
+describe('resolveConfig build option compatibility', () => {
+  test('maps legacy rollupOptions input to rolldownOptions', async () => {
+    const input = 'entry-client.ts'
+    const config = await resolveConfig(
+      createInlineConfig({
+        build: {
+          rollupOptions: { input },
+        },
+      }),
+      'serve',
+    )
+
+    for (const build of [
+      config.build,
+      config.environments.client.build,
+    ]) {
+      expect(build.rolldownOptions.input).toBe(input)
+      expect(build.rollupOptions).toBe(build.rolldownOptions)
+    }
+  })
+})
+
 describe('resolveConfig per-environment isBundled', () => {
   test('defaults serve environments to unbundled', async () => {
     const config = await resolveConfig(
