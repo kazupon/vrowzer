@@ -33,3 +33,13 @@ describe('decodeBase64', () => {
     expect(decodeBase64(encodedSourceMap)).toBe(sourceMap)
   })
 })
+
+describe('posixPathToFileHref', () => {
+  it('encodes special characters in file paths', async () => {
+    const { posixPathToFileHref } = await import('./utils')
+
+    expect(posixPathToFileHref('/root/a%b\nc\rd\te?#')).toBe(
+      'file:///root/a%25b%0Ac%0Dd%09e%3F%23',
+    )
+  })
+})
