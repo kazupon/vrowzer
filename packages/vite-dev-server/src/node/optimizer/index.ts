@@ -1223,6 +1223,12 @@ function isSingleDefaultExport(exports: readonly string[]) {
 
 const lockfileFormats = [
   {
+    path: 'node_modules/.pnpm/lock.yaml',
+    // Included in lockfile
+    checkPatchesDir: false,
+    manager: 'pnpm',
+  },
+  {
     path: 'node_modules/.package-lock.json',
     checkPatchesDir: 'patches',
     manager: 'npm',
@@ -1233,6 +1239,20 @@ const lockfileFormats = [
     checkPatchesDir: false,
     manager: 'yarn',
   },
+  {
+    path: 'bun.lock',
+    checkPatchesDir: 'patches',
+    manager: 'bun',
+  },
+  {
+    path: '.rush/temp/shrinkwrap-deps.json',
+    // Included in lockfile
+    checkPatchesDir: false,
+    manager: 'pnpm',
+  },
+
+  // discouraged package manager lockfiles
+  // or deprecated lockfiles
   {
     // Yarn v3+ PnP
     path: '.pnp.cjs',
@@ -1252,29 +1272,16 @@ const lockfileFormats = [
     manager: 'yarn',
   },
   {
-    path: 'node_modules/.pnpm/lock.yaml',
-    // Included in lockfile
-    checkPatchesDir: false,
-    manager: 'pnpm',
-  },
-  {
-    path: '.rush/temp/shrinkwrap-deps.json',
-    // Included in lockfile
-    checkPatchesDir: false,
-    manager: 'pnpm',
-  },
-  {
-    path: 'bun.lock',
-    checkPatchesDir: 'patches',
-    manager: 'bun',
-  },
-  {
     path: 'bun.lockb',
     checkPatchesDir: 'patches',
     manager: 'bun',
   },
 ].sort((_, { manager }) => {
-  return import.meta.env.npm_config_user_agent?.startsWith(manager) ? 1 : -1
+  const userAgent = import.meta.env.npm_config_user_agent
+  if (!userAgent) {
+    return 0
+  }
+  return userAgent.startsWith(manager) ? 1 : -1
   // NOTE(kazupon): commented out, because we need to keep the maintain from vite original behavior.
   // return process.env.npm_config_user_agent?.startsWith(manager) ? 1 : -1
 })

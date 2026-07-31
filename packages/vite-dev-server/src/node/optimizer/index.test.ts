@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import type { ResolvedConfig } from '../config'
 import type { Environment } from '../environment'
 import type { OptimizedDepInfo } from './index'
+import { getHash } from '../utils'
 
 type FakeRolldownOutput = {
   output: []
@@ -40,7 +41,7 @@ vi.mock('./resolve', () => ({
   expandGlobIds: vi.fn<(...args: unknown[]) => string[]>(() => []),
 }))
 
-import { runOptimizeDeps } from './index'
+import { initDepsOptimizerMetadata, runOptimizeDeps } from './index'
 
 let root: string
 
@@ -112,6 +113,22 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers()
   fs.rmSync(root, { force: true, recursive: true })
+})
+
+describe('initDepsOptimizerMetadata', () => {
+  it('prefers a popular lockfile when the package manager is unknown', () => {
+    const packageLock = '{"lockfileVersion":3}'
+    fs.mkdirSync(path.join(root, 'node_modules'), { recursive: true })
+    fs.writeFileSync(
+      path.join(root, 'node_modules/.package-lock.json'),
+      packageLock,
+    )
+    fs.writeFileSync(path.join(root, '.pnp.cjs'), 'deprecated lockfile')
+
+    const metadata = initDepsOptimizerMetadata(createEnvironment())
+
+    expect(metadata.lockfileHash).toBe(getHash(packageLock))
+  })
 })
 
 describe('runOptimizeDeps bundle lifecycle', () => {
