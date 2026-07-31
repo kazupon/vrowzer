@@ -36,7 +36,16 @@ function customizationHookResolve(
   return nextResolve(specifier, context)
 }
 
+// Ensure that we only register the hook once
+// Otherwise, a hook will be registered for each createImportMetaResolver call
+// and eventually cause "Maximum call stack size exceeded" errors
+let isHookRegistered = false
+
 export function createImportMetaResolver(): ImportMetaResolver | undefined {
+  if (isHookRegistered) {
+    return importMetaResolveWithCustomHook
+  }
+
   let module: typeof import('node:module') | undefined
   try {
     module =
@@ -56,6 +65,7 @@ export function createImportMetaResolver(): ImportMetaResolver | undefined {
   if (module.registerHooks) {
     // oxlint-disable-next-line node/no-unsupported-features/node-builtins -- we checked the existence
     module.registerHooks({ resolve: customizationHookResolve })
+    isHookRegistered = true
     return importMetaResolveWithCustomHook
   }
 
@@ -76,6 +86,7 @@ export function createImportMetaResolver(): ImportMetaResolver | undefined {
     throw e
   }
 
+  isHookRegistered = true
   return importMetaResolveWithCustomHook
 }
 
