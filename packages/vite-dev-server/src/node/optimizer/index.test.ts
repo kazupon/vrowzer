@@ -44,7 +44,9 @@ import { runOptimizeDeps } from './index'
 
 let root: string
 
-function createEnvironment(): Environment {
+function createEnvironment(
+  output: Record<string, unknown> = {},
+): Environment {
   const config = {
     assetsInclude: () => false,
     cacheDir: path.join(root, 'node_modules/.vite'),
@@ -56,7 +58,7 @@ function createEnvironment(): Environment {
     optimizeDeps: {
       exclude: [],
       extensions: [],
-      rolldownOptions: {},
+      rolldownOptions: { output },
     },
     optimizeDepsPluginNames: [],
     plugins: [],
@@ -109,6 +111,21 @@ afterEach(() => {
 })
 
 describe('runOptimizeDeps bundle lifecycle', () => {
+  it('forwards comment options without a deprecated default', async () => {
+    const comments = { legal: false }
+    rolldownMocks.write.mockResolvedValue({ output: [] })
+
+    const result = await runOptimizeDeps(
+      createEnvironment({ comments }),
+      createDepsInfo(),
+    ).result
+
+    const outputOptions = rolldownMocks.write.mock.calls[0]?.[0]
+    expect(outputOptions).not.toHaveProperty('legalComments')
+    expect(outputOptions).toHaveProperty('comments', comments)
+    await result.cancel()
+  })
+
   it('closes the bundle after a successful write', async () => {
     rolldownMocks.write.mockResolvedValue({ output: [] })
 

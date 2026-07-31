@@ -853,7 +853,6 @@ async function prepareRolldownOptimizerRun(
     }
     try {
       return await bundle.write({
-        legalComments: 'none',
         ...rolldownOptions.output,
         format: 'esm',
         sourcemap: 'hidden',
