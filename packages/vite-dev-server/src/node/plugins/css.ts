@@ -381,7 +381,11 @@ export function cssPlugin(config: ResolvedConfig): Plugin {
             if (encodePublicUrlsInCSS(config)) {
               return [publicFileToBuiltUrl(decodedUrl, config), undefined]
             } else {
-              return [joinUrlSegments(config.base, decodedUrl), undefined]
+              const base = joinUrlSegments(
+                config.server.origin ?? '',
+                config.base,
+              )
+              return [joinUrlSegments(base, decodedUrl), undefined]
             }
           }
           const [id, fragment] = decodedUrl.split('#')
@@ -587,7 +591,7 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
 
           const cssContent = await getContentWithSourcemap(css)
           const code = [
-            config.isBundled
+            this.environment.config.isBundled
               ? `const { updateStyle: __vite__updateStyle, removeStyle: __vite__removeStyle } = import.meta.hot._internal`
               : `import { updateStyle as __vite__updateStyle, removeStyle as __vite__removeStyle } from ${JSON.stringify(
                 path.posix.join(config.base, CLIENT_PUBLIC_PATH),
@@ -1131,6 +1135,10 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
 export function cssAnalysisPlugin(config: ResolvedConfig): Plugin {
   return {
     name: 'vite:css-analysis',
+
+    applyToEnvironment(environment) {
+      return !environment.config.isBundled
+    },
 
     transform: {
       filter: {
@@ -1978,7 +1986,7 @@ const UrlRewritePostcssPlugin: PostCSS.PluginCreator<{
 
   return {
     postcssPlugin: 'vite-url-rewrite',
-    Once(root) {
+    OnceExit(root) {
       const promises: Promise<void>[] = []
       root.walkDecls((declaration) => {
         const importer = declaration.source?.input.file

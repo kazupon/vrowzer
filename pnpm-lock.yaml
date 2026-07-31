@@ -602,6 +602,9 @@ importers:
       '@types/picomatch':
         specifier: ^4.0.2
         version: 4.0.2
+      '@vitest/utils':
+        specifier: 4.1.10
+        version: 4.1.10
       '@vrowzer/fs':
         specifier: workspace:*
         version: link:../fs

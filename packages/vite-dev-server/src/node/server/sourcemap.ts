@@ -2,13 +2,48 @@ import convertSourceMap from 'convert-source-map'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { ExistingRawSourceMap, SourceMap } from 'rolldown'
+import colors from 'picocolors'
 import { cleanUrl } from '../../shared/utils'
 import type { Logger } from '../logger'
-import { blankReplacer, createDebugger } from '../utils'
+import {
+  blankReplacer,
+  createDebugger,
+  isParentDirectory,
+  normalizePath,
+} from '../utils'
 
 const debug = createDebugger('vite:sourcemap', {
   onlyWhenFocused: true,
 })
+
+/**
+ * Given a file path inside node_modules, returns the package root directory.
+ * For scoped packages like `node_modules/@scope/pkg/dist/foo.js`, returns `node_modules/@scope/pkg`.
+ * Returns `undefined` if the file is not inside node_modules.
+ */
+export function getNodeModulesPackageRoot(
+  filePath: string,
+): string | undefined {
+  const normalized = normalizePath(filePath)
+  const nodeModulesIndex = normalized.lastIndexOf('/node_modules/')
+  if (nodeModulesIndex === -1) {
+    return undefined
+  }
+
+  const packageStart = nodeModulesIndex + '/node_modules/'.length
+  const rest = normalized.slice(packageStart)
+  const firstSlash = rest.indexOf('/')
+
+  let packageName: string
+  if (rest.startsWith('@')) {
+    // scoped package: @scope/pkg
+    const secondSlash = rest.indexOf('/', firstSlash + 1)
+    packageName = secondSlash === -1 ? rest : rest.slice(0, secondSlash)
+  } else {
+    packageName = firstSlash === -1 ? rest : rest.slice(0, firstSlash)
+  }
+  return normalized.slice(0, packageStart) + packageName
+}
 
 // Virtual modules should be prefixed with a null byte to avoid a
 // false positive "missing source" warning. We also check for certain
@@ -39,6 +74,7 @@ export async function injectSourcesContent(
 ): Promise<void> {
   let sourceRootPromise: Promise<string | undefined>
 
+  const packageRoot = getNodeModulesPackageRoot(file)
   const missingSources: string[] = []
   const sourcesContent = map.sourcesContent || []
   const sourcesContentPromises: Promise<void>[] = []
@@ -57,6 +93,23 @@ export async function injectSourcesContent(
           let resolvedSourcePath = cleanUrl(decodeURI(sourcePath))
           if (sourceRoot) {
             resolvedSourcePath = path.resolve(sourceRoot, resolvedSourcePath)
+          }
+
+          // Block path traversal outside the package boundary for node_modules
+          // A malicious package may point to a sensitive file
+          if (packageRoot) {
+            const resolvedSourcePathNormalized = normalizePath(
+              path.resolve(resolvedSourcePath),
+            )
+            if (!isParentDirectory(packageRoot, resolvedSourcePathNormalized)) {
+              sourcesContent[index] = null
+              logger.warnOnce(
+                colors.yellow(
+                  `Sourcemap for ${JSON.stringify(file)} points to a source file outside its package: ${JSON.stringify(resolvedSourcePathNormalized)}`,
+                ),
+              )
+              return
+            }
           }
 
           sourcesContent[index] = await fsp
@@ -156,12 +209,13 @@ export function applySourcemapIgnoreList(
 export async function extractSourcemapFromFile(
   code: string,
   filePath: string,
+  logger: Logger,
 ): Promise<{ code: string; map: SourceMap } | undefined> {
   const map = (
     convertSourceMap.fromSource(code) ||
     (await convertSourceMap.fromMapFileSource(
       code,
-      createConvertSourceMapReadMap(filePath),
+      createConvertSourceMapReadMap(filePath, logger),
     ))
   )?.toObject()
 
@@ -173,10 +227,26 @@ export async function extractSourcemapFromFile(
   }
 }
 
-function createConvertSourceMapReadMap(originalFileName: string) {
-  return (filename: string) => {
+function createConvertSourceMapReadMap(
+  originalFileName: string,
+  logger: Logger,
+) {
+  const packageRoot = getNodeModulesPackageRoot(originalFileName)
+  return async (filename: string) => {
+    const resolvedPath = path.resolve(path.dirname(originalFileName), filename)
+    if (
+      packageRoot &&
+      !isParentDirectory(packageRoot, normalizePath(resolvedPath))
+    ) {
+      logger.warnOnce(
+        colors.yellow(
+          `Sourcemap in "${originalFileName}" references a map file outside its package: "${filename}"`,
+        ),
+      )
+      return '{}'
+    }
     return fsp.readFile(
-      path.resolve(path.dirname(originalFileName), filename),
+      resolvedPath,
       'utf-8',
     )
   }

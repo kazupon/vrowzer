@@ -28,6 +28,7 @@ export type {
   UserConfigFnObject,
   UserConfigFnPromise
 } from './config'
+export type { HtmlAssetSource } from './assetSource'
 
 export type {
   DepOptimizationConfig, DepOptimizationMetadata,
@@ -47,10 +48,13 @@ export type {
   HotPayload, PrunePayload, Update, UpdatePayload
 } from '#types/hmrPayload'
 
+export type { HmrOptions, WsOptions } from './server/hmr'
+
 // TODO: fill in later ...
 
 export type {
   CustomEventMap,
+  ForwardConsolePayload,
   InferCustomEventPayload,
   InvalidatePayload
 } from '#types/customEvent'

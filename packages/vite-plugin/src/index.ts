@@ -123,7 +123,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
       const viteConfigSource = readFileSync(viteConfigPath, 'utf-8')
       const { code: workerSource, unsupported } = extractWorkerConfig(
         viteConfigSource,
-        viteConfigPath
+        viteConfigPath,
+        {
+          serverOrigin: config.server.origin,
+          serverForwardConsole: config.server.forwardConsole
+        }
       )
 
       if (unsupported.length > 0) {

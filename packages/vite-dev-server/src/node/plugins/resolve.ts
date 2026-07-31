@@ -247,7 +247,7 @@ function optimizerResolvePlugin(
     name: 'vite:resolve-dev',
     applyToEnvironment(environment) {
       return (
-        !environment.config.experimental.bundledDev &&
+        !environment.config.isBundled &&
         !isDepOptimizationDisabled(environment.config.optimizeDeps)
       )
     },
@@ -765,6 +765,9 @@ function resolveSubpathImports(
     }
   }
 
+  if (importsPath == null) {
+    return
+  }
   return importsPath + postfix
 }
 

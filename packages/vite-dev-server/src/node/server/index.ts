@@ -8,6 +8,10 @@ import path from 'node:path'
 import colors from 'picocolors'
 import type { SourceMap } from 'rolldown'
 import type { ModuleRunner } from 'vite/module-runner'
+import type {
+  ForwardConsoleOptions,
+  ResolvedForwardConsoleOptions,
+} from '../../shared/forwardConsole'
 import type { InlineConfig, ResolvedConfig } from '../config'
 import { isResolvedConfig, resolveConfig } from '../config'
 import { initPublicFiles } from '../publicDir'
@@ -42,10 +46,11 @@ import {
   isInNodeModules,
   isParentDirectory,
   mergeWithDefaults,
-  normalizePath
+  normalizePath,
+  setupHmrWsOptionCompat,
 } from '../utils'
 import type { DevEnvironment } from './environment'
-import type { HmrOptions, NormalizedHotChannel } from './hmr'
+import type { HmrOptions, NormalizedHotChannel, WsOptions } from './hmr'
 import { baseMiddleware } from './middlewares/base'
 import { errorMiddleware } from './middlewares/error'
 import { htmlFallbackMiddleware } from './middlewares/htmlFallback'
@@ -60,7 +65,10 @@ import { transformMiddleware } from './middlewares/transform'
 import type { ModuleNode } from './mixedModuleGraph'
 import { ModuleGraph } from './mixedModuleGraph'
 // NOTE(kazupon): `./options` importing for avoid circular dependency
-import { serverConfigDefaults as _serverConfigDefaults } from './options'
+import {
+  resolveForwardConsoleOptions,
+  serverConfigDefaults as _serverConfigDefaults,
+} from './options'
 import type { PluginContainer } from './pluginContainer'
 import {
   BasicMinimalPluginContext,
@@ -72,6 +80,7 @@ import type { MessageChannelServer } from './ws'
 import { createMessageChannelServer } from './ws'
 
 export * from './middlewares/utils'
+export { resolveForwardConsoleOptions } from './options'
 
 export interface ServerOptions extends CommonServerOptions {
   /**
@@ -79,10 +88,12 @@ export interface ServerOptions extends CommonServerOptions {
    */
   hmr?: HmrOptions | boolean
   /**
-   * Do not start the websocket connection.
-   * @experimental
+   * Configure MessageChannel connection options.
+   * Set to `false` to disable the MessageChannel server and connection.
+   *
+   * WebSocket-specific address options are retained for Vite config compatibility.
    */
-  ws?: false
+  ws?: WsOptions | false
   /**
    * Warm-up files to transform and cache the results in advance. This improves the
    * initial page load during server starts and prevents transform waterfalls.
@@ -164,6 +175,11 @@ export interface ServerOptions extends CommonServerOptions {
     server: ViteDevServer,
     hmr: (environment: DevEnvironment) => Promise<void>,
   ) => Promise<void>
+  /**
+   * Forward browser console logs and unhandled errors to the Vrowzer
+   * Web Worker dev server console.
+   */
+  forwardConsole?: boolean | ForwardConsoleOptions
 }
 
 export interface ResolvedServerOptions extends Omit<
@@ -178,7 +194,7 @@ export interface ResolvedServerOptions extends Omit<
     | 'origin'
     | 'hotUpdateEnvironments'
   >,
-  'fs' | 'middlewareMode' | 'sourcemapIgnoreList'
+  'fs' | 'middlewareMode' | 'sourcemapIgnoreList' | 'forwardConsole'
 > {
   fs: Required<FileSystemServeOptions>
   middlewareMode: NonNullable<ServerOptions['middlewareMode']>
@@ -186,6 +202,7 @@ export interface ResolvedServerOptions extends Omit<
     ServerOptions['sourcemapIgnoreList'],
     false | undefined
   >
+  forwardConsole: ResolvedForwardConsoleOptions
 }
 
 export interface FileSystemServeOptions {
@@ -212,7 +229,7 @@ export interface FileSystemServeOptions {
    * This will have higher priority than `allow`.
    * picomatch patterns are supported.
    *
-   * @default ['.env', '.env.*', '*.{crt,pem}', '**\/.git/**']
+   * @default ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**\/.git/**']
    */
   deny?: string[]
 }
@@ -1129,7 +1146,14 @@ function resolvedAllowDir(root: string, dir: string): string {
 //   fs: {
 //     strict: true,
 //     // allow
-//     deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**'],
+//     deny: [
+//       '.env',
+//       '.env.*',
+//       '*.{crt,pem,key,p12,pfx,cer,der}',
+//       '.npmrc',
+//       '.yarnrc.yml',
+//       '**/.git/**',
+//     ],
 //   },
 //   // origin
 //   preTransformRequests: true,
@@ -1137,6 +1161,7 @@ function resolvedAllowDir(root: string, dir: string): string {
 //   perEnvironmentStartEndDuringDev: false,
 //   perEnvironmentWatchChangeDuringDev: false,
 //   // hotUpdateEnvironments
+//   forwardConsole: undefined,
 // } satisfies ServerOptions)
 // export const serverConfigDefaults: Readonly<Partial<ServerOptions>> =
 //   _serverConfigDefaults
@@ -1156,6 +1181,8 @@ export function resolveServerOptions(
     raw ?? {},
   )
 
+  setupHmrWsOptionCompat(_server)
+
   const server: ResolvedServerOptions = {
     ..._server,
     fs: {
@@ -1169,6 +1196,7 @@ export function resolveServerOptions(
       _server.sourcemapIgnoreList === false
         ? () => false
         : _server.sourcemapIgnoreList,
+    forwardConsole: resolveForwardConsoleOptions(_server.forwardConsole),
   }
 
   let allowDirs = server.fs.allow

@@ -9,7 +9,7 @@ export interface ModuleRunnerImportMeta {
   dirname: string
   filename: string
   glob: (...args: any[]) => any
-  resolve(specifier: string, parent?: string): string
+  resolve(specifier: string, parent?: string | URL): string
   [key: string]: any
 }
 

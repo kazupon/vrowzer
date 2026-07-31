@@ -64,6 +64,19 @@
     <h2>Env import with query parameters works correctly</h2>
     <p>/@vite/env?foo should be transformed <code class="env-with-query"></code></p>
 
+    <vrowzer-asset
+      id="rewritten-custom-asset"
+      data-rewrite="true"
+      data-src="/data.json"
+    ></vrowzer-asset>
+    <vrowzer-asset
+      id="untouched-custom-asset"
+      data-rewrite="false"
+      data-src="/data.json"
+    ></vrowzer-asset>
+
+    <button id="forward-console-error" type="button">Throw runtime error</button>
+
     <script>
       // inject __VITE_SOME_IDENTIFIER__ to test if it's replaced
       window.__VITE_SOME_IDENTIFIER__ = true

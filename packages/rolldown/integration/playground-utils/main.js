@@ -38,11 +38,27 @@ if (process.env.NODE_ENV !== 'production') {
       }
     })
 
-    // Test 3: parseSync
+    // Test 3: transformSync with custom JSX options and tsconfig disabled
+    const jsxCode = `
+export const pages = import.meta.glob('./pages/*.tsx')
+export default <div />
+`
+    const jsxResult = transformSync('entry-glob-custom-oxc.tsx', jsxCode, {
+      lang: 'tsx',
+      sourceType: 'module',
+      tsconfig: false,
+      jsx: {
+        runtime: 'automatic',
+        importSource: 'vue',
+        development: true
+      }
+    })
+
+    // Test 4: parseSync
     const parseCode = `const x = 1; export default x;`
     const parseResult = parseSync('parse-test.js', parseCode)
 
-    // Test 4: minifySync
+    // Test 5: minifySync
     const minifyCode = `/* comment */ const longVariable = 1;\nconsole.log(longVariable);`
     const minifyResult = minifySync('minify-test.js', minifyCode)
 
@@ -56,6 +72,12 @@ if (process.env.NODE_ENV !== 'production') {
         // transformSync: Define replacement
         defineOutput: defineResult.code,
         defineReplaced: !defineResult.code.includes('process.env.NODE_ENV'),
+        // transformSync: Custom JSX options
+        jsxOutput: jsxResult.code,
+        jsxNoErrors: jsxResult.errors.length === 0,
+        jsxUsesVueRuntime: jsxResult.code.includes('vue/jsx-dev-runtime'),
+        jsxAvoidsReactRuntime: !jsxResult.code.includes('react/jsx'),
+        jsxKeepsGlob: jsxResult.code.includes('import.meta.glob'),
         // parseSync
         parseHasProgram: parseResult.program != null,
         parseBodyLength: parseResult.program?.body?.length ?? 0,

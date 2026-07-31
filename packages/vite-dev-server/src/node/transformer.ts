@@ -17,13 +17,14 @@ import { fs, vol } from '@vrowzer/fs'
 import { rolldown } from '@vrowzer/rolldown'
 import { memfs } from '@vrowzer/rolldown/experimental'
 import { createBirpc } from 'birpc'
+import { deserializeRpcMessage, serializeRpcMessage } from '../shared/rpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { reloadOnTsconfigChange } from './plugins/esbuild'
 import { initPublicFiles } from './publicDir'
 import { DevEnvironment } from './server/environment'
 import { handleHMRUpdate } from './server/hmr'
-import { checkLoadingAccess } from './server/middlewares/static'
 import { ModuleGraph } from './server/mixedModuleGraph'
+import { isServerAccessDeniedForTransform } from './server/transformAccess'
 import { createMessageChannelServer } from './server/ws'
 import {
   createDebugger, normalizePath
@@ -86,18 +87,6 @@ export interface SetupWorkerOptions {
    * @internal
    */
   previousEnvironments?: Record<string, DevEnvironment>
-}
-
-const urlRE = /[?&]url\b/
-const rawRE = /[?&]raw\b/
-const inlineRE = /[?&]inline\b/
-const svgRE = /\.svg\b/
-
-export function isServerAccessDeniedForTransform(config: ResolvedConfig, id: string) {
-  if (rawRE.test(id) || urlRE.test(id) || inlineRE.test(id) || svgRE.test(id)) {
-    return checkLoadingAccess(config, id) !== 'allowed'
-  }
-  return false
 }
 
 /**
@@ -314,7 +303,7 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
     await onHMRUpdate(isUnlink ? 'delete' : 'create', file)
   }
 
-  watcher.on('change', async (file) => {
+  const onFileChange = async (file: string) => {
     debug?.('watcher change:', file)
 
     file = normalizePath(file)
@@ -331,14 +320,18 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
     }
 
     await onHMRUpdate('update', file)
+  }
+
+  watcher.on('change', (file) => {
+    onFileChange(file).catch((e) => server.config.logger.error(e))
   })
 
-  watcher.on('add', async (file) => {
-    onFileAddUnlink(file, false)
+  watcher.on('add', (file) => {
+    onFileAddUnlink(file, false).catch((e) => server.config.logger.error(e))
   })
 
-  watcher.on('unlink', async (file) => {
-    onFileAddUnlink(file, true)
+  watcher.on('unlink', (file) => {
+    onFileAddUnlink(file, true).catch((e) => server.config.logger.error(e))
   })
 }
 
@@ -418,6 +411,8 @@ export function connectServiceWorkerPort(
                 fn(ev.data)
               }
             },
+            serialize: serializeRpcMessage,
+            deserialize: deserializeRpcMessage,
           }
         )
 
@@ -497,6 +492,7 @@ export {
 export type { ResolvedUrl } from './server/moduleGraph'
 
 // === Transform pipeline ===
+export { isServerAccessDeniedForTransform }
 export {
   ERR_DENIED_ID, ERR_LOAD_PUBLIC_URL, ERR_LOAD_URL, getModuleTypeFromId, transformRequest
 } from './server/transformRequest'
@@ -516,7 +512,8 @@ export type {
   HmrContext, HmrOptions, HotChannel,
   HotChannelClient,
   HotChannelListener, HotUpdateOptions, NormalizedHotChannel,
-  NormalizedHotChannelClient, NormalizedServerHotChannel, ServerHotChannel, ServerHotChannelApi
+  NormalizedHotChannelClient, NormalizedServerHotChannel, ServerHotChannel, ServerHotChannelApi,
+  WsOptions
 } from './server/hmr'
 
 // === MessageChannel HMR server ===
@@ -549,6 +546,7 @@ export {
 
 // === Config ===
 export { defineConfig, resolveConfig } from './config'
+export type { HtmlAssetSource } from './assetSource'
 export type {
   DevEnvironmentOptions, EnvironmentOptions, InlineConfig, ResolvedConfig, ResolvedDevEnvironmentOptions, ResolvedEnvironmentOptions
 } from './config'
@@ -609,4 +607,3 @@ export {
 export type {
   ConnectServiceWorkerPortAckMessage, ConnectServiceWorkerPortMessage, ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage, SetupWorkerAckMessage, SetupWorkerMessage, WebWorkerServiceWorkerChannelReadyMessage
 } from '../shared/messages'
-

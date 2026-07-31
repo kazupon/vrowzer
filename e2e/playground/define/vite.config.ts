@@ -3,6 +3,20 @@ import { defineConfig } from 'vite-plus'
 
 export default defineConfig({
   plugins: [VrowzerManifest(), Vrowzer({ auto: false })],
+  server: {
+    forwardConsole: {
+      unhandledErrors: true,
+      logLevels: ['error']
+    }
+  },
+  html: {
+    additionalAssetSources: {
+      'vrowzer-asset': {
+        srcAttributes: ['data-src'],
+        filter: ({ attributes }) => attributes['data-rewrite'] === 'true'
+      }
+    }
+  },
   define: {
     __EXP__: 'false',
     __STRING__: '"hello"',

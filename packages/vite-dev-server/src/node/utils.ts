@@ -11,10 +11,10 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { PreviewServer } from './preview'
-import type { ViteDevServer } from './server'
+import type { ServerOptions, ViteDevServer } from './server'
 // import { fileURLToPath } from 'node:url'
 import { createDebug as debug, enable as debugEnable } from 'obug'
-import type { TransformResult } from 'rolldown'
+import type { InputOption, TransformResult } from 'rolldown'
 import { VALID_ID_PREFIX } from '../shared/constants'
 import { cleanUrl, isWindows, slash, splitFileAndPostfix, withTrailingSlash } from '../shared/utils'
 import type { ResolvedConfig } from './config'
@@ -50,17 +50,21 @@ export const createFilter = _createFilter as (
 // NOTE: `rolldown/filter` was not needed in browser
 // export { withFilter } from 'rolldown/filter'
 
-const replaceSlashOrColonRE = /[/:]/g
-const replaceDotRE = /\./g
+// eslint-disable-next-line no-control-regex
+const invalidUrlPathCharRE = /[\u0000-\u001F"#$%&*+,:;<=>?[\]^`{|}\u007F]/g
 const replaceNestedIdRE = /\s*>\s*/g
-const replaceHashRE = /#/g
 export const flattenId = (id: string): string => {
   const flatId = limitFlattenIdLength(
     id
-      .replace(replaceSlashOrColonRE, '_')
-      .replace(replaceDotRE, '__')
-      .replace(replaceNestedIdRE, '___')
-      .replace(replaceHashRE, '____'),
+      .replaceAll(/_+/g, '$&__')
+      .replaceAll('/', '_')
+      .replaceAll('.', '__')
+      .replace(replaceNestedIdRE, '_n_')
+      // replace any characters that will be replaced by sanitizeFileName
+      .replace(
+        invalidUrlPathCharRE,
+        (c) => '_0' + c.charCodeAt(0).toString(16) + '_',
+      ),
   )
   return flatId
 }
@@ -446,6 +450,13 @@ export function isFilePathESM(
     return true
   } else if (/\.c[jt]s$/.test(filePath)) {
     return false
+  } else if (filePath.startsWith('\0')) {
+    // treat virtual modules as ESM
+    return true
+  } else if (!path.isAbsolute(filePath)) {
+    // should not rely on `process.cwd()` as that would depend on
+    // the environment and make it unreproducible
+    return false
   } else {
     // check package.json for type: "module"
     try {
@@ -454,6 +465,35 @@ export function isFilePathESM(
     } catch {
       return false
     }
+  }
+}
+
+/**
+ * Whether the file's module format is explicitly determined as ESM or CJS by
+ * its extension or the nearest `package.json` `"type"` field, as opposed to
+ * being ambiguous.
+ */
+export function isFilePathFormatExplicit(
+  filePath: string,
+  packageCache?: PackageCache,
+): boolean {
+  if (/\.[mc][jt]s$/.test(filePath)) {
+    return true
+  }
+  if (filePath.startsWith('\0')) {
+    // treat virtual modules as ESM
+    return true
+  }
+  if (!path.isAbsolute(filePath)) {
+    // should not rely on `process.cwd()` as that would depend on
+    // the environment and make it unreproducible
+    return false
+  }
+  try {
+    const pkg = findNearestPackageData(path.dirname(filePath), packageCache)
+    return pkg?.data.type === 'module' || pkg?.data.type === 'commonjs'
+  } catch {
+    return false
   }
 }
 
@@ -1350,6 +1390,76 @@ export function hasBothRollupOptionsAndRolldownOptions(
   return false
 }
 
+const wsOptionKeys = [
+  'protocol',
+  'host',
+  'port',
+  'clientPort',
+  'path',
+  'timeout',
+  'server',
+] as const
+
+const hmrWsOptionsDeprecationCall = /* @__PURE__ */ (() => {
+  let logged = false
+  return () => {
+    if (logged) { return }
+    logged = true
+    const method = import.meta.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
+    // NOTE(kazupon): use import.meta.env in browser and Worker environments.
+    // const method = process.env.VITE_DEPRECATION_TRACE ? 'trace' : 'warn'
+    // oxlint-disable-next-line no-console
+    console[method](
+      '`server.hmr.protocol/host/port/path/clientPort/timeout/server` is deprecated. ' +
+      'Use `server.ws.*` instead. Note that this option may be set by a plugin. ' +
+      (method === 'trace'
+        ? 'Showing trace because VITE_DEPRECATION_TRACE is set.'
+        : 'Set VITE_DEPRECATION_TRACE=1 to see where it is called.'),
+    )
+  }
+})()
+
+export function setupHmrWsOptionCompat(
+  serverConfig: Pick<ServerOptions, 'hmr' | 'ws'>,
+): void {
+  if (serverConfig.hmr === false || serverConfig.ws === false) {
+    return
+  }
+  if (serverConfig.hmr === true) {
+    serverConfig.hmr = {}
+  }
+
+  const hmrConfig = serverConfig.hmr
+  const wsConfig = serverConfig.ws ? { ...serverConfig.ws } : {}
+  if (hmrConfig) {
+    for (const key of wsOptionKeys) {
+      if (hmrConfig[key] !== undefined) {
+        // @ts-expect-error same value for same key
+        wsConfig[key] ??= hmrConfig[key]
+      }
+    }
+  }
+  serverConfig.ws = wsConfig
+
+  const hmrProxy = hmrConfig || {}
+  for (const key of wsOptionKeys) {
+    Object.defineProperty(hmrProxy, key, {
+      get() {
+        return (serverConfig.ws as Record<string, unknown>)?.[key]
+      },
+      set(newValue) {
+        hmrWsOptionsDeprecationCall()
+        if (typeof serverConfig.ws === 'object') {
+          ;(serverConfig.ws as Record<string, unknown>)[key] = newValue
+        }
+      },
+      configurable: true,
+      enumerable: true,
+    })
+  }
+  serverConfig.hmr = hmrProxy
+}
+
 function mergeConfigRecursively(
   defaults: Record<string, any>,
   overrides: Record<string, any>,
@@ -1358,6 +1468,18 @@ function mergeConfigRecursively(
   const merged: Record<string, any> = { ...defaults }
   if (rollupOptionsRootPaths.has(rootPath)) {
     setupRollupOptionCompat(merged, rootPath)
+  }
+  if (rootPath === 'server') {
+    setupHmrWsOptionCompat(merged)
+  }
+  if (rootPath === 'server.hmr') {
+    for (const key of wsOptionKeys) {
+      Object.defineProperty(
+        merged,
+        key,
+        Object.getOwnPropertyDescriptor(defaults, key)!,
+      )
+    }
   }
 
   for (const key in overrides) {
@@ -1380,7 +1502,10 @@ function mergeConfigRecursively(
     }
 
     // fields that require special handling
-    if (key === 'alias' && (rootPath === 'resolve' || rootPath === '')) {
+    if (key === 'input' && rootPath === '') {
+      merged[key] = mergeInput(existing, value)
+      continue
+    } else if (key === 'alias' && (rootPath === 'resolve' || rootPath === '')) {
       merged[key] = mergeAlias(existing, value)
       continue
     } else if (key === 'assetsInclude' && rootPath === '') {
@@ -1400,7 +1525,10 @@ function mergeConfigRecursively(
         ...backwardCompatibleWorkerPlugins(value),
       ]
       continue
-    } else if (key === 'server' && rootPath === 'server.hmr') {
+    } else if (
+      key === 'server' &&
+      (rootPath === 'server.hmr' || rootPath === 'server.ws')
+    ) {
       merged[key] = value
       continue
     }
@@ -1440,6 +1568,43 @@ export function mergeConfig<
   }
 
   return mergeConfigRecursively(defaults, overrides, isRoot ? '' : '.')
+}
+
+function mergeInput(a?: InputOption, b?: InputOption): InputOption | undefined {
+  if (!a) { return b }
+  if (!b) { return a }
+
+  if (typeof a === 'string' && typeof b === 'string') {
+    return [a, b]
+  }
+  if (Array.isArray(a) && (typeof b === 'string' || Array.isArray(b))) {
+    return [...a, ...(Array.isArray(b) ? b : [b])]
+  }
+  if (Array.isArray(b) && (typeof a === 'string' || Array.isArray(a))) {
+    return [...(Array.isArray(a) ? a : [a]), ...b]
+  }
+  if (typeof a !== 'string' && !Array.isArray(a)) {
+    return {
+      ...a,
+      ...normalizeToInputObject(b),
+    }
+  }
+  return {
+    ...normalizeToInputObject(a),
+    ...(b as Record<string, string>),
+  }
+}
+
+function normalizeToInputObject(input: InputOption): Record<string, string> {
+  if (typeof input === 'string') {
+    return { [path.basename(input, path.extname(input))]: input }
+  }
+  if (Array.isArray(input)) {
+    return Object.fromEntries(
+      input.map((item) => [path.basename(item, path.extname(item)), item]),
+    )
+  }
+  return input
 }
 
 export function mergeAlias(
@@ -1771,4 +1936,11 @@ export function monotonicDateNow(): number {
 
   lastDateNow++
   return lastDateNow
+}
+
+const hashbangRE = /^#!.*\n/
+
+// find the start of the file, after the hashbang
+export function getFileStartIndex(code: string): number {
+  return hashbangRE.exec(code)?.[0].length ?? 0
 }

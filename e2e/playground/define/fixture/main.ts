@@ -92,6 +92,10 @@ try {
 
   text('.optional-env', optionalEnv)
 
+  document.querySelector('#forward-console-error')?.addEventListener('click', () => {
+    throwForwardConsoleError()
+  })
+
   // Signal completion (before async operations)
   document.body.dataset.testComplete = 'true'
 
@@ -107,4 +111,8 @@ try {
 } catch (e: any) {
   console.error('[define-test] Error:', e.message, e.stack)
   document.body.dataset.testError = e.message
+}
+
+function throwForwardConsoleError() {
+  throw new Error('vrowzer forward console runtime error')
 }

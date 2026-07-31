@@ -17,6 +17,11 @@ import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
+import {
+  createServiceWorkerFunctions,
+  deserializeRpcMessage,
+  serializeRpcMessage,
+} from '../shared/rpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
@@ -51,11 +56,15 @@ import type { ListenOptions, SvcWorkerServer } from '@vrowzer/service-worker-ser
 import type { BlankSchema, Env } from 'hono/types'
 import type { ConnectWebWorkerPortMessage, ViteMessageChannelInitMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
 import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
+import type {
+  ForwardConsoleOptions,
+  ResolvedForwardConsoleOptions,
+} from '../shared/forwardConsole'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
 import type { MinimalPluginContextWithoutEnvironment } from './plugin'
 import type { DevEnvironment } from './server/environment'
-import type { HmrOptions } from './server/hmr'
+import type { HmrOptions, WsOptions } from './server/hmr'
 import type { ViteDevServer } from './server/index'
 import type { ShortcutsState } from './shortcuts'
 import type { RequiredExceptFor } from './typeUtils'
@@ -68,10 +77,12 @@ export interface ServerOptions extends CommonServerOptions {
    */
   hmr?: HmrOptions | boolean
   /**
-   * Do not start the websocket connection.
-   * @experimental
+   * Configure MessageChannel connection options.
+   * Set to `false` to disable the MessageChannel server and connection.
+   *
+   * WebSocket-specific address options are retained for Vite config compatibility.
    */
-  ws?: false
+  ws?: WsOptions | false
   /**
    * Warm-up files to transform and cache the results in advance. This improves the
    * initial page load during server starts and prevents transform waterfalls.
@@ -153,6 +164,11 @@ export interface ServerOptions extends CommonServerOptions {
     server: ViteDevServer,
     hmr: (environment: DevEnvironment) => Promise<void>,
   ) => Promise<void>
+  /**
+   * Forward browser console logs and unhandled errors to the Vrowzer
+   * Web Worker dev server console.
+   */
+  forwardConsole?: boolean | ForwardConsoleOptions
 }
 
 export interface ResolvedServerOptions extends Omit<
@@ -167,7 +183,7 @@ export interface ResolvedServerOptions extends Omit<
     | 'origin'
     | 'hotUpdateEnvironments'
   >,
-  'fs' | 'middlewareMode' | 'sourcemapIgnoreList'
+  'fs' | 'middlewareMode' | 'sourcemapIgnoreList' | 'forwardConsole'
 > {
   fs: Required<FileSystemServeOptions>
   middlewareMode: NonNullable<ServerOptions['middlewareMode']>
@@ -175,6 +191,7 @@ export interface ResolvedServerOptions extends Omit<
     ServerOptions['sourcemapIgnoreList'],
     false | undefined
   >
+  forwardConsole: ResolvedForwardConsoleOptions
 }
 
 export interface FileSystemServeOptions {
@@ -201,7 +218,7 @@ export interface FileSystemServeOptions {
    * This will have higher priority than `allow`.
    * picomatch patterns are supported.
    *
-   * @default ['.env', '.env.*', '*.{crt,pem}', '**\/.git/**']
+   * @default ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**\/.git/**']
    */
   deny?: string[]
 }
@@ -665,23 +682,24 @@ export function createServer(
             // Reply with SW's channel-ready
             port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'sw' })
 
+            // Install birpc before the first await. The Web Worker may send its
+            // initial safe-path snapshot as soon as it receives channel-ready.
+            workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
+              createServiceWorkerFunctions(config.safeModulePaths),
+              {
+                post: rpcData => port.postMessage(rpcData),
+                on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
+                serialize: serializeRpcMessage,
+                deserialize: deserializeRpcMessage,
+                timeout: 30_000,
+              }
+            )
+
             // Notify the originating client that the connection is established
             if (clientId) {
               const client = await serviceWorkerScope.clients.get(clientId)
               client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
             }
-
-            // Phase 2: Replace onmessage with birpc
-            workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
-              {
-                // ServiceWorkerFunctions handlers (currently empty, future: HMR relay etc.)
-              },
-              {
-                post: rpcData => port.postMessage(rpcData),
-                on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
-                timeout: 30_000,
-              }
-            )
 
             debug?.('Worker RPC established via birpc')
           }
@@ -761,6 +779,7 @@ export { getRequestPath } from './server/middlewares/utils'
 
 // === Config ===
 export { defineConfig, resolveConfig, sortUserPlugins } from './config'
+export type { HtmlAssetSource } from './assetSource'
 export type {
   AppType,
   ConfigEnv,
@@ -797,7 +816,8 @@ export type {
   NormalizedHotChannelClient,
   NormalizedServerHotChannel,
   ServerHotChannel,
-  ServerHotChannelApi
+  ServerHotChannelApi,
+  WsOptions
 } from './server/hmr'
 
 // === MessageChannel HMR server ===

@@ -222,8 +222,8 @@ describe('send', () => {
       const response = send(c, content, 'js', { map })
       const body = await response.text()
 
-      // Should not have the provided map, but may have fallback
-      expect(body).not.toContain('AAAA')
+      expect(body).toBe(content)
+      expect(body).not.toContain('sourceMappingURL=')
     })
 
     it('should skip sourcemap injection when code has existing inline sourcemap', async () => {

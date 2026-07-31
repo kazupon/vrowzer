@@ -54,6 +54,7 @@ import {
   createDebugger,
   fsPathFromUrl,
   generateCodeFrame,
+  getFileStartIndex,
   getHash,
   injectQuery,
   isBuiltin,
@@ -62,6 +63,7 @@ import {
   isDefined,
   isExternalUrl,
   isFilePathESM,
+  isFilePathFormatExplicit,
   isInNodeModules,
   isJSRequest,
   joinUrlSegments,
@@ -261,6 +263,10 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
   return {
     name: 'vite:import-analysis',
 
+    applyToEnvironment(environment) {
+      return !environment.config.isBundled
+    },
+
     async transform(source, importer) {
       const environment = this.environment as DevEnvironment
       const ssr = environment.config.consumer === 'server'
@@ -459,6 +465,17 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
         _isNodeModeResult ??= isFilePathESM(importer, config.packageCache)
         return _isNodeModeResult
       }
+      let _isNodeModeForDynamicImportResult = config.legacy
+        ?.inconsistentCjsInterop
+        ? false
+        : undefined
+      const isNodeModeForDynamicImport = () => {
+        _isNodeModeForDynamicImportResult ??= isFilePathFormatExplicit(
+          importer,
+          config.packageCache,
+        )
+        return _isNodeModeForDynamicImportResult
+      }
 
       await Promise.all(
         imports.map(async (importSpecifier, index) => {
@@ -585,8 +602,14 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
 
             if (url !== specifier) {
               let rewriteDone = false
+              // optimizer-emitted imports resolve to the sibling file they
+              // name; imports injected by plugins (e.g. @rollup/plugin-inject)
+              // still need interop
+              const isOptimizerEmittedImport =
+                depsOptimizer?.isOptimizedDepFile(importer) &&
+                specifier[0] === '.'
               if (
-                !depsOptimizer?.isOptimizedDepFile(importer) &&
+                !isOptimizerEmittedImport &&
                 depsOptimizer?.isOptimizedDepFile(resolvedId) &&
                 !optimizedDepChunkRE.test(resolvedId)
               ) {
@@ -626,7 +649,9 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
                     url,
                     index,
                     importer,
-                    isNodeMode(),
+                    isDynamicImport
+                      ? isNodeModeForDynamicImport()
+                      : isNodeMode(),
                     config,
                   )
                   rewriteDone = true
@@ -704,7 +729,7 @@ export function importAnalysisPlugin(config: ResolvedConfig): Plugin {
                   colors.yellow(
                     `\nThe above dynamic import cannot be analyzed by Vite.\n` +
                     `See ${colors.blue(
-                      `https://github.com/rollup/plugins/tree/master/packages/dynamic-import-vars#limitations`,
+                      `https://vite.dev/guide/features#dynamic-import`,
                     )} ` +
                     `for supported dynamic import formats. ` +
                     `If this is intended to be left as-is, you can use the ` +
@@ -947,12 +972,11 @@ export function interopNamedImports(
   } = importSpecifier
   const exp = source.slice(expStart, expEnd)
   if (dynamicIndex > -1) {
-    const inconsistentCjsInterop = !!config.legacy?.inconsistentCjsInterop
     // rewrite `import('package')` to expose the default directly
     str.overwrite(
       expStart,
       expEnd,
-      `import('${rewrittenUrl}').then(m => (${interopHelperStr})(m.default, ${inconsistentCjsInterop ? 0 : 1}))` +
+      `import('${rewrittenUrl}').then(m => (${interopHelperStr})(m.default, ${+isNodeMode}))` +
       getLineBreaks(exp),
       { contentOnly: true },
     )
@@ -968,9 +992,18 @@ export function interopNamedImports(
       config,
     )
     if (rewritten) {
-      str.overwrite(expStart, expEnd, rewritten + getLineBreaks(exp), {
-        contentOnly: true,
-      })
+      str.overwrite(
+        expStart,
+        expEnd,
+        rewritten.importLine + getLineBreaks(exp),
+        { contentOnly: true },
+      )
+      if (rewritten.hoistedAssignments) {
+        str.appendLeft(
+          getFileStartIndex(source),
+          rewritten.hoistedAssignments + ';',
+        )
+      }
     } else {
       // #1439 export * from '...'
       str.overwrite(
@@ -1013,7 +1046,7 @@ export function transformCjsImport(
   importer: string,
   isNodeMode: boolean,
   config: ResolvedConfig,
-): string | undefined {
+): { importLine: string; hoistedAssignments?: string } | undefined {
   const node = (parseAst(importExp) as Program).body[0]
 
   // `export * from '...'` may cause unexpected problem, so give it a warning
@@ -1032,7 +1065,7 @@ export function transformCjsImport(
     node.type === 'ExportNamedDeclaration'
   ) {
     if (!node.specifiers.length) {
-      return `import "${url}"`
+      return { importLine: `import "${url}"` }
     }
 
     const importNames: ImportNameSpecifier[] = []
@@ -1085,7 +1118,8 @@ export function transformCjsImport(
     const cjsModuleName = makeLegalIdentifier(
       `__vite__cjsImport${importIndex}_${rawUrl}`,
     )
-    const lines: string[] = [`import ${cjsModuleName} from "${url}"`]
+    const importLine = `import ${cjsModuleName} from "${url}"`
+    const lines: string[] = []
     importNames.forEach(({ importedName, localName }) => {
       if (importedName === '*') {
         lines.push(
@@ -1110,7 +1144,7 @@ export function transformCjsImport(
       lines.push(`export { ${exportNames.join(', ')} }`)
     }
 
-    return lines.join('; ')
+    return { importLine, hoistedAssignments: lines.join('; ') }
   }
 }
 

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import {
   createMessageChannelModuleRunnerTransport,
   normalizeModuleRunnerTransport,
+  SendBeforeConnectError,
 } from './moduleRunnerTransport'
 
 import type { ModuleRunnerTransport } from './moduleRunnerTransport'
@@ -531,8 +532,8 @@ describe('normalizeModuleRunnerTransport', () => {
 
       const normalized = normalizeModuleRunnerTransport(transport)
 
-      await expect(normalized.send({ type: 'ping' } as any)).rejects.toThrow(
-        'send was called before connect'
+      await expect(normalized.send({ type: 'ping' } as any)).rejects.toBeInstanceOf(
+        SendBeforeConnectError
       )
     })
 
@@ -571,9 +572,9 @@ describe('normalizeModuleRunnerTransport', () => {
 
       const normalized = normalizeModuleRunnerTransport(transport)
 
-      await expect(normalized.invoke('fetchModule', ['/test.js', ''])).rejects.toThrow(
-        'invoke was called before connect'
-      )
+      await expect(
+        normalized.invoke('fetchModule', ['/test.js', ''])
+      ).rejects.toBeInstanceOf(SendBeforeConnectError)
     })
 
     it('waits for connecting promise before invoking', async () => {

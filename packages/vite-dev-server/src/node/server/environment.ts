@@ -41,6 +41,7 @@ import type {
   TransformResult,
 } from './transformRequest'
 import { transformRequest } from './transformRequest'
+import { registerInputsAsSafeModules } from './safeModulePaths'
 import { warmupFiles } from './warmup'
 import type { MessageChannelServer } from './ws'
 import { isMessageChannelServer } from './ws'
@@ -81,6 +82,13 @@ export class DevEnvironment extends BaseEnvironment {
    * @internal
    */
   _pluginContainer: EnvironmentPluginContainer<DevEnvironment> | undefined
+
+  /**
+   * @internal Vrowzer synchronizes safe paths to the Service Worker.
+   */
+  _syncSafeModulePaths:
+    | ((paths: string[]) => Promise<void>)
+    | undefined
 
   /**
    * @internal
@@ -159,7 +167,7 @@ export class DevEnvironment extends BaseEnvironment {
 
     this.hot.on(
       'vite:invalidate',
-      async ({ path, message, firstInvalidatedBy }, client) => {
+      ({ path, message, firstInvalidatedBy }, client) => {
         this.invalidateModule(
           {
             path,
@@ -213,6 +221,17 @@ export class DevEnvironment extends BaseEnvironment {
     )
   }
 
+  /** @internal */
+  async _registerInputsAsSafeModules(): Promise<void> {
+    await registerInputsAsSafeModules(
+      this.config.input,
+      (id, importer, options) =>
+        this.pluginContainer.resolveId(id, importer, options),
+      this.getTopLevelConfig().safeModulePaths,
+      this._syncSafeModulePaths,
+    )
+  }
+
   /**
     * When the dev server is restarted, the methods are called in the following order:
     * - new instance `init`
@@ -225,6 +244,12 @@ export class DevEnvironment extends BaseEnvironment {
     warmupFiles(server, this)
   }
 
+  /**
+   * Called by the module runner to retrieve information about the specified
+   * module. Internally calls `transformRequest` and wraps the result in the
+   * format that the module runner understands.
+   * This method is not meant to be called manually.
+   */
   fetchModule(
     id: string,
     importer?: string,
@@ -406,7 +431,7 @@ function setupOnCrawlEnd(): CrawlEndFinder {
       callCrawlEndIfIdleAfterMs,
     )
   }
-  async function callOnCrawlEndWhenIdle() {
+  function callOnCrawlEndWhenIdle() {
     if (cancelled || registeredIds.size > 0) { return }
     onCrawlEndPromiseWithResolvers.resolve()
   }
@@ -417,4 +442,3 @@ function setupOnCrawlEnd(): CrawlEndFinder {
     cancel,
   }
 }
-

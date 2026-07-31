@@ -19,6 +19,7 @@
  */
 
 import { createDebugger } from './utils'
+import { connectSafeModulePathSync } from '../shared/rpc'
 
 // NOTE(kazupon): Only type-only imports from heavy modules.
 // Runtime imports of ./transformer happen inside listen() via dynamic import.
@@ -196,6 +197,10 @@ export function createServer(
             )
           }
 
+          // Match Vite's dev-server initialization order: configureServer
+          // completes before the client buildStart lifecycle begins.
+          await clientEnv!.pluginContainer.buildStart()
+
           // Send ACK to Main Thread with config and environment info
           workerScope.postMessage({ type: V_WW_SETUP_ACK })
           debug?.('setup complete')
@@ -223,7 +228,7 @@ export function createServer(
         }
 
         const { connectServiceWorkerPort } = await import('./transformer')
-        await connectServiceWorkerPort(port, {
+        const serviceWorkerRpc = await connectServiceWorkerPort(port, {
           transformRequest: (url, opts) => server!.transformRequest(url, opts),
           transformIndexHtml: (url, html, originalUrl) => server!.transformIndexHtml(url, html, originalUrl),
           warmupRequest: (url) => server!.warmupRequest(url),
@@ -231,6 +236,12 @@ export function createServer(
           debug?.('HMR port received from SW, connecting to MessageChannelServer')
           ws!.handlePort(hmrPort, clientId)
         })
+
+        await connectSafeModulePathSync(
+          Object.values(server.environments),
+          server.config.safeModulePaths,
+          paths => serviceWorkerRpc.registerSafeModulePaths(paths),
+        )
 
         workerScope.postMessage({ type: V_SW_CONNECT_PORT_ACK })
         debug?.('SW<->WW birpc channel established')

@@ -44,11 +44,36 @@ async function run() {
       '/src/index.js':
         'import { add } from "./math.js"\nimport { large } from "./large.js"\nconsole.log(add(1, 2), large)',
       '/src/math.js': 'export function add(a, b) { return a + b }',
-      '/src/large.js': `export const large = ${JSON.stringify(largePayload)}`
+      '/src/large.js': `export const large = ${JSON.stringify(largePayload)}`,
+      '/tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: { '#value': ['wrong.ts'] }
+        }
+      }),
+      '/wrong.ts': `export const value = 'parent-tsconfig'`,
+      '/workspace/tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          baseUrl: '.',
+          paths: { '#value': ['src/value.ts'] }
+        }
+      }),
+      '/workspace/src/index.ts': `import { value } from '#value'; console.log(value)`,
+      '/workspace/src/value.ts': `export const value = 'closest-tsconfig'`
     })
 
     const bundle = await rolldown({ input: '/src/index.js', cwd: '/' })
     const { output } = await bundle.generate({ format: 'esm' })
+
+    // Test 4: Resolve each module with its closest tsconfig.json.
+    const tsconfigBundle = await rolldown({
+      input: '/workspace/src/index.ts',
+      cwd: '/'
+    })
+    const { output: tsconfigOutput } = await tsconfigBundle.generate({
+      format: 'esm'
+    })
+    const tsconfigCode = tsconfigOutput[0].code
 
     window.testState = {
       status: 'success',
@@ -56,7 +81,9 @@ async function run() {
         sharedRead: true,
         bundleCode: output[0].code,
         fileName: output[0].fileName,
-        largeSourceBundled: output[0].code.includes(largePayload)
+        largeSourceBundled: output[0].code.includes(largePayload),
+        closestTsconfigResolved: tsconfigCode.includes('closest-tsconfig'),
+        parentTsconfigIgnored: !tsconfigCode.includes('parent-tsconfig')
       },
       error: null
     }

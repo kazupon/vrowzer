@@ -114,6 +114,7 @@
     "@types/escape-html": "^1.0.4",
     "@types/estree": "^1.0.8",
     "@types/picomatch": "^4.0.2",
+    "@vitest/utils": "4.1.10",
     "@vrowzer/fs": "workspace:*",
     "@vrowzer/node-polyfill": "workspace:*",
     "@vrowzer/rolldown": "workspace:*",

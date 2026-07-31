@@ -4,6 +4,10 @@ import type { ErrorPayload, HotPayload } from '#types/hmrPayload'
 import type { ViteHotContext } from '#types/hot'
 import type { DevRuntime as DevRuntimeType } from 'rolldown/experimental/runtime-types'
 import { nanoid } from 'nanoid/non-secure'
+import {
+  type ResolvedForwardConsoleOptions,
+  setupForwardConsoleHandler,
+} from '../shared/forwardConsole'
 import { HMRClient, HMRContext } from '../shared/hmr'
 import { createHMRHandler } from '../shared/hmrHandler'
 import {
@@ -25,6 +29,7 @@ declare const __HMR_TIMEOUT__: number
 declare const __HMR_ENABLE_OVERLAY__: boolean
 declare const __WS_TOKEN__: string
 declare const __BUNDLED_DEV__: boolean
+declare const __SERVER_FORWARD_CONSOLE__: ResolvedForwardConsoleOptions
 
 // NOTE(kazupon): for console debug for vite
 // console.debug('[vite] connecting...')
@@ -43,6 +48,7 @@ const base = __BASE__ || '/'
 const hmrTimeout = __HMR_TIMEOUT__
 const wsToken = __WS_TOKEN__
 const isBundleMode = __BUNDLED_DEV__
+const forwardConsole = __SERVER_FORWARD_CONSOLE__
 
 const transport = normalizeModuleRunnerTransport(
   (() => {
@@ -241,6 +247,7 @@ const hmrClient = new HMRClient(
 
 console.log('[vrowzer] connecting to HMR MessageChannel server...')
 transport.connect!(createHMRHandler(handleMessage))
+setupForwardConsoleHandler(transport, forwardConsole)
 
 async function handleMessage(payload: HotPayload) {
   switch (payload.type) {

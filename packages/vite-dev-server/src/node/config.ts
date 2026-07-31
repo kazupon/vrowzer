@@ -15,8 +15,15 @@ import path from 'node:path'
 import { inspect, promisify } from 'node:util'
 import colors from 'picocolors'
 import picomatch from 'picomatch'
-import type { NormalizedOutputOptions, PluginContextMeta, RolldownOptions } from 'rolldown'
+import type {
+  InputOption,
+  NormalizedOutputOptions,
+  PluginContextMeta,
+  RolldownOptions,
+} from 'rolldown'
+import { isDynamicPattern } from 'tinyglobby'
 import type { AnymatchFn } from '../types/anymatch'
+import type { HtmlAssetSource } from './assetSource'
 import { PartialEnvironment } from './baseEnvironment'
 import type {
   BuildEnvironmentOptions,
@@ -274,6 +281,12 @@ type ResolvedAllResolveOptions = Required<ResolveOptions> & { alias: Alias[] }
 
 export interface SharedEnvironmentOptions {
   /**
+   * Entry points of the application.
+   *
+   * Paths are resolved relative to the project root.
+   */
+  input?: InputOption
+  /**
    * Define global variable replacements.
    * Entries will be defined on `window` during dev and replaced during build.
    */
@@ -296,6 +309,17 @@ export interface SharedEnvironmentOptions {
    * Optimize deps config
    */
   optimizeDeps?: DepOptimizationOptions
+  /**
+   * Whether this environment produces a bundled output.
+   *
+   * During `build`, this defaults to `true` for every environment.
+   * During `serve`, this defaults to `true` only for the client environment
+   * when `experimental.bundledDev` is enabled, and `false` otherwise.
+   * Setting this explicitly on an environment always overrides the default.
+   *
+   * @experimental
+   */
+  isBundled?: boolean
 }
 
 export interface EnvironmentOptions extends SharedEnvironmentOptions {
@@ -312,6 +336,7 @@ export interface EnvironmentOptions extends SharedEnvironmentOptions {
 export type ResolvedResolveOptions = Required<ResolveOptions>
 
 export type ResolvedEnvironmentOptions = {
+  input?: InputOption
   define?: Record<string, any>
   resolve: ResolvedResolveOptions
   consumer: 'client' | 'server'
@@ -319,6 +344,7 @@ export type ResolvedEnvironmentOptions = {
   optimizeDeps: DepOptimizationOptions
   dev: ResolvedDevEnvironmentOptions
   build: ResolvedBuildEnvironmentOptions
+  isBundled: boolean
   plugins: readonly Plugin[]
   /** @internal */
   optimizeDepsPluginNames: string[]
@@ -516,6 +542,23 @@ export interface HTMLOptions {
    * Make sure that this placeholder will be replaced with a unique value for each request by the server.
    */
   cspNonce?: string
+  /**
+   * Define additional HTML elements and attributes to be treated as asset sources.
+   * This extends the built-in list that includes standard elements like `<img src>`, `<video src>`, etc.
+   *
+   * @example
+   * ```ts
+   * html: {
+   *   additionalAssetSources: {
+   *     // Custom web component
+   *     'html-import': { srcAttributes: ['src'] },
+   *     // Add data-* attributes to existing element
+   *     'img': { srcAttributes: ['data-src-dark', 'data-src-light'] }
+   *   }
+   * }
+   * ```
+   */
+  additionalAssetSources?: Record<string, HtmlAssetSource>
 }
 
 export interface FutureOptions {
@@ -566,7 +609,11 @@ export interface ExperimentalOptions {
    */
   enableNativePlugin?: boolean | 'resolver' | 'v1' | 'v2'
   /**
-   * Enable full bundle mode.
+   * Enable full bundle mode during `serve`.
+   *
+   * This seeds the default for the client environment's `isBundled` option.
+   * Other environments default to `false` during `serve`. Any environment
+   * can override its `isBundled` value via `environments[name].isBundled`.
    *
    * This is highly experimental.
    *
@@ -651,8 +698,6 @@ export interface ResolvedConfig extends Readonly<
     cacheDir: string
     command: 'build' | 'serve'
     mode: string
-    /** `true` when build or full-bundle mode dev */
-    isBundled: boolean
     isWorker: boolean
     // in nested worker bundle to find the main config
     /** @internal */
@@ -843,6 +888,38 @@ const configDefaults = Object.freeze({
   appType: 'spa',
 } satisfies UserConfig)
 
+function normalizeInput(
+  input: InputOption | undefined,
+): InputOption | undefined {
+  if (input === undefined) {
+    return undefined
+  }
+  if (typeof input === 'string') {
+    return unescapeGlobCharacters(input)
+  }
+  if (Array.isArray(input)) {
+    return input.map(unescapeGlobCharacters)
+  }
+  const resolved: Record<string, string> = {}
+  for (const key in input) {
+    resolved[key] = unescapeGlobCharacters(input[key])
+  }
+  return resolved
+}
+
+const escapedGlobCharactersRE = /\\([*?[\]{}()!+@|])/g
+
+function unescapeGlobCharacters(value: string): string {
+  if (isDynamicPattern(value)) {
+    // Reserve globs so they can be supported later without a breaking change.
+    throw new Error(
+      `\`input\` cannot contain glob characters. They are reserved, ` +
+      `so the ${JSON.stringify(value)} is not allowed. Please escape them with a backslash (\\)`,
+    )
+  }
+  return value.replace(escapedGlobCharactersRE, '$1')
+}
+
 export function resolveDevEnvironmentOptions(
   dev: DevEnvironmentOptions | undefined,
   environmentName: string | undefined,
@@ -881,6 +958,7 @@ function resolveEnvironmentOptions(
   forceOptimizeDeps: boolean | undefined,
   logger: Logger,
   environmentName: string,
+  isBuild: boolean,
   isBundledDev: boolean,
   // Backward compatibility
   isSsrTargetWebworkerSet?: boolean,
@@ -891,6 +969,9 @@ function resolveEnvironmentOptions(
     options.consumer ?? (isClientEnvironment ? 'client' : 'server')
   const isSsrTargetWebworkerEnvironment =
     isSsrTargetWebworkerSet && environmentName === 'ssr'
+
+  const isBundled =
+    options.isBundled ?? (isBuild || (isClientEnvironment && isBundledDev))
 
   if (options.define?.['process.env']) {
     const processEnvDefine = options.define['process.env']
@@ -921,6 +1002,7 @@ function resolveEnvironmentOptions(
     isSsrTargetWebworkerEnvironment,
   )
   return {
+    input: normalizeInput(options.input),
     define: options.define,
     resolve,
     keepProcessEnv:
@@ -944,8 +1026,10 @@ function resolveEnvironmentOptions(
       options.build ?? {},
       logger,
       consumer,
-      isBundledDev,
+      isBundled && !isBuild,
+      options.input,
     ),
+    isBundled,
     plugins: undefined!, // to be resolved later
     // will be set by `setOptimizeDepsPluginNames` later
     optimizeDepsPluginNames: undefined!,
@@ -1515,6 +1599,7 @@ export async function resolveConfig(
   // Some top level options only apply to the client environment
   const defaultClientEnvironmentOptions: UserConfig = {
     ...defaultEnvironmentOptions,
+    input: config.input,
     resolve: config.resolve, // inherit everything including mainFields and conditions
     optimizeDeps: config.optimizeDeps,
   }
@@ -1566,6 +1651,7 @@ export async function resolveConfig(
       inlineConfig.forceOptimizeDeps,
       logger,
       environmentName,
+      isBuild,
       isBundledDev,
       config.ssr?.target === 'webworker',
       config.server?.preTransformRequests,
@@ -1591,6 +1677,7 @@ export async function resolveConfig(
     logger,
     undefined,
     isBundledDev,
+    config.input,
   )
 
   // Backward compatibility: merge config.environments.ssr back into config.ssr
@@ -1686,6 +1773,7 @@ export async function resolveConfig(
       )
       : ''
 
+  const input = normalizeInput(config.input)
   const server = resolveServerOptions(resolvedRoot, config.server, logger)
 
   const builder = resolveBuilderOptions(config.builder)
@@ -1856,7 +1944,6 @@ export async function resolveConfig(
     cacheDir,
     command,
     mode,
-    isBundled: config.experimental?.bundledDev || isBuild,
     isWorker: false,
     mainConfig: null,
     bundleChain: [],
@@ -1927,6 +2014,7 @@ export async function resolveConfig(
 
     ssr,
 
+    input,
     optimizeDeps: backwardCompatibleOptimizeDeps,
     resolve: resolvedDefaultResolve,
     dev: resolvedDevEnvironmentOptions,
