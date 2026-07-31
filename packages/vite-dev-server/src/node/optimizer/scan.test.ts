@@ -36,12 +36,13 @@ afterEach(() => {
   fs.rmSync(root, { force: true, recursive: true })
 })
 
-function createScanEnvironment(buildInput?: unknown) {
+function createScanEnvironment(buildInput?: unknown, input?: unknown) {
   const warn = vi.fn<(...args: unknown[]) => void>()
-  const resolveId = vi.fn<(...args: unknown[]) => Promise<null>>(
-    async () => null,
-  )
+  const resolveId = vi.fn<
+    (...args: unknown[]) => Promise<{ id: string } | null>
+  >(async () => null)
   const config = {
+    input,
     build: {
       outDir: 'dist',
       rolldownOptions: { input: buildInput },
@@ -69,10 +70,33 @@ function createScanEnvironment(buildInput?: unknown) {
     pluginContainer: { resolveId },
   } as unknown as ScanEnvironment
 
-  return { environment, warn }
+  return { environment, resolveId, warn }
 }
 
 describe('scanImports', () => {
+  it('prefers top-level input and resolves it as a scan entry', async () => {
+    const input = 'virtual:entry'
+    const buildInput = 'build-entry.ts'
+    const resolvedInput = path.join(root, 'resolved-entry.ts')
+    fs.writeFileSync(resolvedInput, '')
+    const { environment, resolveId } = createScanEnvironment(buildInput, input)
+    resolveId.mockResolvedValue({ id: resolvedInput })
+
+    await expect(scanImports(environment).result).resolves.toEqual({
+      deps: {},
+      missing: {},
+    })
+    expect(resolveId).toHaveBeenCalledWith(input, undefined, {
+      isEntry: true,
+      scan: true,
+    })
+    expect(resolveId).not.toHaveBeenCalledWith(
+      buildInput,
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
   it('refers to rolldownOptions when entries cannot be inferred', async () => {
     const { environment, warn } = createScanEnvironment()
 

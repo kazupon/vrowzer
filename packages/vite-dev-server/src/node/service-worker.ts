@@ -17,7 +17,11 @@ import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
-import { deserializeRpcMessage, serializeRpcMessage } from '../shared/rpc'
+import {
+  createServiceWorkerFunctions,
+  deserializeRpcMessage,
+  serializeRpcMessage,
+} from '../shared/rpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
@@ -678,17 +682,10 @@ export function createServer(
             // Reply with SW's channel-ready
             port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'sw' })
 
-            // Notify the originating client that the connection is established
-            if (clientId) {
-              const client = await serviceWorkerScope.clients.get(clientId)
-              client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
-            }
-
-            // Phase 2: Replace onmessage with birpc
+            // Install birpc before the first await. The Web Worker may send its
+            // initial safe-path snapshot as soon as it receives channel-ready.
             workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
-              {
-                // ServiceWorkerFunctions handlers (currently empty, future: HMR relay etc.)
-              },
+              createServiceWorkerFunctions(config.safeModulePaths),
               {
                 post: rpcData => port.postMessage(rpcData),
                 on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
@@ -697,6 +694,12 @@ export function createServer(
                 timeout: 30_000,
               }
             )
+
+            // Notify the originating client that the connection is established
+            if (clientId) {
+              const client = await serviceWorkerScope.clients.get(clientId)
+              client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
+            }
 
             debug?.('Worker RPC established via birpc')
           }

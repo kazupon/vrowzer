@@ -303,6 +303,154 @@ export default defineConfig({
     expect(result.code).toContain("filter: ({ attributes }) => attributes.kind === 'image'")
   })
 
+  test.each([
+    ["'src/main.ts'", "input: 'src/main.ts'"],
+    ["['src/main.ts', 'src/admin.ts']", "input: ['src/main.ts', 'src/admin.ts']"],
+    [
+      "{ main: 'src/main.ts', admin: 'src/admin.ts' }",
+      "input: { main: 'src/main.ts', admin: 'src/admin.ts' }"
+    ]
+  ])('forwards static top-level input %s', (input, expected) => {
+    const source = `
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [],
+  input: ${input}
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts')
+
+    expect(result.unsupported).toEqual([])
+    expect(result.code).toContain(expected)
+  })
+
+  test('forwards only per-environment input options', () => {
+    const source = `
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [],
+  input: 'src/main.ts',
+  environments: {
+    client: {
+      input: ['src/client.ts'],
+      dev: { createEnvironment: hostClientEnvironment },
+      plugins: [hostOnlyPlugin()]
+    },
+    ssr: {
+      input: { server: 'src/server.ts' },
+      build: { createEnvironment: hostBuildEnvironment }
+    },
+    browser: {
+      define: { __HOST_ONLY__: 'true' }
+    }
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts')
+
+    expect(result.unsupported).toEqual([])
+    expect(result.code).toContain("input: 'src/main.ts'")
+    expect(result.code).toContain(
+      'environments: { "client": { input: [\'src/client.ts\'] }, "ssr": { input: { server: \'src/server.ts\' } } }'
+    )
+    expect(result.code).not.toContain('hostClientEnvironment')
+    expect(result.code).not.toContain('hostOnlyPlugin')
+    expect(result.code).not.toContain('hostBuildEnvironment')
+    expect(result.code).not.toContain('__HOST_ONLY__')
+  })
+
+  test('reports input forms that cannot be isolated for the Worker', () => {
+    const source = `
+import { defineConfig } from 'vite'
+
+const workerInput = 'src/main.ts'
+const sharedEnvironment = { input: 'src/shared.ts' }
+
+export default defineConfig({
+  plugins: [],
+  input: workerInput,
+  environments: {
+    ...sharedEnvironment,
+    client: {
+      input: workerInput
+    },
+    ssr: sharedEnvironment
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts')
+
+    expect(result.unsupported).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('input is not an inline string'),
+        expect.stringContaining('environment spread element'),
+        expect.stringContaining('"client" input is not an inline string'),
+        expect.stringContaining('"ssr" is not an inline object')
+      ])
+    )
+    expect(result.code).not.toContain('input: workerInput')
+    expect(result.code).not.toContain('environments:')
+  })
+
+  test('does not forward input through top-level spread or computed keys', () => {
+    const source = `
+import { defineConfig } from 'vite'
+
+const shared = { input: 'src/shared.ts' }
+const inputKey = 'input'
+
+export default defineConfig({
+  plugins: [],
+  ...shared,
+  [inputKey]: 'src/main.ts',
+  environments: {
+    client: { input: 'src/client.ts' }
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts')
+
+    expect(result.unsupported).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('config spread element'),
+        expect.stringContaining('computed config key')
+      ])
+    )
+    expect(result.code).not.toContain('src/shared.ts')
+    expect(result.code).not.toContain('src/main.ts')
+    expect(result.code).not.toContain('src/client.ts')
+  })
+
+  test('does not forward an environment input with ambiguous properties', () => {
+    const source = `
+import { defineConfig } from 'vite'
+
+const shared = { input: 'src/override.ts' }
+
+export default defineConfig({
+  plugins: [],
+  environments: {
+    client: {
+      input: 'src/client.ts',
+      ...shared
+    },
+    ssr: {
+      input: 'src/server.ts'
+    }
+  }
+})
+`
+    const result = extractWorkerConfig(source, 'vite.config.ts')
+
+    expect(result.unsupported).toEqual([
+      expect.stringContaining('environment "client" spread element')
+    ])
+    expect(result.code).not.toContain('src/client.ts')
+    expect(result.code).toContain('environments: { "ssr": { input: \'src/server.ts\' } }')
+  })
+
   test('handles multiple plugins with mixed imports', () => {
     const source = `
 import vue from '@vitejs/plugin-vue'

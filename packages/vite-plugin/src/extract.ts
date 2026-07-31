@@ -168,10 +168,6 @@ export function extractWorkerConfig(
     }
   }
 
-  if (unsupported.length > 0) {
-    debug('unsupported patterns', unsupported)
-  }
-
   // 6. Filter out Vrowzer plugins
   const workerPlugins = pluginCalls.filter(p => {
     if (!p.importSource) {
@@ -291,6 +287,7 @@ export function extractWorkerConfig(
 
   // 8b. Find top-level config properties to forward (define, etc.)
   const forwardedProps = extractForwardedProperties(source, configObj as ObjectExpression)
+  extractInputProperties(source, configObj as ObjectExpression, forwardedProps, unsupported)
   const forwardedServerProps: string[] = []
   if (options.serverOrigin !== undefined) {
     forwardedServerProps.push(`origin: ${JSON.stringify(options.serverOrigin)}`)
@@ -300,6 +297,10 @@ export function extractWorkerConfig(
   }
   if (forwardedServerProps.length > 0) {
     forwardedProps.set('server', `{ ${forwardedServerProps.join(', ')} }`)
+  }
+
+  if (unsupported.length > 0) {
+    debug('unsupported patterns', unsupported)
   }
 
   // 9. Generate Worker config source
@@ -337,6 +338,198 @@ function extractForwardedProperties(
     }
   }
   return props
+}
+
+function extractInputProperties(
+  source: string,
+  configObj: ObjectExpression,
+  forwardedProps: Map<string, string>,
+  unsupported: string[]
+): void {
+  let hasUnknownTopLevelInput = false
+  for (const property of configObj.properties) {
+    if (property.type === 'SpreadElement') {
+      unsupported.push(`config spread element: ${source.slice(property.start, property.end)}`)
+      hasUnknownTopLevelInput = true
+    } else if (property.type === 'Property' && property.computed) {
+      unsupported.push(`computed config key: ${source.slice(property.start, property.end)}`)
+      hasUnknownTopLevelInput = true
+    }
+  }
+  if (hasUnknownTopLevelInput) {
+    return
+  }
+
+  const inputProp = findObjectProperty(configObj, 'input')
+  if (inputProp) {
+    if (isStaticInputOption(inputProp.value as Expression)) {
+      forwardedProps.set('input', source.slice(inputProp.value.start, inputProp.value.end))
+    } else {
+      unsupported.push(
+        `input is not an inline string, array, or record: ${source.slice(inputProp.value.start, inputProp.value.end)}`
+      )
+    }
+  }
+
+  const environmentsProp = findObjectProperty(configObj, 'environments')
+  if (!environmentsProp) {
+    return
+  }
+
+  const environmentsValue = unwrapStaticExpression(environmentsProp.value as Expression)
+  if (environmentsValue.type !== 'ObjectExpression') {
+    unsupported.push(
+      `environments is not an inline object: ${source.slice(environmentsProp.value.start, environmentsProp.value.end)}`
+    )
+    return
+  }
+
+  const entries: string[] = []
+  let hasUnknownEnvironment = false
+  for (const environmentProp of environmentsValue.properties) {
+    if (environmentProp.type === 'SpreadElement') {
+      unsupported.push(
+        `environment spread element: ${source.slice(environmentProp.start, environmentProp.end)}`
+      )
+      hasUnknownEnvironment = true
+      continue
+    }
+    if (environmentProp.type !== 'Property') {
+      continue
+    }
+
+    const environmentName = getStaticPropertyName(environmentProp)
+    if (environmentName === null) {
+      unsupported.push(
+        `computed environment key: ${source.slice(environmentProp.start, environmentProp.end)}`
+      )
+      hasUnknownEnvironment = true
+      continue
+    }
+
+    const environmentValue = unwrapStaticExpression(environmentProp.value as Expression)
+    if (environmentValue.type !== 'ObjectExpression') {
+      unsupported.push(
+        `environment ${JSON.stringify(environmentName)} is not an inline object: ${source.slice(environmentProp.value.start, environmentProp.value.end)}`
+      )
+      continue
+    }
+
+    let hasUnknownEnvironmentInput = false
+    for (const property of environmentValue.properties) {
+      if (property.type === 'SpreadElement') {
+        unsupported.push(
+          `environment ${JSON.stringify(environmentName)} spread element: ${source.slice(property.start, property.end)}`
+        )
+        hasUnknownEnvironmentInput = true
+      } else if (property.type === 'Property' && property.computed) {
+        unsupported.push(
+          `environment ${JSON.stringify(environmentName)} has a computed key: ${source.slice(property.start, property.end)}`
+        )
+        hasUnknownEnvironmentInput = true
+      }
+    }
+    if (hasUnknownEnvironmentInput) {
+      continue
+    }
+
+    const input = findObjectProperty(environmentValue, 'input')
+    if (!input) {
+      continue
+    }
+    if (!isStaticInputOption(input.value as Expression)) {
+      unsupported.push(
+        `environment ${JSON.stringify(environmentName)} input is not an inline string, array, or record: ${source.slice(input.value.start, input.value.end)}`
+      )
+      continue
+    }
+
+    entries.push(
+      `${JSON.stringify(environmentName)}: { input: ${source.slice(input.value.start, input.value.end)} }`
+    )
+  }
+
+  if (entries.length > 0 && !hasUnknownEnvironment) {
+    forwardedProps.set('environments', `{ ${entries.join(', ')} }`)
+  }
+}
+
+function findObjectProperty(object: ObjectExpression, name: string): ObjectProperty | undefined {
+  for (let index = object.properties.length - 1; index >= 0; index--) {
+    const property = object.properties[index]
+    if (!property || property.type !== 'Property') {
+      continue
+    }
+    if (!property.computed && getPropertyName(property) === name) {
+      return property
+    }
+  }
+  return undefined
+}
+
+function getStaticPropertyName(property: ObjectProperty): string | null {
+  if (property.computed) {
+    return null
+  }
+  return getPropertyName(property)
+}
+
+function getPropertyName(property: ObjectProperty): string | null {
+  if (property.key.type === 'Identifier') {
+    return property.key.name
+  }
+  if (property.key.type === 'Literal' && typeof property.key.value === 'string') {
+    return property.key.value
+  }
+  return null
+}
+
+function unwrapStaticExpression(expression: Expression): Expression {
+  let current = expression as Expression & {
+    expression?: Expression
+  }
+  while (
+    current.expression &&
+    (current.type === 'ParenthesizedExpression' ||
+      current.type === 'TSAsExpression' ||
+      current.type === 'TSSatisfiesExpression' ||
+      current.type === 'TSNonNullExpression')
+  ) {
+    current = current.expression as typeof current
+  }
+  return current
+}
+
+function isStaticInputOption(expression: Expression): boolean {
+  const value = unwrapStaticExpression(expression)
+  if (isStaticString(value)) {
+    return true
+  }
+  if (value.type === 'ArrayExpression') {
+    return value.elements.every(
+      element =>
+        element !== null &&
+        element.type !== 'SpreadElement' &&
+        isStaticString(element as Expression)
+    )
+  }
+  if (value.type === 'ObjectExpression') {
+    return value.properties.every(
+      property =>
+        property.type === 'Property' &&
+        !property.computed &&
+        isStaticString(property.value as Expression)
+    )
+  }
+  return false
+}
+
+function isStaticString(expression: Expression): boolean {
+  const value = unwrapStaticExpression(expression)
+  return (
+    (value.type === 'Literal' && typeof value.value === 'string') ||
+    (value.type === 'TemplateLiteral' && value.expressions.length === 0)
+  )
 }
 
 function collectImports(ast: Program): ImportInfo[] {

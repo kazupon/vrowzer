@@ -15,7 +15,13 @@ import path from 'node:path'
 import { inspect, promisify } from 'node:util'
 import colors from 'picocolors'
 import picomatch from 'picomatch'
-import type { NormalizedOutputOptions, PluginContextMeta, RolldownOptions } from 'rolldown'
+import type {
+  InputOption,
+  NormalizedOutputOptions,
+  PluginContextMeta,
+  RolldownOptions,
+} from 'rolldown'
+import { isDynamicPattern } from 'tinyglobby'
 import type { AnymatchFn } from '../types/anymatch'
 import type { HtmlAssetSource } from './assetSource'
 import { PartialEnvironment } from './baseEnvironment'
@@ -275,6 +281,12 @@ type ResolvedAllResolveOptions = Required<ResolveOptions> & { alias: Alias[] }
 
 export interface SharedEnvironmentOptions {
   /**
+   * Entry points of the application.
+   *
+   * Paths are resolved relative to the project root.
+   */
+  input?: InputOption
+  /**
    * Define global variable replacements.
    * Entries will be defined on `window` during dev and replaced during build.
    */
@@ -324,6 +336,7 @@ export interface EnvironmentOptions extends SharedEnvironmentOptions {
 export type ResolvedResolveOptions = Required<ResolveOptions>
 
 export type ResolvedEnvironmentOptions = {
+  input?: InputOption
   define?: Record<string, any>
   resolve: ResolvedResolveOptions
   consumer: 'client' | 'server'
@@ -875,6 +888,38 @@ const configDefaults = Object.freeze({
   appType: 'spa',
 } satisfies UserConfig)
 
+function normalizeInput(
+  input: InputOption | undefined,
+): InputOption | undefined {
+  if (input === undefined) {
+    return undefined
+  }
+  if (typeof input === 'string') {
+    return unescapeGlobCharacters(input)
+  }
+  if (Array.isArray(input)) {
+    return input.map(unescapeGlobCharacters)
+  }
+  const resolved: Record<string, string> = {}
+  for (const key in input) {
+    resolved[key] = unescapeGlobCharacters(input[key])
+  }
+  return resolved
+}
+
+const escapedGlobCharactersRE = /\\([*?[\]{}()!+@|])/g
+
+function unescapeGlobCharacters(value: string): string {
+  if (isDynamicPattern(value)) {
+    // Reserve globs so they can be supported later without a breaking change.
+    throw new Error(
+      `\`input\` cannot contain glob characters. They are reserved, ` +
+      `so the ${JSON.stringify(value)} is not allowed. Please escape them with a backslash (\\)`,
+    )
+  }
+  return value.replace(escapedGlobCharactersRE, '$1')
+}
+
 export function resolveDevEnvironmentOptions(
   dev: DevEnvironmentOptions | undefined,
   environmentName: string | undefined,
@@ -957,6 +1002,7 @@ function resolveEnvironmentOptions(
     isSsrTargetWebworkerEnvironment,
   )
   return {
+    input: normalizeInput(options.input),
     define: options.define,
     resolve,
     keepProcessEnv:
@@ -981,6 +1027,7 @@ function resolveEnvironmentOptions(
       logger,
       consumer,
       isBundled && !isBuild,
+      options.input,
     ),
     isBundled,
     plugins: undefined!, // to be resolved later
@@ -1552,6 +1599,7 @@ export async function resolveConfig(
   // Some top level options only apply to the client environment
   const defaultClientEnvironmentOptions: UserConfig = {
     ...defaultEnvironmentOptions,
+    input: config.input,
     resolve: config.resolve, // inherit everything including mainFields and conditions
     optimizeDeps: config.optimizeDeps,
   }
@@ -1629,6 +1677,7 @@ export async function resolveConfig(
     logger,
     undefined,
     isBundledDev,
+    config.input,
   )
 
   // Backward compatibility: merge config.environments.ssr back into config.ssr
@@ -1724,6 +1773,7 @@ export async function resolveConfig(
       )
       : ''
 
+  const input = normalizeInput(config.input)
   const server = resolveServerOptions(resolvedRoot, config.server, logger)
 
   const builder = resolveBuilderOptions(config.builder)
@@ -1964,6 +2014,7 @@ export async function resolveConfig(
 
     ssr,
 
+    input,
     optimizeDeps: backwardCompatibleOptimizeDeps,
     resolve: resolvedDefaultResolve,
     dev: resolvedDevEnvironmentOptions,

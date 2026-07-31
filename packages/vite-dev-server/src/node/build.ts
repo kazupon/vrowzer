@@ -256,9 +256,10 @@ export type BuildOptions = BuildEnvironmentOptions
 
 export interface LibraryOptions {
   /**
-   * Path of library entry
+   * Path of library entry.
+   * Defaults to the top-level `input` option when omitted.
    */
-  entry: InputOption
+  entry?: InputOption
   /**
    * The name of the exposed global variable. Required when the `formats` option includes
    * `umd` or `iife`
@@ -371,6 +372,7 @@ export function resolveBuildEnvironmentOptions(
   logger: Logger,
   consumer: 'client' | 'server' | undefined,
   isBundledDev: boolean,
+  input?: InputOption,
 ): ResolvedBuildEnvironmentOptions {
   const deprecatedPolyfillModulePreload = raw.polyfillModulePreload
   const { polyfillModulePreload, ...rest } = raw
@@ -404,6 +406,9 @@ export function resolveBuildEnvironmentOptions(
   merged.rolldownOptions = {
     platform: consumer === 'server' ? 'node' : 'browser',
     ...merged.rolldownOptions,
+  }
+  if (merged.lib && merged.lib.entry == null && input != null) {
+    merged.lib.entry = input
   }
 
   // handle special build targets

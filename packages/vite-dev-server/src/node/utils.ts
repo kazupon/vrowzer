@@ -14,7 +14,7 @@ import type { PreviewServer } from './preview'
 import type { ServerOptions, ViteDevServer } from './server'
 // import { fileURLToPath } from 'node:url'
 import { createDebug as debug, enable as debugEnable } from 'obug'
-import type { TransformResult } from 'rolldown'
+import type { InputOption, TransformResult } from 'rolldown'
 import { VALID_ID_PREFIX } from '../shared/constants'
 import { cleanUrl, isWindows, slash, splitFileAndPostfix, withTrailingSlash } from '../shared/utils'
 import type { ResolvedConfig } from './config'
@@ -1502,7 +1502,10 @@ function mergeConfigRecursively(
     }
 
     // fields that require special handling
-    if (key === 'alias' && (rootPath === 'resolve' || rootPath === '')) {
+    if (key === 'input' && rootPath === '') {
+      merged[key] = mergeInput(existing, value)
+      continue
+    } else if (key === 'alias' && (rootPath === 'resolve' || rootPath === '')) {
       merged[key] = mergeAlias(existing, value)
       continue
     } else if (key === 'assetsInclude' && rootPath === '') {
@@ -1565,6 +1568,43 @@ export function mergeConfig<
   }
 
   return mergeConfigRecursively(defaults, overrides, isRoot ? '' : '.')
+}
+
+function mergeInput(a?: InputOption, b?: InputOption): InputOption | undefined {
+  if (!a) { return b }
+  if (!b) { return a }
+
+  if (typeof a === 'string' && typeof b === 'string') {
+    return [a, b]
+  }
+  if (Array.isArray(a) && (typeof b === 'string' || Array.isArray(b))) {
+    return [...a, ...(Array.isArray(b) ? b : [b])]
+  }
+  if (Array.isArray(b) && (typeof a === 'string' || Array.isArray(a))) {
+    return [...(Array.isArray(a) ? a : [a]), ...b]
+  }
+  if (typeof a !== 'string' && !Array.isArray(a)) {
+    return {
+      ...a,
+      ...normalizeToInputObject(b),
+    }
+  }
+  return {
+    ...normalizeToInputObject(a),
+    ...(b as Record<string, string>),
+  }
+}
+
+function normalizeToInputObject(input: InputOption): Record<string, string> {
+  if (typeof input === 'string') {
+    return { [path.basename(input, path.extname(input))]: input }
+  }
+  if (Array.isArray(input)) {
+    return Object.fromEntries(
+      input.map((item) => [path.basename(item, path.extname(item)), item]),
+    )
+  }
+  return input
 }
 
 export function mergeAlias(

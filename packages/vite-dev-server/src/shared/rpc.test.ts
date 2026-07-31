@@ -1,6 +1,12 @@
 import { createBirpc } from 'birpc'
-import { describe, expect, it } from 'vite-plus/test'
-import { deserializeRpcMessage, serializeRpcMessage } from './rpc'
+import { describe, expect, it, vi } from 'vite-plus/test'
+import {
+  connectSafeModulePathSync,
+  createServiceWorkerFunctions,
+  deserializeRpcMessage,
+  serializeRpcMessage,
+} from './rpc'
+import type { ServiceWorkerFunctions } from './rpc'
 
 interface ErrorWithMetadata extends Error {
   code?: string
@@ -108,5 +114,90 @@ describe('RPC message serialization', () => {
     }
 
     expect(serializeRpcMessage(message)).toBe(message)
+  })
+})
+
+describe('safe module path RPC', () => {
+  it('registers paths across a birpc MessageChannel', async () => {
+    const channel = new MessageChannel()
+    const safeModulePaths = new Set<string>(['/existing.ts'])
+    const client = createBirpc<
+      ServiceWorkerFunctions,
+      Record<string, never>
+    >({}, {
+      post: data => channel.port1.postMessage(data),
+      on: fn => {
+        channel.port1.onmessage = event => fn(event.data)
+      },
+    })
+    const server = createBirpc<
+      Record<string, never>,
+      ServiceWorkerFunctions
+    >(createServiceWorkerFunctions(safeModulePaths), {
+      post: data => channel.port2.postMessage(data),
+      on: fn => {
+        channel.port2.onmessage = event => fn(event.data)
+      },
+    })
+
+    try {
+      await client.registerSafeModulePaths([
+        '/outside/entry.ts',
+        '/existing.ts',
+      ])
+      await client.registerSafeModulePaths(['/outside/ssr.ts'])
+
+      expect(safeModulePaths).toEqual(
+        new Set([
+          '/existing.ts',
+          '/outside/entry.ts',
+          '/outside/ssr.ts',
+        ]),
+      )
+    } finally {
+      client.$close()
+      server.$close()
+      channel.port1.close()
+      channel.port2.close()
+    }
+  })
+
+  it('snapshots paths and replaces environment callbacks on reconnect', async () => {
+    const environments = [
+      { _syncSafeModulePaths: undefined },
+      { _syncSafeModulePaths: undefined },
+    ]
+    const safeModulePaths = new Set(['/existing.ts'])
+    const firstRegister = vi.fn<(paths: string[]) => Promise<void>>(
+      async () => undefined,
+    )
+
+    await connectSafeModulePathSync(
+      environments,
+      safeModulePaths,
+      firstRegister,
+    )
+    expect(firstRegister).toHaveBeenCalledWith(['/existing.ts'])
+
+    safeModulePaths.add('/later.ts')
+    await environments[0]._syncSafeModulePaths?.(['/later.ts'])
+    expect(firstRegister).toHaveBeenLastCalledWith(['/later.ts'])
+
+    const secondRegister = vi.fn<(paths: string[]) => Promise<void>>(
+      async () => undefined,
+    )
+    await connectSafeModulePathSync(
+      environments,
+      safeModulePaths,
+      secondRegister,
+    )
+    expect(secondRegister).toHaveBeenCalledWith([
+      '/existing.ts',
+      '/later.ts',
+    ])
+
+    await environments[1]._syncSafeModulePaths?.(['/reconnected.ts'])
+    expect(secondRegister).toHaveBeenLastCalledWith(['/reconnected.ts'])
+    expect(firstRegister).toHaveBeenCalledTimes(2)
   })
 })

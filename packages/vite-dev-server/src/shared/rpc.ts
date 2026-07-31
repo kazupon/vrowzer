@@ -135,11 +135,52 @@ export interface WorkerFunctions {
  *
  * These are the functions that run in the Service Worker
  * where the Hono server and fetch handler operate.
- * Currently empty — will be extended for HMR relay, etc.
  */
-// oxlint-disable-next-line typescript/no-empty-object-type
 export interface ServiceWorkerFunctions {
-  // Future:
-  // hmrUpdate: (payload: HotPayload) => void
-  // optimizerMetadataSync: (metadata: DepOptimizationMetadata) => void
+  /**
+   * Add plugin-resolved input paths to the Service Worker's filesystem
+   * allowlist. Deny patterns still take precedence.
+   */
+  registerSafeModulePaths: (paths: string[]) => Promise<void>
+}
+
+interface SafeModulePathSyncEnvironment {
+  _syncSafeModulePaths:
+    | ((paths: string[]) => Promise<void>)
+    | undefined
+}
+
+/**
+ * Connect environment input registration to the current Service Worker RPC.
+ * Calling this again replaces stale callbacks and sends a fresh snapshot.
+ */
+export async function connectSafeModulePathSync(
+  environments: Iterable<SafeModulePathSyncEnvironment>,
+  safeModulePaths: Iterable<string>,
+  registerSafeModulePaths: ServiceWorkerFunctions['registerSafeModulePaths'],
+): Promise<void> {
+  const syncSafeModulePaths = async (paths: string[]) => {
+    if (paths.length > 0) {
+      await registerSafeModulePaths(paths)
+    }
+  }
+  for (const environment of environments) {
+    environment._syncSafeModulePaths = syncSafeModulePaths
+  }
+  await syncSafeModulePaths([...safeModulePaths])
+}
+
+/**
+ * Create the RPC handlers backed by a Service Worker config's safe-path set.
+ */
+export function createServiceWorkerFunctions(
+  safeModulePaths: Set<string>,
+): ServiceWorkerFunctions {
+  return {
+    async registerSafeModulePaths(paths) {
+      for (const path of paths) {
+        safeModulePaths.add(path)
+      }
+    },
+  }
 }

@@ -30,6 +30,7 @@ import { resolveConfig } from './config'
 import type { Plugin } from './plugin'
 import { fileToUrl } from './plugins/asset'
 import { definePlugin } from './plugins/define'
+import { mergeConfig } from './utils'
 
 beforeAll(() => {
   vi.stubGlobal('__VROWZER_SERVICE_WORKER__', false)
@@ -106,6 +107,131 @@ describe('resolveConfig build option compatibility', () => {
       expect(build.rolldownOptions.input).toBe(input)
       expect(build.rollupOptions).toBe(build.rolldownOptions)
     }
+  })
+})
+
+describe('input config', () => {
+  test.each([
+    ['string + string', 'src/a.ts', 'src/b.ts', ['src/a.ts', 'src/b.ts']],
+    ['array + string', ['src/a.ts'], 'src/b.ts', ['src/a.ts', 'src/b.ts']],
+    ['string + array', 'src/a.ts', ['src/b.ts'], ['src/a.ts', 'src/b.ts']],
+    ['array + array', ['src/a.ts'], ['src/b.ts'], ['src/a.ts', 'src/b.ts']],
+    [
+      'record + record',
+      { a: 'src/a.ts', shared: 'src/old.ts' },
+      { b: 'src/b.ts', shared: 'src/new.ts' },
+      { a: 'src/a.ts', b: 'src/b.ts', shared: 'src/new.ts' },
+    ],
+    [
+      'string + record',
+      'src/a.ts',
+      { b: 'src/b.ts' },
+      { a: 'src/a.ts', b: 'src/b.ts' },
+    ],
+    [
+      'record + string',
+      { a: 'src/a.ts' },
+      'src/b.ts',
+      { a: 'src/a.ts', b: 'src/b.ts' },
+    ],
+    [
+      'array + record',
+      ['src/a.ts'],
+      { b: 'src/b.ts' },
+      { a: 'src/a.ts', b: 'src/b.ts' },
+    ],
+  ])('merges top-level input: %s', (_name, defaults, overrides, expected) => {
+    expect(mergeConfig({ input: defaults }, { input: overrides })).toEqual({
+      input: expected,
+    })
+  })
+
+  test('does not apply input merging to nested build options', () => {
+    expect(
+      mergeConfig(
+        { build: { input: 'src/a.ts' } },
+        { build: { input: 'src/b.ts' } },
+      ),
+    ).toEqual({ build: { input: 'src/b.ts' } })
+  })
+
+  test('applies top-level input to the client environment only', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({
+        input: 'src/main.ts',
+        environments: {
+          ssr: { input: 'src/entry-server.ts' },
+        },
+      }),
+      'serve',
+    )
+
+    expect(config.input).toBe('src/main.ts')
+    expect(config.environments.client.input).toBe('src/main.ts')
+    expect(config.environments.ssr.input).toBe('src/entry-server.ts')
+    expect(config.environments.client.build.rolldownOptions.input).toBeUndefined()
+    expect(config.environments.ssr.build.rolldownOptions.input).toBeUndefined()
+  })
+
+  test.each([
+    [['src/a.ts', 'src/b.ts']],
+    [{ main: 'src/a.ts', admin: 'src/b.ts' }],
+  ])('keeps input relative to the project root: %j', async (input) => {
+    const config = await resolveConfig(createInlineConfig({ input }), 'serve')
+
+    expect(config.input).toEqual(input)
+    expect(config.environments.client.input).toEqual(input)
+  })
+
+  test.each([
+    ['src/*.ts'],
+    ['src/page?.ts'],
+    ['src/[id].ts'],
+    [['src/main.ts', 'src/*.ts']],
+    [{ main: 'src/{a,b}.ts' }],
+  ])('rejects dynamic input patterns: %j', async (input) => {
+    await expect(
+      resolveConfig(createInlineConfig({ input }), 'serve'),
+    ).rejects.toThrow(/`input` cannot contain glob characters/)
+  })
+
+  test.each([
+    ['src/\\*.ts', 'src/*.ts'],
+    [['src/\\*.ts'], ['src/*.ts']],
+    [{ main: 'src/\\*.ts' }, { main: 'src/*.ts' }],
+  ])('unescapes reserved glob characters: %j', async (input, expected) => {
+    const config = await resolveConfig(createInlineConfig({ input }), 'serve')
+
+    expect(config.input).toEqual(expected)
+  })
+
+  test('defaults build.lib.entry to top-level input', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({
+        input: 'src/lib.ts',
+        build: { lib: { name: 'VrowzerLib' } },
+      }),
+      'build',
+    )
+
+    expect(config.build.lib && config.build.lib.entry).toBe('src/lib.ts')
+  })
+
+  test('preserves an explicit build.lib.entry', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({
+        input: 'src/lib.ts',
+        build: {
+          lib: {
+            entry: 'src/explicit.ts',
+            name: 'VrowzerLib',
+          },
+        },
+      }),
+      'build',
+    )
+
+    expect(config.build.lib && config.build.lib.entry).toBe('src/explicit.ts')
   })
 })
 

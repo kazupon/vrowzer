@@ -41,6 +41,7 @@ import type {
   TransformResult,
 } from './transformRequest'
 import { transformRequest } from './transformRequest'
+import { registerInputsAsSafeModules } from './safeModulePaths'
 import { warmupFiles } from './warmup'
 import type { MessageChannelServer } from './ws'
 import { isMessageChannelServer } from './ws'
@@ -81,6 +82,13 @@ export class DevEnvironment extends BaseEnvironment {
    * @internal
    */
   _pluginContainer: EnvironmentPluginContainer<DevEnvironment> | undefined
+
+  /**
+   * @internal Vrowzer synchronizes safe paths to the Service Worker.
+   */
+  _syncSafeModulePaths:
+    | ((paths: string[]) => Promise<void>)
+    | undefined
 
   /**
    * @internal
@@ -210,6 +218,17 @@ export class DevEnvironment extends BaseEnvironment {
       this,
       this.config.plugins,
       options?.watcher,
+    )
+  }
+
+  /** @internal */
+  async _registerInputsAsSafeModules(): Promise<void> {
+    await registerInputsAsSafeModules(
+      this.config.input,
+      (id, importer, options) =>
+        this.pluginContainer.resolveId(id, importer, options),
+      this.getTopLevelConfig().safeModulePaths,
+      this._syncSafeModulePaths,
     )
   }
 
@@ -417,4 +436,3 @@ function setupOnCrawlEnd(): CrawlEndFinder {
     cancel,
   }
 }
-
