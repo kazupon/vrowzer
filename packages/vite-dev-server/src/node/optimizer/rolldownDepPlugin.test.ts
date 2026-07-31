@@ -173,7 +173,7 @@ describe('rolldownDepPlugin asset URL transform filter', () => {
     expect(filter.code.test(largeCode)).toBe(false)
   })
 
-  test('matches and transforms a valid asset URL with a fresh regex', async () => {
+  test('matches and transforms a valid asset URL with a fresh regex', () => {
     const { depPlugin } = createPlugins(resolved)
     const transform = getTransformHook(depPlugin)
     const code = `const asset = new URL('./asset.png', import.meta.url)`
@@ -182,7 +182,9 @@ describe('rolldownDepPlugin asset URL transform filter', () => {
     expect(transform.filter.code.test(code)).toBe(true)
     expect(transform.filter.code.lastIndex).toBeGreaterThan(0)
 
-    expect(await transform.handler.call(context, code, id)).toMatchObject({
+    const result = transform.handler.call(context, code, id)
+    expect(result).not.toBeInstanceOf(Promise)
+    expect(result).toMatchObject({
       code: `const asset = new URL('' + "../../pkg/asset.png", import.meta.url)`,
     })
     transform.filter.code.lastIndex = 0
