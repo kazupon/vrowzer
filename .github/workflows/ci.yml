@@ -44,6 +44,9 @@ jobs:
       - name: Print Vite+ version
         run: vp --version
 
+      - name: Build packages
+        run: vpr --no-cache -v build
+
       - name: Check
         run: vpr --no-cache -v check
 
