@@ -16,7 +16,7 @@ import {
   SW_FILE_ID,
   SW_QUERY
 } from './core/constants.ts'
-import { injectEnvironmentToHooks } from './core/environment-hooks.ts'
+import { injectEnvironmentToHooks, resolvePluginsForEnvironment } from './core/environment-hooks.ts'
 import { hash } from './core/hash.ts'
 import { resolveOptions } from './core/options.ts'
 import { detectAndResolveServiceWorkers, needsTransform } from './transform/utils.ts'
@@ -232,7 +232,7 @@ function sanitizeDefine(
   return Object.fromEntries(
     Object.entries(define).map(([key, value]) => [
       key,
-      typeof value === 'string' ? value : JSON.stringify(value)
+      value === undefined ? 'undefined' : typeof value === 'string' ? value : JSON.stringify(value)
     ])
   )
 }
@@ -1038,14 +1038,18 @@ function createViteConfigResolved(ctx: PluginContext) {
 
     let adaptedPlugins: import('rolldown').Plugin[] | undefined
     if (workerPlugins && workerPlugins.length > 0) {
+      let swEnvironment: import('vite').BuildEnvironment | undefined
       try {
         const { BuildEnvironment } = await import('vite')
-        const swEnvironment = new BuildEnvironment('client', viteConfig)
+        swEnvironment = new BuildEnvironment('client', viteConfig)
         await swEnvironment.init()
-        adaptedPlugins = workerPlugins.map(p => injectEnvironmentToHooks(swEnvironment, p))
       } catch {
         // If BuildEnvironment is not available (older Vite), fall back to no plugins
-        adaptedPlugins = undefined
+      }
+
+      if (swEnvironment) {
+        const environmentPlugins = await resolvePluginsForEnvironment(swEnvironment, workerPlugins)
+        adaptedPlugins = environmentPlugins.map(p => injectEnvironmentToHooks(swEnvironment, p))
       }
     }
 
@@ -2022,4 +2026,9 @@ export { type Options } from './core/options.ts'
 /**
  * @internal Exported for testing purposes only.
  */
-export { createViteQueryPlugin, filterServiceWorkerPlugins, resolveServiceWorkerPlugins }
+export {
+  createViteQueryPlugin,
+  filterServiceWorkerPlugins,
+  resolveServiceWorkerPlugins,
+  sanitizeDefine
+}

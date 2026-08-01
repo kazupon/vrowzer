@@ -1,7 +1,37 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { filterServiceWorkerPlugins, resolveServiceWorkerPlugins } from '../index.ts'
+import {
+  filterServiceWorkerPlugins,
+  resolveServiceWorkerPlugins,
+  sanitizeDefine
+} from '../index.ts'
 
 import type { Plugin } from 'rolldown'
+
+describe('sanitizeDefine', () => {
+  it('should return undefined for undefined input', () => {
+    expect(sanitizeDefine(undefined)).toBeUndefined()
+  })
+
+  it('should convert every supported define value to a string', () => {
+    expect(
+      sanitizeDefine({
+        raw: 'false',
+        number: 123,
+        boolean: true,
+        undefined,
+        null: null,
+        object: { nested: 'value' }
+      })
+    ).toEqual({
+      raw: 'false',
+      number: '123',
+      boolean: 'true',
+      undefined: 'undefined',
+      null: 'null',
+      object: '{"nested":"value"}'
+    })
+  })
+})
 
 describe('filterServiceWorkerPlugins', () => {
   it('should return undefined for undefined input', () => {

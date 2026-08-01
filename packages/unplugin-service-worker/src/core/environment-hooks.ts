@@ -12,12 +12,17 @@
  */
 
 import type { Plugin } from 'rolldown'
+import type { PluginOption } from 'vite'
 
 /**
  * Vite Environment interface (minimal subset needed for hook injection).
  * Using `unknown` to avoid depending on vite types directly.
  */
 type Environment = unknown
+
+type EnvironmentAwarePlugin = Plugin & {
+  applyToEnvironment?: (environment: Environment) => boolean | Promise<boolean> | PluginOption
+}
 
 /**
  * Rolldown plugin hooks that need environment injection.
@@ -169,6 +174,48 @@ function wrapEnvironmentHook(environment: Environment, plugin: Plugin, hookName:
   }
 
   return wrapHook(hook as ObjectHook<typeof handler>, handler)
+}
+
+async function flattenPluginOption(pluginOption: PluginOption): Promise<Plugin[]> {
+  const resolved = await pluginOption
+  if (!resolved) {
+    return []
+  }
+  if (Array.isArray(resolved)) {
+    const nestedPlugins = await Promise.all(resolved.map(flattenPluginOption))
+    return nestedPlugins.flat()
+  }
+  return [resolved as Plugin]
+}
+
+/**
+ * Resolve Vite's per-environment plugin hooks for a standalone environment.
+ *
+ * Mirrors Vite's `resolveEnvironmentPlugins` behavior while operating on the
+ * filtered plugin list used by the Service Worker bundler.
+ */
+export async function resolvePluginsForEnvironment(
+  environment: Environment,
+  plugins: Plugin[]
+): Promise<Plugin[]> {
+  const environmentPlugins: Plugin[] = []
+
+  for (const plugin of plugins) {
+    const environmentPlugin = plugin as EnvironmentAwarePlugin
+    if (environmentPlugin.applyToEnvironment) {
+      const applied = await environmentPlugin.applyToEnvironment(environment)
+      if (!applied) {
+        continue
+      }
+      if (applied !== true) {
+        environmentPlugins.push(...(await flattenPluginOption(applied)))
+        continue
+      }
+    }
+    environmentPlugins.push(plugin)
+  }
+
+  return environmentPlugins
 }
 
 /**
