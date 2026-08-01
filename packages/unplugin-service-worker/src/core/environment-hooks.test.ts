@@ -1,7 +1,61 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
-import { injectEnvironmentToHooks } from './environment-hooks.ts'
+import { injectEnvironmentToHooks, resolvePluginsForEnvironment } from './environment-hooks.ts'
 
 import type { Plugin } from 'rolldown'
+
+describe('resolvePluginsForEnvironment', () => {
+  const fakeEnvironment = { name: 'client', config: { isBundled: true } }
+
+  it('should keep plugins without applyToEnvironment', async () => {
+    const plugin: Plugin = { name: 'test-plugin' }
+
+    await expect(resolvePluginsForEnvironment(fakeEnvironment, [plugin])).resolves.toEqual([plugin])
+  })
+
+  it('should keep the original plugin when applyToEnvironment returns true', async () => {
+    const applyToEnvironment = vi.fn<(environment: unknown) => boolean>().mockReturnValue(true)
+    const plugin = { name: 'test-plugin', applyToEnvironment } as unknown as Plugin
+
+    await expect(resolvePluginsForEnvironment(fakeEnvironment, [plugin])).resolves.toEqual([plugin])
+    expect(applyToEnvironment).toHaveBeenCalledWith(fakeEnvironment)
+  })
+
+  it('should omit the plugin when applyToEnvironment returns false', async () => {
+    const plugin = {
+      name: 'test-plugin',
+      applyToEnvironment: () => false
+    } as unknown as Plugin
+
+    await expect(resolvePluginsForEnvironment(fakeEnvironment, [plugin])).resolves.toEqual([])
+  })
+
+  it('should use a replacement plugin returned by applyToEnvironment', async () => {
+    const replacement: Plugin = { name: 'replacement-plugin', options: () => undefined }
+    const plugin = {
+      name: 'test-plugin',
+      applyToEnvironment: () => replacement
+    } as unknown as Plugin
+
+    await expect(resolvePluginsForEnvironment(fakeEnvironment, [plugin])).resolves.toEqual([
+      replacement
+    ])
+  })
+
+  it('should flatten asynchronous nested plugin options and remove falsy entries', async () => {
+    const replacementA: Plugin = { name: 'replacement-a' }
+    const replacementB: Plugin = { name: 'replacement-b' }
+    const plugin = {
+      name: 'test-plugin',
+      applyToEnvironment: () =>
+        Promise.resolve([replacementA, Promise.resolve([false, replacementB])])
+    } as unknown as Plugin
+
+    await expect(resolvePluginsForEnvironment(fakeEnvironment, [plugin])).resolves.toEqual([
+      replacementA,
+      replacementB
+    ])
+  })
+})
 
 describe('injectEnvironmentToHooks', () => {
   const fakeEnvironment = { name: 'client', config: { consumer: 'client' } }

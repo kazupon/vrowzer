@@ -10,10 +10,9 @@
  */
 
 import { chromium } from '@playwright/test'
-import { execSync } from 'node:child_process'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import { afterAll, beforeAll, inject } from 'vite-plus/test'
-import { createServer, preview } from 'vite'
+import { build, createServer, preview } from 'vite'
 
 import type { Browser, Page } from '@playwright/test'
 import type { PreviewServer, ViteDevServer } from 'vite'
@@ -58,9 +57,9 @@ async function startServer(hostDir: string): Promise<{
 
   if (isBuild) {
     debug('Building host...', hostDir)
-    execSync('npx vite build --minify false', {
-      cwd: hostDir,
-      stdio: E2E_DEBUG ? 'inherit' : 'pipe'
+    await build({
+      root: hostDir,
+      build: { minify: false }
     })
     debug('Build complete')
 
