@@ -77,6 +77,8 @@ async function startServer(hostDir: string): Promise<{
       server: { port: 0, strictPort: false, headers }
     })
     await srv.listen()
+    // Avoid optimizer reloads interrupting Vrowzer's worker handshake.
+    await srv.warmupRequest('/index.ts')
     const url = srv.resolvedUrls!.local[0]!
     debug('Dev server started at', url)
     return { server: srv, serverUrl: url }

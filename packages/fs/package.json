@@ -82,7 +82,6 @@
     "@playwright/test": "catalog:",
     "@vrowzer/node-polyfill": "workspace:*",
     "buffer": "catalog:",
-    "get-port-please": "catalog:",
     "pathe": "catalog:",
     "premove": "^4.0.0",
     "publint": "catalog:",

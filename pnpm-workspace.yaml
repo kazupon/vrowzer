@@ -65,11 +65,15 @@ minimumReleaseAgeExclude:
 verifyDepsBeforeRun: false
 
 allowBuilds:
+  '@parcel/watcher': true
   '@rolldown/browser': true
   core-js: true
   deno: true
   esbuild: true
+  less: false
+  sharp: true
   wasm-pack: true
+  workerd: true
 
 patchedDependencies:
   fdir@6.5.0: patches/fdir@6.5.0.patch
