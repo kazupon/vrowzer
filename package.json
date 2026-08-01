@@ -19,6 +19,7 @@
     "build:vite": "vp run vite-dev-server#build",
     "build:vite-plugin": "vp run vite-plugin#build",
     "build:vrowzer": "vp run vrowzer#build",
+    "check": "vp run lint && vp run typecheck",
     "deploy:play": "vp run vite-dev-server#build && vp run play-vrowzer#build && wrangler pages deploy packages/play-vrowzer/dist --project-name=vrowzer-playground --commit-dirty=true",
     "dev:play": "vp run play-vrowzer#dev",
     "dev:vite": "vp run vite-dev-server#dev",
