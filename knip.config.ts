@@ -15,8 +15,7 @@ const config: KnipConfig = {
         'buffer',
         'premove',
         'publint',
-        'readable-stream',
-        'vite'
+        'readable-stream'
       ]
     },
     'packages/node-polyfill': {
@@ -61,11 +60,11 @@ const config: KnipConfig = {
         'test-public/**',
         'playground/**'
       ],
-      ignoreDependencies: ['publint', 'vite']
+      ignoreDependencies: ['publint']
     },
     'packages/service-worker-server': {
       entry: ['src/index.ts', 'integration/**', 'test-public/**', 'docs/**'],
-      ignoreDependencies: ['publint', 'vite']
+      ignoreDependencies: ['publint']
     },
     'packages/safe-port': {
       entry: ['src/index.ts', 'src/**/*.browser-test.ts'],

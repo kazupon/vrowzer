@@ -7,10 +7,9 @@
  */
 
 import { chromium } from '@playwright/test'
-import { execSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { preview } from 'vite'
+import { build, preview } from 'vite'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import type { Browser, Page } from '@playwright/test'
@@ -131,7 +130,10 @@ function extractInlineSourceMap(code: string): SourceMapPayload {
 
 beforeAll(async () => {
   debug('Building playground...')
-  execSync('npx vite build', { cwd: PLAYGROUND_DIR, stdio: E2E_DEBUG ? 'inherit' : 'pipe' })
+  await build({
+    root: PLAYGROUND_DIR,
+    logLevel: E2E_DEBUG ? 'info' : 'silent'
+  })
   debug('Build complete')
 
   server = await preview({
@@ -206,7 +208,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await page?.close()
   await browser?.close()
-  server?.close()
+  await server?.close()
   debug('Cleanup complete')
 })
 

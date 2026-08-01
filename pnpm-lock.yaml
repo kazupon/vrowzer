@@ -301,9 +301,6 @@ importers:
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
-      get-port-please:
-        specifier: 'catalog:'
-        version: 3.2.0
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
@@ -470,9 +467,6 @@ importers:
       '@vrowzer/unplugin-service-worker':
         specifier: workspace:*
         version: link:../unplugin-service-worker
-      get-port-please:
-        specifier: 'catalog:'
-        version: 3.2.0
       publint:
         specifier: 'catalog:'
         version: 0.3.18
@@ -492,9 +486,6 @@ importers:
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.57.0
-      get-port-please:
-        specifier: 'catalog:'
-        version: 3.2.0
       publint:
         specifier: 'catalog:'
         version: 0.3.18

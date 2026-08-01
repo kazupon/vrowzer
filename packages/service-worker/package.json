@@ -72,7 +72,6 @@
     "@kazupon/jts-utils": "catalog:",
     "@playwright/test": "catalog:",
     "@vrowzer/unplugin-service-worker": "workspace:*",
-    "get-port-please": "catalog:",
     "publint": "catalog:",
     "vite": "catalog:"
   }

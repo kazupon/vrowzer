@@ -5,106 +5,38 @@
  */
 
 import { chromium } from '@playwright/test'
-import { getPort } from 'get-port-please'
-import { spawn } from 'node:child_process'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createServer } from 'vite'
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test'
 
 import type { Browser, BrowserContext, Page } from '@playwright/test'
-import type { ChildProcess } from 'node:child_process'
+import type { ViteDevServer } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const packageDir = dirname(__dirname)
 
 let BASE_URL: string
-let serverProcess: ChildProcess
+let server: ViteDevServer
 let browser: Browser
 
-// Start Vite dev server and wait for it to be ready
-async function startDevServer(options: {
-  cwd: string
-  port?: number
-  signal?: AbortSignal
-}): Promise<{ url: string; process: ChildProcess }> {
-  const { cwd, port: preferredPort = 5173, signal } = options
-
-  const port = await getPort({ port: preferredPort })
-  const url = `http://localhost:${port}`
-
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(signal.reason as Error)
-      return
+async function startDevServer(): Promise<{ url: string; server: ViteDevServer }> {
+  const server = await createServer({
+    root: packageDir,
+    server: {
+      port: 0,
+      strictPort: false
     }
-
-    const childProcess = spawn('npx', ['vite', '--port', String(port)], {
-      cwd,
-      stdio: 'pipe'
-    })
-
-    let stderrOutput = ''
-    let settled = false
-
-    const cleanup = () => {
-      settled = true
-      signal?.removeEventListener('abort', onAbort)
-      clearInterval(pollId)
-    }
-
-    const onAbort = () => {
-      if (settled) {
-        return
-      }
-      cleanup()
-      childProcess.kill()
-      reject(
-        (signal!.reason ?? new Error(`Aborted${stderrOutput ? `: ${stderrOutput}` : ''}`)) as Error
-      )
-    }
-
-    signal?.addEventListener('abort', onAbort)
-
-    childProcess.on('error', err => {
-      if (settled) {
-        return
-      }
-      cleanup()
-      reject(err)
-    })
-
-    childProcess.stderr?.on('data', (data: Buffer) => {
-      stderrOutput += data.toString()
-    })
-
-    childProcess.on('exit', code => {
-      if (settled) {
-        return
-      }
-      if (code !== null && code !== 0) {
-        cleanup()
-        reject(
-          new Error(`Process exited with code ${code}${stderrOutput ? `: ${stderrOutput}` : ''}`)
-        )
-      }
-    })
-
-    // oxlint-disable-next-line typescript/no-misused-promises
-    const pollId = setInterval(async () => {
-      if (settled) {
-        return
-      }
-      try {
-        const res = await fetch(url)
-        if (res.ok) {
-          cleanup()
-          resolve({ url, process: childProcess })
-        }
-      } catch {
-        // Server not ready yet, keep polling
-      }
-    }, 100)
   })
+  await server.listen()
+
+  const address = server.httpServer?.address()
+  if (!address || typeof address === 'string') {
+    await server.close()
+    throw new Error('Failed to get Vite dev server address')
+  }
+
+  return { url: `http://localhost:${address.port}`, server }
 }
 
 describe('@vrowzer/fs E2E', () => {
@@ -112,22 +44,9 @@ describe('@vrowzer/fs E2E', () => {
   let page: Page
 
   beforeAll(async () => {
-    // Start Vite dev server
-    const abortController = new AbortController()
-    const timeout = setTimeout(() => {
-      abortController.abort(new Error('Server start timeout'))
-    }, 30000)
-
-    try {
-      const server = await startDevServer({
-        cwd: packageDir,
-        signal: abortController.signal
-      })
-      BASE_URL = server.url
-      serverProcess = server.process
-    } finally {
-      clearTimeout(timeout)
-    }
+    const devServer = await startDevServer()
+    BASE_URL = devServer.url
+    server = devServer.server
 
     // Launch browser
     browser = await chromium.launch({ headless: true })
@@ -139,7 +58,7 @@ describe('@vrowzer/fs E2E', () => {
     await page?.close()
     await context?.close()
     await browser?.close()
-    serverProcess?.kill()
+    await server?.close()
   })
 
   it('can import and use fs module in browser', async () => {
