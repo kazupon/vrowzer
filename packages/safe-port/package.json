@@ -21,7 +21,7 @@
     "MessagePort",
     "MessageChannel"
   ],
-  "homepage": "https://github.com/kazupon/vrowzer/packages/safe-port/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/safe-port#readme",
   "publishConfig": {
     "access": "public"
   },

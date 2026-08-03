@@ -3,7 +3,7 @@
  * @license MIT
  */
 
-import { defineRule } from 'oxlint'
+import { defineRule } from '@oxlint/plugins'
 
 // @ts-expect-error -- TODO: implement the rule!
 const rule = defineRule({})

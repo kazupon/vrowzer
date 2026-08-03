@@ -22,7 +22,7 @@
     "browser",
     "vrowzer"
   ],
-  "homepage": "https://github.com/kazupon/vrowzer/packages/node-polyfill/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/node-polyfill#readme",
   "publishConfig": {
     "access": "public"
   },

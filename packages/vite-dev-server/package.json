@@ -26,7 +26,7 @@
     "build-tool",
     "browser"
   ],
-  "homepage": "https://github.com/kazupon/vrowzer/packages/vite-dev-server/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/vite-dev-server#readme",
   "publishConfig": {
     "access": "public"
   },
@@ -35,14 +35,12 @@
   },
   "type": "module",
   "files": [
-    "bin",
     "client.d.ts",
     "dist",
     "misc/**/*.js",
     "types"
   ],
   "exports": {
-    ".": "./dist/node/index.js",
     "./client": {
       "types": "./client.d.ts"
     },
@@ -92,13 +90,52 @@
     "build-types-check": "echo 'build-types-check'",
     "build-types-roll": "rolldown --config rolldown.dts.config.ts",
     "dev": "premove dist && vp run build-bundle --watch",
+    "prepack": "vp run build",
     "test": "vp test run --root ../.. --project vite-dev-server:unit:node",
     "test:watch": "vp test watch --root ../.. --project vite-dev-server:unit:node"
   },
   "dependencies": {
+    "@vrowzer/fs": "workspace:*",
+    "@vrowzer/service-worker-server": "workspace:*",
+    "birpc": "^4.0.0",
+    "hono": "^4.12.32",
+    "lightningcss": "^1.30.2",
+    "pathe": "catalog:",
+    "postcss": "^8.5.6",
     "rolldown": "catalog:"
   },
-  "peerDependenciesMeta": {},
+  "peerDependencies": {
+    "@types/node": "^20.19.0 || >=22.12.0",
+    "esbuild": "^0.27.0 || ^0.28.0",
+    "less": "^4.0.0",
+    "sass": "^1.70.0",
+    "sass-embedded": "^1.70.0",
+    "stylus": ">=0.54.8",
+    "terser": "^5.16.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/node": {
+      "optional": true
+    },
+    "esbuild": {
+      "optional": true
+    },
+    "less": {
+      "optional": true
+    },
+    "sass": {
+      "optional": true
+    },
+    "sass-embedded": {
+      "optional": true
+    },
+    "stylus": {
+      "optional": true
+    },
+    "terser": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@babel/parser": "^7.28.6",
     "@jridgewell/remapping": "^2.3.5",
@@ -115,14 +152,11 @@
     "@types/estree": "^1.0.8",
     "@types/picomatch": "^4.0.2",
     "@vitest/utils": "4.1.10",
-    "@vrowzer/fs": "workspace:*",
     "@vrowzer/node-polyfill": "workspace:*",
     "@vrowzer/rolldown": "workspace:*",
     "@vrowzer/safe-port": "workspace:*",
     "@vrowzer/service-worker": "workspace:*",
-    "@vrowzer/service-worker-server": "workspace:*",
     "@vrowzer/unplugin-service-worker": "workspace:*",
-    "birpc": "^4.0.0",
     "buffer": "catalog:",
     "convert-source-map": "^2.0.0",
     "dotenv": "^17.2.3",
@@ -131,9 +165,7 @@
     "esbuild": "catalog:",
     "escape-html": "^1.0.3",
     "estree-walker": "^3.0.3",
-    "hono": "^4.12.32",
     "less": "^4.0.0",
-    "lightningcss": "^1.30.2",
     "magic-string": "catalog:",
     "mlly": "^1.8.0",
     "mrmime": "^2.0.1",
@@ -141,10 +173,8 @@
     "obug": "catalog:",
     "oxc-parser": "0.111.0",
     "parse5": "^8.0.0",
-    "pathe": "catalog:",
     "picocolors": "^1.1.1",
     "picomatch": "^4.0.3",
-    "postcss": "^8.5.6",
     "postcss-import": "^16.1.1",
     "postcss-load-config": "^6.0.1",
     "postcss-modules": "^6.0.1",
@@ -155,6 +185,7 @@
     "sass-embedded": "^1.70.0",
     "strip-literal": "^3.1.0",
     "stylus": ">=0.54.8",
+    "terser": "^5.16.0",
     "tinyglobby": "^0.2.15",
     "tsconfck": "^3.1.6",
     "typescript": "npm:@typescript/typescript6@^6.0.2",

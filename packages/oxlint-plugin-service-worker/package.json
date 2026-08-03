@@ -22,7 +22,7 @@
     "service-worker",
     "vrowzer"
   ],
-  "homepage": "https://github.com/kazupon/vrowzer/packages/oxlint-plugin-service-worker/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/oxlint-plugin-service-worker#readme",
   "publishConfig": {
     "access": "public"
   },
@@ -54,9 +54,10 @@
     "prepack": "vp run build"
   },
   "dependencies": {
-    "oxlint": "catalog:"
+    "@oxlint/plugins": "catalog:"
   },
   "devDependencies": {
+    "oxlint": "catalog:",
     "publint": "catalog:"
   }
 }

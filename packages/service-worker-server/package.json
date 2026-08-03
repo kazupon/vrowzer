@@ -21,7 +21,7 @@
     "vrowzer",
     "server"
   ],
-  "homepage": "https://github.com/kazupon/vrowzer/packages/service-worker-server/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/service-worker-server#readme",
   "publishConfig": {
     "access": "public"
   },

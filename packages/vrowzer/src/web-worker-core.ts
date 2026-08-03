@@ -23,7 +23,7 @@ import { createServer } from '@vrowzer/vite-dev-server/web-worker'
 
 import type { FileSystemSyncMessage } from '@vrowzer/fs/watcher'
 import type { CreateServerOptions } from '@vrowzer/vite-dev-server/web-worker'
-import type { Plugin, UserConfig } from 'vite'
+import type { Plugin, UserConfig } from '@vrowzer/vite-dev-server/vite'
 
 declare const self: DedicatedWorkerGlobalScope
 

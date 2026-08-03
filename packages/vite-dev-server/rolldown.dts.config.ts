@@ -29,6 +29,7 @@ export default defineConfig({
     internal: './src/node/internalIndex.ts',
     'service-worker': './src/node/service-worker.ts',
     transformer: './src/node/transformer.ts',
+    vite: './src/node/vite.ts',
     'web-worker': './src/node/web-worker.ts',
   },
   output: {

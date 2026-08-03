@@ -22,7 +22,7 @@
     "vrowzer",
     "browser"
   ],
-  "homepage": "https://github.com/kazupon/vrowzer/packages/fs/README.md",
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/fs#readme",
   "publishConfig": {
     "access": "public"
   },

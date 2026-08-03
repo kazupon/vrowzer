@@ -26,6 +26,7 @@ import { connectSafeModulePathSync } from '../shared/rpc'
 import { V_WW_READY, V_WW_SETUP_ACK, V_WW_SETUP_ERROR, V_SW_CONNECT_PORT_ACK } from '../shared/messages'
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage, WorkerReadyMessage } from '../shared/messages'
 import type { ViteDevServer } from './server/index'
+import type { Plugin } from './plugin'
 import type {
   TransformOptionsInternal,
 } from './server/transformRequest'
@@ -59,7 +60,7 @@ export interface CreateServerOptions {
    * User plugins to inject into the Vite dev server.
    * These are merged with the inline config plugins before resolving.
    */
-  plugins?: import('vite').Plugin[]
+  plugins?: Plugin[]
   /**
    * Additional Vite inline config from vrowzer.config.ts (resolve.alias, define, etc.).
    * Merged into the V_WW_SETUP config before resolveConfig().

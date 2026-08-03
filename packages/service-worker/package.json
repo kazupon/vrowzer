@@ -16,6 +16,7 @@
     "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/service-worker"
   },
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/service-worker#readme",
   "keywords": [
     "service-worker",
     "utils",

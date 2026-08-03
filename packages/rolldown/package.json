@@ -2,6 +2,34 @@
   "name": "@vrowzer/rolldown",
   "description": "Pre-bundled @rolldown/browser for easy browser usage",
   "version": "0.0.0",
+  "author": {
+    "name": "kazuya kawaguchi",
+    "email": "kawakazu80@gmail.com"
+  },
+  "license": "MIT",
+  "funding": "https://github.com/sponsors/kazupon",
+  "bugs": {
+    "url": "https://github.com/kazupon/vrowzer/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazupon/vrowzer.git",
+    "directory": "packages/rolldown"
+  },
+  "keywords": [
+    "rolldown",
+    "browser",
+    "wasm",
+    "bundler",
+    "vrowzer"
+  ],
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/rolldown#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 20.19.0"
+  },
   "type": "module",
   "sideEffects": false,
   "files": [
