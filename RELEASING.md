@@ -61,6 +61,13 @@ Allowed action: npm publish
 `@vrowzer/oxlint-plugin-service-worker` and `@vrowzer/safe-port` must first be published manually as `0.0.0` with the `bootstrap` dist-tag so their npm package settings become available. After this release implementation is merged to `main`, use an npm-authenticated maintainer session and the validated release tarballs:
 
 ```sh
+npm login
+npm whoami # must print kazupon
+```
+
+Run the login only from the maintainer workstation. Do not add the resulting credential to GitHub Actions or repository configuration.
+
+```sh
 BOOTSTRAP_DIR="$(mktemp -d)"
 vp run release:pack --pack-destination "$BOOTSTRAP_DIR"
 npm publish "$BOOTSTRAP_DIR/vrowzer-oxlint-plugin-service-worker-0.0.0.tgz" --access public --tag bootstrap
