@@ -19,6 +19,63 @@ vp run release:pack
 vp run release:publish --dry-run
 ```
 
+## Release Scripts
+
+The root `package.json` exposes the following scripts for creating and validating releases. Pass script-specific options after the script name, for example `vp run release:check --tag v0.1.0`.
+
+### `release`
+
+This is the maintainer-facing command that creates a release commit and tag. It first runs `scripts/check-release-preconditions.mjs`, which requires a GitHub token, a clean `main` branch, and a local `HEAD` that exactly matches `origin/main`. It then runs bumpp for every workspace manifest under `packages/*/package.json`.
+
+The bumpp hook verifies that the selected tag does not already exist locally or on `origin`, generates the new `CHANGELOG.md` entry with gh-changelogen, commits the version and changelog changes as `release: v<version>`, creates `v<version>`, and pushes the commit and tag. This is the only release script that modifies Git history or pushes to GitHub.
+
+```sh
+GH_TOKEN="$(gh auth token)" vp run release
+```
+
+### `release:check`
+
+This read-only validation requires an existing release tag through `--tag` or `TAG`. It verifies that the tag is canonical SemVer, points to the checked-out `HEAD`, and matches all 12 workspace versions. It also checks the 11 public packages and the private playground inventory, public package metadata, internal `workspace:*` dependency declarations, dependency ordering, and the latest `CHANGELOG.md` heading.
+
+```sh
+vp run release:check --tag v0.1.0
+```
+
+### `release:pack`
+
+This builds and packs all 11 public packages in dependency order without publishing them. Every tarball is extracted and checked for its name, version, public access, resolved dependency specifiers, exact internal versions, exported files, undeclared runtime imports, sensitive files, and required Vite dev server WASM and Worker assets. All tarballs must pass before the command succeeds.
+
+By default it preserves the generated tarballs in a temporary directory printed at the end. Use `--pack-destination` with an empty directory when another command needs a stable location.
+
+```sh
+vp run release:pack
+vp run release:pack --pack-destination /tmp/vrowzer-release
+```
+
+### `release:publish`
+
+In its default publish mode, this is the GitHub Actions publishing command and requires an existing release tag through `--tag` or `TAG`. It runs the release version check, packs and validates every public package, and only then publishes the verified tarballs to npm in dependency order. The npm dist-tag is derived from the version, such as `latest`, `beta`, or `rc`.
+
+Before each publish it checks npm for the exact version. A package with matching integrity is skipped so the job can resume after a partial publish; an integrity mismatch or registry error stops the release. Use `--dry-run` locally to run the same pack and validation stages followed by `npm publish --dry-run` without changing the registry.
+
+```sh
+vp run release:publish --dry-run
+vp run release:publish --tag v0.1.0
+```
+
+The non-dry-run form is intended for the OIDC-enabled `npm-release` GitHub Actions environment, not for routine execution from a maintainer workstation.
+
+### `release:smoke`
+
+This post-publish check requires `--tag` or `TAG`. It waits for all 11 exact package versions to become visible on npm, creates a temporary project outside the workspace, installs the published packages, verifies that every internal package resolved to the release version, and imports the main public runtime entries. The temporary project is removed afterward.
+
+For local validation, `--tarball-directory` skips the registry wait and installs the 11 tarballs from the specified directory instead.
+
+```sh
+vp run release:smoke --tag v0.1.0
+vp run release:smoke --tag v0.1.0 --tarball-directory /tmp/vrowzer-release
+```
+
 ## Create A Release
 
 Use the GitHub CLI credential for changelog generation:
