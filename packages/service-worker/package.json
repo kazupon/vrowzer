@@ -1,7 +1,7 @@
 {
   "name": "@vrowzer/service-worker",
   "description": "Safely deploy and manage Service Workers with version control, bidirectional communication, and emergency shutdown capabilities",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"

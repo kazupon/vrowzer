@@ -1,7 +1,7 @@
 {
   "name": "@vrowzer/oxlint-plugin-service-worker",
   "description": "oxlint plugin for @vrowzer/service-worker",
-  "version": "0.1.0-beta.0",
+  "version": "0.1.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
