@@ -16,6 +16,7 @@
     "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/vrowzer"
   },
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/vrowzer#readme",
   "keywords": [
     "preview",
     "hmr",

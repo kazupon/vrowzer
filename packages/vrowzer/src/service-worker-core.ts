@@ -28,7 +28,7 @@ import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-ser
 
 import type { FileSystemSyncMessage } from '@vrowzer/fs/watcher'
 import type { CreateServerOptions } from '@vrowzer/vite-dev-server/service-worker'
-import type { Plugin } from 'vite'
+import type { Plugin } from '@vrowzer/vite-dev-server/vite'
 
 declare const self: ServiceWorkerGlobalScope
 

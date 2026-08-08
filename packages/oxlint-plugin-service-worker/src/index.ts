@@ -3,7 +3,11 @@
  * @license MIT
  */
 
-import { definePlugin } from 'oxlint'
+import { definePlugin } from '@oxlint/plugins'
 
-// @ts-expect-error -- TODO: implement the rule!
-export default definePlugin({})
+export default definePlugin({
+  meta: {
+    name: '@vrowzer/oxlint-plugin-service-worker'
+  },
+  rules: {}
+})

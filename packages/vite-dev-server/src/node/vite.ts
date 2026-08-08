@@ -59,5 +59,6 @@ export function loadEnv(
 }
 
 // --- Plugin types ---
+export type { UserConfig } from './config'
 export type { Plugin } from './plugin'
 export type { HmrOptions, WsOptions } from './server/hmr'

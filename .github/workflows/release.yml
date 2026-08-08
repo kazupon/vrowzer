@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Release stage to run
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - npm-publish
+          - published-smoke
+          - github-release
+      tag:
+        description: Existing tag to release, for example v0.1.0-beta.0
+        type: string
+        required: true
+
+env:
+  CI: true
+  TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release
+    if: >-
+      github.event_name == 'push' || (github.event_name == 'workflow_dispatch' &&
+        (inputs.job == 'all' || inputs.job == 'npm-publish'))
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      checkout-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+  npm-publish:
+    name: Publish to npm
+    needs: [validate]
+    if: >-
+      always() && (
+        (github.event_name == 'push' && needs.validate.result == 'success') ||
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'npm-publish' &&
+          needs.validate.result == 'success') ||
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'all' &&
+          needs.validate.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+          submodules: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
+        with:
+          node-version: 24
+          cache: false
+          run-install: false
+
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Verify npm version
+        run: >-
+          node --input-type=module -e "import semver from 'semver'; const version = process.argv[1]; if (!semver.gte(version, '11.5.1')) throw new Error('npm 11.5.1 or newer is required, received ' + version)" "$(npm --version)"
+
+      - name: Validate release version
+        run: vp run release:check --tag "$TAG"
+
+      - name: Build packages
+        run: vpr --no-cache -v build
+
+      - name: Pack, validate, and publish packages
+        run: vp run release:publish --tag "$TAG"
+
+  published-smoke:
+    name: Test published packages
+    needs: [npm-publish]
+    if: >-
+      always() && (
+        (github.event_name == 'push' && needs.npm-publish.result == 'success') ||
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'published-smoke') ||
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'all' &&
+          needs.npm-publish.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+          submodules: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
+        with:
+          node-version: 24
+          cache: false
+          run-install: false
+
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Validate release version
+        run: vp run release:check --tag "$TAG"
+
+      - name: Test exact published versions
+        run: vp run release:smoke --tag "$TAG"
+
+  github-release:
+    name: Create GitHub Release
+    needs: [published-smoke]
+    if: >-
+      always() && (
+        (github.event_name == 'push' && needs.published-smoke.result == 'success') ||
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'github-release') ||
+        (github.event_name == 'workflow_dispatch' && inputs.job == 'all' &&
+          needs.published-smoke.result == 'success')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+          submodules: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
+        with:
+          node-version: 24
+          cache: false
+          run-install: false
+
+      - name: Install dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Validate release version
+        run: vp run release:check --tag "$TAG"
+
+      - name: Create GitHub Release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping creation"
+          else
+            gh release create "$TAG" --verify-tag --generate-notes
+          fi

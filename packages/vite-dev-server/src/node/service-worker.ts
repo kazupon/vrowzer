@@ -62,7 +62,7 @@ import type {
 } from '../shared/forwardConsole'
 import type { InlineConfig, ResolvedConfig } from './config'
 import type { CommonServerOptions } from './http'
-import type { MinimalPluginContextWithoutEnvironment } from './plugin'
+import type { MinimalPluginContextWithoutEnvironment, Plugin } from './plugin'
 import type { DevEnvironment } from './server/environment'
 import type { HmrOptions, WsOptions } from './server/hmr'
 import type { ViteDevServer } from './server/index'
@@ -298,7 +298,7 @@ export interface CreateServerOptions {
    * User plugins to inject into the Vite dev server.
    * These are merged with the inline config plugins before resolving.
    */
-  plugins?: import('vite').Plugin[]
+  plugins?: Plugin[]
   /**
    * FSWawtcher factory function to create a custom FSWatcher instance.
    */

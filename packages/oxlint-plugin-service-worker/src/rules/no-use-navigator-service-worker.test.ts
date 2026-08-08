@@ -1,4 +1,4 @@
-import { RuleTester } from 'oxlint'
+import { RuleTester } from 'oxlint/plugins-dev'
 import rule from './no-use-navigator-service-worker.ts'
 
 const ruleTester = new RuleTester()

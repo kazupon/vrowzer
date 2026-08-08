@@ -16,6 +16,7 @@
     "url": "git+https://github.com/kazupon/vrowzer.git",
     "directory": "packages/vite-plugin"
   },
+  "homepage": "https://github.com/kazupon/vrowzer/tree/main/packages/vite-plugin#readme",
   "keywords": [
     "vrowzer",
     "vite"
@@ -72,6 +73,7 @@
   },
   "peerDependencies": {
     "@vrowzer/vite-dev-server": "workspace:*",
+    "vite": "catalog:",
     "vrowzer": "workspace:*"
   },
   "devDependencies": {

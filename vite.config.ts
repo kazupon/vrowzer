@@ -256,6 +256,13 @@ export default defineConfig({
         }
       },
       {
+        test: {
+          name: 'release:unit',
+          environment: 'node',
+          include: ['./scripts/**/*.test.ts']
+        }
+      },
+      {
         resolve: {
           alias: {
             '~utils': resolve(import.meta.dirname, './e2e/test-utils')
