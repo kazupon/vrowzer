@@ -3,6 +3,7 @@ import {
   getBumppReleaseTag,
   getDistTag,
   getPackageNameFromSpecifier,
+  isPrereleaseTag,
   parseReleaseTag
 } from './lib/release-utils.mjs'
 
@@ -11,6 +12,14 @@ describe('release utilities', () => {
     expect(parseReleaseTag('v1.2.3-beta.1')).toBe('1.2.3-beta.1')
     expect(() => parseReleaseTag('1.2.3')).toThrow('v<semver>')
     expect(() => parseReleaseTag('v01.2.3')).toThrow('canonical')
+  })
+
+  test.each([
+    ['v1.2.3', false],
+    ['v1.2.3-beta.0', true],
+    ['v1.2.3-rc.1', true]
+  ])('identifies whether %s is a prerelease tag', (tag, expected) => {
+    expect(isPrereleaseTag(tag)).toBe(expected)
   })
 
   test('derives the future tag from the version available during the bumpp execute hook', () => {

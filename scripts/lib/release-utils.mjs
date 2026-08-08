@@ -27,6 +27,10 @@ export function parseReleaseTag(tag) {
   return version
 }
 
+export function isPrereleaseTag(tag) {
+  return semver.prerelease(parseReleaseTag(tag)) !== null
+}
+
 export function getBumppReleaseTag(operation) {
   const version = operation?.state?.newVersion
   if (typeof version !== 'string') {
