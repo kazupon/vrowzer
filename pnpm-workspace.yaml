@@ -12,7 +12,7 @@ catalog:
   '@vitest/browser-playwright': 4.1.10
   bumpp: ^12.1.1
   es-module-lexer: ^1.7.0
-  gh-changelogen: ^2.0.1
+  gh-changelogen: ^2.0.2
   semver: ^7.8.5
   tar: ^7.5.22
   typescript: 7.0.2
@@ -64,7 +64,7 @@ minimumReleaseAgeExclude:
   - '@vitejs/devtools-kit'
   - '@vitejs/devtools-rolldown'
   - '@vitejs/devtools-rpc'
-  - 'gh-changelogen@2.0.1'
+  - 'gh-changelogen@2.0.2'
   - knip
   - oxlint
   - vite

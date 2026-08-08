@@ -58,8 +58,8 @@ catalogs:
       specifier: ^3.2.0
       version: 3.2.0
     gh-changelogen:
-      specifier: ^2.0.1
-      version: 2.0.1
+      specifier: ^2.0.2
+      version: 2.0.2
     magic-string:
       specifier: ^0.30.21
       version: 0.30.21
@@ -154,7 +154,7 @@ importers:
         version: 1.7.0
       gh-changelogen:
         specifier: 'catalog:'
-        version: 2.0.1
+        version: 2.0.2
       knip:
         specifier: ^6.29.0
         version: 6.29.0
@@ -5239,8 +5239,8 @@ packages:
   get-tsconfig@4.14.0:
     resolution: {integrity: sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA==}
 
-  gh-changelogen@2.0.1:
-    resolution: {integrity: sha512-b5lGwY4FaVAwA5u5Hfu+tN6JnT3p8hMDHNxxb6xd4eyFayf3jug89a4CmyAkBFkuXgUaBPTtvDjg8LGeV4CVlg==}
+  gh-changelogen@2.0.2:
+    resolution: {integrity: sha512-4Qsyts73PSxeUNigYHa46TDAT/GDt5sW2B+C36wf0gUNGx8rjKuR21K9axE6nm1ZcRqSKfdpshsq4a9TMBNdpA==}
     engines: {node: '>= 22'}
     hasBin: true
 
@@ -11601,7 +11601,7 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
-  gh-changelogen@2.0.1:
+  gh-changelogen@2.0.2:
     dependencies:
       gunshi: 0.37.1
       semver: 7.8.5
