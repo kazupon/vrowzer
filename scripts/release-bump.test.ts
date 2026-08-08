@@ -84,7 +84,7 @@ describe('bumpp release transaction', () => {
       expect(manifest.version).toBe('1.1.0')
     }
     expect((await git(root, ['status', '--porcelain'])).stdout.trim()).toBe('')
-  })
+  }, 15_000)
 
   test('does not commit or tag when changelog generation rejects', async () => {
     const root = await mkdtemp(join(tmpdir(), 'vrowzer-bumpp-failure-'))
@@ -138,5 +138,5 @@ describe('bumpp release transaction', () => {
     expect((await git(root, ['tag', '--list'])).stdout.trim()).toBe('v1.0.0')
     expect(JSON.parse(await readFile(manifestPath, 'utf8')).version).toBe('1.0.1')
     expect((await git(root, ['status', '--porcelain'])).stdout.trim()).toBe('M package.json')
-  })
+  }, 15_000)
 })

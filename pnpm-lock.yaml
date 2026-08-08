@@ -595,9 +595,6 @@ importers:
       hono:
         specifier: ^4.12.32
         version: 4.12.32
-      lightningcss:
-        specifier: ^1.30.2
-        version: 1.31.1
       pathe:
         specifier: 'catalog:'
         version: 2.0.3
@@ -695,6 +692,9 @@ importers:
       less:
         specifier: ^4.0.0
         version: 4.5.1
+      lightningcss:
+        specifier: ^1.30.2
+        version: 1.31.1
       magic-string:
         specifier: 'catalog:'
         version: 0.30.21

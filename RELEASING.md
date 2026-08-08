@@ -44,7 +44,7 @@ If changelog generation or another bumpp hook fails before the commit, inspect t
 
 If CI fails before any package is published, fix the source and create a new release version. If only some packages were published, rerun the `npm-publish` job for the same existing tag. The workflow compares npm integrity values, skips matching versions, and continues with missing packages. Never move or delete a tag after any package from that version has been published.
 
-Use `workflow_dispatch` with an existing tag to rerun `npm-publish`, `published-smoke`, or `release-notes` independently. A mismatched published integrity is not recoverable with the same version and requires investigation before creating a new version.
+Use `workflow_dispatch` with an existing tag to rerun `npm-publish`, `published-smoke`, or `github-release` independently. A mismatched published integrity is not recoverable with the same version and requires investigation before creating a new version.
 
 ## npm Trusted Publishing
 
