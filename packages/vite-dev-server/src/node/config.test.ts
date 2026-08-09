@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 import { fileURLToPath } from 'node:url'
 import type { PluginContext } from 'rolldown'
 import { UnknownEnvironment } from './baseEnvironment'
+import type { LibraryOptions } from './build'
 import type { InlineConfig, ResolvedConfig } from './config'
 
 vi.mock('@vrowzer/rolldown', () => ({
@@ -206,15 +207,17 @@ describe('input config', () => {
   })
 
   test('defaults build.lib.entry to top-level input', async () => {
+    const userLib: LibraryOptions = { name: 'VrowzerLib' }
     const config = await resolveConfig(
       createInlineConfig({
         input: 'src/lib.ts',
-        build: { lib: { name: 'VrowzerLib' } },
+        build: { lib: userLib },
       }),
       'build',
     )
 
     expect(config.build.lib && config.build.lib.entry).toBe('src/lib.ts')
+    expect(userLib.entry).toBeUndefined()
   })
 
   test('preserves an explicit build.lib.entry', async () => {
