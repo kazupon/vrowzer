@@ -172,7 +172,7 @@ jobs:
             echo "Release $TAG already exists; skipping creation"
           else
             is_prerelease=$(node --input-type=module -e \
-              "import { isPrereleaseTag } from './scripts/lib/release-utils.mjs'; process.stdout.write(String(isPrereleaseTag(process.argv[1])))" \
+              "import semver from 'semver'; import { parseReleaseTag } from './scripts/lib/release-utils.mjs'; process.stdout.write(String(semver.prerelease(parseReleaseTag(process.argv[1])) !== null))" \
               "$TAG")
             release_args=("$TAG" --verify-tag --generate-notes)
             if [[ "$is_prerelease" == "true" ]]; then
