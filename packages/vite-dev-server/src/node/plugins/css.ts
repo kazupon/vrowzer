@@ -1076,6 +1076,7 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
         const pureCssChunkNames = [...pureCssChunks]
           .map((pureCssChunk) => prelimaryNameToChunkMap[pureCssChunk.fileName])
           .filter(Boolean)
+        const pureCssChunkNameSet = new Set(pureCssChunkNames)
 
         const replaceEmptyChunk = getEmptyChunkReplacer(
           pureCssChunkNames,
@@ -1090,7 +1091,7 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
             // and also register the emitted CSS files under the importer
             // chunks instead.
             chunk.imports = chunk.imports.filter((file) => {
-              if (pureCssChunkNames.includes(file)) {
+              if (pureCssChunkNameSet.has(file)) {
                 const { importedCss, importedAssets } = (
                   bundle[file] as OutputChunk
                 ).viteMetadata!
@@ -2213,12 +2214,15 @@ async function minifyCSS(
     const { code, warnings } = (await importLightningCSS()).transform({
       ...config.css.lightningcss,
       targets: convertTargets(config.build.cssTarget),
-      cssModules: undefined,
       // TODO: Pass actual filename here, which can also be passed to esbuild's
       // `sourcefile` option below to improve error messages
       filename: defaultCssBundleName,
-      code: Buffer.from(css)
+      code: Buffer.from(css),
       minify: true,
+      // the transforms should run in `compileLightningCSS` step
+      cssModules: undefined,
+      visitor: undefined,
+      customAtRules: undefined,
     })
 
     for (const warning of warnings) {

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 export const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
-export const releasePackageDefinitions = Object.freeze(
+const releasePackageDefinitions = Object.freeze(
   [
     ['@vrowzer/fs', 'packages/fs', true],
     ['@vrowzer/node-polyfill', 'packages/node-polyfill', true],
