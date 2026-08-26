@@ -7,7 +7,7 @@ Vrowzer - Preview with Vite HMR flavor for the browser
 ```ts
 import { Vrowzer } from 'vrowzer'
 
-const vrowzer = Vrowzer({ basePath: '/__preview__/' })
+const vrowzer = Vrowzer()
 
 // Initialize with files
 const ready = await vrowzer.ready({

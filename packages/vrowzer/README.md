@@ -46,7 +46,7 @@ export default defineConfig({
 ```ts
 import { Vrowzer } from 'vrowzer'
 
-const vrowzer = Vrowzer({ basePath: '/__preview__/' })
+const vrowzer = Vrowzer()
 
 // Initialize with files
 const ready = await vrowzer.ready({
@@ -79,13 +79,37 @@ vrowzer.updateFile(
 
 Creates a new Vrowzer instance.
 
+When `@vrowzer/vite-plugin` is used, configure the preview URL with the plugin's `basePath`. The value is shared with the application, Web Worker, and Service Worker, so the runtime option can be omitted:
+
+```ts
+// vite.config.ts
+import { Vrowzer as VrowzerPlugin } from '@vrowzer/vite-plugin'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  base: '/app/',
+  plugins: [VrowzerPlugin({ basePath: '/app/__preview__/' })]
+})
+```
+
+```ts
+// application.ts
+import { Vrowzer } from 'vrowzer'
+
+const vrowzer = Vrowzer()
+```
+
+The runtime `basePath` remains available for compatibility and for usage without the plugin. If both the plugin and runtime values are provided, their canonical paths must match or `Vrowzer()` throws. Without either value, the preview path is `/__preview__/`.
+
+`serviceWorkerScope` controls which pages the browser allows the Service Worker to control. It does not set the preview URL; that is the role of `basePath`.
+
 **Options:**
 
-| Option                 | Type     | Default           | Description                      |
-| ---------------------- | -------- | ----------------- | -------------------------------- |
-| `basePath`             | `string` | `'/__preview__/'` | Base path for the preview system |
-| `serviceWorkerVersion` | `string` | `'vrowzer-v1'`    | SW version for cache management  |
-| `serviceWorkerScope`   | `string` | `'/'`             | SW registration scope            |
+| Option                 | Type     | Default                           | Description                                       |
+| ---------------------- | -------- | --------------------------------- | ------------------------------------------------- |
+| `basePath`             | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value  |
+| `serviceWorkerVersion` | `string` | `'vrowzer-v1'`                    | SW version for cache management                   |
+| `serviceWorkerScope`   | `string` | `'/'`                             | SW registration scope, independent of `basePath`  |
 
 ### Instance Methods
 

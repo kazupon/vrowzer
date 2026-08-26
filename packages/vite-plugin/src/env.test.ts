@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vite-plus/test'
-import { envPlugin } from './env.ts'
+import { envPlugin, VROWZER_PREVIEW_BASE_PATH_DEFINE } from './env.ts'
 import { resolveOptions } from './options.ts'
 
 function createPlugin() {
@@ -75,5 +75,41 @@ describe('envPlugin', () => {
     const result = (plugin as any).config({}, { command: 'serve' })
 
     expect(result.define['import.meta.env.DEBUG']).toBeDefined()
+  })
+
+  test('config hook defines the default preview base path', () => {
+    const plugin = createPlugin()
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define[VROWZER_PREVIEW_BASE_PATH_DEFINE]).toBe(JSON.stringify('/__preview__/'))
+  })
+
+  test('config hook defines a custom preview base path', () => {
+    const plugin = envPlugin(resolveOptions({ basePath: '/app/__preview__/' }))
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define[VROWZER_PREVIEW_BASE_PATH_DEFINE]).toBe(
+      JSON.stringify('/app/__preview__/')
+    )
+  })
+
+  test('configResolved accepts the injected preview base path', () => {
+    const plugin = createPlugin()
+    const define = {
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/')
+    }
+
+    expect(() => (plugin as any).configResolved({ define })).not.toThrow()
+  })
+
+  test('configResolved rejects an overridden preview base path', () => {
+    const plugin = createPlugin()
+    const define = {
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/other/')
+    }
+
+    expect(() => (plugin as any).configResolved({ define })).toThrow(
+      `Vrowzer reserved define ${VROWZER_PREVIEW_BASE_PATH_DEFINE}`
+    )
   })
 })

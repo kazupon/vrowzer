@@ -24,11 +24,13 @@ const debug = createDebug('vite-plugin-vrowzer:server')
  * preview requests bypass service worker and hit Vite directly.
  * Without this guard, Vite returns the main page HTML, causing recursive display.
  */
-function previewGuardMiddleware(previewBase: string = '/__preview__') {
+function previewGuardMiddleware(previewBase: string) {
+  const previewRoot = previewBase.slice(0, -1)
   return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     debug('previewGuardMiddleware: previewBase ', previewBase, ' req.url ', req.url)
 
-    if (req.url?.startsWith(previewBase)) {
+    const pathname = req.url ? new URL(req.url, 'http://localhost').pathname : undefined
+    if (pathname === previewRoot || pathname?.startsWith(previewBase)) {
       res.writeHead(503, {
         'Content-Type': 'text/html',
         'Retry-After': '1'
@@ -44,7 +46,7 @@ function previewGuardMiddleware(previewBase: string = '/__preview__') {
 }
 
 export function serverMiddlewarePlugin(options: ResolvedVrowzerOptions): Plugin {
-  const middleware = previewGuardMiddleware(normalizeBasePath(options.basePath))
+  const middleware = previewGuardMiddleware(options.basePath)
   return {
     name: 'vrowzer:server-middleware',
     configureServer(server) {
@@ -53,14 +55,5 @@ export function serverMiddlewarePlugin(options: ResolvedVrowzerOptions): Plugin 
     configurePreviewServer(server) {
       server.middlewares.use(middleware)
     }
-  }
-}
-
-function normalizeBasePath(basePath: string): string {
-  debug('normalizeBasePath: basePath ', basePath)
-  if (basePath.endsWith('/')) {
-    return basePath.slice(0, -1)
-  } else {
-    return basePath
   }
 }

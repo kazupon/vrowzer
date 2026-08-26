@@ -15,10 +15,11 @@ import { fileURLToPath } from 'node:url'
 import { createDebug } from 'obug'
 import { resolveAliases } from './alias.ts'
 
-import type { Plugin } from 'vite'
+import type { Plugin, ResolvedConfig } from 'vite'
 import type { ResolvedVrowzerOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowzer:env')
+export const VROWZER_PREVIEW_BASE_PATH_DEFINE = '__VROWZER_INTERNAL_PREVIEW_BASE_PATH__'
 
 // Resolve picocolors browser version path.
 // picocolors doesn't export the browser file via package.json exports,
@@ -28,7 +29,8 @@ const picocolorsBrowser = resolve(
   'picocolors.browser.js'
 )
 
-export function envPlugin(_options: ResolvedVrowzerOptions): Plugin {
+export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
+  const serializedBasePath = JSON.stringify(options.basePath)
   return {
     name: 'vrowzer:env',
     // Rolldown native inject: inject `process` global for browser/Worker environments.
@@ -47,7 +49,8 @@ export function envPlugin(_options: ResolvedVrowzerOptions): Plugin {
     config(_config, _env) {
       return {
         define: {
-          'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || '')
+          'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || ''),
+          [VROWZER_PREVIEW_BASE_PATH_DEFINE]: serializedBasePath
         },
         resolve: {
           alias: resolveAliases({
@@ -77,6 +80,14 @@ export function envPlugin(_options: ResolvedVrowzerOptions): Plugin {
             'Cross-Origin-Embedder-Policy': 'credentialless'
           }
         }
+      }
+    },
+    configResolved(config: ResolvedConfig) {
+      const resolvedBasePath = config.define?.[VROWZER_PREVIEW_BASE_PATH_DEFINE]
+      if (resolvedBasePath !== serializedBasePath) {
+        throw new Error(
+          `Vrowzer reserved define ${VROWZER_PREVIEW_BASE_PATH_DEFINE} must be ${serializedBasePath}, received ${JSON.stringify(resolvedBasePath)}`
+        )
       }
     }
   }

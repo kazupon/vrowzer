@@ -53,4 +53,35 @@ describe('serverMiddlewarePlugin', () => {
     expect(next).toHaveBeenCalled()
     expect(res.writeHead).not.toHaveBeenCalled()
   })
+
+  test.each(['/__preview__', '/__preview__/', '/__preview__/main.js?import'])(
+    'previewGuardMiddleware returns 503 for bounded preview path %s',
+    requestUrl => {
+      const plugin = serverMiddlewarePlugin(resolveOptions({ basePath: '/__preview__/' }))
+      const req = { url: requestUrl } as any
+      const res = { writeHead: vi.fn(), end: vi.fn() } as any
+      const next = vi.fn()
+      const middlewares = { use: vi.fn() }
+      ;(plugin as any).configureServer({ middlewares })
+
+      middlewares.use.mock.calls[0]![0](req, res, next)
+
+      expect(res.writeHead).toHaveBeenCalledWith(503, expect.any(Object))
+      expect(next).not.toHaveBeenCalled()
+    }
+  )
+
+  test('previewGuardMiddleware passes through a similar path prefix', () => {
+    const plugin = serverMiddlewarePlugin(resolveOptions({ basePath: '/__preview__/' }))
+    const req = { url: '/__preview__-other/' } as any
+    const res = { writeHead: vi.fn(), end: vi.fn() } as any
+    const next = vi.fn()
+    const middlewares = { use: vi.fn() }
+    ;(plugin as any).configureServer({ middlewares })
+
+    middlewares.use.mock.calls[0]![0](req, res, next)
+
+    expect(next).toHaveBeenCalled()
+    expect(res.writeHead).not.toHaveBeenCalled()
+  })
 })

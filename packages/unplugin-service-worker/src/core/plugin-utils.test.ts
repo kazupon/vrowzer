@@ -4,8 +4,87 @@ import {
   resolveServiceWorkerPlugins,
   sanitizeDefine
 } from '../index.ts'
+import { rewriteEntryUrls, stripViteBase } from './entry-url.ts'
 
 import type { Plugin } from 'rolldown'
+
+describe('rewriteEntryUrls', () => {
+  const id = '/project/node_modules/vrowzer/dist/index.js'
+  const entry = '/project/node_modules/vrowzer/dist/service-worker.ts'
+  const code = `const scriptURL = new URL('./service-worker.ts', import.meta.url)`
+
+  it('should route an explicit entry through the Service Worker bundler in dev', () => {
+    const result = rewriteEntryUrls(code, id, entry, '/project', 'dev')
+
+    expect(result?.code).toContain('./service-worker.ts?sw=service_worker_file')
+    expect(result?.code).toContain("'' + import.meta.url")
+  })
+
+  it('should preserve placeholder rewriting in build mode', () => {
+    const result = rewriteEntryUrls(code, id, entry, '/project', 'placeholder')
+
+    expect(result?.code).toMatch(/__SW_ASSET__[a-z\d]+__/)
+  })
+
+  it('should preserve Rollup chunk emission', () => {
+    const emitted: Array<{ type: 'chunk'; id: string; name: string }> = []
+    const referenceIds = new Map<string, string>()
+    const result = rewriteEntryUrls(
+      code,
+      id,
+      entry,
+      '/project',
+      'rollup',
+      file => {
+        emitted.push(file)
+        return 'service-worker-reference'
+      },
+      referenceIds
+    )
+
+    expect(result?.code).toContain('import.meta.ROLLUP_FILE_URL_service-worker-reference')
+    expect(emitted).toEqual([{ type: 'chunk', id: entry, name: 'service-worker' }])
+    expect(referenceIds.get(entry)).toBe('service-worker-reference')
+  })
+
+  it('should use the page location for an explicit entry in browser tests', () => {
+    const result = rewriteEntryUrls(code, id, entry, '/project', 'dev', undefined, undefined, true)
+
+    expect(result?.code).toContain('self.location.href')
+  })
+
+  it('should ignore a different Service Worker entry', () => {
+    expect(
+      rewriteEntryUrls(
+        code,
+        id,
+        '/project/node_modules/vrowzer/dist/other-worker.ts',
+        '/project',
+        'dev'
+      )
+    ).toBeNull()
+  })
+})
+
+describe('stripViteBase', () => {
+  it('should remove a nested Vite base from a request pathname', () => {
+    expect(stripViteBase('/app/@fs/project/service-worker.ts', '/app/')).toBe(
+      '/@fs/project/service-worker.ts'
+    )
+  })
+
+  it('should keep pathnames outside the configured base', () => {
+    expect(stripViteBase('/application/service-worker.ts', '/app/')).toBe(
+      '/application/service-worker.ts'
+    )
+  })
+
+  it('should keep pathnames unchanged for the root base', () => {
+    expect(stripViteBase('/@fs/project/service-worker.ts', '/')).toBe(
+      '/@fs/project/service-worker.ts'
+    )
+  })
+})
 
 describe('sanitizeDefine', () => {
   it('should return undefined for undefined input', () => {

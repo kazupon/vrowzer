@@ -5,7 +5,7 @@
  * ```ts
  * import { Vrowzer } from 'vrowzer'
  *
- * const vrowzer = Vrowzer({ basePath: '/__preview__/' })
+ * const vrowzer = Vrowzer()
  *
  * // Initialize with files
  * const ready = await vrowzer.ready({
@@ -53,6 +53,7 @@ import {
   V_SW_CONNECT_PORT_ACK
 } from '@vrowzer/vite-dev-server/messages'
 import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
+import { resolvePreviewBasePath } from './preview-base.ts'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { FileSystemPublisher } from '@vrowzer/fs/watcher'
@@ -62,11 +63,17 @@ import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/contro
  * VrowzerOptions defines the configuration options for {@link Vrowzer}.
  */
 export interface VrowzerOptions {
-  /** Preview base path (default: '/__preview__/') */
+  /**
+   * Preview URL pathname.
+   *
+   * When `@vrowzer/vite-plugin` is used, its `basePath` is injected and this option can be
+   * omitted. If both are provided, their canonical values must match. Without the plugin,
+   * this option defaults to `'/__preview__/'`.
+   */
   basePath?: string
   /** Service Worker version for cache management (default: 'vrowzer-v1') */
   serviceWorkerVersion?: string
-  /** Service Worker scope (default: '/') */
+  /** Service Worker registration scope, independent of `basePath` (default: '/') */
   serviceWorkerScope?: string
 }
 
@@ -141,7 +148,7 @@ interface ResolvedVrowzerOptions {
 
 function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
   return {
-    basePath: options.basePath ?? '/__preview__/',
+    basePath: resolvePreviewBasePath(options.basePath),
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'vrowzer-v1',
     serviceWorkerScope: options.serviceWorkerScope ?? '/'
   }
