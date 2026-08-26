@@ -1,7 +1,7 @@
 {
   "name": "@vrowzer/rolldown",
   "description": "Pre-bundled @rolldown/browser for easy browser usage",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
