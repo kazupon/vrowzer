@@ -39,11 +39,34 @@ The auto-generated manifest is available via the `virtual:vrowzer-manifest` virt
 ```ts
 import manifest from 'virtual:vrowzer-manifest'
 
-const vrowzer = Vrowzer({ basePath: '/__preview__/' })
+const vrowzer = Vrowzer()
 await vrowzer.ready({
   files: { ...manifest.files, ...manifest.nodeModules }
 })
 ```
+
+### Preview base path
+
+The plugin's `basePath` is the source of truth for the application, Web Worker, and Service Worker bundles. Configure it once in `vite.config.ts`; application code can call `Vrowzer()` without repeating the value.
+
+For a host application served from a nested Vite base:
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  base: '/app/',
+  plugins: [Vrowzer({ basePath: '/app/__preview__/' })]
+})
+```
+
+```ts
+// application code
+import { Vrowzer } from 'vrowzer'
+
+const vrowzer = Vrowzer()
+```
+
+The runtime `Vrowzer({ basePath })` option remains compatible. When it is also specified, its canonical path must match the plugin value; a mismatch throws during `Vrowzer()` creation. The Service Worker registration `serviceWorkerScope` is independent of this preview URL path.
 
 When the host page and preview content are in different directories, use `manifest.sourceDir`:
 
@@ -165,8 +188,8 @@ Vrowzer({
 | `auto`                 | `boolean`                    | `true`                                    | Enable auto manifest generation. Set `false` to use `VrowzerManifest()` manually.         |
 | `manifest`             | `VrowzerManifestOptions`     | `undefined`                               | Auto manifest options (sourceDir, pkgDir, targets). Used when `auto: true`.               |
 | `experimental`         | `VrowzerExperimentalOptions` | `undefined`                               | Experimental features. Currently supports `ide`.                                          |
-| `basePath`             | `string`                     | `'/__preview__/'`                         | Base path for the preview system. The Service Worker intercepts requests under this path. |
-| `serviceWorkerScope`   | `string`                     | `'/'`                                     | The scope for the Service Worker registration.                                            |
+| `basePath`             | `string`                     | `'/__preview__/'`                         | Preview URL pathname shared with the application and Service Worker bundles.              |
+| `serviceWorkerScope`   | `string`                     | `'/'`                                     | Service Worker registration scope, independent of `basePath`.                             |
 | `serviceWorkerVersion` | `string`                     | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
 | `serviceWorkerEntry`   | `string`                     | Resolved path to `vrowzer/service-worker` | Explicit Service Worker entry file path.                                                  |
 | `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Worker-specific resolve settings passed to the internal Vite dev server.                  |

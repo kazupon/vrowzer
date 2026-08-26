@@ -23,6 +23,22 @@ describe('resolveOptions', () => {
     expect(resolved.basePath).toBe('/__custom__/')
   })
 
+  test.each([
+    ['/__custom__', '/__custom__/'],
+    ['/__custom__///', '/__custom__/'],
+    ['/app/__preview__', '/app/__preview__/'],
+    ['/app/__preview__/', '/app/__preview__/']
+  ])('normalizes basePath %s to %s', (basePath, expected) => {
+    expect(resolveOptions({ basePath }).basePath).toBe(expected)
+  })
+
+  test.each(['', '/', 'preview/', '//example.com/preview/', '/preview/?mode=dev', '/preview/#x'])(
+    'rejects invalid basePath %j',
+    basePath => {
+      expect(() => resolveOptions({ basePath })).toThrow(TypeError)
+    }
+  )
+
   test('respects custom serviceWorkerScope', () => {
     const resolved = resolveOptions({ serviceWorkerScope: '/app/' })
 

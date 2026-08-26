@@ -11,6 +11,8 @@
 
 import { fileURLToPath } from 'node:url'
 
+const DEFAULT_BASE_PATH = '/__preview__/'
+
 export interface Alias {
   find: string | RegExp
   replacement: string
@@ -90,12 +92,14 @@ export interface VrowzerOptions {
   manifest?: VrowzerManifestOptions
   /**
    * The base path for the preview system location, which is used to serve the preview files via service worker of Vrowzer.
+   * This is the source of truth for both the application and Service Worker bundles.
    *
    * @default '/__preview__/'
    */
   basePath?: string
   /**
    * The scope for the service worker of Vrowzer, which determines the range of URLs that the service worker will control.
+   * This registration scope is independent of the preview `basePath`.
    *
    * @default '/' (the entire origin)
    */
@@ -158,6 +162,27 @@ function resolveDefaultServiceWorkerEntry(): string {
   }
 }
 
+function normalizeBasePath(basePath: string): string {
+  if (
+    basePath.length === 0 ||
+    !basePath.startsWith('/') ||
+    basePath.startsWith('//') ||
+    basePath.includes('?') ||
+    basePath.includes('#')
+  ) {
+    throw new TypeError(
+      `Vrowzer basePath must be a non-root absolute pathname without a query or hash, received ${JSON.stringify(basePath)}`
+    )
+  }
+
+  const pathname = basePath.replace(/\/+$/, '')
+  if (pathname.length === 0) {
+    throw new TypeError('Vrowzer basePath must not be the origin root "/"')
+  }
+
+  return `${pathname}/`
+}
+
 export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
   const ide = options.experimental?.ide
   return {
@@ -168,7 +193,7 @@ export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
       port: typeof ide === 'object' ? ide.port : undefined,
       devtools: options.experimental?.devtools ?? false
     },
-    basePath: options.basePath ?? '/__preview__/',
+    basePath: normalizeBasePath(options.basePath ?? DEFAULT_BASE_PATH),
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'SERVICE_WORKER_VERSION',
     serviceWorkerEntry: options.serviceWorkerEntry ?? resolveDefaultServiceWorkerEntry(),

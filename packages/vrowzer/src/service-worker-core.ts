@@ -25,6 +25,7 @@ import client from '@vrowzer/vite-dev-server/dist/client/client.mjs?raw' // oxli
 import env from '@vrowzer/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer } from '@vrowzer/vite-dev-server/service-worker'
 import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-server/messages'
+import { resolvePreviewBasePath } from './preview-base.ts'
 
 import type { FileSystemSyncMessage } from '@vrowzer/fs/watcher'
 import type { CreateServerOptions } from '@vrowzer/vite-dev-server/service-worker'
@@ -44,7 +45,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
   fs.writeFileSync('/public/.gitkeep', '', { encoding: 'utf8' })
 
   const subscriber = createFileSystemSubscriber(fs)
-  const previewBase = '/__preview__/'
+  const previewBase = resolvePreviewBasePath()
   const serverOptions = {
     version: SW_VERSION,
     basePath: previewBase,
