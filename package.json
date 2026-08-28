@@ -37,7 +37,7 @@
     "lint:oxfmt": "vp fmt --check",
     "lint:oxlint": "vp lint",
     "play:svc": "vp run service-worker#play",
-    "prepare": "vp config && vp exec tsx scripts/generate-wasm.ts",
+    "prepare": "vp config && vp fmt AGENTS.md && vp exec tsx scripts/generate-wasm.ts",
     "preview:play": "vp run play-vrowzer#preview",
     "preview:play:wrangler": "vp run play-vrowzer#preview:wrangler",
     "release": "node scripts/check-release-preconditions.mjs && bumpp \"packages/*/package.json\"",
