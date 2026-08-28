@@ -11,7 +11,7 @@ async function getIframeTexts(...selectors: string[]): Promise<Record<string, st
       }
 
       const elements = sels.map(sel => doc.querySelector(sel))
-      if (elements.some(element => !element)) {
+      if (elements.some(element => !element?.textContent)) {
         return
       }
 
