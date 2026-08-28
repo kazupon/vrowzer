@@ -10,7 +10,7 @@ import { Vrowzer, VrowzerManifest } from '@vrowzer/vite-plugin'
 import { DevTools } from '@vitejs/devtools'
 import { defineConfig } from 'vite-plus'
 
-import type { Plugin } from 'vite-plus'
+import type { Plugin, UserConfig } from 'vite-plus'
 
 // Read refresh runtime source at config load time (Node.js).
 // Direct path bypasses package.json exports restriction.
@@ -46,6 +46,26 @@ function reactRefreshRuntimePlugin(): Plugin {
 }
 
 const enableDevTools = !!(process.env.VITE_DEVTOOLS || '')
+// Avoid TypeScript recursively comparing DevTools' Plugin<Api> with Vite's Plugin<any>.
+const devtoolsPlugins = enableDevTools ? ((await DevTools()) as unknown as Plugin[]) : []
+
+// Build incrementally to avoid unifying peer-specialized Plugin<Api> types into one union.
+const plugins: unknown[] = []
+plugins.push(
+  // Transform vrowzer-manifest.json imports to inline file contents
+  VrowzerManifest(),
+  // Provides /@react-refresh without readFileSync (must be before react())
+  reactRefreshRuntimePlugin(),
+  // compiler option bypasses createRequire-based loading (not available in Worker)
+  vue({ compiler }),
+  react(),
+  svelte(),
+  yaml(),
+  // All packages use nodeModules in virtual FS.
+  // CJS packages (React) are pre-bundled to ESM by gen:manifest.
+  Vrowzer({ auto: false }),
+  ...devtoolsPlugins
+)
 
 export default defineConfig({
   define: {
@@ -64,19 +84,5 @@ export default defineConfig({
   build: {
     rolldownOptions: enableDevTools ? { devtools: {} } : {}
   },
-  plugins: [
-    // Transform vrowzer-manifest.json imports to inline file contents
-    VrowzerManifest(),
-    // Provides /@react-refresh without readFileSync (must be before react())
-    reactRefreshRuntimePlugin(),
-    // compiler option bypasses createRequire-based loading (not available in Worker)
-    vue({ compiler }),
-    react(),
-    svelte(),
-    yaml(),
-    // All packages use nodeModules in virtual FS.
-    // CJS packages (React) are pre-bundled to ESM by gen:manifest.
-    Vrowzer({ auto: false }),
-    enableDevTools && DevTools()
-  ]
+  plugins: plugins as NonNullable<UserConfig['plugins']>
 })

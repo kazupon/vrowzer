@@ -124,7 +124,7 @@ describe('standalone build (./browser)', () => {
     expect(testState.result).not.toBeNull()
     expect(testState.result.code).toContain('add')
     expect(testState.result.code).toContain('console.log')
-    expect(testState.result.version).toBe('1.2.0')
+    expect(testState.result.version).toBe('1.2.5')
 
     await context.close()
   })

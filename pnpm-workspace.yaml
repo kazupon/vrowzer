@@ -9,7 +9,7 @@ catalog:
   '@kazupon/jts-utils': ^0.17.0
   '@playwright/test': 1.57.0
   '@types/node': ^25.5.0
-  '@vitest/browser-playwright': 4.1.10
+  '@vitest/browser-playwright': 4.1.11
   bumpp: ^12.1.1
   es-module-lexer: ^1.7.0
   gh-changelogen: ^2.0.2
@@ -19,17 +19,17 @@ catalog:
   esbuild: 0.27.3
   get-port-please: ^3.2.0
   magic-string: ^0.30.21
-  oxlint: 1.75.0
-  '@oxlint/plugins': 1.75.0
+  oxlint: 1.79.0
+  '@oxlint/plugins': 1.79.0
   publint: ^0.3.18
-  rolldown: 1.2.0
-  '@rolldown/browser': 1.2.0
-  vite: npm:@voidzero-dev/vite-plus-core@0.2.6
-  vite-plus: 0.2.6
+  rolldown: 1.2.5
+  '@rolldown/browser': 1.2.5
+  vite: npm:@voidzero-dev/vite-plus-core@0.3.0
+  vite-plus: 0.3.0
   vitepress: ^2.0.0-alpha.17
   vitepress-api-references: ^0.2.1
   pathe: ^2.0.3
-  '@oxc-project/types': 0.140.0
+  '@oxc-project/types': 0.146.0
   obug: ^2.1.1
   buffer: ^6.0.3
   readable-stream: ^4.7.0
@@ -41,9 +41,11 @@ catalog:
   '@sveltejs/vite-plugin-svelte': ^6.2.4
   '@vitejs/plugin-react': 5.1.4
   '@vitejs/plugin-vue': ^6.0.5
-  '@vitejs/devtools': 0.3.4
+  '@vitejs/devtools': 0.5.2
 
 overrides:
+  '@napi-rs/wasm-runtime': 1.2.3
+  crossws: 0.4.12
   vite: 'catalog:'
 
 peerDependencyRules:
