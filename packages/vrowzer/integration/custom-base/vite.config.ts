@@ -11,6 +11,7 @@ export default defineConfig({
     VrowzerPlugin({
       auto: false,
       basePath: '/app/__preview__/',
+      serviceWorkerScope: '/app/',
       serviceWorkerEntry: resolve(__dirname, '../../dist/service-worker.ts')
     })
   ]

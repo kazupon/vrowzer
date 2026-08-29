@@ -1,7 +1,22 @@
-import { describe, expect, test } from 'vite-plus/test'
+import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
+
+type ServiceWorkerPluginFactory = (options: unknown) => { name: string }
+
+const serviceWorkerPluginFactory = vi.hoisted(() =>
+  vi.fn<ServiceWorkerPluginFactory>(_options => ({ name: 'unplugin-service-worker' }))
+)
+
+vi.mock('@vrowzer/unplugin-service-worker/vite', () => ({
+  default: serviceWorkerPluginFactory
+}))
+
 import { Vrowzer } from './index.ts'
 
 describe('Vrowzer', () => {
+  beforeEach(() => {
+    serviceWorkerPluginFactory.mockClear()
+  })
+
   test('returns array of 7 plugins with auto mode (default)', () => {
     const plugins = Vrowzer()
     expect(plugins).toHaveLength(7)
@@ -46,5 +61,33 @@ describe('Vrowzer', () => {
     const plugins = Vrowzer()
     // unplugin-service-worker generates a plugin with 'unplugin-service-worker' in the name
     expect(plugins.some((p: any) => p.name?.includes('service-worker'))).toBe(true)
+  })
+
+  test('uses the default scope for the service-worker response header', () => {
+    Vrowzer()
+
+    expect(serviceWorkerPluginFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entry: expect.any(String),
+        serviceWorkerAllowed: '/',
+        format: 'esm'
+      })
+    )
+  })
+
+  test('uses a custom scope for the service-worker response header', () => {
+    Vrowzer({ serviceWorkerScope: '/app/' })
+
+    expect(serviceWorkerPluginFactory).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceWorkerAllowed: '/app/' })
+    )
+  })
+
+  test('forwards a custom service worker entry', () => {
+    Vrowzer({ serviceWorkerEntry: '/custom/service-worker.ts' })
+
+    expect(serviceWorkerPluginFactory).toHaveBeenCalledWith(
+      expect.objectContaining({ entry: '/custom/service-worker.ts', format: 'esm' })
+    )
   })
 })

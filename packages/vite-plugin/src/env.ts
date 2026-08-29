@@ -20,6 +20,7 @@ import type { ResolvedVrowzerOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowzer:env')
 export const VROWZER_PREVIEW_BASE_PATH_DEFINE = '__VROWZER_INTERNAL_PREVIEW_BASE_PATH__'
+export const VROWZER_SERVICE_WORKER_SCOPE_DEFINE = '__VROWZER_INTERNAL_SERVICE_WORKER_SCOPE__'
 
 // Resolve picocolors browser version path.
 // picocolors doesn't export the browser file via package.json exports,
@@ -31,6 +32,7 @@ const picocolorsBrowser = resolve(
 
 export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
   const serializedBasePath = JSON.stringify(options.basePath)
+  const serializedServiceWorkerScope = JSON.stringify(options.serviceWorkerScope)
   return {
     name: 'vrowzer:env',
     // Rolldown native inject: inject `process` global for browser/Worker environments.
@@ -50,7 +52,8 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
       return {
         define: {
           'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || ''),
-          [VROWZER_PREVIEW_BASE_PATH_DEFINE]: serializedBasePath
+          [VROWZER_PREVIEW_BASE_PATH_DEFINE]: serializedBasePath,
+          [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: serializedServiceWorkerScope
         },
         resolve: {
           alias: resolveAliases({
@@ -68,14 +71,14 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
         },
         server: {
           headers: {
-            'Service-Worker-Allowed': '/',
+            'Service-Worker-Allowed': options.serviceWorkerScope,
             'Cross-Origin-Opener-Policy': 'same-origin',
             'Cross-Origin-Embedder-Policy': 'credentialless'
           }
         },
         preview: {
           headers: {
-            'Service-Worker-Allowed': '/',
+            'Service-Worker-Allowed': options.serviceWorkerScope,
             'Cross-Origin-Opener-Policy': 'same-origin',
             'Cross-Origin-Embedder-Policy': 'credentialless'
           }
@@ -87,6 +90,13 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
       if (resolvedBasePath !== serializedBasePath) {
         throw new Error(
           `Vrowzer reserved define ${VROWZER_PREVIEW_BASE_PATH_DEFINE} must be ${serializedBasePath}, received ${JSON.stringify(resolvedBasePath)}`
+        )
+      }
+
+      const resolvedServiceWorkerScope = config.define?.[VROWZER_SERVICE_WORKER_SCOPE_DEFINE]
+      if (resolvedServiceWorkerScope !== serializedServiceWorkerScope) {
+        throw new Error(
+          `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_SCOPE_DEFINE} must be ${serializedServiceWorkerScope}, received ${JSON.stringify(resolvedServiceWorkerScope)}`
         )
       }
     }
