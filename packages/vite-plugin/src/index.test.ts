@@ -12,6 +12,17 @@ vi.mock('@vrowzer/unplugin-service-worker/vite', () => ({
 
 import { Vrowzer } from './index.ts'
 
+import type { UserConfig } from 'vite'
+
+function resolveVrowzerConfig(options: Parameters<typeof Vrowzer>[0] = {}): UserConfig {
+  const plugin = Vrowzer(options).find(plugin => plugin.name === 'vrowzer:config')
+  if (!plugin || typeof plugin.config !== 'function') {
+    throw new Error('vrowzer:config plugin is missing its config hook')
+  }
+
+  return (plugin.config as () => UserConfig)()
+}
+
 describe('Vrowzer', () => {
   beforeEach(() => {
     serviceWorkerPluginFactory.mockClear()
@@ -40,6 +51,15 @@ describe('Vrowzer', () => {
   test('includes vrowzer:config plugin', () => {
     const plugins = Vrowzer()
     expect(plugins.some((p: any) => p.name === 'vrowzer:config')).toBe(true)
+  })
+
+  test.each([
+    ['auto mode', {}],
+    ['manual mode', { auto: false }]
+  ] as const)('excludes vite-dev-server from host dependency optimization in %s', (_, options) => {
+    const config = resolveVrowzerConfig(options)
+
+    expect(config.optimizeDeps?.exclude).toEqual(['@vrowzer/vite-dev-server'])
   })
 
   test('includes vrowzer:server-middleware plugin', () => {
