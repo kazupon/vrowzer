@@ -263,6 +263,7 @@ Auto-extracts user plugins from `vite.config.ts` using OXC parser, then pre-bund
 - Resolves `@vrowzer/*` imports from the plugin's own dependency graph
 - Inlines `readFileSync()` and `createRequire()` calls for Worker compatibility
 - Maps `vite` imports to `@vrowzer/vite-dev-server/vite`
+- Excludes `@vrowzer/vite-dev-server` from host dependency pre-bundling while keeping `vrowzer` optimizable
 
 #### 3. Preview Guard Middleware (`vrowzer:server-middleware`)
 

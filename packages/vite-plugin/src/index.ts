@@ -98,6 +98,9 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
       ]
 
       return {
+        optimizeDeps: {
+          exclude: ['@vrowzer/vite-dev-server']
+        },
         resolve: {
           alias: [{ find: /^vite$/, replacement: '@vrowzer/vite-dev-server/vite' }]
         },
