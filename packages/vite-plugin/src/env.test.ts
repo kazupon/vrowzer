@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'vite-plus/test'
-import { envPlugin, VROWZER_PREVIEW_BASE_PATH_DEFINE } from './env.ts'
+import {
+  envPlugin,
+  VROWZER_PREVIEW_BASE_PATH_DEFINE,
+  VROWZER_SERVICE_WORKER_SCOPE_DEFINE
+} from './env.ts'
 import { resolveOptions } from './options.ts'
 
-function createPlugin() {
-  return envPlugin(resolveOptions({}))
+function createPlugin(options: Parameters<typeof resolveOptions>[0] = {}) {
+  return envPlugin(resolveOptions(options))
 }
 
 describe('envPlugin', () => {
@@ -52,6 +56,7 @@ describe('envPlugin', () => {
 
     expect(result.server.headers['Cross-Origin-Opener-Policy']).toBe('same-origin')
     expect(result.server.headers['Cross-Origin-Embedder-Policy']).toBe('credentialless')
+    expect(result.server.headers['Service-Worker-Allowed']).toBe('/')
   })
 
   test('config hook sets CORS headers for preview', () => {
@@ -61,6 +66,14 @@ describe('envPlugin', () => {
     expect(result.preview.headers['Cross-Origin-Opener-Policy']).toBe('same-origin')
     expect(result.preview.headers['Cross-Origin-Embedder-Policy']).toBe('credentialless')
     expect(result.preview.headers['Service-Worker-Allowed']).toBe('/')
+  })
+
+  test('config hook uses a custom service worker scope for server and preview', () => {
+    const plugin = createPlugin({ serviceWorkerScope: '/app/' })
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.server.headers['Service-Worker-Allowed']).toBe('/app/')
+    expect(result.preview.headers['Service-Worker-Allowed']).toBe('/app/')
   })
 
   test('config hook sets worker format to "es"', () => {
@@ -93,10 +106,25 @@ describe('envPlugin', () => {
     )
   })
 
+  test('config hook defines the default service worker scope', () => {
+    const plugin = createPlugin()
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define[VROWZER_SERVICE_WORKER_SCOPE_DEFINE]).toBe(JSON.stringify('/'))
+  })
+
+  test('config hook defines a custom service worker scope', () => {
+    const plugin = createPlugin({ serviceWorkerScope: '/app/' })
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define[VROWZER_SERVICE_WORKER_SCOPE_DEFINE]).toBe(JSON.stringify('/app/'))
+  })
+
   test('configResolved accepts the injected preview base path', () => {
     const plugin = createPlugin()
     const define = {
-      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/')
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/')
     }
 
     expect(() => (plugin as any).configResolved({ define })).not.toThrow()
@@ -105,11 +133,35 @@ describe('envPlugin', () => {
   test('configResolved rejects an overridden preview base path', () => {
     const plugin = createPlugin()
     const define = {
-      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/other/')
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/other/'),
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/')
     }
 
     expect(() => (plugin as any).configResolved({ define })).toThrow(
       `Vrowzer reserved define ${VROWZER_PREVIEW_BASE_PATH_DEFINE}`
+    )
+  })
+
+  test('configResolved rejects an overridden service worker scope', () => {
+    const plugin = createPlugin()
+    const define = {
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/other/')
+    }
+
+    expect(() => (plugin as any).configResolved({ define })).toThrow(
+      `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_SCOPE_DEFINE}`
+    )
+  })
+
+  test('configResolved rejects a missing service worker scope', () => {
+    const plugin = createPlugin()
+    const define = {
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/')
+    }
+
+    expect(() => (plugin as any).configResolved({ define })).toThrow(
+      `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_SCOPE_DEFINE}`
     )
   })
 })

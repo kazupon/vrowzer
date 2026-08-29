@@ -101,7 +101,17 @@ const vrowzer = Vrowzer()
 
 The runtime `basePath` remains available for compatibility and for usage without the plugin. If both the plugin and runtime values are provided, their canonical paths must match or `Vrowzer()` throws. Without either value, the preview path is `/__preview__/`.
 
-`serviceWorkerScope` controls which pages the browser allows the Service Worker to control. It does not set the preview URL; that is the role of `basePath`.
+`serviceWorkerScope` controls which pages the browser allows the Service Worker to control. When `@vrowzer/vite-plugin` is used, configure the scope on the plugin so the registration and `Service-Worker-Allowed` response header use the same value. The runtime option can then be omitted:
+
+```ts
+// vite.config.ts
+VrowzerPlugin({ serviceWorkerScope: '/app/' })
+
+// application.ts
+const vrowzer = Vrowzer()
+```
+
+The runtime `serviceWorkerScope` remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the scope defaults to `/`. The scope does not set the preview URL; that is the role of `basePath`.
 
 **Options:**
 
@@ -109,7 +119,7 @@ The runtime `basePath` remains available for compatibility and for usage without
 | ---------------------- | -------- | --------------------------------- | ------------------------------------------------- |
 | `basePath`             | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value  |
 | `serviceWorkerVersion` | `string` | `'vrowzer-v1'`                    | SW version for cache management                   |
-| `serviceWorkerScope`   | `string` | `'/'`                             | SW registration scope, independent of `basePath`  |
+| `serviceWorkerScope`   | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value |
 
 ### Instance Methods
 

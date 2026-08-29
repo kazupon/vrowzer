@@ -54,6 +54,7 @@ import {
 } from '@vrowzer/vite-dev-server/messages'
 import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
 import { resolvePreviewBasePath } from './preview-base.ts'
+import { resolveServiceWorkerScope } from './service-worker-scope.ts'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { FileSystemPublisher } from '@vrowzer/fs/watcher'
@@ -73,7 +74,13 @@ export interface VrowzerOptions {
   basePath?: string
   /** Service Worker version for cache management (default: 'vrowzer-v1') */
   serviceWorkerVersion?: string
-  /** Service Worker registration scope, independent of `basePath` (default: '/') */
+  /**
+   * Service Worker registration scope, independent of `basePath`.
+   *
+   * When `@vrowzer/vite-plugin` is used, its `serviceWorkerScope` is injected and this
+   * option can be omitted. If both are provided, their values must match. Without the
+   * plugin, this option defaults to `'/'`.
+   */
   serviceWorkerScope?: string
 }
 
@@ -150,7 +157,7 @@ function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
   return {
     basePath: resolvePreviewBasePath(options.basePath),
     serviceWorkerVersion: options.serviceWorkerVersion ?? 'vrowzer-v1',
-    serviceWorkerScope: options.serviceWorkerScope ?? '/'
+    serviceWorkerScope: resolveServiceWorkerScope(options.serviceWorkerScope)
   }
 }
 

@@ -13,6 +13,7 @@ const HOST_BASE = '/app/'
 const PREVIEW_BASE = '/app/__preview__/'
 const PREVIEW_MODULE = `${PREVIEW_BASE}main.js`
 const PREVIEW_TEXT = 'Custom base preview works'
+const SERVICE_WORKER_SCOPE = '/app/'
 
 type TestMode = 'development' | 'build'
 type TestServer = PreviewServer | ViteDevServer
@@ -84,6 +85,27 @@ async function expectPreviewContent(page: Page): Promise<void> {
   expect(moduleResponse.body).toContain(PREVIEW_TEXT)
 }
 
+async function expectServiceWorkerRegistration(page: Page): Promise<void> {
+  const registration = await page.evaluate(async scope => {
+    const result = await navigator.serviceWorker.getRegistration(scope)
+    const worker = result?.active ?? result?.waiting ?? result?.installing
+    if (!result || !worker) {
+      return undefined
+    }
+    return { scope: result.scope, scriptURL: worker.scriptURL }
+  }, SERVICE_WORKER_SCOPE)
+
+  if (!registration) {
+    throw new Error(`No Service Worker registration found for ${SERVICE_WORKER_SCOPE}`)
+  }
+
+  expect(new URL(registration.scope).pathname).toBe(SERVICE_WORKER_SCOPE)
+
+  const response = await fetch(registration.scriptURL)
+  expect(response.status).toBe(200)
+  expect(response.headers.get('Service-Worker-Allowed')).toBe(SERVICE_WORKER_SCOPE)
+}
+
 async function runScenario(mode: TestMode): Promise<void> {
   let browser: Browser | undefined
   let context: BrowserContext | undefined
@@ -101,10 +123,12 @@ async function runScenario(mode: TestMode): Promise<void> {
     await page.goto(`${getServerOrigin(server)}${HOST_BASE}`)
     await waitForReady(page)
     await expectPreviewContent(page)
+    await expectServiceWorkerRegistration(page)
 
     await page.reload()
     await waitForReady(page)
     await expectPreviewContent(page)
+    await expectServiceWorkerRegistration(page)
 
     expect(logs.join('\n')).not.toMatch(
       /Service Worker (?:listen\(\) did not complete|registration error)/

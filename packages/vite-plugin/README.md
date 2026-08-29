@@ -68,6 +68,32 @@ const vrowzer = Vrowzer()
 
 The runtime `Vrowzer({ basePath })` option remains compatible. When it is also specified, its canonical path must match the plugin value; a mismatch throws during `Vrowzer()` creation. The Service Worker registration `serviceWorkerScope` is independent of this preview URL path.
 
+### Service Worker scope
+
+The plugin's `serviceWorkerScope` is the source of truth for both Service Worker registration and the `Service-Worker-Allowed` response header. Configure it once in `vite.config.ts`; the runtime option can be omitted:
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  base: '/app/',
+  plugins: [
+    Vrowzer({
+      basePath: '/app/__preview__/',
+      serviceWorkerScope: '/app/'
+    })
+  ]
+})
+```
+
+```ts
+// application code
+import { Vrowzer } from 'vrowzer'
+
+const vrowzer = Vrowzer()
+```
+
+The runtime `Vrowzer({ serviceWorkerScope })` option remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the scope and response header default to `/`.
+
 When the host page and preview content are in different directories, use `manifest.sourceDir`:
 
 ```ts
@@ -163,7 +189,7 @@ Vrowzer({
   // Default: '/__preview__/'
   basePath: '/__preview__/',
 
-  // Service Worker scope
+  // Service Worker registration scope and allowed response header
   // Default: '/'
   serviceWorkerScope: '/',
 
@@ -189,7 +215,7 @@ Vrowzer({
 | `manifest`             | `VrowzerManifestOptions`     | `undefined`                               | Auto manifest options (sourceDir, pkgDir, targets). Used when `auto: true`.               |
 | `experimental`         | `VrowzerExperimentalOptions` | `undefined`                               | Experimental features. Currently supports `ide`.                                          |
 | `basePath`             | `string`                     | `'/__preview__/'`                         | Preview URL pathname shared with the application and Service Worker bundles.              |
-| `serviceWorkerScope`   | `string`                     | `'/'`                                     | Service Worker registration scope, independent of `basePath`.                             |
+| `serviceWorkerScope`   | `string`                     | `'/'`                                     | Registration scope and `Service-Worker-Allowed` header injected into the runtime.          |
 | `serviceWorkerVersion` | `string`                     | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
 | `serviceWorkerEntry`   | `string`                     | Resolved path to `vrowzer/service-worker` | Explicit Service Worker entry file path.                                                  |
 | `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Worker-specific resolve settings passed to the internal Vite dev server.                  |
@@ -255,7 +281,7 @@ Sets up Vite configuration for the browser-based Vite dev server:
 
 - **`resolve.alias`** — Maps Node.js built-in modules (`node:fs`, `node:path`, `node:events`, etc.) to browser-compatible polyfills
 - **`worker.format`** — Set to `'es'` for ES Module workers
-- **CORS headers** — `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless`, plus `Service-Worker-Allowed: /`
+- **CORS headers** — `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless`, plus `Service-Worker-Allowed` matching `serviceWorkerScope` (default `/`)
 
 #### 6. Rolldown WASM Copy (`vrowzer:rolldown`)
 

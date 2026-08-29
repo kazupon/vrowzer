@@ -163,7 +163,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
     apply: 'serve'
   } as unknown as Plugin
   const serviceWorkerPlugin = ServiceWorker({
-    serviceWorkerAllowed: '/',
+    serviceWorkerAllowed: resolvedOptions.serviceWorkerScope,
     format: 'esm',
     ...(resolvedOptions.serviceWorkerEntry ? { entry: resolvedOptions.serviceWorkerEntry } : {})
   }) as unknown as Plugin

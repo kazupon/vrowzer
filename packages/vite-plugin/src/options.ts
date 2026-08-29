@@ -98,8 +98,10 @@ export interface VrowzerOptions {
    */
   basePath?: string
   /**
-   * The scope for the service worker of Vrowzer, which determines the range of URLs that the service worker will control.
-   * This registration scope is independent of the preview `basePath`.
+   * The scope for the service worker of Vrowzer, which determines the range of URLs that
+   * the service worker will control and the `Service-Worker-Allowed` response header.
+   * The value is injected into the Vrowzer runtime, so its corresponding option can be
+   * omitted. This registration scope is independent of the preview `basePath`.
    *
    * @default '/' (the entire origin)
    */
