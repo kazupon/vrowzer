@@ -87,5 +87,7 @@ async function init() {
   }
 }
 
-// oxlint-disable-next-line typescript/no-floating-promises -- for testing
-init()
+if (params.get('autostart') !== 'false') {
+  // oxlint-disable-next-line typescript/no-floating-promises -- for testing
+  init()
+}

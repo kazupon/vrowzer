@@ -257,8 +257,8 @@ export interface SvcWorkerControllerReadyOptions {
    * Wait for the service worker to become the page controller.
    *
    * When `true`, `ready()` will send a `V_SW_CLAIM_CLIENTS` message to the
-   * active SW and wait for `navigator.serviceWorker.controller` to become
-   * non-null before returning `true`.
+   * expected active SW and wait for it to become
+   * `navigator.serviceWorker.controller` before returning `true`.
    *
    * When `false` (default), `ready()` returns `true` as soon as the SW is
    * active, even if it's not yet the controller. A `reloadSuggested` event
@@ -436,25 +436,44 @@ export function createSvcWorkerController(
     }
   }
 
-  function setupControllerChangeHandler(timeout: number): void {
+  function setupControllerChangeHandler(
+    registration: ServiceWorkerRegistration,
+    timeout: number
+  ): void {
     if (_controllerChangeHandler) {
       return
     }
 
     _controllerChangeHandler = () => {
-      const controller = navigator.serviceWorker.controller
-      if (controller) {
-        _debug?.('createSvcWorkerController: controllerchange, re-establishing session')
-        // Create abort controller with timeout for session re-establishment
-        const abortController = new AbortController()
-        // Use bind() instead of arrow function to avoid capturing the entire scope in closure,
-        // which can cause memory leaks in long-running sessions.
-        // See: https://x.com/jarredsumner/status/2017825694731145388
-        const timeoutId = setTimeout(abortController.abort.bind(abortController), timeout)
-        // Re-establish session with new controller
-        // oxlint-disable-next-line typescript/no-floating-promises -- Intentional
-        establishSession(controller, abortController.signal).finally(() => clearTimeout(timeoutId))
+      if (!getRegistrationController(registration)) {
+        _debug?.('createSvcWorkerController: controllerchange ignored for foreign controller')
+        return
       }
+
+      // Create abort controller with timeout for session re-establishment
+      const abortController = new AbortController()
+      // Use bind() instead of arrow function to avoid capturing the entire scope in closure,
+      // which can cause memory leaks in long-running sessions.
+      // See: https://x.com/jarredsumner/status/2017825694731145388
+      const timeoutId = setTimeout(abortController.abort.bind(abortController), timeout)
+
+      // Re-establish only when the new controller still belongs to this registration and version.
+      // oxlint-disable-next-line typescript/no-floating-promises -- Intentional
+      getExpectedController(registration, version, abortController.signal)
+        .then(controller => {
+          if (!controller) {
+            _debug?.(
+              'createSvcWorkerController: controllerchange ignored for unexpected controller'
+            )
+            return
+          }
+          _debug?.('createSvcWorkerController: controllerchange, re-establishing session')
+          return establishSession(controller, abortController.signal)
+        })
+        .catch(error => {
+          _debug?.('createSvcWorkerController: controllerchange session check failed', error)
+        })
+        .finally(() => clearTimeout(timeoutId))
     }
 
     navigator.serviceWorker.addEventListener('controllerchange', _controllerChangeHandler)
@@ -534,15 +553,14 @@ export function createSvcWorkerController(
       emitProgress('registered')
 
       // Fast-path, already controlled by expected service worker
-      if (await isExpectedController(version, signal)) {
-        const controller = (_serviceWorker = navigator.serviceWorker.controller)
-        if (controller) {
-          // Establish session first to get suspended status
-          await establishSession(controller, signal)
-          // Set state based on session suspended status (handles page reload case)
-          updateStateFromSession(controller)
-          setupControllerChangeHandler(timeout)
-        }
+      const initialController = await getExpectedController(registration, version, signal)
+      if (initialController) {
+        _serviceWorker = initialController
+        // Establish session first to get suspended status
+        await establishSession(initialController, signal)
+        // Set state based on session suspended status (handles page reload case)
+        updateStateFromSession(initialController)
+        setupControllerChangeHandler(registration, timeout)
         emitProgress('already-expected-controller')
         registry.register(instance)
         return true
@@ -563,51 +581,15 @@ export function createSvcWorkerController(
           onStateChange: info => emitStateChange(info.state, info.serviceWorker)
         })
 
-        // If waitForController is requested and SW is active but not controller,
-        // send claim-clients before checking isExpectedController.
-        // This must happen before isExpectedController check because
-        // promoteIfPossible may have confirmed the SW is active and expected
-        // version but not controller (returns 'none' with the active path log).
-        if (waitForController && !navigator.serviceWorker.controller && registration.active) {
-          safePostMessage(registration.active, createSvcWorkerClaimClientsMessage(), {
-            context: 'claim-clients request'
-          })
-          // Wait briefly for claim to take effect
-          await new Promise<void>(resolve => {
-            const onControllerChange = () => {
-              clearInterval(pollId)
-              resolve()
-            }
-            navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, {
-              once: true
-            })
-            const pollId = setInterval(() => {
-              if (navigator.serviceWorker.controller) {
-                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
-                clearInterval(pollId)
-                resolve()
-              }
-            }, 100)
-            // Don't wait forever — let the outer loop handle retries
-            setTimeout(() => {
-              navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
-              clearInterval(pollId)
-              resolve()
-            }, 3000)
-          })
-          emitProgress('controller-claimed')
-        }
-
         // If controller is now expected service worker, done.
-        if (await isExpectedController(version, signal)) {
-          const controller = (_serviceWorker = navigator.serviceWorker.controller)
-          if (controller) {
-            // Establish session first to get suspended status
-            await establishSession(controller, signal)
-            // Set state based on session suspended status (handles page reload case)
-            updateStateFromSession(controller)
-            setupControllerChangeHandler(timeout)
-          }
+        const expectedController = await getExpectedController(registration, version, signal)
+        if (expectedController) {
+          _serviceWorker = expectedController
+          // Establish session first to get suspended status
+          await establishSession(expectedController, signal)
+          // Set state based on session suspended status (handles page reload case)
+          updateStateFromSession(expectedController)
+          setupControllerChangeHandler(registration, timeout)
           emitProgress('controller-is-expected')
           registry.register(instance)
           return true
@@ -622,72 +604,53 @@ export function createSvcWorkerController(
         // Suggest reload and return - caller decides what to do.
         if (expectedState === 'active') {
           const activeServiceWorker = registration.active
-          if (activeServiceWorker) {
-            // Establish session first to get suspended status
-            await establishSession(activeServiceWorker, signal)
-            // Set state based on session suspended status (handles page reload case)
-            // Only update if not already in correct state
-            const targetState = _session?.suspended ? 'suspended' : 'activated'
-            if (_state !== targetState) {
-              if (_session?.suspended) {
-                _state = 'suspended'
-                _serviceWorker = activeServiceWorker
-                _emitter.emit('changeState', {
-                  state: 'suspended',
-                  version,
-                  serviceWorker: activeServiceWorker
-                })
-                _debug?.(
-                  'createSvcWorkerController: detected suspended state from session (active path)'
-                )
-              } else {
-                emitStateChange('activated', activeServiceWorker)
-              }
-            }
-            setupControllerChangeHandler(timeout)
+          if (!activeServiceWorker) {
+            continue
           }
 
-          // If waitForController is requested and SW is not yet the controller,
-          // send V_SW_CLAIM_CLIENTS to the SW and wait for it to become controller.
-          if (waitForController && !navigator.serviceWorker.controller) {
-            if (activeServiceWorker) {
+          // Establish session first to get suspended status
+          await establishSession(activeServiceWorker, signal)
+          // Set state based on session suspended status (handles page reload case)
+          // Only update if not already in correct state
+          const targetState = _session?.suspended ? 'suspended' : 'activated'
+          if (_state !== targetState) {
+            if (_session?.suspended) {
+              _state = 'suspended'
+              _serviceWorker = activeServiceWorker
+              _emitter.emit('changeState', {
+                state: 'suspended',
+                version,
+                serviceWorker: activeServiceWorker
+              })
+              _debug?.(
+                'createSvcWorkerController: detected suspended state from session (active path)'
+              )
+            } else {
+              emitStateChange('activated', activeServiceWorker)
+            }
+          }
+
+          if (waitForController) {
+            let controller = await getExpectedController(registration, version, signal)
+            if (!controller) {
               safePostMessage(activeServiceWorker, createSvcWorkerClaimClientsMessage(), {
                 context: 'claim-clients request'
               })
+              await waitForRegistrationController(registration, signal)
+              controller = await getExpectedController(registration, version, signal)
+              if (!controller) {
+                continue
+              }
+              emitProgress('controller-claimed')
             }
-            // Wait for controller to become available (with AbortSignal timeout)
-            await new Promise<void>((resolve, reject) => {
-              const onAbort = () => {
-                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
-                clearInterval(pollId)
-                reject(abortError() as Error)
-              }
-              const onControllerChange = () => {
-                signal.removeEventListener('abort', onAbort)
-                clearInterval(pollId)
-                resolve()
-              }
-              navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, {
-                once: true
-              })
-              // Poll as fallback — controllerchange may not fire in some edge cases
-              const pollId = setInterval(() => {
-                if (navigator.serviceWorker.controller) {
-                  signal.removeEventListener('abort', onAbort)
-                  navigator.serviceWorker.removeEventListener(
-                    'controllerchange',
-                    onControllerChange
-                  )
-                  clearInterval(pollId)
-                  resolve()
-                }
-              }, 100)
-              signal.addEventListener('abort', onAbort, { once: true })
-            })
-            emitProgress('controller-claimed')
+
+            _serviceWorker = controller
+            setupControllerChangeHandler(registration, timeout)
             registry.register(instance)
             return true
           }
+
+          setupControllerChangeHandler(registration, timeout)
 
           _debug?.('reload suggested ?', reloadSuggested)
           if (!reloadSuggested) {
@@ -938,11 +901,84 @@ function getServiceWorkerVersion(
   })
 }
 
-async function isExpectedController(version: string, signal?: AbortSignal): Promise<boolean> {
-  const v = await getServiceWorkerVersion(navigator.serviceWorker.controller, signal).catch(
-    () => null
-  )
-  return v === version
+function getRegistrationController(registration: ServiceWorkerRegistration): ServiceWorker | null {
+  const controller = navigator.serviceWorker.controller
+  return controller && controller === registration.active ? controller : null
+}
+
+async function getExpectedController(
+  registration: ServiceWorkerRegistration,
+  version: string,
+  signal?: AbortSignal
+): Promise<ServiceWorker | null> {
+  const controller = getRegistrationController(registration)
+  if (!controller) {
+    return null
+  }
+
+  const actualVersion = await getServiceWorkerVersion(controller, signal).catch(() => null)
+  return actualVersion === version && getRegistrationController(registration) === controller
+    ? controller
+    : null
+}
+
+function waitForRegistrationController(
+  registration: ServiceWorkerRegistration,
+  signal: AbortSignal
+): Promise<ServiceWorker> {
+  throwIfAborted(signal)
+
+  const currentController = getRegistrationController(registration)
+  if (currentController) {
+    return Promise.resolve(currentController)
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false
+    let pollId: ReturnType<typeof setInterval> | null = null
+
+    const cleanup = () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+      signal.removeEventListener('abort', onAbort)
+      if (pollId !== null) {
+        clearInterval(pollId)
+        pollId = null
+      }
+    }
+    const resolveIfExpected = () => {
+      if (settled) {
+        return
+      }
+      const controller = getRegistrationController(registration)
+      if (!controller) {
+        return
+      }
+      settled = true
+      cleanup()
+      resolve(controller)
+    }
+    const onControllerChange = () => {
+      resolveIfExpected()
+    }
+    const onAbort = () => {
+      if (settled) {
+        return
+      }
+      settled = true
+      cleanup()
+      reject(abortError(signal) as Error)
+    }
+
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+    signal.addEventListener('abort', onAbort, { once: true })
+    pollId = setInterval(resolveIfExpected, 100)
+
+    if (signal.aborted) {
+      onAbort()
+      return
+    }
+    resolveIfExpected()
+  })
 }
 
 type ExpectedPresence = 'none' | 'installing' | 'waiting' | 'active'
