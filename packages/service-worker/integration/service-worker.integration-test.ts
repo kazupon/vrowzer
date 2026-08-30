@@ -98,6 +98,34 @@ async function waitForServiceWorkerController(page: Page, timeout = 5000): Promi
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, { timeout })
 }
 
+async function waitForRegistrationActive(page: Page, scope: string, timeout = 5000): Promise<void> {
+  await page.waitForFunction(
+    async expectedScope => {
+      const registration = await navigator.serviceWorker.getRegistration(expectedScope)
+      return registration?.active?.state === 'activated'
+    },
+    scope,
+    { timeout }
+  )
+}
+
+async function waitForRegistrationController(
+  page: Page,
+  scope: string,
+  timeout = 5000
+): Promise<void> {
+  await page.waitForFunction(
+    async expectedScope => {
+      const registration = await navigator.serviceWorker.getRegistration(expectedScope)
+      return (
+        registration?.active != null && registration.active === navigator.serviceWorker.controller
+      )
+    },
+    scope,
+    { timeout }
+  )
+}
+
 // Helper to fetch the test API endpoint from the Service Worker
 async function fetchServiceWorkerApi(page: Page): Promise<{
   version: string
@@ -228,6 +256,318 @@ describe('Controller API (createSvcWorkerController)', () => {
       return newController === existingController
     })
     expect(isSameInstance).toBe(true)
+
+    await page.close()
+  })
+
+  test('waitForController claims the expected worker when a foreign worker controls the page', async () => {
+    const page = await context.newPage()
+    await page.goto(`${BASE_URL}/integration/api-test.html?autostart=false`)
+
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.register('/e2e-sw-legacy.js', {
+        scope: '/',
+        type: 'module'
+      })
+    })
+    await waitForRegistrationActive(page, '/')
+    await waitForRegistrationController(page, '/')
+
+    const result = await page.evaluate(async () => {
+      const { createSvcWorkerController } =
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
+        await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
+
+      const controller = createSvcWorkerController({
+        scriptURL: new URL('/e2e-sw-no-claim.js?version=v1', location.origin),
+        version: 'v1',
+        scope: '/integration/',
+        type: 'module'
+      })
+      window.testState.controller = controller
+
+      const ready = await controller.ready({
+        timeout: 5000,
+        skipWaitingPolicy: 'force',
+        waitForController: true
+      })
+      const targetRegistration = await navigator.serviceWorker.getRegistration('/integration/')
+      const registrationScopes = (await navigator.serviceWorker.getRegistrations())
+        .map(registration => new URL(registration.scope).pathname)
+        .sort()
+
+      return {
+        ready,
+        targetControlsPage: targetRegistration?.active === navigator.serviceWorker.controller,
+        controllerPath: navigator.serviceWorker.controller
+          ? new URL(navigator.serviceWorker.controller.scriptURL).pathname
+          : null,
+        registrationScopes
+      }
+    })
+
+    expect(result).toEqual({
+      ready: true,
+      targetControlsPage: true,
+      controllerPath: '/e2e-sw-no-claim.js',
+      registrationScopes: ['/', '/integration/']
+    })
+
+    await page.close()
+  })
+
+  test('waitForController distinguishes registrations that use the same script and version', async () => {
+    const page = await context.newPage()
+    await page.goto(`${BASE_URL}/integration/api-test.html?autostart=false`)
+
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.register('/e2e-sw-no-claim.js?version=v1', {
+        scope: '/',
+        type: 'module'
+      })
+    })
+    await waitForRegistrationActive(page, '/')
+    await page.evaluate(async () => {
+      const { createSvcWorkerClaimClientsMessage } =
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
+        await window.dynamicImport?.<typeof import('../src/protocols.ts')>('/dist/protocols.js')!
+      const registration = await navigator.serviceWorker.getRegistration('/')
+      if (!registration?.active) {
+        throw new Error('Root Service Worker is not active')
+      }
+      registration.active.postMessage(createSvcWorkerClaimClientsMessage())
+    })
+    await waitForRegistrationController(page, '/')
+
+    const ready = await page.evaluate(async () => {
+      const { createSvcWorkerController } =
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
+        await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
+
+      const controller = createSvcWorkerController({
+        scriptURL: new URL('/e2e-sw-no-claim.js?version=v1', location.origin),
+        version: 'v1',
+        scope: '/integration/',
+        type: 'module'
+      })
+      window.testState.controller = controller
+
+      return controller.ready({
+        timeout: 5000,
+        skipWaitingPolicy: 'force',
+        waitForController: true
+      })
+    })
+    await waitForRegistrationActive(page, '/integration/')
+
+    const result = await page.evaluate(async () => {
+      const rootRegistration = await navigator.serviceWorker.getRegistration('/')
+      const targetRegistration = await navigator.serviceWorker.getRegistration('/integration/')
+      const registrationScopes = (await navigator.serviceWorker.getRegistrations())
+        .map(registration => new URL(registration.scope).pathname)
+        .sort()
+
+      return {
+        targetControlsPage: targetRegistration?.active === navigator.serviceWorker.controller,
+        sameScriptURL:
+          rootRegistration?.active?.scriptURL === targetRegistration?.active?.scriptURL,
+        registrationScopes
+      }
+    })
+
+    expect(ready).toBe(true)
+    expect(result).toEqual({
+      targetControlsPage: true,
+      sameScriptURL: true,
+      registrationScopes: ['/', '/integration/']
+    })
+
+    await page.close()
+  })
+
+  test('waitForController ignores unrelated controllerchange and cleans up after timeout', async () => {
+    const page = await context.newPage()
+    await page.goto(`${BASE_URL}/integration/api-test.html?autostart=false`)
+
+    const result = await page.evaluate(async () => {
+      const container = navigator.serviceWorker
+      const originalAddEventListener = container.addEventListener.bind(
+        container
+      ) as EventTarget['addEventListener']
+      const originalRemoveEventListener = container.removeEventListener.bind(
+        container
+      ) as EventTarget['removeEventListener']
+      const controllerChangeListeners = new Set<EventListenerOrEventListenerObject>()
+      let controllerChangeAdds = 0
+      let controllerChangeRemoves = 0
+
+      Object.defineProperty(container, 'addEventListener', {
+        configurable: true,
+        value: (
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+          options?: boolean | AddEventListenerOptions
+        ) => {
+          if (type === 'controllerchange' && listener) {
+            controllerChangeAdds++
+            controllerChangeListeners.add(listener)
+          }
+          originalAddEventListener(type, listener, options)
+        }
+      })
+      Object.defineProperty(container, 'removeEventListener', {
+        configurable: true,
+        value: (
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+          options?: boolean | EventListenerOptions
+        ) => {
+          if (type === 'controllerchange' && listener) {
+            controllerChangeRemoves++
+            controllerChangeListeners.delete(listener)
+          }
+          originalRemoveEventListener(type, listener, options)
+        }
+      })
+
+      const { createSvcWorkerController } =
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
+        await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
+      const controller = createSvcWorkerController({
+        scriptURL: new URL('/e2e-sw-ignore-claim.js', location.origin),
+        version: 'v1',
+        scope: '/integration/',
+        type: 'module'
+      })
+      window.testState.controller = controller
+
+      const readyPromise = controller.ready({
+        timeout: 5000,
+        skipWaitingPolicy: 'force',
+        waitForController: true
+      })
+
+      const waitUntil = async (predicate: () => boolean, timeout: number) => {
+        const startedAt = Date.now()
+        while (!predicate()) {
+          if (Date.now() - startedAt >= timeout) {
+            throw new Error('Timed out waiting for integration test condition')
+          }
+          await new Promise(resolve => setTimeout(resolve, 25))
+        }
+      }
+
+      await waitUntil(() => controllerChangeAdds === 1, 3000)
+      const foreignRegistration = await navigator.serviceWorker.register('/e2e-sw-legacy.js', {
+        scope: '/integration/api-test.html',
+        type: 'module'
+      })
+      await waitUntil(
+        () =>
+          foreignRegistration.active?.state === 'activated' &&
+          foreignRegistration.active === container.controller,
+        3000
+      )
+      const controllerChangeAddsAfterForeign = controllerChangeAdds
+      const ready = await readyPromise
+      const targetRegistration = await navigator.serviceWorker.getRegistration('/integration/')
+
+      return {
+        ready,
+        active: targetRegistration?.active?.state === 'activated',
+        foreignController: foreignRegistration.active === container.controller,
+        controllerChangeAddsAfterForeign,
+        controllerChangeAdds,
+        controllerChangeRemoves,
+        remainingControllerChangeListeners: controllerChangeListeners.size
+      }
+    })
+
+    expect(result).toEqual({
+      ready: false,
+      active: true,
+      foreignController: true,
+      controllerChangeAddsAfterForeign: 1,
+      controllerChangeAdds: 1,
+      controllerChangeRemoves: 1,
+      remainingControllerChangeListeners: 0
+    })
+
+    await page.close()
+  })
+
+  test('controllerchange ignores a foreign controller after ready', async () => {
+    const page = await context.newPage()
+    await page.goto(`${BASE_URL}/integration/api-test.html?autostart=false`)
+
+    const ready = await page.evaluate(async () => {
+      const { createSvcWorkerController } =
+        // oxlint-disable-next-line no-unsafe-optional-chaining, typescript/no-non-null-asserted-optional-chain -- For testing
+        await window.dynamicImport?.<typeof import('../src/controller.ts')>('/dist/controller.js')!
+
+      const controller = createSvcWorkerController({
+        scriptURL: new URL('/e2e-sw-no-claim.js?version=v1', location.origin),
+        version: 'v1',
+        scope: '/integration/',
+        type: 'module'
+      })
+      window.testState.controller = controller
+
+      return controller.ready({
+        timeout: 5000,
+        skipWaitingPolicy: 'force',
+        waitForController: true
+      })
+    })
+    expect(ready).toBe(true)
+    await waitForRegistrationController(page, '/integration/')
+
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.register('/e2e-sw-legacy.js', {
+        scope: '/integration/api-test.html',
+        type: 'module'
+      })
+    })
+    await waitForRegistrationActive(page, '/integration/api-test.html')
+    await waitForRegistrationController(page, '/integration/api-test.html')
+    await page.waitForFunction(() =>
+      window.testState.controllerChanges.some(change =>
+        change.controller?.includes('/e2e-sw-legacy.js')
+      )
+    )
+
+    const result = await page.evaluate(async () => {
+      const controller = window.testState.controller
+      if (!controller) {
+        throw new Error('Vrowzer controller is not available')
+      }
+
+      const suspended = await controller.suspend()
+      await controller.resume()
+      const registrationScopes = (await navigator.serviceWorker.getRegistrations())
+        .map(registration => new URL(registration.scope).pathname)
+        .sort()
+
+      return {
+        suspendedMode: suspended.mode,
+        stateAfterResume: controller.state,
+        serviceWorkerPath: controller.serviceWorker
+          ? new URL(controller.serviceWorker.scriptURL).pathname
+          : null,
+        pageControllerPath: navigator.serviceWorker.controller
+          ? new URL(navigator.serviceWorker.controller.scriptURL).pathname
+          : null,
+        registrationScopes
+      }
+    })
+
+    expect(result).toEqual({
+      suspendedMode: 'suspend',
+      stateAfterResume: 'activated',
+      serviceWorkerPath: '/e2e-sw-no-claim.js',
+      pageControllerPath: '/e2e-sw-legacy.js',
+      registrationScopes: ['/integration/', '/integration/api-test.html']
+    })
 
     await page.close()
   })
