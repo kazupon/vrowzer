@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { resolveOptions } from './options.ts'
+import { resolveOptions, SCRIPT_MODULE_ID_RE } from './options.ts'
 
 import type { Plugin } from 'rolldown'
 
@@ -7,7 +7,7 @@ describe('resolveOptions', () => {
   it('should set default values when no options provided', () => {
     const resolved = resolveOptions({})
 
-    expect(resolved.include).toEqual([/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/])
+    expect(resolved.include).toEqual([SCRIPT_MODULE_ID_RE, /\.vue(?:$|[?#])/, /\.svelte(?:$|[?#])/])
     expect(resolved.exclude).toEqual([/node_modules/])
     expect(resolved.enforce).toBe('pre')
     expect(resolved.serviceWorkerAllowed).toBeUndefined()
@@ -65,5 +65,45 @@ describe('resolveOptions', () => {
   it('should leave assets undefined when not specified', () => {
     const resolved = resolveOptions({})
     expect(resolved.assets).toBeUndefined()
+  })
+
+  it('should preserve a custom include filter', () => {
+    const include = [/\.custom$/]
+
+    expect(resolveOptions({ include }).include).toBe(include)
+  })
+})
+
+describe('SCRIPT_MODULE_ID_RE', () => {
+  it.each([
+    '/src/index.js',
+    '/src/index.jsx',
+    '/src/index.ts',
+    '/src/index.tsx',
+    '/src/index.mjs',
+    '/src/index.mts',
+    '/src/index.cjs',
+    '/src/index.cts',
+    '/src/index.js?v=abc123',
+    '/src/index.ts?raw',
+    '/src/index.mjs#fragment'
+  ])('should match script module ID %s', id => {
+    expect(SCRIPT_MODULE_ID_RE.test(id)).toBe(true)
+  })
+
+  it.each([
+    '/src/styles.css?v=abc123',
+    '/src/module.wasm?url',
+    '/src/data.json#fragment',
+    '/src/extensionless'
+  ])('should not match non-script module ID %s', id => {
+    expect(SCRIPT_MODULE_ID_RE.test(id)).toBe(false)
+  })
+
+  it('should match query and hash suffixes in the default SFC filters', () => {
+    const includes = resolveOptions({}).include as RegExp[]
+
+    expect(includes.some(include => include.test('/src/App.vue?vue&type=script'))).toBe(true)
+    expect(includes.some(include => include.test('/src/App.svelte?v=abc123'))).toBe(true)
   })
 })

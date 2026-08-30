@@ -18,6 +18,14 @@ function safeRealpath(filePath: string): string {
   }
 }
 
+function isPathInsideRoot(filePath: string, root: string): boolean {
+  const relative = path.relative(root, filePath)
+  return (
+    relative === '' ||
+    (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  )
+}
+
 export function stripViteBase(pathname: string, base: string): string {
   const basePath = new URL(base, 'http://localhost').pathname
   if (basePath === '/') {
@@ -44,7 +52,8 @@ export function rewriteEntryUrls(
   mode: 'placeholder' | 'rollup' | 'dev',
   emitFile?: (file: { type: 'chunk'; id: string; name: string }) => string,
   rollupReferenceIds?: Map<string, string>,
-  isTest = false
+  isTest = false,
+  useViteAssetTransform = false
 ): { code: string; map: ReturnType<MagicString['generateMap']> } | null {
   const urlPatternRE =
     /new\s+URL\s*\(\s*(['"`])([^'"`]+)\1\s*,\s*(?:['"`]\s*\+\s*)?import\.meta\.url\s*\)/g
@@ -93,11 +102,25 @@ export function rewriteEntryUrls(
         )
       } else {
         const devUrl = injectDevQuery(urlPath)
-        const baseUrl = isTest ? 'self.location.href' : "'' + import.meta.url"
+        // An optimized workspace dependency can be served from the project-root
+        // /node_modules path while its entry resolves outside that root. Let Vite
+        // convert this URL to /@fs/ so browser-relative traversal does not lose
+        // the filesystem prefix.
+        const deferToVite =
+          !isTest &&
+          useViteAssetTransform &&
+          isPathInsideRoot(id.replace(/[?#].*$/, ''), root) &&
+          !isPathInsideRoot(resolvedPath, root)
+        const viteIgnore = deferToVite ? '' : '/* @vite-ignore */ '
+        const baseUrl = isTest
+          ? 'self.location.href'
+          : deferToVite
+            ? 'import.meta.url'
+            : "'' + import.meta.url"
         s.update(
           urlMatch.index,
           urlMatch.index + urlMatch[0].length,
-          `new URL(/* @vite-ignore */ ${JSON.stringify(devUrl)}, ${baseUrl})`
+          `new URL(${viteIgnore}${JSON.stringify(devUrl)}, ${baseUrl})`
         )
       }
       hasReplacement = true
