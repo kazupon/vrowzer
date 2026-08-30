@@ -50,6 +50,17 @@ describe('createViteQueryPlugin', () => {
       expect(result!.code).toContain('createViteQueryPlugin')
     })
 
+    it('should strip a Vite cache query before reading a file for ?raw', async () => {
+      const plugin = createViteQueryPlugin()
+      const load = plugin.load as { handler: (id: string) => Promise<{ code: string } | null> }
+
+      const testFile = path.resolve(__dirname, 'vite-query.test.ts')
+      const result = await load.handler.call({}, `${testFile}?v=abc123&raw`)
+
+      expect(result).not.toBeNull()
+      expect(result!.code).toContain('createViteQueryPlugin')
+    })
+
     it('should return null for non-existent file', async () => {
       const plugin = createViteQueryPlugin()
       const load = plugin.load as { handler: (id: string) => Promise<{ code: string } | null> }

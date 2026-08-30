@@ -5,6 +5,8 @@
 
 import type { FilterPattern } from 'unplugin'
 
+export const SCRIPT_MODULE_ID_RE = /\.[cm]?[jt]sx?(?:$|[?#])/
+
 /**
  * Options for the Service Worker plugin.
  */
@@ -26,7 +28,7 @@ export interface Options {
   /**
    * Files to include for Service Worker processing.
    *
-   * @default [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/]
+   * @default [/\.[cm]?[jt]sx?(?:$|[?#])/, /\.vue(?:$|[?#])/, /\.svelte(?:$|[?#])/]
    */
   include?: FilterPattern
   /**
@@ -110,7 +112,7 @@ export function resolveOptions(options: Options): OptionsResolved {
   return {
     entry: options.entry,
     // Include JS/TS files and Vue/Svelte SFC files by default
-    include: options.include || [/\.[cm]?[jt]sx?$/, /\.vue$/, /\.svelte$/],
+    include: options.include || [SCRIPT_MODULE_ID_RE, /\.vue(?:$|[?#])/, /\.svelte(?:$|[?#])/],
     exclude: options.exclude || [/node_modules/],
     enforce: 'enforce' in options ? options.enforce : 'pre',
     serviceWorkerAllowed: options.serviceWorkerAllowed,

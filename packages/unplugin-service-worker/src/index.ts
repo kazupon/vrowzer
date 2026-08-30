@@ -18,7 +18,7 @@ import {
 import { rewriteEntryUrls, stripViteBase } from './core/entry-url.ts'
 import { injectEnvironmentToHooks, resolvePluginsForEnvironment } from './core/environment-hooks.ts'
 import { hash } from './core/hash.ts'
-import { resolveOptions } from './core/options.ts'
+import { resolveOptions, SCRIPT_MODULE_ID_RE } from './core/options.ts'
 import { injectDevQuery } from './transform/dev.ts'
 import { detectAndResolveServiceWorkers, needsTransform } from './transform/utils.ts'
 
@@ -1002,7 +1002,7 @@ function createViteConfigureServer(ctx: PluginContext, options: OptionsResolved)
         ssr: false
       })
       if (resolved) {
-        filePath = resolved.id
+        filePath = cleanUrl(resolved.id)
       }
 
       // Strategy 2: Try resolving relative to project root (for test mode)
@@ -1605,6 +1605,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
     const name = 'unplugin-service-worker'
 
     // Check framework type
+    const isVite = meta.framework === 'vite'
     const isRollup = meta.framework === 'rollup'
     const isRolldown = meta.framework === 'rolldown'
     const isRollupLike = isRollup || isRolldown
@@ -1658,7 +1659,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
                   // to the entry file. This allows rewriting URLs in library code (e.g. vrowzer).
                   id: {
                     include: [
-                      /\.[cm]?[jt]sx?$/,
+                      SCRIPT_MODULE_ID_RE,
                       ...((Array.isArray(options.include)
                         ? options.include
                         : options.include
@@ -1688,7 +1689,8 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
                   ctx.isBuild ? 'placeholder' : 'dev',
                   undefined,
                   undefined,
-                  ctx.isTest
+                  ctx.isTest,
+                  isVite
                 )
                 if (result) {
                   return result
@@ -1768,7 +1770,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
         },
         transform: {
           filter: options.entry
-            ? { id: /\.[cm]?[jt]sx?$/, code: /new\s+URL\s*\(/ }
+            ? { id: SCRIPT_MODULE_ID_RE, code: /new\s+URL\s*\(/ }
             : { id: options.include, code: SW_CONTROLLER_FILTER_RE },
           handler(code, id) {
             // When entry is specified, rewrite new URL() references (including in node_modules)
@@ -1825,7 +1827,7 @@ export const ServiceWorkerPlugin: UnpluginInstance<Options | undefined, false> =
         },
         transform: {
           filter: options.entry
-            ? { id: /\.[cm]?[jt]sx?$/, code: /new\s+URL\s*\(/ }
+            ? { id: SCRIPT_MODULE_ID_RE, code: /new\s+URL\s*\(/ }
             : { id: options.include, code: SW_CONTROLLER_FILTER_RE },
           handler(code: string, id: string) {
             // When entry is specified, rewrite new URL() references (including in node_modules)

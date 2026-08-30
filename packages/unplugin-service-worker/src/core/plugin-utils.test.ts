@@ -20,6 +20,59 @@ describe('rewriteEntryUrls', () => {
     expect(result?.code).toContain("'' + import.meta.url")
   })
 
+  it('should route an explicit entry when the importer has a Vite cache query', () => {
+    const result = rewriteEntryUrls(code, `${id}?v=abc123`, entry, '/project', 'dev')
+
+    expect(result?.code).toContain('./service-worker.ts?sw=service_worker_file')
+    expect(result?.code).toContain('/* @vite-ignore */')
+  })
+
+  it('should let Vite normalize an optimized workspace entry outside the project root', () => {
+    const root = '/project/apps/host'
+    const optimizedId = `${root}/node_modules/.vite/deps/vrowzer.js?v=abc123`
+    const workspaceEntry = '/project/packages/vrowzer/dist/service-worker.ts'
+    const optimizedCode = `const scriptURL = new URL('../../../../../packages/vrowzer/dist/service-worker.ts', import.meta.url)`
+    const result = rewriteEntryUrls(
+      optimizedCode,
+      optimizedId,
+      workspaceEntry,
+      root,
+      'dev',
+      undefined,
+      undefined,
+      false,
+      true
+    )
+
+    expect(result?.code).toContain(
+      `new URL("../../../../../packages/vrowzer/dist/service-worker.ts?sw=service_worker_file", import.meta.url)`
+    )
+    expect(result?.code).not.toContain('@vite-ignore')
+  })
+
+  it('should preserve the optimized npm entry URL when the importer is outside the Vite root', () => {
+    const root = '/project/host'
+    const optimizedId = '/project/node_modules/.vite/deps/vrowzer.js?v=abc123'
+    const npmEntry =
+      '/project/node_modules/.pnpm/vrowzer@0.1.2/node_modules/vrowzer/dist/service-worker.ts'
+    const optimizedCode = `const scriptURL = new URL('../../.pnpm/vrowzer@0.1.2/node_modules/vrowzer/dist/service-worker.ts', import.meta.url)`
+    const result = rewriteEntryUrls(
+      optimizedCode,
+      optimizedId,
+      npmEntry,
+      root,
+      'dev',
+      undefined,
+      undefined,
+      false,
+      true
+    )
+
+    expect(result?.code).toContain(
+      `new URL(/* @vite-ignore */ "../../.pnpm/vrowzer@0.1.2/node_modules/vrowzer/dist/service-worker.ts?sw=service_worker_file", '' + import.meta.url)`
+    )
+  })
+
   it('should preserve placeholder rewriting in build mode', () => {
     const result = rewriteEntryUrls(code, id, entry, '/project', 'placeholder')
 
