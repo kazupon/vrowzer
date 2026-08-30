@@ -2,7 +2,8 @@ import { describe, expect, test } from 'vite-plus/test'
 import {
   envPlugin,
   VROWZER_PREVIEW_BASE_PATH_DEFINE,
-  VROWZER_SERVICE_WORKER_SCOPE_DEFINE
+  VROWZER_SERVICE_WORKER_SCOPE_DEFINE,
+  VROWZER_SERVICE_WORKER_VERSION_DEFINE
 } from './env.ts'
 import { resolveOptions } from './options.ts'
 
@@ -120,11 +121,42 @@ describe('envPlugin', () => {
     expect(result.define[VROWZER_SERVICE_WORKER_SCOPE_DEFINE]).toBe(JSON.stringify('/app/'))
   })
 
-  test('configResolved accepts the injected preview base path', () => {
+  test('config hook defines the default service worker version', () => {
+    const plugin = createPlugin()
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define[VROWZER_SERVICE_WORKER_VERSION_DEFINE]).toBe(JSON.stringify('vrowzer-v1'))
+  })
+
+  test('config hook defines a custom service worker version', () => {
+    const plugin = createPlugin({ serviceWorkerVersion: 'app-v2' })
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define[VROWZER_SERVICE_WORKER_VERSION_DEFINE]).toBe(JSON.stringify('app-v2'))
+  })
+
+  test('config hook keeps debug and all reserved defines together', () => {
+    const plugin = createPlugin({
+      basePath: '/app/__preview__/',
+      serviceWorkerScope: '/app/',
+      serviceWorkerVersion: 'app-v2'
+    })
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define).toMatchObject({
+      'import.meta.env.DEBUG': expect.any(String),
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/app/__preview__/'),
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/app/'),
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('app-v2')
+    })
+  })
+
+  test('configResolved accepts all injected reserved values', () => {
     const plugin = createPlugin()
     const define = {
       [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
-      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/')
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/'),
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('vrowzer-v1')
     }
 
     expect(() => (plugin as any).configResolved({ define })).not.toThrow()
@@ -134,7 +166,8 @@ describe('envPlugin', () => {
     const plugin = createPlugin()
     const define = {
       [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/other/'),
-      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/')
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/'),
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('vrowzer-v1')
     }
 
     expect(() => (plugin as any).configResolved({ define })).toThrow(
@@ -146,7 +179,8 @@ describe('envPlugin', () => {
     const plugin = createPlugin()
     const define = {
       [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
-      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/other/')
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/other/'),
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('vrowzer-v1')
     }
 
     expect(() => (plugin as any).configResolved({ define })).toThrow(
@@ -157,11 +191,37 @@ describe('envPlugin', () => {
   test('configResolved rejects a missing service worker scope', () => {
     const plugin = createPlugin()
     const define = {
-      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/')
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('vrowzer-v1')
     }
 
     expect(() => (plugin as any).configResolved({ define })).toThrow(
       `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_SCOPE_DEFINE}`
+    )
+  })
+
+  test('configResolved rejects an overridden service worker version', () => {
+    const plugin = createPlugin()
+    const define = {
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/'),
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('other-version')
+    }
+
+    expect(() => (plugin as any).configResolved({ define })).toThrow(
+      `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_VERSION_DEFINE} must be ${JSON.stringify('vrowzer-v1')}, received ${JSON.stringify(JSON.stringify('other-version'))}`
+    )
+  })
+
+  test('configResolved rejects a missing service worker version', () => {
+    const plugin = createPlugin()
+    const define = {
+      [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
+      [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/')
+    }
+
+    expect(() => (plugin as any).configResolved({ define })).toThrow(
+      `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_VERSION_DEFINE}`
     )
   })
 })

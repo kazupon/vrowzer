@@ -1,4 +1,5 @@
 import { chromium } from '@playwright/test'
+import { V_SW_VERSION } from '@vrowzer/service-worker/protocols'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build, createServer, preview } from 'vite'
@@ -14,6 +15,9 @@ const PREVIEW_BASE = '/app/__preview__/'
 const PREVIEW_MODULE = `${PREVIEW_BASE}main.js`
 const PREVIEW_TEXT = 'Custom base preview works'
 const SERVICE_WORKER_SCOPE = '/app/'
+const SERVICE_WORKER_VERSION = 'app-v2'
+const SERVICE_WORKER_VERSION_QUERY = 'vrowzer-version'
+const SERVICE_WORKER_VERSION_DEFINE = '__VROWZER_INTERNAL_SERVICE_WORKER_VERSION__'
 
 type TestMode = 'development' | 'build'
 type TestServer = PreviewServer | ViteDevServer
@@ -85,7 +89,7 @@ async function expectPreviewContent(page: Page): Promise<void> {
   expect(moduleResponse.body).toContain(PREVIEW_TEXT)
 }
 
-async function expectServiceWorkerRegistration(page: Page): Promise<void> {
+async function expectServiceWorkerRegistration(page: Page, mode: TestMode): Promise<void> {
   const registration = await page.evaluate(async scope => {
     const result = await navigator.serviceWorker.getRegistration(scope)
     const worker = result?.active ?? result?.waiting ?? result?.installing
@@ -100,10 +104,56 @@ async function expectServiceWorkerRegistration(page: Page): Promise<void> {
   }
 
   expect(new URL(registration.scope).pathname).toBe(SERVICE_WORKER_SCOPE)
+  const scriptURL = new URL(registration.scriptURL)
+  expect(scriptURL.searchParams.get(SERVICE_WORKER_VERSION_QUERY)).toBe(SERVICE_WORKER_VERSION)
+  if (mode === 'development') {
+    expect(scriptURL.searchParams.get('sw')).toBe('service_worker_file')
+  }
 
   const response = await fetch(registration.scriptURL)
   expect(response.status).toBe(200)
   expect(response.headers.get('Service-Worker-Allowed')).toBe(SERVICE_WORKER_SCOPE)
+  const source = await response.text()
+  expect(source).toContain(SERVICE_WORKER_VERSION)
+  expect(source).not.toContain(SERVICE_WORKER_VERSION_DEFINE)
+
+  const versionResponse = await page.evaluate(
+    async ({ messageType, scope }) => {
+      const result = await navigator.serviceWorker.getRegistration(scope)
+      const worker = result?.active ?? result?.waiting ?? result?.installing
+      if (!worker) {
+        throw new Error(`No Service Worker found for ${scope}`)
+      }
+
+      const channel = new MessageChannel()
+      return new Promise<{ type: string; version: string }>((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timer)
+          channel.port1.onmessage = null
+          channel.port1.onmessageerror = null
+          channel.port1.close()
+          channel.port2.close()
+        }
+        const timer = setTimeout(() => {
+          cleanup()
+          reject(new Error(`Service Worker ${messageType} response timed out`))
+        }, 5_000)
+
+        channel.port1.onmessage = event => {
+          cleanup()
+          resolve(event.data)
+        }
+        channel.port1.onmessageerror = () => {
+          cleanup()
+          reject(new Error(`Service Worker ${messageType} response could not be decoded`))
+        }
+        channel.port1.start()
+        worker.postMessage({ type: messageType }, [channel.port2])
+      })
+    },
+    { messageType: V_SW_VERSION, scope: SERVICE_WORKER_SCOPE }
+  )
+  expect(versionResponse).toEqual({ type: V_SW_VERSION, version: SERVICE_WORKER_VERSION })
 }
 
 async function runScenario(mode: TestMode): Promise<void> {
@@ -123,15 +173,15 @@ async function runScenario(mode: TestMode): Promise<void> {
     await page.goto(`${getServerOrigin(server)}${HOST_BASE}`)
     await waitForReady(page)
     await expectPreviewContent(page)
-    await expectServiceWorkerRegistration(page)
+    await expectServiceWorkerRegistration(page, mode)
 
     await page.reload()
     await waitForReady(page)
     await expectPreviewContent(page)
-    await expectServiceWorkerRegistration(page)
+    await expectServiceWorkerRegistration(page, mode)
 
     expect(logs.join('\n')).not.toMatch(
-      /Service Worker (?:listen\(\) did not complete|registration error)/
+      /\[pageerror\]|serviceWorkerVersion .*does not match|Service Worker (?:listen\(\) did not complete|registration error)/
     )
   } catch (error) {
     throw new Error(`Custom base ${mode} scenario failed\n${logs.join('\n')}`, { cause: error })

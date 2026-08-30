@@ -55,6 +55,7 @@ import {
 import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
 import { resolvePreviewBasePath } from './preview-base.ts'
 import { resolveServiceWorkerScope } from './service-worker-scope.ts'
+import { resolveServiceWorkerVersion, withServiceWorkerVersion } from './service-worker-version.ts'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { FileSystemPublisher } from '@vrowzer/fs/watcher'
@@ -72,7 +73,13 @@ export interface VrowzerOptions {
    * this option defaults to `'/__preview__/'`.
    */
   basePath?: string
-  /** Service Worker version for cache management (default: 'vrowzer-v1') */
+  /**
+   * Service Worker version for cache management.
+   *
+   * When `@vrowzer/vite-plugin` is used, its `serviceWorkerVersion` is injected and this
+   * option can be omitted. If both are provided, their values must match. Without the
+   * plugin, this option defaults to `'vrowzer-v1'`.
+   */
   serviceWorkerVersion?: string
   /**
    * Service Worker registration scope, independent of `basePath`.
@@ -156,7 +163,7 @@ interface ResolvedVrowzerOptions {
 function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
   return {
     basePath: resolvePreviewBasePath(options.basePath),
-    serviceWorkerVersion: options.serviceWorkerVersion ?? 'vrowzer-v1',
+    serviceWorkerVersion: resolveServiceWorkerVersion(options.serviceWorkerVersion),
     serviceWorkerScope: resolveServiceWorkerScope(options.serviceWorkerScope)
   }
 }
@@ -400,7 +407,10 @@ function execScript(orig, origin) {
         // so when it resolves the SW is fully ready to accept MessageChannel connections.
         await Promise.all([
           initServiceWorker({
-            scriptURL: new URL('./service-worker.ts', import.meta.url),
+            scriptURL: withServiceWorkerVersion(
+              new URL('./service-worker.ts', import.meta.url),
+              resolved.serviceWorkerVersion
+            ),
             version: resolved.serviceWorkerVersion,
             scope: resolved.serviceWorkerScope
           }),

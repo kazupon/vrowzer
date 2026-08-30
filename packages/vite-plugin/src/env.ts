@@ -21,6 +21,7 @@ import type { ResolvedVrowzerOptions } from './options.ts'
 const debug = createDebug('vite-plugin-vrowzer:env')
 export const VROWZER_PREVIEW_BASE_PATH_DEFINE = '__VROWZER_INTERNAL_PREVIEW_BASE_PATH__'
 export const VROWZER_SERVICE_WORKER_SCOPE_DEFINE = '__VROWZER_INTERNAL_SERVICE_WORKER_SCOPE__'
+export const VROWZER_SERVICE_WORKER_VERSION_DEFINE = '__VROWZER_INTERNAL_SERVICE_WORKER_VERSION__'
 
 // Resolve picocolors browser version path.
 // picocolors doesn't export the browser file via package.json exports,
@@ -33,6 +34,7 @@ const picocolorsBrowser = resolve(
 export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
   const serializedBasePath = JSON.stringify(options.basePath)
   const serializedServiceWorkerScope = JSON.stringify(options.serviceWorkerScope)
+  const serializedServiceWorkerVersion = JSON.stringify(options.serviceWorkerVersion)
   return {
     name: 'vrowzer:env',
     // Rolldown native inject: inject `process` global for browser/Worker environments.
@@ -53,7 +55,8 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
         define: {
           'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || ''),
           [VROWZER_PREVIEW_BASE_PATH_DEFINE]: serializedBasePath,
-          [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: serializedServiceWorkerScope
+          [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: serializedServiceWorkerScope,
+          [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: serializedServiceWorkerVersion
         },
         resolve: {
           alias: resolveAliases({
@@ -97,6 +100,13 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
       if (resolvedServiceWorkerScope !== serializedServiceWorkerScope) {
         throw new Error(
           `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_SCOPE_DEFINE} must be ${serializedServiceWorkerScope}, received ${JSON.stringify(resolvedServiceWorkerScope)}`
+        )
+      }
+
+      const resolvedServiceWorkerVersion = config.define?.[VROWZER_SERVICE_WORKER_VERSION_DEFINE]
+      if (resolvedServiceWorkerVersion !== serializedServiceWorkerVersion) {
+        throw new Error(
+          `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_VERSION_DEFINE} must be ${serializedServiceWorkerVersion}, received ${JSON.stringify(resolvedServiceWorkerVersion)}`
         )
       }
     }

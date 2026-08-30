@@ -26,14 +26,13 @@ import env from '@vrowzer/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer } from '@vrowzer/vite-dev-server/service-worker'
 import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-server/messages'
 import { resolvePreviewBasePath } from './preview-base.ts'
+import { resolveServiceWorkerVersionForWorker } from './service-worker-version.ts'
 
 import type { FileSystemSyncMessage } from '@vrowzer/fs/watcher'
 import type { CreateServerOptions } from '@vrowzer/vite-dev-server/service-worker'
 import type { Plugin } from '@vrowzer/vite-dev-server/vite'
 
 declare const self: ServiceWorkerGlobalScope
-
-const SW_VERSION = 'vrowzer-v1'
 
 export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
   // Initial volume setup: client files + public dir
@@ -46,8 +45,9 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
 
   const subscriber = createFileSystemSubscriber(fs)
   const previewBase = resolvePreviewBasePath()
+  const serviceWorkerVersion = resolveServiceWorkerVersionForWorker(self.location.href)
   const serverOptions = {
-    version: SW_VERSION,
+    version: serviceWorkerVersion,
     basePath: previewBase,
     ...(options?.plugins ? { plugins: options.plugins } : {}),
     watcherFactory: () => subscriber.watcher as any

@@ -113,13 +113,25 @@ const vrowzer = Vrowzer()
 
 The runtime `serviceWorkerScope` remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the scope defaults to `/`. The scope does not set the preview URL; that is the role of `basePath`.
 
+`serviceWorkerVersion` identifies the Service Worker version expected by the controller and reported by the worker. When `@vrowzer/vite-plugin` is used, configure the version on the plugin and omit the runtime option:
+
+```ts
+// vite.config.ts
+VrowzerPlugin({ serviceWorkerVersion: 'app-v2' })
+
+// application.ts
+const vrowzer = Vrowzer()
+```
+
+The runtime `serviceWorkerVersion` remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the version defaults to `vrowzer-v1`. The resolved version is also reflected in the Service Worker script URL, so changing it may trigger a Service Worker update.
+
 **Options:**
 
-| Option                 | Type     | Default                           | Description                                       |
-| ---------------------- | -------- | --------------------------------- | ------------------------------------------------- |
-| `basePath`             | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value  |
-| `serviceWorkerVersion` | `string` | `'vrowzer-v1'`                    | SW version for cache management                   |
-| `serviceWorkerScope`   | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value |
+| Option                 | Type     | Default                           | Description                                            |
+| ---------------------- | -------- | --------------------------------- | ------------------------------------------------------ |
+| `basePath`             | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value       |
+| `serviceWorkerVersion` | `string` | Plugin value or `'vrowzer-v1'`    | SW version; must match the plugin value                 |
+| `serviceWorkerScope`   | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value      |
 
 ### Instance Methods
 

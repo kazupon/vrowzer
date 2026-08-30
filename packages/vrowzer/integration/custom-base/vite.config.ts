@@ -12,6 +12,7 @@ export default defineConfig({
       auto: false,
       basePath: '/app/__preview__/',
       serviceWorkerScope: '/app/',
+      serviceWorkerVersion: 'app-v2',
       serviceWorkerEntry: resolve(__dirname, '../../dist/service-worker.ts')
     })
   ]
