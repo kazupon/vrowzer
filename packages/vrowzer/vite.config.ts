@@ -22,6 +22,10 @@ export default defineConfig({
           cpSync(resolve(srcDir, 'service-worker.ts'), resolve(distDir, 'service-worker.ts'))
           cpSync(resolve(srcDir, 'preview-base.ts'), resolve(distDir, 'preview-base.ts'))
           cpSync(
+            resolve(srcDir, 'service-worker-version.ts'),
+            resolve(distDir, 'service-worker-version.ts')
+          )
+          cpSync(
             resolve(srcDir, 'service-worker-core.ts'),
             resolve(distDir, 'service-worker-core.ts')
           )

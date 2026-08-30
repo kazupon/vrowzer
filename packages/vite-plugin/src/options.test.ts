@@ -8,7 +8,7 @@ describe('resolveOptions', () => {
     expect(resolved.auto).toBe(true)
     expect(resolved.basePath).toBe('/__preview__/')
     expect(resolved.serviceWorkerScope).toBe('/')
-    expect(resolved.serviceWorkerVersion).toBe('SERVICE_WORKER_VERSION')
+    expect(resolved.serviceWorkerVersion).toBe('vrowzer-v1')
   })
 
   test('respects auto: false', () => {
@@ -49,5 +49,9 @@ describe('resolveOptions', () => {
     const resolved = resolveOptions({ serviceWorkerVersion: 'v2.0.0' })
 
     expect(resolved.serviceWorkerVersion).toBe('v2.0.0')
+  })
+
+  test.each(['', ' app v2 ', 'version/β+二'])('preserves opaque serviceWorkerVersion %j', value => {
+    expect(resolveOptions({ serviceWorkerVersion: value }).serviceWorkerVersion).toBe(value)
   })
 })

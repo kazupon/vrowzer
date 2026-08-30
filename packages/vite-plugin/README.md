@@ -94,6 +94,26 @@ const vrowzer = Vrowzer()
 
 The runtime `Vrowzer({ serviceWorkerScope })` option remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the scope and response header default to `/`.
 
+### Service Worker version
+
+The plugin's `serviceWorkerVersion` is the source of truth for the version expected by the application and reported by the Service Worker. Configure it once in `vite.config.ts`; application code can call `Vrowzer()` without repeating the value:
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  plugins: [Vrowzer({ serviceWorkerVersion: 'app-v2' })]
+})
+```
+
+```ts
+// application code
+import { Vrowzer } from 'vrowzer'
+
+const vrowzer = Vrowzer()
+```
+
+The runtime `Vrowzer({ serviceWorkerVersion })` option remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before Service Worker registration. Without either value, the version defaults to `vrowzer-v1`. The resolved version is also reflected in the Service Worker script URL, so changing it may trigger a Service Worker update.
+
 When the host page and preview content are in different directories, use `manifest.sourceDir`:
 
 ```ts
@@ -194,7 +214,7 @@ Vrowzer({
   serviceWorkerScope: '/',
 
   // Service Worker version for cache management
-  // Default: 'SERVICE_WORKER_VERSION'
+  // Default: 'vrowzer-v1'
   serviceWorkerVersion: 'my-app-v1',
 
   // Explicit Service Worker entry file path
@@ -216,7 +236,7 @@ Vrowzer({
 | `experimental`         | `VrowzerExperimentalOptions` | `undefined`                               | Experimental features. Currently supports `ide`.                                          |
 | `basePath`             | `string`                     | `'/__preview__/'`                         | Preview URL pathname shared with the application and Service Worker bundles.              |
 | `serviceWorkerScope`   | `string`                     | `'/'`                                     | Registration scope and `Service-Worker-Allowed` header injected into the runtime.          |
-| `serviceWorkerVersion` | `string`                     | `'SERVICE_WORKER_VERSION'`                | Version string for Service Worker cache management.                                       |
+| `serviceWorkerVersion` | `string`                     | `'vrowzer-v1'`                            | Version shared with the application and Service Worker bundles.                           |
 | `serviceWorkerEntry`   | `string`                     | Resolved path to `vrowzer/service-worker` | Explicit Service Worker entry file path.                                                  |
 | `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Worker-specific resolve settings passed to the internal Vite dev server.                  |
 

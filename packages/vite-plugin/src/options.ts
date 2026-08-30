@@ -12,6 +12,7 @@
 import { fileURLToPath } from 'node:url'
 
 const DEFAULT_BASE_PATH = '/__preview__/'
+const DEFAULT_SERVICE_WORKER_VERSION = 'vrowzer-v1'
 
 export interface Alias {
   find: string | RegExp
@@ -108,8 +109,9 @@ export interface VrowzerOptions {
   serviceWorkerScope?: string
   /**
    * The version of the service worker for Vrowzer, which can be used to manage updates and cache invalidation for the preview system.
+   * This is the source of truth for both the application and Service Worker bundles.
    *
-   * @default 'SERVICE_WORKER_VERSION'
+   * @default 'vrowzer-v1'
    */
   serviceWorkerVersion?: string
   /**
@@ -197,7 +199,7 @@ export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
     },
     basePath: normalizeBasePath(options.basePath ?? DEFAULT_BASE_PATH),
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
-    serviceWorkerVersion: options.serviceWorkerVersion ?? 'SERVICE_WORKER_VERSION',
+    serviceWorkerVersion: options.serviceWorkerVersion ?? DEFAULT_SERVICE_WORKER_VERSION,
     serviceWorkerEntry: options.serviceWorkerEntry ?? resolveDefaultServiceWorkerEntry(),
     resolve: options.resolve
   }
