@@ -1,7 +1,7 @@
 {
   "name": "@vrowzer/safe-port",
   "description": "Safe MessagePort",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
