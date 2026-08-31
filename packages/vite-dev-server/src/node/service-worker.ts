@@ -17,6 +17,7 @@ import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
+import { isInternalRolldownAssetUrl } from '../shared/internalAssets'
 import {
   createServiceWorkerFunctions,
   deserializeRpcMessage,
@@ -338,7 +339,15 @@ export function createServer(
     claimOnActivate: true,
     debug: createDebugger('vrowzer:svc-worker-server')!,
   })
-  const fetchHandler = handle(middlewares)
+  const honoFetchHandler = handle(middlewares)
+  const fetchHandler = (event: FetchEvent) => {
+    // These package assets belong to the host build, not the virtual project.
+    // Leaving the event unanswered makes the browser perform a network fetch.
+    if (isInternalRolldownAssetUrl(event.request.url)) {
+      return
+    }
+    honoFetchHandler(event)
+  }
 
   // Register fetch handler immediately (synchronously)
   // This is critical for Service Workers which require fetch listeners during script evaluation

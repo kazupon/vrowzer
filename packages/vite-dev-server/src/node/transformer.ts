@@ -61,7 +61,10 @@ export type ViteDevServerForWorker = Pick<ViteDevServer,
   | 'transformRequest'
   | 'warmupRequest'
   | 'transformIndexHtml'
->
+> & {
+  /** Virtual filesystem used by this transformer's DevEnvironment instance. */
+  readonly fileSystem: typeof fs
+}
 
 /**
  * Result of {@link setupWorker} initialization.

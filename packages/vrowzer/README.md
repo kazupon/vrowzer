@@ -133,6 +133,14 @@ const vrowzer = Vrowzer({ serviceWorkerReadyTimeout: 120000 })
 
 This timeout does not apply to Service Worker listen readiness or Web Worker setup, and it does not need a corresponding Vite plugin option.
 
+`webWorkerSetupTimeout` controls the complete Web Worker setup deadline, from Worker creation until the runtime receives the setup acknowledgement. It defaults to 90000 milliseconds and includes loading the transformer and preparing the client files:
+
+```ts
+const vrowzer = Vrowzer({ webWorkerSetupTimeout: 120000 })
+```
+
+Set this option to `0` for an immediate timeout. It does not apply to Service Worker readiness and does not need a corresponding Vite plugin option.
+
 **Options:**
 
 | Option                      | Type     | Default                           | Description                                                  |
@@ -141,6 +149,7 @@ This timeout does not apply to Service Worker listen readiness or Web Worker set
 | `serviceWorkerVersion`      | `string` | Plugin value or `'vrowzer-v1'`    | SW version; must match the plugin value                       |
 | `serviceWorkerScope`        | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value            |
 | `serviceWorkerReadyTimeout` | `number` | `60000`                           | Milliseconds to wait for the Service Worker page controller   |
+| `webWorkerSetupTimeout`     | `number` | `90000`                           | Milliseconds from Web Worker creation through setup completion |
 
 ### Instance Methods
 

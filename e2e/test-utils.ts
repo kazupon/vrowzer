@@ -10,6 +10,8 @@ export {
   browser,
   browserErrors,
   browserLogs,
+  browserRequests,
+  browserResponses,
   isBuild,
   isServe,
   page,

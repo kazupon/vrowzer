@@ -29,6 +29,8 @@ export let browser: Browser
 export let viteTestUrl: string
 export let browserLogs: string[]
 export let browserErrors: Error[]
+export let browserRequests: string[]
+export let browserResponses: Array<{ url: string; status: number }>
 
 let server: ViteDevServer | PreviewServer
 
@@ -101,6 +103,7 @@ async function waitForVrowzerReady(p: Page, timeout = 60000): Promise<void> {
   )
 }
 
+// oxlint-disable-next-line no-empty-pattern -- Vitest requires fixture destructuring here.
 beforeAll(async ({}, suite) => {
   const testPath = suite.file!.filepath!
   const hostDir = resolveHostDir(testPath)
@@ -119,7 +122,18 @@ beforeAll(async ({}, suite) => {
   // Create page and capture logs
   browserLogs = []
   browserErrors = []
+  browserRequests = []
+  browserResponses = []
   page = await browser.newPage()
+  page.on('request', request => {
+    browserRequests.push(request.url())
+  })
+  page.on('response', response => {
+    browserResponses.push({ url: response.url(), status: response.status() })
+    if (response.url().includes('rolldown-')) {
+      debug('[browser response]', response.status(), response.url())
+    }
+  })
   page.on('console', msg => {
     browserLogs.push(msg.text())
     debug(`[browser ${msg.type()}]`, msg.text())

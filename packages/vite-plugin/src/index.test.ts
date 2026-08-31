@@ -77,6 +77,15 @@ describe('Vrowzer', () => {
     expect(plugins.some((p: any) => p.name === 'vrowzer:rolldown')).toBe(true)
   })
 
+  test('includes the Rolldown asset plugin in worker builds', async () => {
+    const config = resolveVrowzerConfig()
+    const workerPlugins = await config.worker?.plugins?.()
+
+    expect(workerPlugins?.some(plugin => plugin.name === 'vrowzer:worker-rolldown-assets')).toBe(
+      true
+    )
+  })
+
   test('includes service-worker plugin', () => {
     const plugins = Vrowzer()
     // unplugin-service-worker generates a plugin with 'unplugin-service-worker' in the name

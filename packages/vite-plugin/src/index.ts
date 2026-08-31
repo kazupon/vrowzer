@@ -21,7 +21,7 @@ import { idePlugin } from './ide.ts'
 import { extractWorkerConfig } from './extract.ts'
 import { resolveOptions } from './options.ts'
 import { cleanOutputDir, prebundleWorkerConfig } from './prebundle.ts'
-import { rolldownPlugin } from './rolldown.ts'
+import { rolldownPlugin, rolldownWorkerAssetPlugin } from './rolldown.ts'
 import { serverMiddlewarePlugin } from './server.ts'
 import { generateWebWorkerEntry } from './virtual.ts'
 
@@ -94,7 +94,8 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
         {
           name: 'vrowzer:web-worker-config-inject',
           transform: workerEntryTransform
-        }
+        },
+        rolldownWorkerAssetPlugin()
       ]
 
       return {

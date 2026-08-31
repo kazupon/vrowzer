@@ -19,6 +19,25 @@ import type { ResolvedVrowzerOptions } from './options.ts'
 
 const debug = createDebug('vite-plugin-vrowzer:rolldown')
 
+export function rewriteRolldownAssetUrls(code: string): string {
+  return code.replace(
+    /(["'])\.\.\/(rolldown-(?:binding\.wasm32-wasi\.wasm|worker\.js)\?__vrowzer_internal_asset=rolldown)\1/g,
+    '$1./$2$1'
+  )
+}
+
+function renderRolldownAssetChunk(code: string): string | null {
+  const rewritten = rewriteRolldownAssetUrls(code)
+  return rewritten === code ? null : rewritten
+}
+
+export function rolldownWorkerAssetPlugin(): Plugin {
+  return {
+    name: 'vrowzer:worker-rolldown-assets',
+    renderChunk: renderRolldownAssetChunk
+  }
+}
+
 // Resolve @vrowzer/rolldown dist path for WASM/Worker file copying
 const rolldownDistDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.resolve('@vrowzer/rolldown/package.json'))),
@@ -27,20 +46,20 @@ const rolldownDistDir = path.resolve(
 debug('rolldownDistDir ', rolldownDistDir)
 
 export function rolldownPlugin(_options: ResolvedVrowzerOptions): Plugin {
-  let resolvedOutDir = ''
+  let resolvedAssetsDir = ''
 
   return {
     name: 'vrowzer:rolldown',
     configResolved(config) {
-      resolvedOutDir = path.resolve(config.root, config.build.outDir)
+      resolvedAssetsDir = path.resolve(config.root, config.build.outDir, config.build.assetsDir)
     },
+    renderChunk: renderRolldownAssetChunk,
     /**
      * Copy rolldown WASM binary and sub-worker for production builds.
-     * Both the chunk and WASM/worker files end up in dist/assets/.
+     * The worker chunks and these files share the configured assets directory.
      */
     writeBundle() {
-      const assetsDir = path.resolve(resolvedOutDir, 'assets')
-      debug('copy-rolldown-wasm: assetsDir ', assetsDir)
+      debug('copy-rolldown-wasm: assetsDir ', resolvedAssetsDir)
 
       const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
       debug('copy-rolldown-wasm: wasmSrc ', wasmSrc)
@@ -49,10 +68,10 @@ export function rolldownPlugin(_options: ResolvedVrowzerOptions): Plugin {
       debug('copy-rolldown-wasm: workerSrc ', workerSrc)
 
       if (existsSync(wasmSrc)) {
-        copyFileSync(wasmSrc, path.resolve(assetsDir, 'rolldown-binding.wasm32-wasi.wasm'))
+        copyFileSync(wasmSrc, path.resolve(resolvedAssetsDir, 'rolldown-binding.wasm32-wasi.wasm'))
       }
       if (existsSync(workerSrc)) {
-        copyFileSync(workerSrc, path.resolve(assetsDir, 'rolldown-worker.js'))
+        copyFileSync(workerSrc, path.resolve(resolvedAssetsDir, 'rolldown-worker.js'))
       }
     }
   }

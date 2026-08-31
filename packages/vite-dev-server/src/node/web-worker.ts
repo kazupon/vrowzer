@@ -4,8 +4,8 @@
  * This module provides `createServer()` for Web Worker environments.
  * It is intentionally lightweight — it does NOT import @vrowzer/rolldown
  * or any heavy modules statically. Heavy modules (DevEnvironment, rolldown,
- * transform pipeline) are loaded dynamically in `listen()` via
- * `import('./transformer')` (the ./transformer entry).
+ * transform pipeline) are loaded dynamically after `V_WW_SETUP`. The package
+ * build routes `import('./transformer')` to the internal Worker aggregate.
  *
  * This allows `createServer()` to register `self.onmessage` synchronously
  * at the Worker's top scope without being blocked by WASM top-level await.
@@ -22,7 +22,7 @@ import { createDebugger } from './utils'
 import { connectSafeModulePathSync } from '../shared/rpc'
 
 // NOTE(kazupon): Only type-only imports from heavy modules.
-// Runtime imports of ./transformer happen inside listen() via dynamic import.
+// Runtime imports of ./transformer happen after V_WW_SETUP via dynamic import.
 import { V_WW_READY, V_WW_SETUP_ACK, V_WW_SETUP_ERROR, V_SW_CONNECT_PORT_ACK } from '../shared/messages'
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage, WorkerReadyMessage } from '../shared/messages'
 import type { ViteDevServer } from './server/index'
@@ -82,15 +82,16 @@ export interface ListenableWorkerServer {
   /**
    * Start the worker server.
    *
-   * Waits for `V_WW_SETUP` message from Main Thread,
-   * dynamically imports the transformer module to load rolldown + DevEnvironment,
-   * resolves config, initializes DevEnvironment,
-   * and sends `V_WW_SETUP_ACK`.
+   * Waits for setup triggered by the `V_WW_SETUP` message from Main Thread.
+   * The message handler dynamically imports the transformer aggregate, resolves
+   * config, initializes DevEnvironment, and sends `V_WW_SETUP_ACK`.
    *
    * After `listen()` resolves, `V_SW_CONNECT_PORT` messages are
    * automatically handled for birpc channel establishment.
    *
-   * @param timeout - Maximum time in ms to wait for V_WW_SETUP. Default: 30000 (30s). Set to 0 to disable timeout
+   * @param timeout - Maximum time in ms for V_WW_SETUP to arrive. The timer is
+   * cleared when the message arrives and does not limit transformer setup.
+   * Default: 30000 (30s). Set to 0 to disable the arrival timeout.
    */
   listen(timeout?: number): Promise<ViteDevServerForWorker>
 }
@@ -105,7 +106,7 @@ export interface ListenableWorkerServer {
  *
  * @param workerScope - The Web Worker's global scope (`self`)
  * @param options - Server options
- * @returns A listenable server that resolves when `V_WW_SETUP` is received
+ * @returns A listenable server that resolves when setup completes
  */
 export function createServer(
   workerScope: DedicatedWorkerGlobalScope,
@@ -114,6 +115,9 @@ export function createServer(
   // Promise resolvers for listen()
   let setupResolve: ((server: ViteDevServerForWorker) => void) | null = null
   let setupReject: ((error: Error) => void) | null = null
+  let setupTimer: ReturnType<typeof setTimeout> | null = null
+  let setupMessageReceived = false
+  let setupError: Error | null = null
 
   // State: set after V_WW_SETUP completes
   let server: ViteDevServerForWorker | null = null
@@ -125,6 +129,11 @@ export function createServer(
 
     switch (type) {
       case 'V_WW_SETUP': {
+        setupMessageReceived = true
+        if (setupTimer !== null) {
+          clearTimeout(setupTimer)
+          setupTimer = null
+        }
         try {
           debug?.('V_WW_SETUP received, loading transformer...')
 
@@ -154,6 +163,7 @@ export function createServer(
           server = {
             config,
             environments,
+            fileSystem: transformer.fs,
             moduleGraph,
             watcher,
             ws,
@@ -169,7 +179,10 @@ export function createServer(
                 allowId(id: string) {
                   return (
                     id[0] === '\0' ||
-                    !transformer.isServerAccessDeniedForTransform((server as ViteDevServer).config, id)
+                    !transformer.isServerAccessDeniedForTransform(
+                      (server as unknown as ViteDevServer).config,
+                      id,
+                    )
                   )
                 },
               } as TransformOptionsInternal) || Promise.resolve(null)
@@ -185,7 +198,7 @@ export function createServer(
           }
 
           // Setup HMR after server is ready
-          await transformer.setupHMR(server as ViteDevServer)
+          await transformer.setupHMR(server as unknown as ViteDevServer)
 
           // Call configureServer hooks on user plugins.
           // Plugins like @vitejs/plugin-vue store the server reference in configureServer
@@ -194,7 +207,7 @@ export function createServer(
           for (const hook of config.getSortedPluginHooks('configureServer')) {
             await hook.call(
               clientEnv!.pluginContainer.minimalContext,
-              server as ViteDevServer,
+              server as unknown as ViteDevServer,
             )
           }
 
@@ -206,13 +219,18 @@ export function createServer(
           workerScope.postMessage({ type: V_WW_SETUP_ACK })
           debug?.('setup complete')
           setupResolve?.(server!)
+          setupResolve = null
+          setupReject = null
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error))
+          setupError = err
           console.error('[vrowzer:web-worker] V_WW_SETUP failed:', err.message, err.stack)
           debug?.('V_WW_SETUP failed:', error)
           // Notify Main Thread of the failure so it can fail fast instead of timing out
           workerScope.postMessage({ type: V_WW_SETUP_ERROR, error: { message: err.message, stack: err.stack } })
           setupReject?.(err)
+          setupResolve = null
+          setupReject = null
         }
         break
       }
@@ -267,24 +285,32 @@ export function createServer(
       if (server) {
         return Promise.resolve(server)
       }
+      if (setupError) {
+        return Promise.reject(setupError)
+      }
       return new Promise<ViteDevServerForWorker>((resolve, reject) => {
-        if (timeout > 0) {
-          const timer = setTimeout(() => {
+        setupResolve = (resolvedServer) => {
+          if (setupTimer !== null) {
+            clearTimeout(setupTimer)
+            setupTimer = null
+          }
+          resolve(resolvedServer)
+        }
+        setupReject = (error) => {
+          if (setupTimer !== null) {
+            clearTimeout(setupTimer)
+            setupTimer = null
+          }
+          reject(error)
+        }
+
+        if (timeout > 0 && !setupMessageReceived) {
+          setupTimer = setTimeout(() => {
+            setupTimer = null
             setupResolve = null
             setupReject = null
             reject(new Error(`listen() timed out after ${timeout}ms waiting for V_WW_SETUP`))
           }, timeout)
-          setupResolve = (s) => {
-            clearTimeout(timer)
-            resolve(s)
-          }
-          setupReject = (e) => {
-            clearTimeout(timer)
-            reject(e)
-          }
-        } else {
-          setupResolve = resolve
-          setupReject = reject
         }
       })
     }
