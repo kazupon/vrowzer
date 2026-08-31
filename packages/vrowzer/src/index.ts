@@ -61,6 +61,8 @@ import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { FileSystemPublisher } from '@vrowzer/fs/watcher'
 import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/controller'
 
+const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
+
 /**
  * VrowzerOptions defines the configuration options for {@link Vrowzer}.
  */
@@ -89,6 +91,14 @@ export interface VrowzerOptions {
    * plugin, this option defaults to `'/'`.
    */
   serviceWorkerScope?: string
+  /**
+   * Timeout in milliseconds for the Service Worker to become the page controller.
+   *
+   * This timeout does not apply to Service Worker listen readiness or Web Worker setup.
+   *
+   * @default 60000
+   */
+  serviceWorkerReadyTimeout?: number
 }
 
 /**
@@ -158,13 +168,16 @@ interface ResolvedVrowzerOptions {
   basePath: string
   serviceWorkerVersion: string
   serviceWorkerScope: string
+  serviceWorkerReadyTimeout: number
 }
 
 function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
   return {
     basePath: resolvePreviewBasePath(options.basePath),
     serviceWorkerVersion: resolveServiceWorkerVersion(options.serviceWorkerVersion),
-    serviceWorkerScope: resolveServiceWorkerScope(options.serviceWorkerScope)
+    serviceWorkerScope: resolveServiceWorkerScope(options.serviceWorkerScope),
+    serviceWorkerReadyTimeout:
+      options.serviceWorkerReadyTimeout ?? DEFAULT_SERVICE_WORKER_READY_TIMEOUT
   }
 }
 
@@ -412,7 +425,8 @@ function execScript(orig, origin) {
               resolved.serviceWorkerVersion
             ),
             version: resolved.serviceWorkerVersion,
-            scope: resolved.serviceWorkerScope
+            scope: resolved.serviceWorkerScope,
+            readyTimeout: resolved.serviceWorkerReadyTimeout
           }),
           withTimeout(webWorkerReady(), 30000, 'Web Worker setup')
         ])

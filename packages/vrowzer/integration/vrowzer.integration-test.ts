@@ -13,19 +13,40 @@ import { build, preview } from 'vite'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
 import type { Browser, Page } from '@playwright/test'
-import type { PreviewServer } from 'vite'
+import type { Plugin, PreviewServer } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PLAYGROUND_DIR = join(__dirname, 'playground')
 
 const E2E_DEBUG = process.env.E2E_DEBUG === '1' || process.env.E2E_DEBUG === 'true'
 const debug = (...args: unknown[]) => E2E_DEBUG && console.log('[E2E]', ...args)
+const SERVICE_WORKER_RESPONSE_DELAY = Number(process.env.VROWZER_TEST_SW_RESPONSE_DELAY ?? 0)
+const CUSTOM_SERVICE_WORKER_READY_TIMEOUT = process.env.VROWZER_TEST_SW_READY_TIMEOUT
+  ? Number(process.env.VROWZER_TEST_SW_READY_TIMEOUT)
+  : undefined
 
 let browser: Browser
 let server: PreviewServer
 let page: Page
 let serverUrl: string
 let pageConsoleLogs: string[] = []
+let delayedServiceWorkerRequests = 0
+
+function delayServiceWorkerResponse(delay: number): Plugin {
+  return {
+    name: 'vrowzer:test-delay-service-worker-response',
+    configurePreviewServer(server) {
+      server.middlewares.use((request, _response, next) => {
+        if (!request.url?.startsWith('/assets/service-worker-')) {
+          next()
+          return
+        }
+        delayedServiceWorkerRequests++
+        setTimeout(next, delay)
+      })
+    }
+  }
+}
 
 interface PreviewResponse {
   status: number
@@ -129,6 +150,25 @@ function extractInlineSourceMap(code: string): SourceMapPayload {
 }
 
 beforeAll(async () => {
+  if (!Number.isFinite(SERVICE_WORKER_RESPONSE_DELAY) || SERVICE_WORKER_RESPONSE_DELAY < 0) {
+    throw new Error('VROWZER_TEST_SW_RESPONSE_DELAY must be a non-negative finite number')
+  }
+  if (
+    CUSTOM_SERVICE_WORKER_READY_TIMEOUT !== undefined &&
+    (!Number.isFinite(CUSTOM_SERVICE_WORKER_READY_TIMEOUT) ||
+      CUSTOM_SERVICE_WORKER_READY_TIMEOUT < 0)
+  ) {
+    throw new Error('VROWZER_TEST_SW_READY_TIMEOUT must be a non-negative finite number')
+  }
+  if (
+    CUSTOM_SERVICE_WORKER_READY_TIMEOUT !== undefined &&
+    SERVICE_WORKER_RESPONSE_DELAY <= CUSTOM_SERVICE_WORKER_READY_TIMEOUT
+  ) {
+    throw new Error(
+      'VROWZER_TEST_SW_RESPONSE_DELAY must be greater than VROWZER_TEST_SW_READY_TIMEOUT'
+    )
+  }
+
   debug('Building playground...')
   await build({
     root: PLAYGROUND_DIR,
@@ -138,6 +178,10 @@ beforeAll(async () => {
 
   server = await preview({
     root: PLAYGROUND_DIR,
+    plugins:
+      SERVICE_WORKER_RESPONSE_DELAY > 0
+        ? [delayServiceWorkerResponse(SERVICE_WORKER_RESPONSE_DELAY)]
+        : [],
     preview: {
       port: 0,
       strictPort: false,
@@ -175,6 +219,7 @@ beforeAll(async () => {
     debug(log)
   })
 
+  const initializationStartedAt = Date.now()
   await page.goto(serverUrl)
 
   // Wait for ready() to complete (status becomes "Ready" or error).
@@ -201,6 +246,16 @@ beforeAll(async () => {
   if (status !== 'Ready') {
     throw new Error(
       `Expected vrowzer playground to become Ready, got ${JSON.stringify(status)}\n${pageConsoleLogs.join('\n')}`
+    )
+  }
+
+  if (SERVICE_WORKER_RESPONSE_DELAY > 0) {
+    if (delayedServiceWorkerRequests === 0) {
+      throw new Error('The Service Worker response delay did not match a request')
+    }
+    console.log(
+      `[E2E] Service Worker response delayed by ${SERVICE_WORKER_RESPONSE_DELAY}ms; ` +
+        `Vrowzer became ready in ${Date.now() - initializationStartedAt}ms`
     )
   }
 }, 120000)
@@ -311,6 +366,35 @@ if (import.meta.hot) {
 
       expect(swState).toBe('activated')
     })
+
+    test.skipIf(CUSTOM_SERVICE_WORKER_READY_TIMEOUT === undefined)(
+      'applies a custom Service Worker ready timeout',
+      async () => {
+        const context = await browser.newContext()
+        const timeoutPage = await context.newPage()
+        const consoleLogs: string[] = []
+        timeoutPage.on('console', message => consoleLogs.push(message.text()))
+
+        try {
+          await timeoutPage.goto(
+            `${serverUrl}?serviceWorkerReadyTimeout=${CUSTOM_SERVICE_WORKER_READY_TIMEOUT}`
+          )
+          await timeoutPage.waitForFunction(
+            () => document.getElementById('status')?.textContent === 'Failed to initialize',
+            undefined,
+            { timeout: 10_000 }
+          )
+
+          expect(consoleLogs).toContainEqual(
+            expect.stringContaining(
+              `Service Worker controller did not become ready within ${CUSTOM_SERVICE_WORKER_READY_TIMEOUT}ms`
+            )
+          )
+        } finally {
+          await context.close()
+        }
+      }
+    )
   })
 
   describe('filesystem security', () => {

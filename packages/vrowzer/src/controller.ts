@@ -46,6 +46,7 @@ export async function initServiceWorker(options: {
   scriptURL: URL
   version: string
   scope: string
+  readyTimeout: number
   listenReadyTimeout?: number
 }): Promise<SvcWorkerController> {
   controller = createSvcWorkerController({
@@ -56,12 +57,14 @@ export async function initServiceWorker(options: {
   })
 
   const ready = await controller.ready({
-    timeout: 10000,
+    timeout: options.readyTimeout,
     skipWaitingPolicy: 'force',
     waitForController: true
   })
   if (!ready) {
-    throw new Error('Service Worker failed to become ready')
+    throw new Error(
+      `Service Worker controller did not become ready within ${options.readyTimeout}ms`
+    )
   }
 
   // Wait for Service Worker's listen() to complete (listenConnections registered).
