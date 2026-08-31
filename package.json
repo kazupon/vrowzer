@@ -2,7 +2,7 @@
   "name": "vrowzer-monorepo",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@12.1.0",
   "type": "module",
   "scripts": {
     "build": "vp run build:oxlint && vp run build:polyfill && vp run build:port && vp run build:fs && vp run build:unplugin && vp run build:svc && vp run build:server && vp run build:rolldown && vp run build:vite && vp run build:vrowzer && vp run build:vite-plugin && vp run build:play && vp run example-vue#build",
