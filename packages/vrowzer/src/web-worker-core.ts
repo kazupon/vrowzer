@@ -63,12 +63,11 @@ export async function initWebWorker(options?: InitWebWorkerOptions) {
   const server = createServer(self, serverOptions)
 
   // Wait for V_WW_SETUP — loads transformer + DevEnvironment
-  await server.listen()
+  const readyServer = await server.listen(0)
 
-  // Create subscriber with transformer's fs (same vol as DevEnvironment)
+  // Create subscriber with the exact fs used by the DevEnvironment.
   // and the watcher that was already passed to DevEnvironment.
-  const { fs: transformerFs } = await import('@vrowzer/vite-dev-server/transformer')
-  subscriber = createFileSystemSubscriber(transformerFs, { watcher })
+  subscriber = createFileSystemSubscriber(readyServer.fileSystem, { watcher })
 
   // Process queued V_FS_* messages
   for (const msg of pendingMessages) {

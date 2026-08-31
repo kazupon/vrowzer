@@ -15,6 +15,7 @@ import { Vrowzer } from './index.ts'
 
 class TestWorker {
   onerror: ((event: ErrorEvent) => void) | null = null
+  terminate(): void {}
   private messageHandler: ((event: MessageEvent) => void) | null = null
   private readySent = false
 

@@ -7,6 +7,7 @@ import type { Plugin } from 'rolldown'
 import { defineConfig } from 'rolldown'
 import rolldownPackage from 'rolldown/package.json' with { type: 'json' }
 import pkg from './package.json' with { type: 'json' }
+import { withInternalRolldownAssetQuery } from './src/shared/internalAssets'
 // import { init, parse } from 'es-module-lexer'
 // import licensePlugin from './rollupLicensePlugin'
 
@@ -288,6 +289,50 @@ const moduleRunnerConfig = defineConfig({
 const rolldownPkgDir = path.dirname(fileURLToPath(import.meta.resolve('@vrowzer/rolldown/package.json')))
 const rolldownDistDir = path.resolve(rolldownPkgDir, 'dist')
 
+const transformerAliases = {
+  'node:events': '@vrowzer/node-polyfill/events',
+  'node:path': 'pathe',
+  'node:stream': 'readable-stream/lib/stream',
+  'node:buffer': 'buffer',
+  'node:fs': '@vrowzer/fs',
+  'node:fs/promises': '@vrowzer/fs/promises',
+  'node:url': '@vrowzer/node-polyfill/url',
+  'node:util': '@vrowzer/node-polyfill/util',
+  'node:readline': '@vrowzer/node-polyfill/readline',
+  'node:perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
+  'node:dns': '@vrowzer/node-polyfill/dns',
+  'node:os': '@vrowzer/node-polyfill/os',
+  events: '@vrowzer/node-polyfill/events',
+  path: 'pathe',
+  stream: 'readable-stream/lib/stream',
+  buffer: 'buffer',
+  fs: '@vrowzer/fs',
+  'fs/promises': '@vrowzer/fs/promises',
+  url: '@vrowzer/node-polyfill/url',
+  util: '@vrowzer/node-polyfill/util',
+  'readline': '@vrowzer/node-polyfill/readline',
+  'perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
+  os: '@vrowzer/node-polyfill/os',
+  crypto: '@vrowzer/node-polyfill/crypto',
+  // required('process/') in readable-stream/lib/internal/streams/pipeline.js
+  'process/': '@vrowzer/node-polyfill/process',
+  process: '@vrowzer/node-polyfill/process',
+}
+
+function createTransformerPlugins(options: {
+  copyAssets: boolean
+  guardAggregate?: boolean
+}): Plugin[] {
+  return [
+    createPostcssLoadConfigStubPlugin(),
+    createPostcssShimPlugin(),
+    createRewriteRolldownUrlsPlugin(),
+    ...(options.copyAssets ? [createCopyRolldownAssetsPlugin()] : []),
+    createValidateRolldownVersionPlugin(),
+    ...(options.guardAggregate ? [createWebWorkerTransformerGuardPlugin()] : []),
+  ]
+}
+
 const transformerConfig = defineConfig({
   ...sharedNodeOptions,
   output: {
@@ -302,36 +347,7 @@ const transformerConfig = defineConfig({
     vite: path.resolve(__dirname, 'src/node/vite.ts'),
   },
   resolve: {
-    alias: {
-      'node:events': '@vrowzer/node-polyfill/events',
-      'node:path': 'pathe',
-      'node:stream': 'readable-stream/lib/stream',
-      'node:buffer': 'buffer',
-      'node:fs': '@vrowzer/fs',
-      'node:fs/promises': '@vrowzer/fs/promises',
-      'node:url': '@vrowzer/node-polyfill/url',
-      'node:util': '@vrowzer/node-polyfill/util',
-      'node:readline': '@vrowzer/node-polyfill/readline',
-      'node:perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
-      'node:dns': '@vrowzer/node-polyfill/dns',
-      'node:os': '@vrowzer/node-polyfill/os',
-      events: '@vrowzer/node-polyfill/events',
-      path: 'pathe',
-      stream: 'readable-stream/lib/stream',
-      buffer: 'buffer',
-      fs: '@vrowzer/fs',
-      'fs/promises': '@vrowzer/fs/promises',
-      url: '@vrowzer/node-polyfill/url',
-      util: '@vrowzer/node-polyfill/util',
-      'readline': '@vrowzer/node-polyfill/readline',
-      'perf_hooks': '@vrowzer/node-polyfill/perf_hooks',
-      os: '@vrowzer/node-polyfill/os',
-      crypto: '@vrowzer/node-polyfill/crypto',
-      // NOTE(kazupon):
-      // required('process/`) at `readable-stream/lib/internal/streams/pipeline.js:3:25` ...
-      'process/': '@vrowzer/node-polyfill/process',
-      process: '@vrowzer/node-polyfill/process',
-    }
+    alias: transformerAliases,
   },
   transform: {
     ...sharedNodeOptions.transform,
@@ -343,127 +359,42 @@ const transformerConfig = defineConfig({
       process: '@vrowzer/node-polyfill/process',
     },
   },
-  plugins: [
-    // Stub postcss-load-config: vrowzer doesn't load PostCSS config from filesystem.
-    // Config is always provided inline. This eliminates jiti and node:module dependencies.
-    {
-      name: 'stub-postcss-load-config',
-      resolveId: {
-        filter: { id: /^postcss-load-config$/ },
-        handler(id) {
-          return { id: `\0stub:${id}`, external: false }
-        }
-      },
-      load: {
-        filter: { id: /^\0stub:postcss-load-config$/ },
-        handler() {
-          return {
-            code: 'export default () => Promise.resolve({ plugins: [], options: {} })',
-            moduleType: 'js'
-          }
-        }
-      }
-    },
-    // Shim PostCSS dependencies that use Node.js-specific patterns
-    // (ported from refers/vite/packages/vite/rolldown.config.ts)
-    shimDepsPlugin({
-      'postcss-import/index.js': [
-        {
-          src: 'const resolveId = require("./lib/resolve-id")',
-          replacement: 'const resolveId = (id) => id',
-        },
-        {
-          src: 'const loadContent = require("./lib/load-content")',
-          replacement: 'const loadContent = () => ""',
-        },
-      ],
-      'postcss-import/lib/parse-styles.js': [
-        {
-          src: 'const resolveId = require("./resolve-id")',
-          replacement: 'const resolveId = (id) => id',
-        },
-      ],
-    }),
-    // Rewrite rolldown WASM/Worker URLs to always use './'.
-    // @vrowzer/rolldown's build outputs URLs relative to its chunks/ dir (e.g. ../rolldown-binding.wasm32-wasi.wasm).
-    // We normalize these to './' and copy WASM/worker files alongside each chunk directory,
-    // so the URLs work regardless of where the chunk ends up (including when re-bundled by consumers).
-    {
-      name: 'rewrite-rolldown-urls',
-      renderChunk(code) {
-        const replaced = code
-          .replace(
-            /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('./rolldown-binding.wasm32-wasi.wasm', '' + import.meta.url)`
-          )
-          .replace(
-            /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
-            `new URL('./rolldown-worker.js', '' + import.meta.url)`
-          )
-        if (replaced === code) { return null }
-        return { code: replaced }
-      }
-    },
-    // Copy rolldown WASM binary and sub-worker to all output directories.
-    // Files are placed in both dist/node/ and dist/node/transformer-chunks/
-    // so that './rolldown-binding.wasm32-wasi.wasm' resolves correctly
-    // from any chunk location.
-    {
-      name: 'copy-rolldown-assets',
-      writeBundle(_options, bundle) {
-        const outputDirs = new Set<string>()
-        for (const chunk of Object.values(bundle)) {
-          if (chunk.type === 'chunk') {
-            outputDirs.add(path.resolve(__dirname, 'dist', path.dirname(chunk.fileName)))
-          }
-        }
-        const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
-        const workerSrc = path.resolve(rolldownDistDir, 'worker.js')
-        for (const dir of outputDirs) {
-          if (existsSync(wasmSrc)) {
-            copyFileSync(wasmSrc, path.resolve(dir, 'rolldown-binding.wasm32-wasi.wasm'))
-          }
-          if (existsSync(workerSrc)) {
-            copyFileSync(workerSrc, path.resolve(dir, 'rolldown-worker.js'))
-          }
-        }
-      }
-    },
-    {
-      name: 'validate-rolldown-version',
-      generateBundle(_options, bundle) {
-        const utilsChunk = Object.values(bundle).find(
-          chunk =>
-            chunk.type === 'chunk' &&
-            Object.keys(chunk.modules).some(id =>
-              id.replaceAll('\\', '/').endsWith('/src/node/utils.ts')
-            )
-        )
-        if (!utilsChunk || utilsChunk.type !== 'chunk') {
-          throw new Error('[validate-rolldown-version] Could not find the utils output chunk')
-        }
+  plugins: createTransformerPlugins({ copyAssets: true }),
+})
 
-        const expectedDeclaration =
-          `const rolldownVersion = ${JSON.stringify(rolldownPackage.version)};`
-        if (!utilsChunk.code.includes(expectedDeclaration)) {
-          throw new Error(
-            `[validate-rolldown-version] Expected ${expectedDeclaration} in ${utilsChunk.fileName}`
-          )
-        }
-        if (utilsChunk.code.includes('__VROWZER_ROLLDOWN_VERSION__')) {
-          throw new Error(
-            `[validate-rolldown-version] Unresolved version placeholder in ${utilsChunk.fileName}`
-          )
-        }
-      }
-    }
+const webWorkerTransformerConfig = defineConfig({
+  ...sharedNodeOptions,
+  input: {
+    'web-worker-transformer': path.resolve(__dirname, 'src/node/transformer.ts'),
+  },
+  resolve: {
+    alias: transformerAliases,
+  },
+  transform: {
+    ...sharedNodeOptions.transform,
+    inject: {
+      process: '@vrowzer/node-polyfill/process',
+    },
+  },
+  output: {
+    ...sharedNodeOptions.output,
+    entryFileNames: 'node/web-worker-transformer.js',
+    codeSplitting: false,
+  },
+  plugins: [
+    createEagerWorkerTransformerImportsPlugin(),
+    createHostViteHelperIsolationPlugin(),
+    ...createTransformerPlugins({
+      copyAssets: false,
+      guardAggregate: true,
+    }),
   ],
 })
 
 /**
  * NOTE(kazupon):
  * Lightweight Web Worker entry — does NOT bundle ./transformer (rolldown/WASM).
- * Dynamic import('./transformer') at runtime resolves to the transformerConfig output (dist/node/transformer.js).
+ * Dynamic import('./transformer') is rewritten to the single-file Worker aggregate.
  *
  * Like serviceWorkerConfig, the web-worker output contains unresolved `node:*`
  * and prefix-less Node.js built-in imports. The consumer (facade package) must
@@ -498,17 +429,37 @@ const webWorkerConfig = defineConfig({
     'fs', 'path', 'url', 'util', 'os', 'crypto', 'stream', 'events', 'buffer', 'dns',
   ],
   plugins: [
-    // Fix external import path: rolldown resolves `./transformer` relative to source dir,
-    // but the output `dist/node/web-worker.js` needs `./transformer.js` (same directory).
+    // Rolldown resolves `./transformer` relative to the source directory. Keep the
+    // source-level lazy boundary while routing the built bootstrap to the aggregate.
     {
-      name: 'fix-transformer-import-path',
+      name: 'route-web-worker-transformer-import',
       renderChunk(code) {
         const replaced = code.replace(
           /await import\(["']\.\.\/transformer["']\)/g,
-          'await import("./transformer.js")'
+          'await import("./web-worker-transformer.js")'
         )
         if (replaced === code) { return null }
         return { code: replaced }
+      },
+      generateBundle(_options, bundle) {
+        const entry = Object.values(bundle).find(
+          output => output.type === 'chunk' && output.fileName === 'node/web-worker.js'
+        )
+        if (!entry || entry.type !== 'chunk') {
+          throw new Error(
+            '[route-web-worker-transformer-import] Could not find web-worker entry'
+          )
+        }
+        if (!entry.code.includes('import("./web-worker-transformer.js")')) {
+          throw new Error(
+            '[route-web-worker-transformer-import] Missing aggregate dynamic import'
+          )
+        }
+        if (entry.code.includes('import("./transformer.js")')) {
+          throw new Error(
+            '[route-web-worker-transformer-import] Found legacy transformer dynamic import'
+          )
+        }
       }
     }
   ],
@@ -531,12 +482,301 @@ export default defineConfig([
   nodeConfig,
   serviceWorkerConfig,
   transformerConfig,
+  webWorkerTransformerConfig,
   webWorkerConfig,
   moduleRunnerConfig,
   messagesConfig,
 ])
 
 // #region Plugins
+
+function createPostcssLoadConfigStubPlugin(): Plugin {
+  return {
+    name: 'stub-postcss-load-config',
+    resolveId: {
+      filter: { id: /^postcss-load-config$/ },
+      handler(id) {
+        return { id: `\0stub:${id}`, external: false }
+      }
+    },
+    load: {
+      filter: { id: /^\0stub:postcss-load-config$/ },
+      handler() {
+        return {
+          code: 'export default () => Promise.resolve({ plugins: [], options: {} })',
+          moduleType: 'js'
+        }
+      }
+    }
+  }
+}
+
+function createEagerWorkerTransformerImportsPlugin(): Plugin {
+  // Rolldown cannot safely inline this graph while local dynamic imports share
+  // modules with the static graph. Eager namespaces preserve Promise-based call
+  // sites while allowing the Worker-only build to emit one valid ESM entry.
+  const importsByFile = new Map<string, string[]>([
+    ['src/node/config.ts', ['./plugins/css']],
+    ['src/node/plugins/esbuild.ts', ['./oxc']],
+    ['src/node/plugins/css.ts', [
+      'postcss-import',
+      'postcss-modules',
+      'postcss',
+      'node:fs/promises',
+      'node:path',
+    ]],
+    ['src/node/plugins/html.ts', ['parse5']],
+    ['src/node/plugins/index.ts', [
+      '../build',
+      './preAlias',
+      '@rollup/plugin-alias',
+      './resolve',
+      './html',
+      './css',
+      './oxc',
+      './json',
+      './importAnalysis',
+      './asset',
+      './clientInjections',
+      './forwardConsole',
+    ]],
+  ])
+
+  return {
+    name: 'eager-worker-transformer-imports',
+    transform(code, id) {
+      const normalizedId = id.replaceAll('\\', '/')
+      if (normalizedId.endsWith('src/node/plugins/define.ts')) {
+        const source = '@vrowzer/rolldown/utils'
+        const expression = `await import('${source}')`
+        if (!code.includes(expression)) {
+          this.error(
+            `[eager-worker-transformer-imports] Missing ${expression} in src/node/plugins/define.ts`
+          )
+        }
+        return [
+          `import * as __vrowzer_eager_import_0 from ${JSON.stringify(source)}`,
+          code.replaceAll(
+            expression,
+            'await Promise.resolve(__vrowzer_eager_import_0)'
+          ),
+        ].join('\n')
+      }
+
+      const entry = [...importsByFile].find(([file]) => normalizedId.endsWith(file))
+      if (!entry) {
+        return null
+      }
+
+      let transformed = code
+      const eagerImports: string[] = []
+      for (const [index, source] of entry[1].entries()) {
+        const importExpressions = [
+          `import(${JSON.stringify(source)})`,
+          `import('${source}')`,
+        ]
+        if (!importExpressions.some(expression => transformed.includes(expression))) {
+          this.error(
+            `[eager-worker-transformer-imports] Missing import(${JSON.stringify(source)}) in ${entry[0]}`
+          )
+        }
+        const identifier = `__vrowzer_eager_import_${index}`
+        eagerImports.push(`import * as ${identifier} from ${JSON.stringify(source)}`)
+        for (const importExpression of importExpressions) {
+          transformed = transformed.replaceAll(
+            importExpression,
+            `Promise.resolve(${identifier})`
+          )
+        }
+      }
+
+      if (entry[0] === 'src/node/plugins/css.ts') {
+        const sugarssImport =
+          'import(pathToFileURL(sssPath).href)'
+        if (!transformed.includes(sugarssImport)) {
+          this.error(
+            '[eager-worker-transformer-imports] Missing SugarSS runtime import'
+          )
+        }
+        transformed = transformed.replace(
+          sugarssImport,
+          'import(/* @vite-ignore */ pathToFileURL(sssPath).href)'
+        )
+      }
+
+      return `${eagerImports.join('\n')}\n${transformed}`
+    },
+  }
+}
+
+function createHostViteHelperIsolationPlugin(): Plugin {
+  // The host Vite may inject its own helper while serving the aggregate. Keep
+  // Vite's generated-code strings intact and rename only the bundled lexical helper.
+  return {
+    name: 'isolate-host-vite-helper',
+    renderChunk(code) {
+      const declaration = 'function __vite__injectQuery('
+      const toStringReference = '__vite__injectQuery.toString()'
+      if (!code.includes(declaration) || !code.includes(toStringReference)) {
+        this.error(
+          '[isolate-host-vite-helper] Could not find Vite injectQuery implementation'
+        )
+      }
+
+      return code
+        .replace(declaration, 'function __vrowzer_internalInjectQuery(')
+        .replace(toStringReference, '__vrowzer_internalInjectQuery.toString()')
+    },
+  }
+}
+
+function createPostcssShimPlugin(): Plugin {
+  return shimDepsPlugin({
+    'postcss-import/index.js': [
+      {
+        src: 'const resolveId = require("./lib/resolve-id")',
+        replacement: 'const resolveId = (id) => id',
+      },
+      {
+        src: 'const loadContent = require("./lib/load-content")',
+        replacement: 'const loadContent = () => ""',
+      },
+    ],
+    'postcss-import/lib/parse-styles.js': [
+      {
+        src: 'const resolveId = require("./resolve-id")',
+        replacement: 'const resolveId = (id) => id',
+      },
+    ],
+  })
+}
+
+function createRewriteRolldownUrlsPlugin(): Plugin {
+  return {
+    name: 'rewrite-rolldown-urls',
+    renderChunk(code, chunk) {
+      const assetPrefix =
+        path.posix.relative(path.posix.dirname(chunk.fileName), 'node') || '.'
+      const wasmUrl = withInternalRolldownAssetQuery(
+        `${assetPrefix}/rolldown-binding.wasm32-wasi.wasm`
+      )
+      const workerUrl = withInternalRolldownAssetQuery(`${assetPrefix}/rolldown-worker.js`)
+      const replaced = code
+        .replace(
+          /new URL\(["']\.\.\/rolldown-binding\.wasm32-wasi\.wasm["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+          `new URL('${wasmUrl}', '' + import.meta.url)`
+        )
+        .replace(
+          /new URL\(["']\.\.\/worker\.js["'],\s*["']?["']?\s*\+?\s*import\.meta\.url\)/g,
+          `new URL('${workerUrl}', '' + import.meta.url)`
+        )
+      if (replaced === code) { return null }
+      return { code: replaced }
+    }
+  }
+}
+
+function createCopyRolldownAssetsPlugin(): Plugin {
+  return {
+    name: 'copy-rolldown-assets',
+    writeBundle() {
+      const outputDir = path.resolve(__dirname, 'dist/node')
+      const wasmSrc = path.resolve(rolldownDistDir, 'rolldown-binding.wasm32-wasi.wasm')
+      const workerSrc = path.resolve(rolldownDistDir, 'worker.js')
+      if (existsSync(wasmSrc)) {
+        copyFileSync(wasmSrc, path.resolve(outputDir, 'rolldown-binding.wasm32-wasi.wasm'))
+      }
+      if (existsSync(workerSrc)) {
+        copyFileSync(workerSrc, path.resolve(outputDir, 'rolldown-worker.js'))
+      }
+    }
+  }
+}
+
+function createValidateRolldownVersionPlugin(): Plugin {
+  return {
+    name: 'validate-rolldown-version',
+    generateBundle(_options, bundle) {
+      const utilsChunk = Object.values(bundle).find(
+        chunk =>
+          chunk.type === 'chunk' &&
+          Object.keys(chunk.modules).some(id =>
+            id.replaceAll('\\', '/').endsWith('/src/node/utils.ts')
+          )
+      )
+      if (!utilsChunk || utilsChunk.type !== 'chunk') {
+        throw new Error('[validate-rolldown-version] Could not find the utils output chunk')
+      }
+
+      const expectedVersion = JSON.stringify(rolldownPackage.version)
+      if (!utilsChunk.code.includes(expectedVersion)) {
+        throw new Error(
+          `[validate-rolldown-version] Expected version ${expectedVersion} in ${utilsChunk.fileName}`
+        )
+      }
+      if (utilsChunk.code.includes('__VROWZER_ROLLDOWN_VERSION__')) {
+        throw new Error(
+          `[validate-rolldown-version] Unresolved version placeholder in ${utilsChunk.fileName}`
+        )
+      }
+    }
+  }
+}
+
+function createWebWorkerTransformerGuardPlugin(): Plugin {
+  return {
+    name: 'validate-web-worker-transformer',
+    generateBundle(_options, bundle) {
+      const chunks = Object.values(bundle).filter(output => output.type === 'chunk')
+      const entry = chunks.find(chunk => chunk.fileName === 'node/web-worker-transformer.js')
+      if (!entry || entry.type !== 'chunk') {
+        throw new Error(
+          '[validate-web-worker-transformer] Could not find web-worker-transformer entry'
+        )
+      }
+
+      const localChunks = chunks.filter(chunk => chunk.fileName !== entry.fileName)
+      if (localChunks.length > 0) {
+        throw new Error(
+          `[validate-web-worker-transformer] Unexpected local chunks: ${localChunks.map(chunk => chunk.fileName).join(', ')}`
+        )
+      }
+
+      const transformerChunkImports = [...entry.imports, ...entry.dynamicImports]
+        .filter(id => id.includes('transformer-chunks'))
+      if (transformerChunkImports.length > 0) {
+        throw new Error(
+          `[validate-web-worker-transformer] Unexpected transformer chunk imports: ${transformerChunkImports.join(', ')}`
+        )
+      }
+      const unresolvedRolldownImports = [...entry.imports, ...entry.dynamicImports]
+        .filter(id => id.startsWith('@vrowzer/rolldown'))
+      if (unresolvedRolldownImports.length > 0) {
+        throw new Error(
+          `[validate-web-worker-transformer] Unresolved Rolldown imports: ${unresolvedRolldownImports.join(', ')}`
+        )
+      }
+      if (
+        entry.code.includes('function __vite__injectQuery(') ||
+        !entry.code.includes('function __vrowzer_internalInjectQuery(')
+      ) {
+        throw new Error(
+          '[validate-web-worker-transformer] Host Vite helper was not isolated'
+        )
+      }
+      for (const asset of [
+        'rolldown-binding.wasm32-wasi.wasm',
+        'rolldown-worker.js',
+      ]) {
+        if (!chunks.some(chunk => chunk.code.includes(asset))) {
+          throw new Error(
+            `[validate-web-worker-transformer] Missing expected asset URL: ${asset}`
+          )
+        }
+      }
+    }
+  }
+}
 
 // Ported from `refers/vite/packages/vite/rolldown.config.ts`
 // Shim problematic dependencies that use Node.js-specific patterns
