@@ -81,8 +81,8 @@ describe('Vrowzer', () => {
     const config = resolveVrowzerConfig()
     const workerPlugins = await config.worker?.plugins?.()
 
-    expect(workerPlugins?.some(plugin => plugin.name === 'vrowzer:worker-rolldown-assets')).toBe(
-      true
+    expect(workerPlugins).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'vrowzer:worker-rolldown-assets' })])
     )
   })
 

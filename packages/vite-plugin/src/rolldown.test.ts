@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { rewriteRolldownAssetUrls } from './rolldown'
+import { rewriteRolldownAssetUrls } from './rolldown.js'
 
 describe('rewriteRolldownAssetUrls', () => {
   it('rebases package-relative Rolldown assets into the production chunk directory', () => {
