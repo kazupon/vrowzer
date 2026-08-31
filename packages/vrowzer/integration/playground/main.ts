@@ -2,9 +2,17 @@ import { Vrowzer } from 'vrowzer'
 
 const status = document.getElementById('status')!
 const container = document.getElementById('preview-container')!
+const serviceWorkerReadyTimeout = new URLSearchParams(location.search).get(
+  'serviceWorkerReadyTimeout'
+)
 
 // Expose vrowzer instance for E2E test access
-const vrowzer = Vrowzer({ basePath: '/__preview__/' })
+const vrowzer = Vrowzer({
+  basePath: '/__preview__/',
+  ...(serviceWorkerReadyTimeout === null
+    ? {}
+    : { serviceWorkerReadyTimeout: Number(serviceWorkerReadyTimeout) })
+})
 ;(window as any).__vrowzer__ = vrowzer
 
 async function init() {

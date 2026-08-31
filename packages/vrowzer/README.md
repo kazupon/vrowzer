@@ -125,13 +125,22 @@ const vrowzer = Vrowzer()
 
 The runtime `serviceWorkerVersion` remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the version defaults to `vrowzer-v1`. The resolved version is also reflected in the Service Worker script URL, so changing it may trigger a Service Worker update.
 
+`serviceWorkerReadyTimeout` controls how long the runtime waits for the Service Worker to become the page controller. It defaults to 60000 milliseconds and can be extended for large bundles or slow environments:
+
+```ts
+const vrowzer = Vrowzer({ serviceWorkerReadyTimeout: 120000 })
+```
+
+This timeout does not apply to Service Worker listen readiness or Web Worker setup, and it does not need a corresponding Vite plugin option.
+
 **Options:**
 
-| Option                 | Type     | Default                           | Description                                            |
-| ---------------------- | -------- | --------------------------------- | ------------------------------------------------------ |
-| `basePath`             | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value       |
-| `serviceWorkerVersion` | `string` | Plugin value or `'vrowzer-v1'`    | SW version; must match the plugin value                 |
-| `serviceWorkerScope`   | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value      |
+| Option                      | Type     | Default                           | Description                                                  |
+| --------------------------- | -------- | --------------------------------- | ------------------------------------------------------------ |
+| `basePath`                  | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value             |
+| `serviceWorkerVersion`      | `string` | Plugin value or `'vrowzer-v1'`    | SW version; must match the plugin value                       |
+| `serviceWorkerScope`        | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value            |
+| `serviceWorkerReadyTimeout` | `number` | `60000`                           | Milliseconds to wait for the Service Worker page controller   |
 
 ### Instance Methods
 
