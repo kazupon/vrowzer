@@ -17,12 +17,12 @@ import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
-import { isInternalRolldownAssetUrl } from '../shared/internalAssets'
 import {
   createServiceWorkerFunctions,
   deserializeRpcMessage,
   serializeRpcMessage,
 } from '../shared/rpc'
+import { shouldHandleViteFetch } from '../shared/serviceWorkerFetch'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
@@ -332,6 +332,8 @@ export function createServer(
 ): () => Promise<ViteDevServerForServiceWorker> {
   const { server: serverConfig } = inlineConfig as InlineConfig | ResolvedConfig
   const middlewareMode = !!serverConfig?.middlewareMode
+  const basePath = options.basePath || '/'
+  const workerOrigin = new URL(serviceWorkerScope.location.href).origin
 
   let middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
   const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage>(serviceWorkerScope, {
@@ -341,9 +343,9 @@ export function createServer(
   })
   const honoFetchHandler = handle(middlewares)
   const fetchHandler = (event: FetchEvent) => {
-    // These package assets belong to the host build, not the virtual project.
-    // Leaving the event unanswered makes the browser perform a network fetch.
-    if (isInternalRolldownAssetUrl(event.request.url)) {
+    // Leave requests outside the virtual project unanswered so the browser
+    // performs the fetch with the controlled client's native semantics.
+    if (!shouldHandleViteFetch(event.request.url, workerOrigin, basePath)) {
       return
     }
     honoFetchHandler(event)
@@ -373,7 +375,6 @@ export function createServer(
     const initPublicFilesPromise = initPublicFiles(config)
 
     const { root, server: serverConfig } = config
-    const basePath = options.basePath || '/'
 
     // Setup base path for hono middlewares
     if (basePath !== '/') {

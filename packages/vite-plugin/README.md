@@ -94,6 +94,8 @@ const vrowzer = Vrowzer()
 
 The runtime `Vrowzer({ serviceWorkerScope })` option remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the scope and response header default to `/`.
 
+The scope selects which pages the Service Worker controls, not which request URLs it receives from those pages. Vrowzer only responds to same-origin HTTP(S) requests within `basePath`. Cross-origin requests and same-origin requests outside `basePath` are left to the browser's native network path.
+
 ### Service Worker version
 
 The plugin's `serviceWorkerVersion` is the source of truth for the version expected by the application and reported by the Service Worker. Configure it once in `vite.config.ts`; application code can call `Vrowzer()` without repeating the value:
