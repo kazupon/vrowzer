@@ -1,7 +1,7 @@
 {
   "name": "vrowzer",
   "description": "Embeddable live preview system with HMR, powered by Vite dev server in the browser",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
