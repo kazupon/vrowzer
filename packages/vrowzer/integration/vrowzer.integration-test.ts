@@ -7,12 +7,14 @@
  */
 
 import { chromium } from '@playwright/test'
+import { createServer as createHttpServer } from 'node:http'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build, preview } from 'vite'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
 
-import type { Browser, Page } from '@playwright/test'
+import type { Browser, Page, Response as PlaywrightResponse } from '@playwright/test'
+import type { Server as HttpServer } from 'node:http'
 import type { Plugin, PreviewServer } from 'vite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -24,11 +26,18 @@ const SERVICE_WORKER_RESPONSE_DELAY = Number(process.env.VROWZER_TEST_SW_RESPONS
 const CUSTOM_SERVICE_WORKER_READY_TIMEOUT = process.env.VROWZER_TEST_SW_READY_TIMEOUT
   ? Number(process.env.VROWZER_TEST_SW_READY_TIMEOUT)
   : undefined
+const HOST_FETCH_PROBE_PATH = '/vrowzer-host-fetch-probe.txt'
+const CROSS_ORIGIN_PIXEL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64'
+)
 
 let browser: Browser
 let server: PreviewServer
+let crossOriginAssetServer: HttpServer
 let page: Page
 let serverUrl: string
+let crossOriginAssetServerUrl: string
 let pageConsoleLogs: string[] = []
 let delayedServiceWorkerRequests = 0
 
@@ -45,6 +54,62 @@ function delayServiceWorkerResponse(delay: number): Plugin {
         setTimeout(next, delay)
       })
     }
+  }
+}
+
+function serveHostFetchProbe(): Plugin {
+  return {
+    name: 'vrowzer:test-host-fetch-probe',
+    configurePreviewServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        if (pathname !== HOST_FETCH_PROBE_PATH) {
+          next()
+          return
+        }
+
+        response.statusCode = 200
+        response.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        response.setHeader('Cache-Control', 'no-store')
+        response.end('host-owned')
+      })
+    }
+  }
+}
+
+async function closeHttpServer(server: HttpServer | undefined): Promise<void> {
+  if (!server?.listening) {
+    return
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    server.close(error => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
+async function captureResponse<T>(
+  requestUrl: string,
+  operation: () => Promise<T>
+): Promise<{ result: T; response: PlaywrightResponse | undefined }> {
+  let matchingResponse: PlaywrightResponse | undefined
+  const onResponse = (response: PlaywrightResponse) => {
+    if (response.url() === requestUrl) {
+      matchingResponse = response
+    }
+  }
+
+  page.on('response', onResponse)
+  try {
+    const result = await operation()
+    return { result, response: matchingResponse }
+  } finally {
+    page.off('response', onResponse)
   }
 }
 
@@ -176,12 +241,39 @@ beforeAll(async () => {
   })
   debug('Build complete')
 
+  crossOriginAssetServer = createHttpServer((request, response) => {
+    const pathname = new URL(request.url ?? '/', 'http://127.0.0.1').pathname
+    if (pathname !== '/pixel.png') {
+      response.writeHead(404)
+      response.end('Not Found')
+      return
+    }
+
+    response.statusCode = 200
+    response.setHeader('Content-Type', 'image/png')
+    response.setHeader('Content-Length', String(CROSS_ORIGIN_PIXEL.byteLength))
+    response.setHeader('Cache-Control', 'no-store')
+    response.end(CROSS_ORIGIN_PIXEL)
+  })
+  await new Promise<void>((resolve, reject) => {
+    crossOriginAssetServer.once('error', reject)
+    crossOriginAssetServer.listen(0, '127.0.0.1', resolve)
+  })
+
+  const crossOriginAddress = crossOriginAssetServer.address()
+  if (!crossOriginAddress || typeof crossOriginAddress === 'string') {
+    throw new Error('Failed to get cross-origin asset server address')
+  }
+  crossOriginAssetServerUrl = `http://127.0.0.1:${crossOriginAddress.port}`
+
   server = await preview({
     root: PLAYGROUND_DIR,
-    plugins:
-      SERVICE_WORKER_RESPONSE_DELAY > 0
+    plugins: [
+      serveHostFetchProbe(),
+      ...(SERVICE_WORKER_RESPONSE_DELAY > 0
         ? [delayServiceWorkerResponse(SERVICE_WORKER_RESPONSE_DELAY)]
-        : [],
+        : [])
+    ],
     preview: {
       port: 0,
       strictPort: false,
@@ -261,9 +353,13 @@ beforeAll(async () => {
 }, 120000)
 
 afterAll(async () => {
-  await page?.close()
-  await browser?.close()
-  await server?.close()
+  try {
+    await page?.close()
+    await browser?.close()
+    await server?.close()
+  } finally {
+    await closeHttpServer(crossOriginAssetServer)
+  }
   debug('Cleanup complete')
 })
 
@@ -395,6 +491,65 @@ if (import.meta.hot) {
         }
       }
     )
+  })
+
+  describe('fetch routing', () => {
+    test('leaves cross-origin images to the browser network path', async () => {
+      expect(await page.evaluate(() => crossOriginIsolated)).toBe(true)
+
+      const requestUrl = `${crossOriginAssetServerUrl}/pixel.png?probe=${Date.now()}`
+      const { result, response } = await captureResponse(requestUrl, () =>
+        page.evaluate(
+          url =>
+            new Promise<'load' | 'error'>(resolve => {
+              const image = new Image()
+              image.hidden = true
+              image.onload = () => {
+                image.remove()
+                resolve('load')
+              }
+              image.onerror = () => {
+                image.remove()
+                resolve('error')
+              }
+              document.body.append(image)
+              image.src = url
+            }),
+          requestUrl
+        )
+      )
+
+      expect(result).toBe('load')
+      expect(response?.status()).toBe(200)
+      expect(response?.fromServiceWorker()).toBe(false)
+    })
+
+    test('leaves same-origin requests outside basePath to the browser network path', async () => {
+      const requestUrl = `${serverUrl}${HOST_FETCH_PROBE_PATH}?probe=${Date.now()}`
+      const { result, response } = await captureResponse(requestUrl, () =>
+        page.evaluate(async url => (await fetch(url)).text(), requestUrl)
+      )
+
+      expect(result).toBe('host-owned')
+      expect(response?.status()).toBe(200)
+      expect(response?.fromServiceWorker()).toBe(false)
+    })
+
+    test('keeps same-origin preview files on the Service Worker path', async () => {
+      const filePath = '/fetch-routing-preview-owned.js'
+      const content = 'export const routingProbe = "preview-owned"'
+      await addPreviewFiles({ [filePath]: content })
+      await waitForPreviewBodyContaining(`${filePath}?import`, 'preview-owned')
+
+      const requestUrl = `${serverUrl}/__preview__${filePath}?import&probe=${Date.now()}`
+      const { result, response } = await captureResponse(requestUrl, () =>
+        page.evaluate(async url => (await fetch(url)).text(), requestUrl)
+      )
+
+      expect(result).toContain('preview-owned')
+      expect(response?.status()).toBe(200)
+      expect(response?.fromServiceWorker()).toBe(true)
+    })
   })
 
   describe('filesystem security', () => {
