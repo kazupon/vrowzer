@@ -6,6 +6,7 @@ import type { ResolvedConfig } from '../config'
 
 type MessageListener = (event: MessageEvent) => void
 type ErrorListener = (event: MessageEvent) => void
+type CloseListener = () => void
 
 // Store for accessing mock internals
 const mockSafePortMap = new WeakMap<MessagePort, ReturnType<typeof createMockSafePort>>()
@@ -13,6 +14,7 @@ const mockSafePortMap = new WeakMap<MessagePort, ReturnType<typeof createMockSaf
 function createMockSafePort(rawPort: MessagePort) {
   const messageListeners: Set<MessageListener> = new Set()
   const errorListeners: Set<ErrorListener> = new Set()
+  const closeListeners: Set<CloseListener> = new Set()
 
   const safePort = {
     raw: rawPort,
@@ -22,10 +24,12 @@ function createMockSafePort(rawPort: MessagePort) {
     on: vi.fn((type: string, handler: EventListener) => {
       if (type === 'message') {messageListeners.add(handler as MessageListener)}
       if (type === 'messageerror') {errorListeners.add(handler as ErrorListener)}
+      if (type === 'close') {closeListeners.add(handler as CloseListener)}
     }),
     off: vi.fn((type: string, handler: EventListener) => {
       if (type === 'message') {messageListeners.delete(handler as MessageListener)}
       if (type === 'messageerror') {errorListeners.delete(handler as ErrorListener)}
+      if (type === 'close') {closeListeners.delete(handler as CloseListener)}
     }),
     once: vi.fn(),
     emit: vi.fn(),
@@ -42,6 +46,9 @@ function createMockSafePort(rawPort: MessagePort) {
     },
     simulateError: (err: unknown) => {
       errorListeners.forEach(h => h(err as MessageEvent))
+    },
+    simulateClose: () => {
+      closeListeners.forEach(h => h())
     }
   }
 
@@ -250,6 +257,61 @@ describe('createMessageChannelServer', () => {
   })
 
   describe('close', () => {
+    test('removes an individually closed client from future broadcasts', () => {
+      const config = createMockConfig()
+      const port1 = createMockMessagePort()
+      const port2 = createMockMessagePort()
+      const ws = createMessageChannelServer(config)
+
+      ws.handlePort(port1, 'client-1')
+      ws.handlePort(port2, 'client-2')
+      ws.listen()
+
+      const safePort1 = getMockSafePort(port1)
+      const safePort2 = getMockSafePort(port2)
+      safePort1.simulateClose()
+
+      expect(ws.clients.size).toBe(1)
+
+      const payload = { type: 'update' as const, updates: [] }
+      ws.send(payload)
+
+      expect(safePort1.postMessage).not.toHaveBeenCalledWith(payload)
+      expect(safePort2.postMessage).toHaveBeenCalledWith(payload)
+    })
+
+    test('emits one client disconnect event for an individually closed client', () => {
+      const config = createMockConfig()
+      const port = createMockMessagePort()
+      const ws = createMessageChannelServer(config)
+      const disconnectHandler = vi.fn()
+
+      ws.on('vite:client:disconnect', disconnectHandler)
+      connectClient(ws, port, 'client-1')
+
+      getMockSafePort(port).simulateClose()
+      getMockSafePort(port).simulateClose()
+
+      expect(disconnectHandler).toHaveBeenCalledTimes(1)
+      expect(disconnectHandler).toHaveBeenCalledWith(
+        undefined,
+        expect.objectContaining({ port, clientId: 'client-1' })
+      )
+    })
+
+    test('removes a pending client that closes before listen', () => {
+      const config = createMockConfig()
+      const port = createMockMessagePort()
+      const ws = createMessageChannelServer(config)
+
+      ws.handlePort(port, 'client-1')
+      expect(ws.clients.size).toBe(1)
+
+      getMockSafePort(port).simulateClose()
+
+      expect(ws.clients.size).toBe(0)
+    })
+
     test('sends disconnect event to all clients', async () => {
       const config = createMockConfig()
       const port = createMockMessagePort()
@@ -290,6 +352,20 @@ describe('createMessageChannelServer', () => {
       await ws.close()
 
       expect(closeHandler).toHaveBeenCalled()
+    })
+
+    test('emits one client disconnect event per client when server closes', async () => {
+      const config = createMockConfig()
+      const port = createMockMessagePort()
+      const ws = createMessageChannelServer(config)
+      const disconnectHandler = vi.fn()
+
+      ws.on('vite:client:disconnect', disconnectHandler)
+      connectClient(ws, port, 'client-1')
+
+      await ws.close()
+
+      expect(disconnectHandler).toHaveBeenCalledTimes(1)
     })
   })
 

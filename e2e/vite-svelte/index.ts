@@ -19,7 +19,7 @@ async function init() {
     return
   }
 
-  vrowzer.mount(document.getElementById('app')!)
+  vrowzer.mount(document.getElementById('app')!, { id: 'preview' })
   statusEl.textContent = 'Ready'
 
   // Expose for E2E test access

@@ -107,7 +107,7 @@ onMounted(async () => {
   }
 
   if (previewContainer.value) {
-    vrowzer.mount(previewContainer.value)
+    vrowzer.mount(previewContainer.value, { id: 'preview' })
   }
 
   isReady.value = true

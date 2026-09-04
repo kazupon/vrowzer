@@ -40,6 +40,7 @@ let serverUrl: string
 let crossOriginAssetServerUrl: string
 let pageConsoleLogs: string[] = []
 let delayedServiceWorkerRequests = 0
+let hmrClientProbeId = 0
 
 function delayServiceWorkerResponse(delay: number): Plugin {
   return {
@@ -130,6 +131,82 @@ async function addPreviewFiles(files: Record<string, string>): Promise<void> {
       vrowzer.addFile(filePath, content)
     }
   }, files)
+}
+
+function createMultiSessionSource(revision: string): string {
+  return `
+const context = globalThis.__VROWZER_PREVIEW__
+globalThis.__vrowzerContextAtScriptStart = context
+globalThis.__vrowzerBootToken = crypto.randomUUID()
+document.getElementById('app').innerHTML =
+  '<h1 data-preview-id="' + context.id + '">' + context.id + '</h1>' +
+  '<p data-revision="${revision}">${revision}</p>'
+
+if (import.meta.hot) {
+  import.meta.hot.accept()
+}
+`
+}
+
+async function readHmrClientIds(): Promise<string[]> {
+  const probeId = ++hmrClientProbeId
+  const resultKey = `__vrowzerHmrClientProbe${probeId}`
+  const filePath = `/hmr-client-probe-${probeId}.js`
+  await addPreviewFiles({
+    [filePath]: `
+import clientIds from 'virtual:vrowzer-test-hmr-clients?probe=${probeId}'
+globalThis[${JSON.stringify(resultKey)}] = { clientIds }
+`
+  })
+
+  await page.evaluate(
+    ({ filePath, resultKey }) => {
+      const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement | null
+      const iframeDocument = iframe?.contentDocument
+      const iframeWindow = iframe?.contentWindow as any
+      if (!iframeDocument || !iframeWindow) {
+        throw new Error('Primary preview iframe is not available')
+      }
+      delete iframeWindow[resultKey]
+      const script = iframeDocument.createElement('script')
+      script.type = 'module'
+      script.src = `/__preview__${filePath}`
+      iframeDocument.head.append(script)
+    },
+    { filePath, resultKey }
+  )
+
+  await expect
+    .poll(
+      () =>
+        page.evaluate(resultKey => {
+          const iframe = document.querySelector(
+            '#preview-container iframe'
+          ) as HTMLIFrameElement | null
+          return (iframe?.contentWindow as any)?.[resultKey]?.clientIds
+        }, resultKey),
+      { timeout: 10_000 }
+    )
+    .toBeTruthy()
+
+  return page.evaluate(resultKey => {
+    const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement | null
+    return (iframe?.contentWindow as any)[resultKey].clientIds
+  }, resultKey)
+}
+
+async function waitForHmrClientCount(expectedCount: number): Promise<string[]> {
+  let clientIds: string[] = []
+  await expect
+    .poll(
+      async () => {
+        clientIds = await readHmrClientIds()
+        return clientIds.length
+      },
+      { timeout: 15_000 }
+    )
+    .toBe(expectedCount)
+  return clientIds
 }
 
 async function fetchFromPreview(requestPath: string): Promise<PreviewResponse> {
@@ -415,6 +492,25 @@ describe('Vrowzer E2E', () => {
       expect(text).toContain('Hello from Vrowzer!')
       expect(text).toContain('count: 0')
     }, 60000)
+
+    test('injects preview context before application scripts run', async () => {
+      const context = await page.evaluate(() => {
+        const iframe = document.querySelector(
+          '#preview-container iframe'
+        ) as HTMLIFrameElement | null
+        return {
+          captured: (iframe?.contentWindow as any)?.__vrowzerContextAtScriptStart,
+          current: (iframe?.contentWindow as any)?.__VROWZER_PREVIEW__,
+          dataset: iframe?.contentDocument?.documentElement.dataset.vrowzerPreviewId
+        }
+      })
+
+      expect(context).toEqual({
+        captured: { id: 'preview', params: { viewport: 'primary' } },
+        current: { id: 'preview', params: { viewport: 'primary' } },
+        dataset: 'preview'
+      })
+    })
   })
 
   describe('file operations', () => {
@@ -451,6 +547,278 @@ if (import.meta.hot) {
         )
         .toEqual({ updated: true, result: true })
     }, 30000)
+  })
+
+  describe('preview sessions', () => {
+    test('keeps multiple panes alive with targeted reload and unmount', async () => {
+      const dangerousMarker = '</script>\u2028\u2029'
+
+      await page.evaluate(source => {
+        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+      }, createMultiSessionSource('multi-1'))
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() =>
+              document
+                .querySelector('#preview-container iframe')
+                ?.contentDocument?.querySelector('[data-revision]')
+                ?.getAttribute('data-revision')
+            ),
+          { timeout: 15_000 }
+        )
+        .toBe('multi-1')
+
+      const mountResult = await page.evaluate(marker => {
+        const vrowzer = (window as any).__vrowzer__
+        const tabletContainer = document.createElement('div')
+        tabletContainer.id = 'preview-tablet'
+        const mobileContainer = document.createElement('div')
+        mobileContainer.id = 'preview-mobile'
+        const duplicateContainer = document.createElement('div')
+        duplicateContainer.id = 'preview-duplicate'
+        document.body.append(tabletContainer, mobileContainer, duplicateContainer)
+
+        const tablet = vrowzer.mount(tabletContainer, {
+          id: 'tablet',
+          params: { viewport: 'tablet' }
+        })
+        const mobile = vrowzer.mount(mobileContainer, {
+          id: 'mobile',
+          params: { marker, viewport: 'mobile' }
+        })
+        const duplicate = vrowzer.mount(duplicateContainer, {
+          id: 'mobile',
+          params: { viewport: 'duplicate' }
+        })
+        ;(window as any).__vrowzerMultiSessions = { mobile, tablet }
+
+        return {
+          duplicateIsSame: duplicate === mobile,
+          duplicateIframeCount: duplicateContainer.querySelectorAll('iframe').length,
+          sessionIds: vrowzer.sessions().map((session: { id: string }) => session.id)
+        }
+      }, dangerousMarker)
+
+      expect(mountResult).toEqual({
+        duplicateIsSame: true,
+        duplicateIframeCount: 0,
+        sessionIds: ['preview', 'tablet', 'mobile']
+      })
+
+      await page.waitForFunction(
+        () =>
+          ['preview-container', 'preview-tablet', 'preview-mobile'].every(containerId =>
+            document
+              .querySelector(`#${containerId} iframe`)
+              ?.contentDocument?.querySelector('[data-revision="multi-1"]')
+          ),
+        undefined,
+        { timeout: 30_000 }
+      )
+
+      const contexts = await page.evaluate(() =>
+        ['preview-container', 'preview-tablet', 'preview-mobile'].map(containerId => {
+          const iframe = document.querySelector(
+            `#${containerId} iframe`
+          ) as HTMLIFrameElement | null
+          const iframeWindow = iframe?.contentWindow as any
+          return {
+            captured: iframeWindow?.__vrowzerContextAtScriptStart,
+            current: iframeWindow?.__VROWZER_PREVIEW__,
+            dataset: iframe?.contentDocument?.documentElement.dataset.vrowzerPreviewId,
+            frozen: Object.isFrozen(iframeWindow?.__VROWZER_PREVIEW__),
+            paramsFrozen: Object.isFrozen(iframeWindow?.__VROWZER_PREVIEW__?.params)
+          }
+        })
+      )
+
+      expect(contexts).toEqual([
+        {
+          captured: { id: 'preview', params: { viewport: 'primary' } },
+          current: { id: 'preview', params: { viewport: 'primary' } },
+          dataset: 'preview',
+          frozen: true,
+          paramsFrozen: true
+        },
+        {
+          captured: { id: 'tablet', params: { viewport: 'tablet' } },
+          current: { id: 'tablet', params: { viewport: 'tablet' } },
+          dataset: 'tablet',
+          frozen: true,
+          paramsFrozen: true
+        },
+        {
+          captured: {
+            id: 'mobile',
+            params: { marker: dangerousMarker, viewport: 'mobile' }
+          },
+          current: {
+            id: 'mobile',
+            params: { marker: dangerousMarker, viewport: 'mobile' }
+          },
+          dataset: 'mobile',
+          frozen: true,
+          paramsFrozen: true
+        }
+      ])
+      const clientIdsBeforeReload = await waitForHmrClientCount(3)
+      expect(new Set(clientIdsBeforeReload).size).toBe(3)
+
+      await page.evaluate(source => {
+        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+      }, createMultiSessionSource('multi-2'))
+
+      await page.waitForFunction(
+        () =>
+          ['preview-container', 'preview-tablet', 'preview-mobile'].every(containerId =>
+            document
+              .querySelector(`#${containerId} iframe`)
+              ?.contentDocument?.querySelector('[data-revision="multi-2"]')
+          ),
+        undefined,
+        { timeout: 30_000 }
+      )
+
+      const tokensBeforeReload = (await page.evaluate(() =>
+        Object.fromEntries(
+          ['preview-container', 'preview-tablet', 'preview-mobile'].map(containerId => {
+            const iframe = document.querySelector(
+              `#${containerId} iframe`
+            ) as HTMLIFrameElement | null
+            return [containerId, (iframe?.contentWindow as any)?.__vrowzerBootToken]
+          })
+        )
+      )) as Record<string, string>
+
+      await page.evaluate(() => {
+        ;(window as any).__vrowzerMultiSessions.mobile.reload()
+      })
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(previousToken => {
+              const iframe = document.querySelector(
+                '#preview-mobile iframe'
+              ) as HTMLIFrameElement | null
+              return {
+                revision: iframe?.contentDocument
+                  ?.querySelector('[data-revision]')
+                  ?.getAttribute('data-revision'),
+                tokenChanged: (iframe?.contentWindow as any)?.__vrowzerBootToken !== previousToken
+              }
+            }, tokensBeforeReload['preview-mobile']),
+          { timeout: 30_000 }
+        )
+        .toEqual({
+          revision: 'multi-2',
+          tokenChanged: true
+        })
+
+      const tokensAfterReload = (await page.evaluate(() =>
+        Object.fromEntries(
+          ['preview-container', 'preview-tablet', 'preview-mobile'].map(containerId => {
+            const iframe = document.querySelector(
+              `#${containerId} iframe`
+            ) as HTMLIFrameElement | null
+            return [containerId, (iframe?.contentWindow as any)?.__vrowzerBootToken]
+          })
+        )
+      )) as Record<string, string>
+      expect(tokensAfterReload['preview-container']).toBe(tokensBeforeReload['preview-container'])
+      expect(tokensAfterReload['preview-tablet']).toBe(tokensBeforeReload['preview-tablet'])
+      expect(tokensAfterReload['preview-mobile']).not.toBe(tokensBeforeReload['preview-mobile'])
+      const clientIdsAfterReload = await waitForHmrClientCount(3)
+      expect(new Set(clientIdsAfterReload).size).toBe(3)
+      expect(
+        clientIdsAfterReload.filter(clientId => clientIdsBeforeReload.includes(clientId))
+      ).toHaveLength(2)
+
+      await page.evaluate(() => {
+        const vrowzer = (window as any).__vrowzer__
+        const sessions = (window as any).__vrowzerMultiSessions
+        sessions.staleTablet = sessions.tablet
+        vrowzer.unmount('tablet')
+      })
+
+      expect(
+        await page.evaluate(() => ({
+          iframeCount: document.querySelectorAll('#preview-tablet iframe').length,
+          sessionIds: (window as any).__vrowzer__
+            .sessions()
+            .map((session: { id: string }) => session.id)
+        }))
+      ).toEqual({ iframeCount: 0, sessionIds: ['preview', 'mobile'] })
+      expect(await waitForHmrClientCount(2)).toHaveLength(2)
+
+      await page.evaluate(source => {
+        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+      }, createMultiSessionSource('multi-3'))
+
+      await page.waitForFunction(
+        () =>
+          ['preview-container', 'preview-mobile'].every(containerId =>
+            document
+              .querySelector(`#${containerId} iframe`)
+              ?.contentDocument?.querySelector('[data-revision="multi-3"]')
+          ),
+        undefined,
+        { timeout: 30_000 }
+      )
+
+      await page.evaluate(() => {
+        const vrowzer = (window as any).__vrowzer__
+        const sessions = (window as any).__vrowzerMultiSessions
+        sessions.tablet = vrowzer.mount(document.getElementById('preview-tablet'), {
+          id: 'tablet',
+          params: { viewport: 'tablet-recreated' }
+        })
+      })
+
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('#preview-tablet iframe')
+            ?.contentDocument?.querySelector('[data-revision="multi-3"]'),
+        undefined,
+        { timeout: 30_000 }
+      )
+
+      const staleResult = await page.evaluate(() => {
+        const vrowzer = (window as any).__vrowzer__
+        const sessions = (window as any).__vrowzerMultiSessions
+        sessions.staleTablet.reload()
+        sessions.staleTablet.unmount()
+        vrowzer.reloadPreview(sessions.staleTablet)
+        vrowzer.unmount(sessions.staleTablet)
+        return {
+          currentPreserved: vrowzer.getSession('tablet') === sessions.tablet,
+          iframeCount: document.querySelectorAll('#preview-tablet iframe').length
+        }
+      })
+
+      expect(staleResult).toEqual({ currentPreserved: true, iframeCount: 1 })
+      expect(await waitForHmrClientCount(3)).toHaveLength(3)
+
+      await page.evaluate(() => {
+        const vrowzer = (window as any).__vrowzer__
+        vrowzer.unmount('tablet')
+        vrowzer.unmount((window as any).__vrowzerMultiSessions.mobile)
+        document.getElementById('preview-tablet')?.remove()
+        document.getElementById('preview-mobile')?.remove()
+        document.getElementById('preview-duplicate')?.remove()
+        delete (window as any).__vrowzerMultiSessions
+      })
+
+      expect(
+        await page.evaluate(() =>
+          (window as any).__vrowzer__.sessions().map((session: { id: string }) => session.id)
+        )
+      ).toEqual(['preview'])
+      expect(await waitForHmrClientCount(1)).toHaveLength(1)
+    }, 120_000)
   })
 
   describe('Service Worker', () => {
@@ -909,5 +1277,44 @@ globalThis.__vrowzerFsHtmlProxyResults = results
       expect(response.body).toContain(expectedUrl)
       expect(response.body).not.toContain("url('/__preview__/server-origin-icon.png')")
     })
+  })
+
+  describe('all-session teardown', () => {
+    test('unmounts every iframe and remounts with the existing runtime', async () => {
+      const stateAfterUnmount = await page.evaluate(() => {
+        const vrowzer = (window as any).__vrowzer__
+        vrowzer.unmount()
+        return {
+          iframeCount: document.querySelectorAll('#preview-container iframe').length,
+          sessionCount: vrowzer.sessions().length
+        }
+      })
+
+      expect(stateAfterUnmount).toEqual({ iframeCount: 0, sessionCount: 0 })
+
+      await page.evaluate(() => {
+        const vrowzer = (window as any).__vrowzer__
+        vrowzer.mount(document.getElementById('preview-container'), {
+          id: 'remounted',
+          params: { viewport: 'remounted' }
+        })
+      })
+
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector('#preview-container iframe')
+            ?.contentDocument?.querySelector('[data-revision="multi-3"]'),
+        undefined,
+        { timeout: 30_000 }
+      )
+
+      expect(
+        await page.evaluate(() =>
+          (window as any).__vrowzer__.sessions().map((session: { id: string }) => session.id)
+        )
+      ).toEqual(['remounted'])
+      expect(await waitForHmrClientCount(1)).toHaveLength(1)
+    }, 60_000)
   })
 })

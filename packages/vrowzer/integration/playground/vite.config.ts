@@ -166,6 +166,50 @@ function postcssOnceExitWebWorkerPlugin(): Plugin {
   }
 }
 
+function hmrClientTrackingWebWorkerPlugin(): Plugin {
+  const virtualId = 'virtual:vrowzer-test-hmr-clients'
+  const resolvedVirtualId = `\0${virtualId}`
+  const clientIds = new Set<string>()
+  let runtimeServer: ViteDevServer | undefined
+
+  return {
+    name: 'vrowzer-test:hmr-client-tracking-web-worker',
+    apply: 'serve',
+    configureServer(server) {
+      const middlewares = (server as { middlewares?: unknown }).middlewares
+      if (server.config.root !== '/' || middlewares) {
+        return
+      }
+
+      runtimeServer = server
+      server.ws.on('vite:client:connect', (_data, client) => {
+        if (client.clientId) {
+          clientIds.add(client.clientId)
+        }
+      })
+      server.ws.on('vite:client:disconnect', (_data, client) => {
+        if (client.clientId) {
+          clientIds.delete(client.clientId)
+        }
+      })
+    },
+    resolveId(id) {
+      if (id === virtualId || id.startsWith(`${virtualId}?`)) {
+        return `\0${id}`
+      }
+    },
+    load(id) {
+      if (!id.startsWith(resolvedVirtualId)) {
+        return
+      }
+      if (!runtimeServer) {
+        throw new Error('Web Worker dev server is not available')
+      }
+      return `export default ${JSON.stringify([...clientIds])}`
+    }
+  }
+}
+
 export default defineConfig({
   server: {
     origin: 'https://assets.vrowzer.test'
@@ -174,6 +218,7 @@ export default defineConfig({
     trailingSlashWebWorkerPlugin(),
     fsHtmlProxyWebWorkerPlugin(),
     postcssOnceExitWebWorkerPlugin(),
+    hmrClientTrackingWebWorkerPlugin(),
     Vrowzer({
       auto: false,
       basePath: '/__preview__/',

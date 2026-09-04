@@ -38,6 +38,7 @@ document.getElementById('app').innerHTML = \`
   <h1>Hello from Vrowzer!</h1>
   <p id="counter">count: 0</p>
 \`
+globalThis.__vrowzerContextAtScriptStart = globalThis.__VROWZER_PREVIEW__
 
 if (import.meta.hot) {
   import.meta.hot.accept()
@@ -52,7 +53,10 @@ if (import.meta.hot) {
     }
 
     status.textContent = 'Mounting preview...'
-    await vrowzer.mount(container)
+    vrowzer.mount(container, {
+      id: 'preview',
+      params: { viewport: 'primary' }
+    })
     status.textContent = 'Ready'
   } catch (error) {
     status.textContent = `Error: ${error instanceof Error ? error.message : String(error)}`

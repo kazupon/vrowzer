@@ -19,7 +19,7 @@
  *
  * if (ready) {
  *   // Mount preview iframe into a container element
- *   vrowzer.mount(document.getElementById('preview-container'))
+ *   vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
  * }
  *
  * // Update files (triggers HMR)
@@ -63,6 +63,8 @@ import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/contro
 
 const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
 const DEFAULT_WEB_WORKER_SETUP_TIMEOUT = 90_000
+
+type ReadyState = 'idle' | 'initializing' | 'ready' | 'failed'
 
 /**
  * VrowzerOptions defines the configuration options for {@link Vrowzer}.
@@ -123,6 +125,74 @@ export interface VrowzerConfig {
 }
 
 /**
+ * Options for mounting a preview session.
+ */
+export interface PreviewMountOptions {
+  /**
+   * Host-defined identity for the preview pane.
+   */
+  id: string
+  /**
+   * Values exposed to the preview document before its scripts run.
+   */
+  params?: Record<string, string>
+}
+
+/**
+ * Context exposed to the mounted preview document.
+ */
+export interface PreviewContext {
+  /**
+   * Host-defined preview session identity.
+   */
+  readonly id: string
+  /**
+   * Optional values provided when the preview session was mounted.
+   */
+  readonly params?: Readonly<Record<string, string>>
+}
+
+/**
+ * A mounted preview iframe managed by a {@link Vrowzer} instance.
+ */
+export interface PreviewSession {
+  /**
+   * Host-defined preview session identity.
+   */
+  readonly id: string
+  /**
+   * Iframe used by this preview session.
+   */
+  readonly iframe: HTMLIFrameElement
+  /**
+   * Container that owns the iframe.
+   */
+  readonly container: HTMLElement
+  /**
+   * Reloads only this preview document.
+   */
+  reload(): void
+  /**
+   * Removes only this preview document.
+   */
+  unmount(): void
+}
+
+/**
+ * A preview session target accepted by lifecycle methods.
+ */
+export type PreviewSessionRef = string | PreviewSession
+
+declare global {
+  interface Window {
+    /**
+     * Context for the current Vrowzer preview document.
+     */
+    __VROWZER_PREVIEW__?: Readonly<PreviewContext>
+  }
+}
+
+/**
  * Event map for {@link Vrowzer}.
  *
  * Forwards all {@link SvcWorkerControllerEventMap} events from the underlying Service Worker controller.
@@ -138,6 +208,7 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    *
    * This method initializes the Web Worker, Service Worker, and MessageChannel,
    * then syncs initial files to both workers.
+   * It can only be called once per Vrowzer instance.
    *
    * @return A promise that resolves to `true` if the boot process is successful, or `false` if it fails.
    */
@@ -148,13 +219,37 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * Creates a credentialless iframe with srcdoc bootstrap that fetches
    * the preview HTML via the Service Worker.
    *
+   * Reusing an existing session ID returns the original session without reloading or moving it.
+   * The container and params from the first mount remain in effect.
+   *
    * @param container - A DOM element where the preview iframe will be mounted.
+   * @param options - Preview identity and context values.
+   * @returns The mounted preview session.
    */
-  mount(container: HTMLElement): void
+  mount(container: HTMLElement, options: PreviewMountOptions): PreviewSession
   /**
-   * Reloads the preview iframe
+   * Returns the currently mounted preview session for an ID.
+   *
+   * @param id - Host-defined preview session identity.
    */
-  reloadPreview(): void
+  getSession(id: string): PreviewSession | undefined
+  /**
+   * Returns a snapshot of all currently mounted preview sessions.
+   */
+  sessions(): readonly PreviewSession[]
+  /**
+   * Reloads one preview session, or every session when no target is provided.
+   *
+   * @param target - A session ID or mounted session object.
+   */
+  reloadPreview(target?: PreviewSessionRef): void
+  /**
+   * Unmounts one preview session, or every session when no target is provided.
+   * The shared Service Worker, Web Worker, and virtual filesystem remain active.
+   *
+   * @param target - A session ID or mounted session object.
+   */
+  unmount(target?: PreviewSessionRef): void
   /**
    * Adds a new file to the preview environment with the specified content.
    *
@@ -181,6 +276,11 @@ interface ResolvedVrowzerOptions {
   serviceWorkerScope: string
   serviceWorkerReadyTimeout: number
   webWorkerSetupTimeout: number
+}
+
+interface PreviewSessionRecord {
+  context: Readonly<PreviewContext>
+  session: PreviewSession
 }
 
 function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
@@ -210,6 +310,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   })
 }
 
+function serializeInlineScriptValue(value: unknown): string {
+  const serialized = JSON.stringify(value)
+  if (serialized === undefined) {
+    throw new TypeError('Preview bootstrap value is not serializable')
+  }
+  return serialized
+    .replaceAll('<', '\\u003c')
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029')
+}
+
 /**
  * Factory function to create a {@link Vrowzer} instance.
  * @param options - Configuration options for the Vrowzer instance.
@@ -220,8 +331,9 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
 
   const _emitter = Emitter<VrowzerEventMap>()
   const publisher: FileSystemPublisher = createFileSystemPublisher()
+  const previewSessions = new Map<string, PreviewSessionRecord>()
   let webWorker: Worker | null = null
-  let iframe: HTMLIFrameElement | null = null
+  let readyState: ReadyState = 'idle'
 
   function cleanupWebWorker(): void {
     if (!webWorker) {
@@ -285,7 +397,10 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     )
   }
 
-  function createBootstrapHtml(previewUrl: string): string {
+  function createBootstrapHtml(previewUrl: string, context: Readonly<PreviewContext>): string {
+    const serializedPreviewUrl = serializeInlineScriptValue(previewUrl)
+    const serializedContext = serializeInlineScriptValue(context)
+
     // Fetch preview HTML via SW, then inject DOM and execute scripts manually.
     // We avoid document.write() (deprecated) because it doesn't guarantee
     // ESM module execution order in about:srcdoc iframes.
@@ -294,7 +409,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
 <script>
 (async () => {
   try {
-    const res = await fetch('${previewUrl}');
+    const res = await fetch(${serializedPreviewUrl});
     const html = await res.text();
     const origin = new URL(res.url).origin;
     const parsed = new DOMParser().parseFromString(html, 'text/html');
@@ -305,6 +420,13 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     document.body.innerHTML = '';
     for (const n of [...parsed.body.childNodes])
       if (n.nodeName !== 'SCRIPT') document.body.appendChild(document.importNode(n, true));
+
+    // Expose the pane context before any preview script runs.
+    const previewContext = ${serializedContext};
+    if (previewContext.params) Object.freeze(previewContext.params);
+    Object.freeze(previewContext);
+    document.documentElement.dataset.vrowzerPreviewId = previewContext.id;
+    window.__VROWZER_PREVIEW__ = previewContext;
 
     // Pre-setup React DevTools hook so hook.inject() populates renderers Map
     // before React Refresh's injectIntoGlobalHook() wraps it.
@@ -362,9 +484,39 @@ function execScript(orig, origin) {
 </body></html>`
   }
 
+  function resolveSession(target: PreviewSessionRef): PreviewSessionRecord | undefined {
+    if (typeof target === 'string') {
+      return previewSessions.get(target)
+    }
+    const record = previewSessions.get(target.id)
+    return record?.session === target ? record : undefined
+  }
+
+  function reloadSession(record: PreviewSessionRecord): void {
+    if (previewSessions.get(record.session.id) !== record) {
+      return
+    }
+    record.session.iframe.srcdoc = createBootstrapHtml(resolved.basePath, record.context)
+  }
+
+  function unmountSession(record: PreviewSessionRecord): void {
+    if (previewSessions.get(record.session.id) !== record) {
+      return
+    }
+    previewSessions.delete(record.session.id)
+    record.session.iframe.remove()
+  }
+
   const instance: Vrowzer = {
     ..._emitter,
     async ready(config: VrowzerConfig): Promise<boolean> {
+      if (readyState !== 'idle') {
+        throw new Error(
+          `[Vrowzer] ready() can only be called once per instance (current state: ${readyState})`
+        )
+      }
+      readyState = 'initializing'
+
       try {
         // 1. Create Web Worker + add as publisher target
         webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
@@ -497,16 +649,28 @@ function execScript(orig, origin) {
         // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
         await establishChannel()
 
+        readyState = 'ready'
         return true
       } catch (error) {
+        readyState = 'failed'
         cleanupWebWorker()
         console.error('[Vrowzer] ready() failed:', error)
         return false
       }
     },
 
-    mount(container: HTMLElement): void {
-      iframe = document.createElement('iframe')
+    mount(container: HTMLElement, options: PreviewMountOptions): PreviewSession {
+      if (!options || typeof options.id !== 'string' || options.id.length === 0) {
+        throw new TypeError('[Vrowzer] mount() requires a non-empty preview session id')
+      }
+
+      const id = options.id
+      const existing = previewSessions.get(id)
+      if (existing) {
+        return existing.session
+      }
+
+      const iframe = document.createElement('iframe')
       iframe.setAttribute(
         'sandbox',
         'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox'
@@ -515,13 +679,68 @@ function execScript(orig, origin) {
       iframe.style.cssText = 'width: 100%; height: 100%; border: none;'
       container.appendChild(iframe)
 
+      const params = options.params === undefined ? undefined : Object.freeze({ ...options.params })
+      const context: Readonly<PreviewContext> = Object.freeze({
+        id,
+        ...(params === undefined ? {} : { params })
+      })
+      let session!: PreviewSession
+      session = Object.freeze({
+        id,
+        iframe,
+        container,
+        reload: () => {
+          const record = previewSessions.get(id)
+          if (record?.session === session) {
+            reloadSession(record)
+          }
+        },
+        unmount: () => {
+          const record = previewSessions.get(id)
+          if (record?.session === session) {
+            unmountSession(record)
+          }
+        }
+      })
+      const record = { context, session }
+      previewSessions.set(id, record)
+
       // srcdoc bootstrap: fetch preview HTML via Service Worker
-      iframe.srcdoc = createBootstrapHtml(resolved.basePath)
+      iframe.srcdoc = createBootstrapHtml(resolved.basePath, context)
+      return session
     },
 
-    reloadPreview(): void {
-      if (iframe) {
-        iframe.srcdoc = createBootstrapHtml(resolved.basePath)
+    getSession(id: string): PreviewSession | undefined {
+      return previewSessions.get(id)?.session
+    },
+
+    sessions(): readonly PreviewSession[] {
+      return Object.freeze([...previewSessions.values()].map(record => record.session))
+    },
+
+    reloadPreview(target?: PreviewSessionRef): void {
+      if (target === undefined) {
+        for (const record of [...previewSessions.values()]) {
+          reloadSession(record)
+        }
+        return
+      }
+      const record = resolveSession(target)
+      if (record) {
+        reloadSession(record)
+      }
+    },
+
+    unmount(target?: PreviewSessionRef): void {
+      if (target === undefined) {
+        for (const record of [...previewSessions.values()]) {
+          unmountSession(record)
+        }
+        return
+      }
+      const record = resolveSession(target)
+      if (record) {
+        unmountSession(record)
       }
     },
 

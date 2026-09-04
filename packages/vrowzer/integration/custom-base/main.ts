@@ -26,7 +26,7 @@ async function init() {
       return
     }
 
-    vrowzer.mount(container)
+    vrowzer.mount(container, { id: 'preview' })
     status.textContent = 'Ready'
   } catch (error) {
     status.textContent = `Error: ${error instanceof Error ? error.message : String(error)}`

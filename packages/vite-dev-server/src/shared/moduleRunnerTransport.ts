@@ -194,7 +194,8 @@ export const normalizeModuleRunnerTransport = (
 ): NormalizedModuleRunnerTransport => {
   const invokeableTransport = createInvokeableTransport(transport)
 
-  let isConnected = !invokeableTransport.connect
+  let connectionState: 'disconnected' | 'connecting' | 'connected' =
+    invokeableTransport.connect ? 'disconnected' : 'connected'
   let connectingPromise: Promise<void> | undefined
 
   return {
@@ -202,35 +203,51 @@ export const normalizeModuleRunnerTransport = (
     ...(invokeableTransport.connect
       ? {
         async connect(onMessage) {
-          if (isConnected) { return }
+          if (connectionState === 'connected') { return }
           if (connectingPromise) {
             await connectingPromise
             return
           }
 
-          const maybePromise = invokeableTransport.connect!({
-            onMessage: onMessage ?? (() => { }),
-            onDisconnection() {
-              isConnected = false
-            },
-          })
-          if (maybePromise) {
-            connectingPromise = maybePromise
-            await connectingPromise
-            connectingPromise = undefined
+          connectionState = 'connecting'
+          let connectResult: Promise<void> | void
+          try {
+            connectResult = invokeableTransport.connect!({
+              onMessage: onMessage ?? (() => { }),
+              onDisconnection() {
+                connectionState = 'disconnected'
+              },
+            })
+          } catch (error) {
+            connectionState = 'disconnected'
+            throw error
           }
-          isConnected = true
+
+          const currentConnectingPromise = Promise.resolve(connectResult)
+          connectingPromise = currentConnectingPromise
+          try {
+            await currentConnectingPromise
+            if (connectionState === 'connecting') {
+              connectionState = 'connected'
+            }
+          } catch (error) {
+            if (connectionState === 'connecting') {
+              connectionState = 'disconnected'
+            }
+            throw error
+          } finally {
+            if (connectingPromise === currentConnectingPromise) {
+              connectingPromise = undefined
+            }
+          }
         },
       }
       : {}),
     ...(invokeableTransport.disconnect
       ? {
         async disconnect() {
-          if (!isConnected) { return }
-          if (connectingPromise) {
-            await connectingPromise
-          }
-          isConnected = false
+          if (connectionState === 'disconnected') { return }
+          connectionState = 'disconnected'
           await invokeableTransport.disconnect!()
         },
       }
@@ -238,22 +255,24 @@ export const normalizeModuleRunnerTransport = (
     async send(data) {
       if (!invokeableTransport.send) { return }
 
-      if (!isConnected) {
+      if (connectionState !== 'connected') {
         if (connectingPromise) {
           await connectingPromise
-        } else {
-          throw new SendBeforeConnectError('send was called before connect')
         }
+      }
+      if (connectionState !== 'connected') {
+        throw new SendBeforeConnectError('send was called before connect')
       }
       await invokeableTransport.send(data)
     },
     async invoke(name, data) {
-      if (!isConnected) {
+      if (connectionState !== 'connected') {
         if (connectingPromise) {
           await connectingPromise
-        } else {
-          throw new SendBeforeConnectError('invoke was called before connect')
         }
+      }
+      if (connectionState !== 'connected') {
+        throw new SendBeforeConnectError('invoke was called before connect')
       }
       return invokeableTransport.invoke(name, data)
     },
@@ -291,7 +310,8 @@ export const createMessageChannelModuleRunnerTransport = (
     async connect({ onMessage, onDisconnection }) {
       // Create `MessageChannel`
       const channel = new MessageChannel()
-      sourcePort = safeMessagePort<SourcePortType>(channel.port1)
+      const currentSourcePort = safeMessagePort<SourcePortType>(channel.port1)
+      sourcePort = currentSourcePort
       const clientId = nanoid()
 
       // Transfer `port2` to host via `postMessage`
@@ -302,31 +322,70 @@ export const createMessageChannelModuleRunnerTransport = (
       )
 
       // Wait for connection confirmation (`vite:mc:init` echo from remote)
-      await new Promise<void>((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error('MessageChannel connection timeout'))
-        }, timeout)
+      try {
+        await new Promise<void>((resolve, reject) => {
+          let settled = false
+          const timeoutId = setTimeout(() => {
+            settle(() => reject(new Error('MessageChannel connection timeout')))
+          }, timeout)
 
-        sourcePort!.once('message', event => {
-          if (event.data.type === MC_INIT_EVENT) {
-            clearTimeout(timeoutId)
-            if (event.data.clientId !== clientId) {
-              reject(new Error(`Client ID mismatch: expected ${clientId}, got ${event.data.clientId}`))
-            } else {
-              resolve()
+          let stopMessageListener: () => void = () => {}
+          let stopCloseListener: () => void = () => {}
+          const settle = (callback: () => void): void => {
+            if (settled) {
+              return
             }
+            settled = true
+            clearTimeout(timeoutId)
+            stopMessageListener()
+            stopCloseListener()
+            callback()
           }
+
+          stopMessageListener = currentSourcePort.once('message', event => {
+            if (event.data.type === MC_INIT_EVENT) {
+              const receivedClientId = event.data.clientId
+              if (receivedClientId !== clientId) {
+                settle(() =>
+                  reject(
+                    new Error(
+                      `Client ID mismatch: expected ${clientId}, got ${receivedClientId}`,
+                    ),
+                  ),
+                )
+              } else {
+                settle(resolve)
+              }
+            }
+          })
+          stopCloseListener = currentSourcePort.once('close', () => {
+            settle(() =>
+              reject(
+                new Error('MessageChannel connection closed before confirmation'),
+              ),
+            )
+          })
         })
-      })
+      } catch (error) {
+        if (sourcePort === currentSourcePort) {
+          currentSourcePort.close()
+          sourcePort = undefined
+        }
+        throw error
+      }
+
+      if (sourcePort !== currentSourcePort) {
+        throw new Error('MessageChannel connection closed before confirmation')
+      }
 
       // Set up message listener
-      sourcePort.on('message', (event) => {
+      currentSourcePort.on('message', (event) => {
         const data = event.data
         if (event.data.type === 'custom' && event.data.event === WS_DISCONNECT_EVENT) {
           onMessage({
             type: 'custom',
             event: WS_DISCONNECT_EVENT,
-            data: { port: sourcePort }
+            data: { port: currentSourcePort }
           })
           onDisconnection()
           return
@@ -338,7 +397,7 @@ export const createMessageChannelModuleRunnerTransport = (
       onMessage({
         type: 'custom',
         event: WS_CONNECT_EVENT,
-        data: { port: sourcePort }
+        data: { port: currentSourcePort }
       })
 
       // Set up ping interval for keep-alive (optional)

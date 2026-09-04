@@ -103,7 +103,7 @@ onMounted(async () => {
 
   // Mount preview iframe
   if (previewContainer.value) {
-    await vrowzer.mount(previewContainer.value)
+    vrowzer.mount(previewContainer.value, { id: 'preview' })
   }
 
   isReady.value = true

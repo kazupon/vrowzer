@@ -94,4 +94,17 @@ describe('Vrowzer Service Worker ready timeout', () => {
     await expect(vrowzer.ready({ files: {} })).resolves.toBe(false)
     expect(consoleError).toHaveBeenCalledWith('[Vrowzer] ready() failed:', failure)
   })
+
+  test('rejects concurrent and subsequent ready calls', async () => {
+    const vrowzer = Vrowzer()
+
+    const firstReady = vrowzer.ready({ files: {} })
+    await expect(vrowzer.ready({ files: {} })).rejects.toThrow(
+      'ready() can only be called once per instance (current state: initializing)'
+    )
+    await expect(firstReady).resolves.toBe(true)
+    await expect(vrowzer.ready({ files: {} })).rejects.toThrow(
+      'ready() can only be called once per instance (current state: ready)'
+    )
+  })
 })
