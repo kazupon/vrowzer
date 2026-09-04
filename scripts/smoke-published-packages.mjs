@@ -10,7 +10,7 @@ import {
 } from './lib/release-packages.mjs'
 import { isDirectExecution, parseReleaseTag, runCommand } from './lib/release-utils.mjs'
 
-const retryAttempts = 12
+const retryAttempts = 30
 const retryDelay = 10_000
 const publishedSmokeRootNames = Object.freeze(['vrowzer', '@vrowzer/vite-plugin'])
 
@@ -44,27 +44,32 @@ export async function waitForPublishedPackages({
   commandRunner = runCommand,
   sleep = delay
 }) {
-  let missing = []
+  let missing = [...packages]
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    missing = []
-    for (const packageInfo of packages) {
+    const unpublished = []
+    for (const packageInfo of missing) {
       const publishedVersion = await getRegistryVersion(packageInfo, version, commandRunner)
       if (publishedVersion !== version) {
-        missing.push(packageInfo.name)
+        unpublished.push(packageInfo)
       }
     }
+    missing = unpublished
 
     if (missing.length === 0) {
       return
     }
     if (attempt < attempts) {
-      console.log(`Waiting for npm registry (${attempt}/${attempts}): ${missing.join(', ')}`)
+      console.log(
+        `Waiting for npm registry (${attempt}/${attempts}): ${missing.map(packageInfo => packageInfo.name).join(', ')}`
+      )
       await sleep(delayMilliseconds)
     }
   }
 
-  throw new Error(`npm registry did not expose ${version} for: ${missing.join(', ')}`)
+  throw new Error(
+    `npm registry did not expose ${version} for: ${missing.map(packageInfo => packageInfo.name).join(', ')}`
+  )
 }
 
 function packageManifestPath(projectDirectory, packageName) {
