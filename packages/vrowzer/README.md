@@ -60,7 +60,7 @@ const ready = await vrowzer.ready({
 
 if (ready) {
   // Mount preview iframe into a container element
-  vrowzer.mount(document.getElementById('preview-container'))
+  vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
 }
 
 // Update files (triggers HMR)
@@ -158,6 +158,7 @@ Set this option to `0` for an immediate timeout. It does not apply to Service Wo
 #### `ready(config): Promise<boolean>`
 
 Initializes the preview system: creates Web Worker and Service Worker, establishes a MessageChannel between them, and syncs initial files.
+Call this method once per Vrowzer instance. Use one initialized Vrowzer instance per page and share it with every preview session.
 
 ```ts
 const ready = await vrowzer.ready({
@@ -168,12 +169,55 @@ const ready = await vrowzer.ready({
 })
 ```
 
-#### `mount(container): void`
+#### `mount(container, options): PreviewSession`
 
-Mounts a preview iframe into the given DOM element. The iframe uses `credentialless` and `sandbox="allow-scripts allow-same-origin"` attributes, and loads content via the Service Worker using a `srcdoc` bootstrap.
+Mounts a preview iframe into the given DOM element. `options.id` is a host-defined, non-empty pane identity. Mounting the same ID again returns the existing session without moving or reloading its iframe; the first container and params remain in effect.
 
 ```ts
-vrowzer.mount(document.getElementById('preview'))
+const desktop = vrowzer.mount(document.getElementById('desktop'), {
+  id: 'desktop',
+  params: { viewport: 'desktop' }
+})
+const mobile = vrowzer.mount(document.getElementById('mobile'), {
+  id: 'mobile',
+  params: { viewport: 'mobile' }
+})
+```
+
+Each iframe uses `credentialless` and `sandbox="allow-scripts allow-same-origin"`, and loads content through a `srcdoc` bootstrap. Before preview scripts run, Vrowzer exposes the session context through `window.__VROWZER_PREVIEW__` and `document.documentElement.dataset.vrowzerPreviewId`.
+
+```ts
+const { id, params } = window.__VROWZER_PREVIEW__!
+```
+
+Changing host focus does not affect a session. Keep the session mounted to preserve its current document.
+
+#### `getSession(id): PreviewSession | undefined`
+
+Returns the currently mounted session for a host-defined ID.
+
+#### `sessions(): readonly PreviewSession[]`
+
+Returns a frozen snapshot of all currently mounted sessions.
+
+#### `reloadPreview(target?): void`
+
+Reloads the session selected by an ID or `PreviewSession`. Omitting the target reloads every mounted session.
+
+```ts
+vrowzer.reloadPreview(mobile)
+desktop.reload()
+vrowzer.reloadPreview()
+```
+
+#### `unmount(target?): void`
+
+Removes the selected session iframe and its HMR client. Omitting the target unmounts every iframe. The shared Service Worker, Web Worker, and virtual filesystem remain ready.
+
+```ts
+vrowzer.unmount('mobile')
+desktop.unmount()
+vrowzer.unmount()
 ```
 
 #### `updateFile(path, content): void`
@@ -191,10 +235,6 @@ Adds a new file to the virtual filesystem.
 #### `deleteFile(path): void`
 
 Deletes a file from the virtual filesystem.
-
-#### `reloadPreview(): void`
-
-Reloads the preview iframe.
 
 ## 🏗️ Architecture
 

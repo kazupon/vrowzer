@@ -197,6 +197,7 @@ export function createMessageChannelServer(
   const safePorts = new Set<SafeMessagePort>()
   const customListeners = new Map<string, Set<MessageChannelCustomListener<any>>>()
   const clientsMap = new WeakMap<SafeMessagePort, MessageChannelClient>()
+  const clientIdsMap = new WeakMap<SafeMessagePort, string>()
   const serverEmitter = Emitter<{ connection: MessagePort; close: void; error: Error }>()
 
   // On page reloads, if a file fails to compile and returns 500, the server
@@ -225,6 +226,18 @@ export function createMessageChannelServer(
     }
   }
 
+  function removeClient(safePort: SafeMessagePort): void {
+    if (!safePorts.delete(safePort)) {
+      return
+    }
+    emitCustomEvent(
+      'vite:client:disconnect',
+      undefined,
+      safePort,
+      clientIdsMap.get(safePort),
+    )
+  }
+
   /**
    * Activate a port: send handshake messages and buffered payloads
    */
@@ -251,6 +264,9 @@ export function createMessageChannelServer(
   function handlePort(rawPort: MessagePort, clientId?: string) {
     const safePort = safeMessagePort<HotPayload>(rawPort)
     safePorts.add(safePort)
+    if (clientId !== undefined) {
+      clientIdsMap.set(safePort, clientId)
+    }
 
     // Set up message handler
     safePort.on('message', msgEvent => {
@@ -272,6 +288,10 @@ export function createMessageChannelServer(
       //   error: err,
       // })
       serverEmitter.emit('error', err as unknown as Error)
+    })
+
+    safePort.on('close', () => {
+      removeClient(safePort)
     })
 
     // If already listening, activate immediately
@@ -364,14 +384,14 @@ export function createMessageChannelServer(
       isListening = true
       // Activate any ports registered before listen()
       for (const safePort of safePorts) {
-        activatePort(safePort, safePort.raw)
+        activatePort(safePort, safePort.raw, clientIdsMap.get(safePort))
       }
     },
 
     async close() {
       // Notify all clients of disconnection
-      for (const safePort of safePorts) {
-        emitCustomEvent('vite:client:disconnect', undefined, safePort)
+      for (const safePort of [...safePorts]) {
+        removeClient(safePort)
         safePort.postMessage({
           type: 'custom',
           event: 'vite:ws:disconnect',

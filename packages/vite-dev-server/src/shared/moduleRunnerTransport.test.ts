@@ -141,6 +141,7 @@ describe('createMessageChannelModuleRunnerTransport', () => {
           onDisconnection: vi.fn(),
         })
       ).rejects.toThrow('MessageChannel connection timeout')
+      expect(mockPort1Close).toHaveBeenCalledTimes(1)
     })
 
     it('calls onMessage for received messages after connection', async () => {
@@ -222,6 +223,26 @@ describe('createMessageChannelModuleRunnerTransport', () => {
   })
 
   describe('disconnect()', () => {
+    it('closes the port and rejects a pending connection', async () => {
+      const mockPostMessage = vi.fn()
+      const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
+        timeout: 1000,
+        pingInterval: 0,
+      })
+
+      const connectPromise = transport.connect({
+        onMessage: vi.fn(),
+        onDisconnection: vi.fn(),
+      })
+
+      transport.disconnect()
+
+      expect(mockPort1Close).toHaveBeenCalledTimes(1)
+      await expect(connectPromise).rejects.toThrow(
+        'MessageChannel connection closed before confirmation'
+      )
+    })
+
     it('closes the port', async () => {
       const mockPostMessage = vi.fn()
       const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
@@ -476,7 +497,7 @@ describe('normalizeModuleRunnerTransport', () => {
       expect(mockDisconnect).not.toHaveBeenCalled()
     })
 
-    it('does nothing if disconnect is called while connecting (not yet connected)', async () => {
+    it('disconnects immediately while connecting and stays disconnected', async () => {
       let resolveConnect: () => void
       const connectPromise = new Promise<void>((resolve) => {
         resolveConnect = resolve
@@ -492,18 +513,16 @@ describe('normalizeModuleRunnerTransport', () => {
       const normalized = normalizeModuleRunnerTransport(transport)
 
       const connectP = normalized.connect!()
-      // disconnect is called before connect completes, so isConnected is still false
       await normalized.disconnect!()
 
-      // disconnect should return early because isConnected is false
-      expect(mockDisconnect).not.toHaveBeenCalled()
+      expect(mockDisconnect).toHaveBeenCalledTimes(1)
 
       resolveConnect!()
       await connectP
 
-      // Now we can disconnect properly
-      await normalized.disconnect!()
-      expect(mockDisconnect).toHaveBeenCalled()
+      await expect(normalized.send({ type: 'ping' } as any)).rejects.toBeInstanceOf(
+        SendBeforeConnectError
+      )
     })
   })
 

@@ -55,10 +55,30 @@ Deletes a specific file from the preview environment.
 
 ***
 
+### getSession()
+
+```ts
+getSession(id: string): PreviewSession | undefined;
+```
+
+Returns the currently mounted preview session for an ID.
+
+#### Parameters
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Host-defined preview session identity. |
+
+#### Returns
+
+[`PreviewSession`](/packages/vrowzer/docs/default/interfaces/PreviewSession.md) | `undefined`
+
+***
+
 ### mount()
 
 ```ts
-mount(container: HTMLElement): void;
+mount(container: HTMLElement, options: PreviewMountOptions): PreviewSession;
 ```
 
 Mounts the preview system to a specified container element in the DOM.
@@ -66,15 +86,19 @@ Mounts the preview system to a specified container element in the DOM.
 Creates a credentialless iframe with srcdoc bootstrap that fetches
 the preview HTML via the Service Worker.
 
+Reusing an existing session ID returns the original session without reloading or moving it.
+The container and params from the first mount remain in effect.
+
 #### Parameters
 
 | Name | Type | Description |
 | --- | --- | --- |
 | `container` | `HTMLElement` | A DOM element where the preview iframe will be mounted. |
+| `options` | [`PreviewMountOptions`](/packages/vrowzer/docs/default/interfaces/PreviewMountOptions.md) | Preview identity and context values. |
 
 #### Returns
 
-`void`
+[`PreviewSession`](/packages/vrowzer/docs/default/interfaces/PreviewSession.md) — The mounted preview session.
 
 ***
 
@@ -88,6 +112,7 @@ Ready for preview system initialization.
 
 This method initializes the Web Worker, Service Worker, and MessageChannel,
 then syncs initial files to both workers.
+It can only be called once per Vrowzer instance.
 
 #### Parameters
 
@@ -104,10 +129,51 @@ then syncs initial files to both workers.
 ### reloadPreview()
 
 ```ts
-reloadPreview(): void;
+reloadPreview(target?: PreviewSessionRef): void;
 ```
 
-Reloads the preview iframe
+Reloads one preview session, or every session when no target is provided.
+
+#### Parameters
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `target` | [`PreviewSessionRef`](/packages/vrowzer/docs/default/type-aliases/PreviewSessionRef.md) | A session ID or mounted session object. _(optional)_ |
+
+#### Returns
+
+`void`
+
+***
+
+### sessions()
+
+```ts
+sessions(): readonly PreviewSession[];
+```
+
+Returns a snapshot of all currently mounted preview sessions.
+
+#### Returns
+
+`readonly` [`PreviewSession`](/packages/vrowzer/docs/default/interfaces/PreviewSession.md)\[\]
+
+***
+
+### unmount()
+
+```ts
+unmount(target?: PreviewSessionRef): void;
+```
+
+Unmounts one preview session, or every session when no target is provided.
+The shared Service Worker, Web Worker, and virtual filesystem remain active.
+
+#### Parameters
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `target` | [`PreviewSessionRef`](/packages/vrowzer/docs/default/type-aliases/PreviewSessionRef.md) | A session ID or mounted session object. _(optional)_ |
 
 #### Returns
 

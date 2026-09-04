@@ -49,6 +49,7 @@ const hmrTimeout = __HMR_TIMEOUT__
 const wsToken = __WS_TOKEN__
 const isBundleMode = __BUNDLED_DEV__
 const forwardConsole = __SERVER_FORWARD_CONSOLE__
+let willUnload = false
 
 const transport = normalizeModuleRunnerTransport(
   (() => {
@@ -65,15 +66,17 @@ const transport = normalizeModuleRunnerTransport(
         try {
           await transport.connect(handlers)
         } catch (e) {
-          const currentScriptHostURL = new URL(import.meta.url)
-          const currentScriptHost =
-            currentScriptHostURL.host +
-            currentScriptHostURL.pathname.replace(/@vite\/client$/, '')
-          console.error(
-            '[vrowzer] failed to connect to MessageChannel.\n' +
-            'your current setup:\n' +
-            `  (browser) ${currentScriptHost} <--[Message Channel]--> ${serverHost} (server: service worker)\n`,
-          )
+          if (!willUnload) {
+            const currentScriptHostURL = new URL(import.meta.url)
+            const currentScriptHost =
+              currentScriptHostURL.host +
+              currentScriptHostURL.pathname.replace(/@vite\/client$/, '')
+            console.error(
+              '[vrowzer] failed to connect to MessageChannel.\n' +
+                'your current setup:\n' +
+                `  (browser) ${currentScriptHost} <--[Message Channel]--> ${serverHost} (server: service worker)\n`,
+            )
+          }
           throw e
         }
       },
@@ -157,11 +160,16 @@ const transport = normalizeModuleRunnerTransport(
 //   })(),
 // )
 
-let willUnload = false
 if (typeof window !== 'undefined') {
   // window can be misleadingly defined in a worker if using define (see #19307)
   window.addEventListener?.('beforeunload', () => {
     willUnload = true
+  })
+  window.addEventListener?.('pagehide', (event) => {
+    willUnload = true
+    if (!event.persisted) {
+      void transport.disconnect?.()
+    }
   })
 }
 
@@ -246,7 +254,7 @@ const hmrClient = new HMRClient(
 )
 
 console.log('[vrowzer] connecting to HMR MessageChannel server...')
-transport.connect!(createHMRHandler(handleMessage))
+void Promise.resolve(transport.connect!(createHMRHandler(handleMessage))).catch(() => {})
 setupForwardConsoleHandler(transport, forwardConsole)
 
 async function handleMessage(payload: HotPayload) {
