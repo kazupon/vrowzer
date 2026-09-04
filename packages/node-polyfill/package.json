@@ -1,7 +1,7 @@
 {
   "name": "@vrowzer/node-polyfill",
   "description": "Browser-compatible Node.js module polyfills for vrowzer",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"

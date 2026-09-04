@@ -1,7 +1,7 @@
 {
   "name": "@vrowzer/unplugin-service-worker",
   "description": "unplugin for @vrowzer/service-worker",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
