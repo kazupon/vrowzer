@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 type ServiceWorkerPluginFactory = (options: unknown) => { name: string }
@@ -10,9 +11,21 @@ vi.mock('@vrowzer/unplugin-service-worker/vite', () => ({
   default: serviceWorkerPluginFactory
 }))
 
-import { Vrowzer } from './index.ts'
+vi.mock('node:fs', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:fs')>()
+  return { ...actual, readFileSync: vi.fn<typeof actual.readFileSync>(actual.readFileSync) }
+})
+vi.mock('./extract.ts', { spy: true })
+vi.mock('./prebundle.ts', () => ({
+  cleanOutputDir: vi.fn<typeof cleanOutputDir>(),
+  prebundleWorkerConfig: vi.fn<typeof prebundleWorkerConfig>()
+}))
 
-import type { UserConfig } from 'vite'
+import { Vrowzer } from './index.ts'
+import { extractWorkerConfig } from './extract.ts'
+import { cleanOutputDir, prebundleWorkerConfig } from './prebundle.ts'
+
+import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
 
 function resolveVrowzerConfig(options: Parameters<typeof Vrowzer>[0] = {}): UserConfig {
   const plugin = Vrowzer(options).find(plugin => plugin.name === 'vrowzer:config')
@@ -118,5 +131,197 @@ describe('Vrowzer', () => {
     expect(serviceWorkerPluginFactory).toHaveBeenCalledWith(
       expect.objectContaining({ entry: '/custom/service-worker.ts', format: 'esm' })
     )
+  })
+})
+
+describe('Worker config extraction', () => {
+  const bundledPath = '/host/node_modules/.vrowzer/config.bundled.mjs'
+  const hostSource = `
+import react from '@vitejs/plugin-react'
+import { Vrowzer } from '@vrowzer/vite-plugin'
+export default {
+  plugins: [react(), Vrowzer({ auto: false, extract: false })],
+  define: { __HOST__: 'true' },
+  html: { cspNonce: 'host-nonce' },
+  input: '/host.html',
+  environments: { client: { input: '/host-client.html' } }
+}
+`
+  const forwardConsole = { enabled: false, unhandledErrors: false, logLevels: [] }
+
+  function createPlugin(options: Parameters<typeof Vrowzer>[0] = {}): Plugin {
+    return Vrowzer(options).find(plugin => plugin.name === 'vrowzer:config')!
+  }
+
+  async function configure(
+    plugin: Plugin,
+    overrides: Partial<Pick<ResolvedConfig, 'root' | 'command'>> & {
+      configFile?: string | false | undefined
+      server?: UserConfig['server']
+    } = {}
+  ): Promise<void> {
+    const config = {
+      root: '/host',
+      command: 'serve',
+      configFile: '/host/vite.config.ts',
+      server: {},
+      ...overrides
+    } as ResolvedConfig
+    await (plugin.configResolved as (config: ResolvedConfig) => Promise<void>)(config)
+  }
+
+  async function generatedConfig(): Promise<UserConfig> {
+    const source = vi.mocked(prebundleWorkerConfig).mock.calls.at(-1)![0].workerSource
+    const module = await import(
+      /* @vite-ignore */ `data:text/javascript,${encodeURIComponent(source)}`
+    )
+    return module.default
+  }
+
+  beforeEach(() => {
+    vi.mocked(readFileSync).mockReset().mockReturnValue(hostSource)
+    vi.mocked(extractWorkerConfig).mockClear()
+    vi.mocked(cleanOutputDir).mockClear()
+    vi.mocked(prebundleWorkerConfig).mockReset().mockResolvedValue(bundledPath)
+  })
+
+  test.each([true, false])('skips host file reads and extraction with auto=%s', async auto => {
+    await configure(createPlugin({ auto, extract: false }))
+
+    expect(readFileSync).not.toHaveBeenCalled()
+    expect(extractWorkerConfig).not.toHaveBeenCalled()
+    expect(cleanOutputDir).toHaveBeenCalledWith('/host')
+    expect(prebundleWorkerConfig).toHaveBeenCalledWith({
+      workerSource: expect.any(String),
+      root: '/host',
+      configDir: '/host'
+    })
+    expect(await generatedConfig()).toEqual({ plugins: [] })
+  })
+
+  test('does not parse callback or nested host plugins when extraction is disabled', async () => {
+    vi.mocked(readFileSync).mockReturnValue(`
+export default defineConfig(({ mode }) => ({
+  plugins: [[mode === 'development' ? react() : null], Vrowzer({ extract: false })]
+}))
+`)
+    await configure(createPlugin({ extract: false }))
+
+    expect(readFileSync).not.toHaveBeenCalled()
+    expect(extractWorkerConfig).not.toHaveBeenCalled()
+    expect(await generatedConfig()).toEqual({ plugins: [] })
+  })
+
+  test.each([
+    { origin: 'https://assets.example.test' },
+    { forwardConsole },
+    { origin: 'https://assets.example.test/"quoted"\\path', forwardConsole },
+    {}
+  ])('forwards only resolved server wiring: %j', async server => {
+    await configure(createPlugin({ extract: false }), {
+      server: {
+        ...server,
+        port: 4173,
+        proxy: { '/api': 'http://localhost:3000' },
+        fs: { strict: true }
+      }
+    })
+
+    expect(await generatedConfig()).toEqual({
+      plugins: [],
+      ...(Object.keys(server).length > 0 ? { server } : {})
+    })
+  })
+
+  test.each([false, undefined] as const)(
+    'prebundles without a config file (%s)',
+    async configFile => {
+      await configure(createPlugin({ extract: false }), { configFile, root: '/inline-root' })
+
+      expect(readFileSync).not.toHaveBeenCalled()
+      expect(extractWorkerConfig).not.toHaveBeenCalled()
+      expect(prebundleWorkerConfig).toHaveBeenCalledWith({
+        workerSource: expect.any(String),
+        root: '/inline-root',
+        configDir: '/inline-root'
+      })
+      expect(await generatedConfig()).toEqual({ plugins: [] })
+    }
+  )
+
+  test.each(['serve', 'build'] as const)(
+    'injects the empty config and aliases in %s',
+    async command => {
+      const resolve = { alias: [{ find: 'preview-lib', replacement: '/vendor/preview-lib.js' }] }
+      const plugin = createPlugin({ extract: false, resolve })
+      await configure(plugin, { command, configFile: false })
+
+      const config = (plugin.config as () => UserConfig)()
+      const workerPlugins = (await config.worker!.plugins!()) as Plugin[]
+      const workerPlugin = workerPlugins.find(
+        plugin => plugin.name === 'vrowzer:web-worker-config-inject'
+      )!
+
+      for (const entryPlugin of [plugin, workerPlugin]) {
+        const result = (entryPlugin.transform as (code: string, id: string) => { code: string })(
+          'initWebWorker()',
+          '/vrowzer/web-worker.ts?worker_file&type=module'
+        )
+        expect(result.code).toContain(`import config from '${bundledPath}'`)
+        expect(result.code).toContain(JSON.stringify(resolve))
+        expect(result.code).toContain('Object.assign(resolved, { resolve: workerResolve })')
+        expect(result.code).toContain('initWebWorker(resolved)')
+      }
+    }
+  )
+
+  test.each([{}, { extract: true }])('preserves extraction with %j', async options => {
+    await configure(createPlugin({ auto: false, ...options }), {
+      configFile: '/host/config/vite.config.ts',
+      server: { origin: 'https://assets.example.test', forwardConsole }
+    })
+
+    expect(readFileSync).toHaveBeenCalledWith('/host/config/vite.config.ts', 'utf-8')
+    expect(extractWorkerConfig).toHaveBeenCalledWith(hostSource, '/host/config/vite.config.ts', {
+      serverOrigin: 'https://assets.example.test',
+      serverForwardConsole: forwardConsole
+    })
+    const prebundleOptions = vi.mocked(prebundleWorkerConfig).mock.calls[0]![0]
+    expect(prebundleOptions.configDir).toBe('/host/config')
+    expect(prebundleOptions.workerSource).toContain("from '@vitejs/plugin-react'")
+    expect(prebundleOptions.workerSource).toContain('react()')
+    expect(prebundleOptions.workerSource).not.toContain('Vrowzer')
+    expect(prebundleOptions.workerSource).toContain('define:')
+    expect(prebundleOptions.workerSource).toContain('html:')
+    expect(prebundleOptions.workerSource).toContain('environments:')
+  })
+
+  test('preserves the early fallback without adding server settings', async () => {
+    vi.mocked(readFileSync).mockReturnValue('export default () => ({ plugins: [] })')
+    await configure(createPlugin(), {
+      server: { origin: 'https://assets.example.test', forwardConsole }
+    })
+
+    expect(extractWorkerConfig).toHaveReturnedWith({
+      code: 'export default { plugins: [] }',
+      unsupported: ['config is not an object expression']
+    })
+    expect(await generatedConfig()).toEqual({ plugins: [] })
+  })
+
+  test('keeps skipping config generation without a file in default mode', async () => {
+    await configure(createPlugin(), { configFile: false })
+
+    expect(readFileSync).not.toHaveBeenCalled()
+    expect(extractWorkerConfig).not.toHaveBeenCalled()
+    expect(cleanOutputDir).not.toHaveBeenCalled()
+    expect(prebundleWorkerConfig).not.toHaveBeenCalled()
+  })
+
+  test('propagates prebundle failures when extraction is disabled', async () => {
+    const error = new Error('prebundle failed')
+    vi.mocked(prebundleWorkerConfig).mockRejectedValueOnce(error)
+
+    await expect(configure(createPlugin({ extract: false }))).rejects.toBe(error)
   })
 })

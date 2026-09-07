@@ -141,6 +141,38 @@ export default defineConfig({
 })
 ```
 
+### Embedding a separate preview
+
+By default, Vrowzer extracts plugins and supported settings from the host Vite config for the preview's Web Worker. This also happens with `auto: false`, which only disables automatic manifest generation. Manual playgrounds can still share the host's Vue or Svelte plugins.
+
+When the host is an editor or application shell and the preview files come from `ready({ files })`, disable both automatic manifest generation and host config extraction:
+
+```ts
+// vite.config.ts
+import react from '@vitejs/plugin-react'
+import { Vrowzer } from '@vrowzer/vite-plugin'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    Vrowzer({
+      auto: false,
+      extract: false,
+      resolve: {
+        alias: [{ find: 'preview-lib', replacement: '/vendor/preview-lib.js' }]
+      }
+    })
+  ]
+})
+```
+
+`extract: false` skips reading and parsing the host config for the Worker. Host plugins, `define`, `html`, `input`, and `environments` are not copied. Host Vite still loads its own config and runs its plugins normally.
+
+Vrowzer generates and prebundles a Worker config with an empty user-plugin list, even when there is no host config file. Worker-specific `resolve` options and the resolved host `server.origin` / `server.forwardConsole` settings still apply. The Worker's built-in Vite plugins and Worker asset bundling remain active. `auto` and `extract` are independent; both default to `true`.
+
+This option belongs to `@vrowzer/vite-plugin`, not the runtime `Vrowzer()` or `ready()` API. It does not provide an alternative way to register preview-only Vue or Svelte plugins; that is tracked in [Issue #33](https://github.com/kazupon/vrowzer/issues/33).
+
 ### Browser IDE (experimental)
 
 Enable the browser IDE to get a full development environment at `/__vrowzer__/` with File Explorer, Monaco Editor, and live Preview.
@@ -186,6 +218,10 @@ Vrowzer({
   // Enable auto manifest generation
   // Default: true
   auto: true,
+
+  // Extract the host Vite config for the preview's Web Worker
+  // Default: true (independent of auto)
+  extract: true,
 
   // Auto manifest options (used when auto: true)
   manifest: {
@@ -234,6 +270,7 @@ Vrowzer({
 | Option                 | Type                         | Default                                   | Description                                                                               |
 | ---------------------- | ---------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `auto`                 | `boolean`                    | `true`                                    | Enable auto manifest generation. Set `false` to use `VrowzerManifest()` manually.         |
+| `extract`              | `boolean`                    | `true`                                    | Copy host plugins and supported config into the preview Worker. Set `false` for a separate preview app. |
 | `manifest`             | `VrowzerManifestOptions`     | `undefined`                               | Auto manifest options (sourceDir, pkgDir, targets). Used when `auto: true`.               |
 | `experimental`         | `VrowzerExperimentalOptions` | `undefined`                               | Experimental features. Currently supports `ide`.                                          |
 | `basePath`             | `string`                     | `'/__preview__/'`                         | Preview URL pathname shared with the application and Service Worker bundles.              |

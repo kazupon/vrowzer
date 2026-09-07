@@ -6,6 +6,7 @@ describe('resolveOptions', () => {
     const resolved = resolveOptions({})
 
     expect(resolved.auto).toBe(true)
+    expect(resolved.extract).toBe(true)
     expect(resolved.basePath).toBe('/__preview__/')
     expect(resolved.serviceWorkerScope).toBe('/')
     expect(resolved.serviceWorkerVersion).toBe('vrowzer-v1')
@@ -15,6 +16,16 @@ describe('resolveOptions', () => {
     const resolved = resolveOptions({ auto: false })
 
     expect(resolved.auto).toBe(false)
+    expect(resolved.extract).toBe(true)
+  })
+
+  test.each([
+    [true, true],
+    [true, false],
+    [false, true],
+    [false, false]
+  ])('resolves auto=%s and extract=%s independently', (auto, extract) => {
+    expect(resolveOptions({ auto, extract })).toMatchObject({ auto, extract })
   })
 
   test('respects custom basePath', () => {
