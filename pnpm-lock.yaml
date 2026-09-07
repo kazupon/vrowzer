@@ -310,6 +310,15 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/vrowzer
 
+  e2e/playground/extract-disabled:
+    dependencies:
+      '@vrowzer/vite-plugin':
+        specifier: workspace:*
+        version: link:../../../packages/vite-plugin
+      vrowzer:
+        specifier: workspace:*
+        version: link:../../../packages/vrowzer
+
   e2e/vite-react:
     dependencies:
       react:

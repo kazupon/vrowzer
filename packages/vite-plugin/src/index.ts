@@ -34,6 +34,20 @@ const inject = injectModule.default as unknown as (
   options?: RollupInjectOptions
 ) => Record<string, unknown>
 
+function createEmptyWorkerConfig(server: ResolvedConfig['server']): string {
+  const forwardedServer: Partial<Pick<ResolvedConfig['server'], 'origin' | 'forwardConsole'>> = {}
+  if (server.origin !== undefined) {
+    forwardedServer.origin = server.origin
+  }
+  if (server.forwardConsole !== undefined) {
+    forwardedServer.forwardConsole = server.forwardConsole
+  }
+  return `export default ${JSON.stringify({
+    plugins: [],
+    ...(Object.keys(forwardedServer).length > 0 ? { server: forwardedServer } : {})
+  })}`
+}
+
 export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
   const resolvedOptions = resolveOptions(options)
   const root = process.cwd()
@@ -114,28 +128,28 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
       isBuild = config.command === 'build'
 
       const viteConfigPath = config.configFile
-      if (!viteConfigPath) {
+      if (resolvedOptions.extract && !viteConfigPath) {
         debug('no vite.config.ts found, skipping extraction')
         return
       }
 
-      debug('extracting worker config from:', viteConfigPath)
-
       cleanOutputDir(config.root)
 
-      const configDir = dirname(viteConfigPath)
-      const viteConfigSource = readFileSync(viteConfigPath, 'utf-8')
-      const { code: workerSource, unsupported } = extractWorkerConfig(
-        viteConfigSource,
-        viteConfigPath,
-        {
+      const configDir = viteConfigPath ? dirname(viteConfigPath) : config.root
+      let workerSource: string
+      if (resolvedOptions.extract && viteConfigPath) {
+        debug('extracting worker config from:', viteConfigPath)
+        const viteConfigSource = readFileSync(viteConfigPath, 'utf-8')
+        const { code, unsupported } = extractWorkerConfig(viteConfigSource, viteConfigPath, {
           serverOrigin: config.server.origin,
           serverForwardConsole: config.server.forwardConsole
+        })
+        workerSource = code
+        if (unsupported.length > 0) {
+          debug('unsupported patterns found:', unsupported)
         }
-      )
-
-      if (unsupported.length > 0) {
-        debug('unsupported patterns found:', unsupported)
+      } else {
+        workerSource = createEmptyWorkerConfig(config.server)
       }
 
       debug('generated worker source:\n', workerSource)

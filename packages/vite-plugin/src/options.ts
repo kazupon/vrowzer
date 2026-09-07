@@ -88,6 +88,17 @@ export interface VrowzerOptions {
    */
   auto?: boolean
   /**
+   * Extract the host Vite config for the preview's Web Worker.
+   *
+   * Set `false` for embedding hosts whose plugins and source configuration should
+   * not be copied into the preview. Worker-specific `resolve` options and resolved
+   * `server.origin` / `server.forwardConsole` settings still apply.
+   * This option is independent of auto manifest generation.
+   *
+   * @default true
+   */
+  extract?: boolean
+  /**
    * Auto manifest generation options (used when auto: true).
    */
   manifest?: VrowzerManifestOptions
@@ -149,6 +160,7 @@ export interface ResolvedIdeOptions {
 
 export interface ResolvedVrowzerOptions {
   auto: boolean
+  extract: boolean
   manifest: VrowzerManifestOptions | undefined
   ide: ResolvedIdeOptions
   basePath: string
@@ -191,6 +203,7 @@ export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
   const ide = options.experimental?.ide
   return {
     auto: options.auto ?? true,
+    extract: options.extract ?? true,
     manifest: options.manifest,
     ide: {
       enabled: !!ide,
