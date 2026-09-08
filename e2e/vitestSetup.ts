@@ -15,7 +15,7 @@ import { afterAll, beforeAll, inject } from 'vite-plus/test'
 import { build, createServer, preview } from 'vite'
 
 import type { Browser, Page } from '@playwright/test'
-import type { PreviewServer, ViteDevServer } from 'vite'
+import type { Logger, PreviewServer, ViteDevServer } from 'vite'
 
 export const isBuild = !!process.env.VROWZER_TEST_BUILD
 export const isServe = !isBuild
@@ -47,7 +47,10 @@ function resolveHostDir(testPath: string): string {
 /**
  * Start a Vite server for the given host directory.
  */
-async function startServer(hostDir: string): Promise<{
+export async function startServer(
+  hostDir: string,
+  customLogger?: Logger
+): Promise<{
   server: ViteDevServer | PreviewServer
   serverUrl: string
 }> {
@@ -61,12 +64,14 @@ async function startServer(hostDir: string): Promise<{
     debug('Building host...', hostDir)
     await build({
       root: hostDir,
+      ...(customLogger ? { customLogger } : {}),
       build: { minify: false }
     })
     debug('Build complete')
 
     const srv = await preview({
       root: hostDir,
+      ...(customLogger ? { customLogger } : {}),
       preview: { port: 0, strictPort: false, headers }
     })
     const address = srv.httpServer.address()
@@ -76,11 +81,17 @@ async function startServer(hostDir: string): Promise<{
   } else {
     const srv = await createServer({
       root: hostDir,
+      ...(customLogger ? { customLogger } : {}),
       server: { port: 0, strictPort: false, headers }
     })
-    await srv.listen()
-    // Avoid optimizer reloads interrupting Vrowzer's worker handshake.
-    await srv.warmupRequest('/index.ts')
+    try {
+      await srv.listen()
+      // Avoid optimizer reloads interrupting Vrowzer's worker handshake.
+      await srv.warmupRequest('/index.ts')
+    } catch (error) {
+      await srv.close()
+      throw error
+    }
     const url = srv.resolvedUrls!.local[0]!
     debug('Dev server started at', url)
     return { server: srv, serverUrl: url }

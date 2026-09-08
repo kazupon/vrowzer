@@ -16,11 +16,86 @@ vi.mock('../plugins/oxc', () => ({
   getRollupJsxPresets: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 
+vi.mock('../optimizer/optimizer', () => ({
+  createDepsOptimizer: vi.fn<typeof createDepsOptimizer>(),
+  createExplicitDepsOptimizer: vi.fn<typeof createExplicitDepsOptimizer>(),
+}))
+
+vi.mock('../optimizer', () => ({
+  isDepOptimizationDisabled: vi.fn<() => boolean>(() => false),
+}))
+
+vi.mock('./warmup', () => ({
+  warmupFiles: vi.fn<() => void>(),
+}))
+
+vi.mock('../ssr/fetchModule', () => ({ fetchModule: vi.fn<() => void>() }))
+vi.mock('./transformRequest', () => ({ transformRequest: vi.fn<() => void>() }))
+vi.mock('./hmr', () => ({
+  getShortName: (file: string) => file,
+  updateModules: vi.fn<() => void>(),
+  normalizeHotChannel: () => ({
+    setInvokeHandler: vi.fn<() => void>(),
+    on: vi.fn<() => void>(),
+    listen: vi.fn<() => void>(),
+    close: vi.fn<() => void>(),
+  }),
+}))
+
 import type { InputOption } from 'rolldown'
 import type { Plugin } from '../plugin'
-import type { DevEnvironment } from './environment'
+import type { ResolvedConfig } from '../config'
+import type { DepsOptimizer } from '../optimizer'
+import { createDepsOptimizer, createExplicitDepsOptimizer } from '../optimizer/optimizer'
+import { DevEnvironment } from './environment'
 import { createEnvironmentPluginContainer } from './pluginContainer'
 import { registerInputsAsSafeModules } from './safeModulePaths'
+
+describe('Worker dependency optimizer isolation', () => {
+  test.each([
+    { disabled: 'build', noDiscovery: false },
+    { disabled: false, noDiscovery: true, include: ['svelte'] },
+  ])('does not create or initialize an optimizer with %j', async optimizeDeps => {
+    const init = vi.fn<DepsOptimizer['init']>()
+    const suppliedOptimizer = { init } as unknown as DepsOptimizer
+    vi.mocked(createDepsOptimizer).mockClear()
+    vi.mocked(createExplicitDepsOptimizer).mockClear()
+    const environmentOptions = {
+      optimizeDeps,
+      plugins: [],
+      resolve: { builtins: [] },
+    }
+    const config = {
+      root: '/',
+      plugins: [],
+      build: { rollupOptions: {} },
+      environments: { client: environmentOptions, ssr: environmentOptions },
+      server: { perEnvironmentStartEndDuringDev: false },
+    } as unknown as ResolvedConfig
+
+    for (const name of ['client', 'ssr']) {
+      const environment = new DevEnvironment(name, config, {
+        hot: false,
+        disableDepsOptimizer: true,
+        depsOptimizer: suppliedOptimizer,
+      })
+      expect(environment.depsOptimizer).toBeUndefined()
+      try {
+        await environment.init()
+        await environment.listen({} as Parameters<DevEnvironment['listen']>[0])
+        expect(environment.depsOptimizer).toBeUndefined()
+      } finally {
+        if (environment._pluginContainer) {
+          await environment.close()
+        }
+      }
+    }
+
+    expect(createDepsOptimizer).not.toHaveBeenCalled()
+    expect(createExplicitDepsOptimizer).not.toHaveBeenCalled()
+    expect(init).not.toHaveBeenCalled()
+  })
+})
 
 function createRegistrationContext(
   input: InputOption | undefined,

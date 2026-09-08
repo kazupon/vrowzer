@@ -63,11 +63,11 @@ function createWorkerScope() {
   } as unknown as DedicatedWorkerGlobalScope
 }
 
-function dispatchSetup(workerScope: DedicatedWorkerGlobalScope): Promise<void> {
+function dispatchSetup(workerScope: DedicatedWorkerGlobalScope, config: Record<string, unknown> = {}): Promise<void> {
   return Promise.resolve(workerScope.onmessage?.({
     data: {
       type: V_WW_SETUP,
-      config: {},
+      config,
       options: {},
       files: {},
     },
@@ -189,5 +189,64 @@ describe('Web Worker server listen timeout', () => {
 
     await expect(server.listen()).rejects.toBe(failure)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('rejects reserved config changes before starting the transformer', async () => {
+    const workerScope = createWorkerScope()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const server = createServer(workerScope, {
+      protectRuntimeConfig: true,
+      inlineConfig: { base: '/host/' },
+    })
+    const failure = server.listen().catch(error => error as Error)
+    await dispatchSetup(workerScope, { root: '/', base: '/preview/', publicDir: 'public' })
+    expect(await failure).toMatchObject({ message: expect.stringContaining('runtime-owned base') })
+    expect(transformerMocks.setupWorker).not.toHaveBeenCalled()
+    expect(workerScope.postMessage).toHaveBeenCalledWith({
+      type: V_WW_SETUP_ERROR,
+      error: expect.objectContaining({ message: expect.stringContaining('runtime-owned base') }),
+    })
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('forwards the protected defaults separately from user config and plugins', async () => {
+    const workerScope = createWorkerScope()
+    const plugin = { name: 'preview' }
+    const runtime = {
+      root: '/', base: '/preview/', publicDir: 'public',
+      optimizeDeps: { disabled: true },
+      experimental: { bundledDev: false },
+    }
+    const server = createServer(workerScope, {
+      protectRuntimeConfig: true,
+      plugins: [plugin],
+      inlineConfig: { optimizeDeps: { exclude: ['local'] }, server: { forwardConsole: false } },
+    })
+    const listening = server.listen()
+    await dispatchSetup(workerScope, runtime)
+    await listening
+    expect(transformerMocks.setupWorker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        base: '/preview/',
+        optimizeDeps: { disabled: true, exclude: ['local'] },
+        server: { forwardConsole: false },
+        plugins: [plugin],
+      }),
+      { runtimeConfig: expect.objectContaining({ base: '/preview/', optimizeDeps: { disabled: true } }) },
+      {},
+      undefined,
+    )
+    expect(runtime.optimizeDeps).toEqual({ disabled: true })
+  })
+
+  test('does not impose standard preview reservations on standalone server users', async () => {
+    const workerScope = createWorkerScope()
+    const server = createServer(workerScope, { inlineConfig: { root: '/custom', base: '/standalone/' } })
+    const listening = server.listen()
+    await dispatchSetup(workerScope, { root: '/', base: '/' })
+    await listening
+    expect(transformerMocks.setupWorker).toHaveBeenCalledWith(
+      { root: '/custom', base: '/standalone/' }, {}, {}, undefined,
+    )
   })
 })

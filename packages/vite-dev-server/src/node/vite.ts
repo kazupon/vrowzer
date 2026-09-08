@@ -59,6 +59,11 @@ export function loadEnv(
 }
 
 // --- Plugin types ---
+// Keep this helper independent of the heavy config resolver and its WASM imports.
+export function defineConfig<T extends import('./config').UserConfig>(config: T): T {
+  return config
+}
+
 export type { UserConfig } from './config'
 export type { Plugin } from './plugin'
 export type { HmrOptions, WsOptions } from './server/hmr'

@@ -21,8 +21,12 @@ export function generateWebWorkerEntry(configPath: string, resolve?: { alias?: A
 
   return `
 import { initWebWorker } from 'vrowzer/web-worker-core'
-import config from '${configPath}'
-const resolved = config.default ?? config
+import config from ${JSON.stringify(configPath.replaceAll('\\', '/'))}
+const workerConfig = config?.default ?? config
+if (!workerConfig || typeof workerConfig !== 'object' || Array.isArray(workerConfig)) {
+  throw new Error('[vrowzer] Worker config must export a config object')
+}
+const resolved = { ...workerConfig }
 ${resolveBlock}
 initWebWorker(resolved)
 `

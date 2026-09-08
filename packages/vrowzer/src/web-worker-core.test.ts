@@ -65,6 +65,7 @@ describe('initWebWorker', () => {
     const initializing = initWebWorker()
     await vi.waitFor(() => expect(serverMocks.createServer).toHaveBeenCalledOnce())
     const options = serverMocks.createServer.mock.calls[0]![1]
+    expect(options).toMatchObject({ protectRuntimeConfig: true })
     const queuedMessage = { type: 'V_FS_WRITE', path: '/main.ts', content: 'test' }
     await options.onUnhandledMessage({ data: queuedMessage } as MessageEvent)
 

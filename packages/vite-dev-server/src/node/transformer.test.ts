@@ -2,9 +2,9 @@ import { createVirtualFSWatcher } from '@vrowzer/fs/watcher'
 import { describe, expect, onTestFinished, test, vi } from 'vite-plus/test'
 
 // transformer.ts is also a runtime barrel. Stub its re-export graph so this
-// test exercises setupHMR without initializing browser WASM or memfs.
+// test exercises setupWorker and setupHMR without initializing browser WASM.
 vi.mock('@vrowzer/fs', () => ({
-  fs: {},
+  fs: { mkdirSync: vi.fn<() => void>(), writeFileSync: vi.fn<() => void>() },
   vol: {},
 }))
 
@@ -36,7 +36,7 @@ vi.mock('../shared/rpc', () => ({
 vi.mock('./config', () => ({
   defineConfig: (config: unknown) => config,
   isResolvedConfig: () => false,
-  resolveConfig: async () => ({}),
+  resolveConfig: vi.fn<() => Promise<object>>(async () => ({})),
 }))
 
 vi.mock('./plugins/esbuild', () => ({
@@ -94,7 +94,7 @@ vi.mock('./server/transformAccess', () => ({
 }))
 
 vi.mock('./server/ws', () => ({
-  createMessageChannelServer: () => ({}),
+  createMessageChannelServer: vi.fn<() => object>(() => ({})),
   isMessageChannelServer: () => false,
 }))
 
@@ -141,7 +141,55 @@ vi.mock('./watch', () => ({
   resolveEmptyOutDir: () => false,
 }))
 
-import { setupHMR } from './transformer'
+import { setupHMR, setupWorker } from './transformer'
+import { resolveConfig } from './config'
+import { createMessageChannelServer } from './server/ws'
+import { snapshotWorkerRuntimeConfig } from './worker-runtime-config'
+
+describe('setupWorker runtime config boundary', () => {
+  test('disables dependency optimization in every environment despite framework config changes', async () => {
+    const runtime = { root: '/', base: '/preview/', publicDir: 'public', optimizeDeps: { disabled: true } }
+    const environments = Object.fromEntries(['client', 'ssr', 'custom'].map(name => [name, {
+      name,
+      init: vi.fn<() => Promise<void>>(async () => undefined),
+      hot: { listen: vi.fn<() => void>() },
+    }]))
+    const factories = Object.fromEntries(Object.entries(environments).map(([name, environment]) => [name, {
+      dev: { createEnvironment: vi.fn<() => Promise<typeof environment>>(async () => environment) },
+    }]))
+    vi.mocked(resolveConfig).mockResolvedValueOnce({
+      ...runtime,
+      optimizeDeps: { disabled: 'build' },
+      publicDir: '/public',
+      build: { outDir: 'dist', rollupOptions: {} },
+      environments: factories,
+    } as unknown as Awaited<ReturnType<typeof resolveConfig>>)
+
+    await setupWorker({}, { runtimeConfig: snapshotWorkerRuntimeConfig(runtime) })
+
+    for (const [name, factory] of Object.entries(factories)) {
+      expect(factory.dev.createEnvironment).toHaveBeenCalledWith(
+        name,
+        expect.objectContaining({ optimizeDeps: { disabled: 'build' } }),
+        expect.objectContaining({ disableDepsOptimizer: true }),
+      )
+      expect(environments[name]!.init).toHaveBeenCalledOnce()
+      expect(environments[name]!.hot.listen).toHaveBeenCalledOnce()
+    }
+  })
+
+  test('waits for config resolution and rejects hook changes before creating HMR resources', async () => {
+    const runtime = { root: '/', base: '/preview/', publicDir: 'public' }
+    let finish!: (value: Awaited<ReturnType<typeof resolveConfig>>) => void
+    vi.mocked(resolveConfig).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    vi.mocked(createMessageChannelServer).mockClear()
+    const failure = setupWorker({}, { runtimeConfig: snapshotWorkerRuntimeConfig(runtime) }).catch(error => error as Error)
+    expect(createMessageChannelServer).not.toHaveBeenCalled()
+    finish({ ...runtime, base: '/changed-by-hook/' } as Awaited<ReturnType<typeof resolveConfig>>)
+    expect(await failure).toMatchObject({ message: expect.stringContaining('runtime-owned base') })
+    expect(createMessageChannelServer).not.toHaveBeenCalled()
+  })
+})
 
 describe('setupHMR watcher error handling', () => {
   test.each([

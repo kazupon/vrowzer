@@ -19,6 +19,28 @@ describe('resolveOptions', () => {
     expect(resolved.extract).toBe(true)
   })
 
+  test.each([undefined, false])('uses workerConfig with extract=%s', extract => {
+    expect(
+      resolveOptions({ workerConfig: './worker.ts', ...(extract === undefined ? {} : { extract }) })
+    ).toMatchObject({
+      workerConfig: './worker.ts',
+      extract: false,
+      auto: true
+    })
+  })
+
+  test('rejects explicit extraction with workerConfig', () => {
+    expect(() => resolveOptions({ workerConfig: './worker.ts', extract: true })).toThrow(
+      'explicit extract: true'
+    )
+  })
+
+  test.each(['', '   ', null, false, {}, 1])('rejects invalid workerConfig %j', workerConfig => {
+    expect(() => resolveOptions({ workerConfig: workerConfig as string })).toThrow(
+      'workerConfig must be a non-empty file path'
+    )
+  })
+
   test.each([
     [true, true],
     [true, false],
