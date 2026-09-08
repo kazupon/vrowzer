@@ -1,0 +1,17 @@
+{
+  "name": "@vrowzer/e2e-worker-config",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "svelte": "catalog:"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@vrowzer/vite-plugin": "workspace:*",
+    "vite": "catalog:",
+    "vrowzer": "workspace:*"
+  }
+}

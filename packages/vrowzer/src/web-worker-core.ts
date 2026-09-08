@@ -47,6 +47,7 @@ export async function initWebWorker(options?: InitWebWorkerOptions) {
 
   const serverOptions = {
     watcher: watcher as any,
+    protectRuntimeConfig: true,
     ...(plugins ? { plugins } : {}),
     ...(Object.keys(inlineConfig).length > 0 ? { inlineConfig } : {}),
     onUnhandledMessage: async (event: MessageEvent) => {

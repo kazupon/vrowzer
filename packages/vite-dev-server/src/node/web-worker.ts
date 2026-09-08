@@ -20,6 +20,7 @@
 
 import { createDebugger } from './utils'
 import { connectSafeModulePathSync } from '../shared/rpc'
+import { mergeWorkerRuntimeConfig, snapshotWorkerRuntimeConfig } from './worker-runtime-config'
 
 // NOTE(kazupon): Only type-only imports from heavy modules.
 // Runtime imports of ./transformer happen after V_WW_SETUP via dynamic import.
@@ -66,6 +67,8 @@ export interface CreateServerOptions {
    * Merged into the V_WW_SETUP config before resolveConfig().
    */
   inlineConfig?: Record<string, unknown>
+  /** @internal Protect the standard Vrowzer preview's runtime-owned settings. */
+  protectRuntimeConfig?: boolean
   /**
    * Callback for messages not handled by the server protocol.
    * Use this for app-specific messages (e.g. 'bundle').
@@ -135,25 +138,22 @@ export function createServer(
           setupTimer = null
         }
         try {
-          debug?.('V_WW_SETUP received, loading transformer...')
-
-          // Dynamic import — heavy modules loaded here for the first time
-          const transformer = await import('./transformer')
-          debug?.('transformer loaded, initializing...')
-
           const setupMsg = event.data as SetupWorkerMessage
-          // Merge user config from vrowzer.config.ts into the setup config.
-          // inlineConfig contains non-plugin fields (resolve.alias, define, etc.)
-          // plugins are merged separately.
-          let setupConfig = { ...setupMsg.config }
-          if (options.inlineConfig) {
-            setupConfig = { ...setupConfig, ...options.inlineConfig }
-          }
+          const runtime = options.protectRuntimeConfig
+            ? snapshotWorkerRuntimeConfig(setupMsg.config)
+            : undefined
+          let setupConfig = runtime
+            ? mergeWorkerRuntimeConfig(setupMsg.config, options.inlineConfig ?? {}, runtime)
+            : { ...setupMsg.config, ...options.inlineConfig }
           if (options.plugins?.length) {
             setupConfig.plugins = [...(setupConfig.plugins as any[] ?? []), ...options.plugins]
           }
 
-          const result = await transformer.setupWorker(setupConfig, setupMsg.options, setupMsg.files, options.watcher)
+          debug?.('V_WW_SETUP received, loading transformer...')
+          const transformer = await import('./transformer')
+          debug?.('transformer loaded, initializing...')
+          const setupOptions = runtime ? { ...setupMsg.options, runtimeConfig: runtime } : setupMsg.options
+          const result = await transformer.setupWorker(setupConfig, setupOptions, setupMsg.files, options.watcher)
           const { config, environments, watcher, moduleGraph } = result
           ws = result.ws
           const clientEnv = environments.client

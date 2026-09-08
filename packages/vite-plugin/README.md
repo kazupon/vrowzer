@@ -145,7 +145,7 @@ export default defineConfig({
 
 By default, Vrowzer extracts plugins and supported settings from the host Vite config for the preview's Web Worker. This also happens with `auto: false`, which only disables automatic manifest generation. Manual playgrounds can still share the host's Vue or Svelte plugins.
 
-When the host is an editor or application shell and the preview files come from `ready({ files })`, disable both automatic manifest generation and host config extraction:
+When the host is an editor or application shell and the preview files come from `ready({ files })`, disable automatic manifest generation and give the Web Worker its own config:
 
 ```ts
 // vite.config.ts
@@ -159,19 +159,105 @@ export default defineConfig({
     Vrowzer({
       auto: false,
       extract: false,
-      resolve: {
-        alias: [{ find: 'preview-lib', replacement: '/vendor/preview-lib.js' }]
-      }
+      workerConfig: './vrowzer.worker.config.ts'
     })
   ]
 })
 ```
 
-`extract: false` skips reading and parsing the host config for the Worker. Host plugins, `define`, `html`, `input`, and `environments` are not copied. Host Vite still loads its own config and runs its plugins normally.
+```ts
+// vrowzer.worker.config.ts: configuration for Vite inside the preview's Web Worker
+import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { defineConfig } from 'vite'
 
-Vrowzer generates and prebundles a Worker config with an empty user-plugin list, even when there is no host config file. Worker-specific `resolve` options and the resolved host `server.origin` / `server.forwardConsole` settings still apply. The Worker's built-in Vite plugins and Worker asset bundling remain active. `auto` and `extract` are independent; both default to `true`.
+export default defineConfig({
+  plugins: [svelte({ compilerOptions: { preserveWhitespace: true } })],
+  define: { __PREVIEW_ONLY__: JSON.stringify('preview') },
+  resolve: {
+    alias: [{ find: 'preview-lib', replacement: '/vendor/preview-lib.js' }],
+    dedupe: ['svelte']
+  },
+  server: { forwardConsole: false }
+})
+```
 
-This option belongs to `@vrowzer/vite-plugin`, not the runtime `Vrowzer()` or `ready()` API. It does not provide an alternative way to register preview-only Vue or Svelte plugins; that is tracked in [Issue #33](https://github.com/kazupon/vrowzer/issues/33).
+`extract: false` does not copy host Vite configuration into the Worker's UserConfig, including resolved `server.origin` and `server.forwardConsole`. The dedicated file is not limited to plugins: it supplies the user settings supported by Vrowzer's Worker-side Vite. Omitted fields are not filled from the host. Host Vite still loads its own config, runs its plugins, and transforms or bundles the host application and Worker assets.
+
+These options belong to `@vrowzer/vite-plugin`, not the runtime `Vrowzer()` or `ready()` API. The dedicated config is loaded by the Web Worker, not the Service Worker. It does not make Node-only plugins or host HTTP server features such as port binding and proxying available inside a browser.
+
+| `workerConfig` | `extract` | Worker user config |
+| --- | --- | --- |
+| Provided | Omitted or `false` | Dedicated file, without host config extraction or server-setting forwarding |
+| Provided | Explicit `true` | Configuration error |
+| Omitted | `false` | Empty user-plugin list; no host server settings |
+| Omitted | Omitted or `true` | Existing host extraction behavior |
+
+Without a dedicated file, `extract: false` still prebundles `export default { plugins: [] }`, even with `configFile: false`. Built-in Worker plugins and runtime defaults remain active. `auto` controls manifest generation independently; it does not select the config source.
+
+### Dedicated config syntax and dependencies
+
+Relative `workerConfig` paths are resolved from the host config file's directory, or from Vite's `root` when `configFile` is disabled. Absolute paths are also supported. Missing files, directories, unsupported export forms and bundle failures are errors; they do not fall back to empty plugins.
+
+The entry must be an ESM `.ts`, `.mts`, `.js` or `.mjs` file exporting an object. A plain `export default { ... }`, an imported Vite `defineConfig(object)` helper (including an import alias), or a same-file `const` object is supported. TypeScript `as` / `satisfies` wrappers are allowed. Root callbacks, promises, arrays, arbitrary factory calls and default re-exports are rejected during host config resolution.
+
+Only the outer export shape is statically validated. The original module is prebundled without executing its plugin factories on the host, so plugin options, functions, local bindings, spreads and relative imports are retained for evaluation in the Worker. Validation is not a sandbox or a guarantee that arbitrary plugin code can run in a browser.
+
+Use a plain object or `defineConfig` from `vite` in this file. Runtime imports of `vite-plus` and `@vrowzer/vite-plugin`, including through helpers, are rejected. Vite+'s helper injects host tooling and is not equivalent to Vite's identity helper. Type-only imports are allowed; the host config may still use Vite+ normally.
+
+Supported static `readFileSync(path, 'utf8')` / `'utf-8'` calls at module initialization are inlined from the entry or local helpers. Paths can be string literals, imported `resolve(...)` calls with static arguments, or `new URL('./file', import.meta.url)`. Literal relative paths use the source module's directory. Static `createRequire(import.meta.url)('./file.json')` calls are also inlined. Mixed imports and unconverted runtime calls are preserved. Dynamic filesystem access is not automatically converted into browser filesystem access.
+
+Local config modules retain their original `import.meta.dirname`, `import.meta.filename` and `import.meta.url` locations. Third-party asset URLs are not rewritten this way, and these strings do not grant browser access to the host filesystem.
+
+### Migrating existing embedding configs
+
+> [!WARNING]
+> `extract: false` previously forwarded the host's resolved `server.origin` and `server.forwardConsole`. It no longer does. Move any preview-specific values to the dedicated file. Leaving a value out uses Worker defaults; it does not necessarily disable that feature.
+
+For example, move a preview asset origin and console preference into the Worker config:
+
+```ts
+// vrowzer.worker.config.ts
+export default {
+  server: {
+    origin: 'https://preview-assets.example.com',
+    forwardConsole: false
+  },
+  resolve: {
+    alias: [{ find: 'preview-lib', replacement: '/vendor/preview-lib.js' }]
+  }
+}
+```
+
+The legacy plugin option `Vrowzer({ resolve })` is still supported. When extraction is disabled, it emits a migration warning on the host during dev and build config resolution. Create a `workerConfig` file if needed, move `resolve` there, and remove the old option to stop the warning.
+
+While present, the legacy option replaces the **entire** Worker `resolve` object, including a dedicated file's `dedupe` or other settings. Even `resolve: {}` replaces it with an empty object. There is no alias concatenation or deep merge. Ordinary host extraction does not emit this migration warning. The host's top-level `resolve` is a separate setting, not this compatibility option.
+
+### Runtime-owned settings
+
+The standard `initWebWorker()` path keeps the preview aligned with the Service Worker. Omit the following settings from the dedicated config; conflicting direct values or changes made by config hooks fail through the existing Worker setup error path:
+
+| Setting | Runtime value |
+| --- | --- |
+| `root` | `/`, the virtual filesystem root |
+| `base` | The preview `basePath`; configure that through the host Vrowzer plugin |
+| `publicDir` | `public`, resolved to `/public` |
+| Dependency optimizer | No optimizer is created or initialized in Worker environments, regardless of framework normalization of the deprecated `optimizeDeps.disabled` flag |
+| `experimental.importGlobRestoreExtension` | `false` |
+| `experimental.hmrPartialAccept` | `false` |
+| `experimental.enableNativePlugin` | `'v2'` |
+| `experimental.bundledDev` | `false` |
+
+Equivalent values are accepted. Other `optimizeDeps` and `experimental` fields remain usable without removing the runtime-owned defaults. This is a limited merge of these two blocks, not a host-config merge. The checks are not enabled by default for standalone use of the lower-level dev-server APIs.
+
+The runtime supplies `optimizeDeps.disabled: true`, and directly overriding it is unsupported. Framework hooks may normalize this deprecated field, such as Svelte changing it to `'build'`. Vrowzer keeps dependency optimization disabled through the environment creation context instead of requiring the resolved flag to remain `true`.
+
+### Editing the dedicated config
+
+In dev, changes to the dedicated file, local imports and inlined text / JSON require the host server to restart and the page to reload so a new Worker evaluates the plugins. This is separate from preview-source HMR through `updateFile()`. Reloading can discard unsaved editor state.
+
+Vrowzer uses the host's existing watcher, including for local dependencies outside the host root. Failed generation preserves the last working bundle and keeps newly discovered dependencies watched, so fixing the failing helper or creating missing input data triggers another attempt. Edits received during a restart are processed again when necessary, without repeatedly retrying unchanged errors.
+
+Normal production builds are supported. `workerConfig` together with `build.watch` is rejected in this initial implementation. Disabling the host watcher with `server.watch: null` also disables automatic config updates.
 
 ### Browser IDE (experimental)
 
@@ -220,8 +306,11 @@ Vrowzer({
   auto: true,
 
   // Extract the host Vite config for the preview's Web Worker
-  // Default: true (independent of auto)
+  // Default: true without workerConfig (independent of auto)
   extract: true,
+
+  // For a dedicated Worker config, replace extract: true above with extract: false:
+  // workerConfig: './vrowzer.worker.config.ts',
 
   // Auto manifest options (used when auto: true)
   manifest: {
@@ -270,14 +359,15 @@ Vrowzer({
 | Option                 | Type                         | Default                                   | Description                                                                               |
 | ---------------------- | ---------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `auto`                 | `boolean`                    | `true`                                    | Enable auto manifest generation. Set `false` to use `VrowzerManifest()` manually.         |
-| `extract`              | `boolean`                    | `true`                                    | Copy host plugins and supported config into the preview Worker. Set `false` for a separate preview app. |
+| `extract`              | `boolean`                    | `true` without `workerConfig`              | Copy host plugins and supported config into the preview Worker. `false` also stops host server-setting forwarding. |
+| `workerConfig`         | `string`                     | `undefined`                               | ESM config file for the Web Worker. Disables extraction when `extract` is omitted; explicit `true` conflicts. |
 | `manifest`             | `VrowzerManifestOptions`     | `undefined`                               | Auto manifest options (sourceDir, pkgDir, targets). Used when `auto: true`.               |
 | `experimental`         | `VrowzerExperimentalOptions` | `undefined`                               | Experimental features. Currently supports `ide`.                                          |
 | `basePath`             | `string`                     | `'/__preview__/'`                         | Preview URL pathname shared with the application and Service Worker bundles.              |
 | `serviceWorkerScope`   | `string`                     | `'/'`                                     | Registration scope and `Service-Worker-Allowed` header injected into the runtime.          |
 | `serviceWorkerVersion` | `string`                     | `'vrowzer-v1'`                            | Version shared with the application and Service Worker bundles.                           |
 | `serviceWorkerEntry`   | `string`                     | Resolved path to `vrowzer/service-worker` | Explicit Service Worker entry file path.                                                  |
-| `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Worker-specific resolve settings passed to the internal Vite dev server.                  |
+| `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Legacy Worker resolve replacement. With extraction disabled, warns to move it to `workerConfig`. |
 
 ### `VrowzerManifestOptions`
 
@@ -317,7 +407,7 @@ When `auto: true` (default), automatically generates a vrowzer manifest in `conf
 
 #### 2. Worker Config Extraction & Prebundling (`vrowzer:config`)
 
-Auto-extracts user plugins from `vite.config.ts` using OXC parser, then pre-bundles them with Rolldown for the Web Worker environment. The prebundled config is written to `node_modules/.vrowzer/config.bundled.mjs`.
+Selects a dedicated `workerConfig` file, an empty config when extraction is disabled, or supported settings extracted from the host config. It then prebundles that input with Rolldown for the Web Worker. The prebundled config is written to `node_modules/.vrowzer/config.bundled.mjs`.
 
 - Resolves `@vrowzer/*` imports from the plugin's own dependency graph
 - Inlines `readFileSync()` and `createRequire()` calls for Worker compatibility

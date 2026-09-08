@@ -91,13 +91,23 @@ export interface VrowzerOptions {
    * Extract the host Vite config for the preview's Web Worker.
    *
    * Set `false` for embedding hosts whose plugins and source configuration should
-   * not be copied into the preview. Worker-specific `resolve` options and resolved
-   * `server.origin` / `server.forwardConsole` settings still apply.
+   * not be copied into the preview, including resolved server settings.
+   * Use `workerConfig` for preview-specific configuration. Legacy Worker-specific
+   * `resolve` options still apply, with a migration warning.
    * This option is independent of auto manifest generation.
+   * Omitted extraction is disabled when `workerConfig` is provided.
    *
    * @default true
    */
   extract?: boolean
+  /**
+   * Path to an ESM config object for Vite inside the preview's Web Worker.
+   * Resolved relative to the host config file, or Vite's root when there is no file.
+   * The file is prebundled without extracting or merging the host configuration.
+   * Dev edits restart the host and reload the page; failed generation keeps the last bundle.
+   * Explicit `extract: true` and build watch are not supported with this option.
+   */
+  workerConfig?: string
   /**
    * Auto manifest generation options (used when auto: true).
    */
@@ -141,6 +151,8 @@ export interface VrowzerOptions {
    * Worker-specific resolve settings (e.g. vendor aliases).
    * These are NOT added to the host Vite config (which would break host package resolution),
    * but are passed to the Worker's internal Vite dev server.
+   * When host extraction is disabled, move these settings to `workerConfig`.
+   * For compatibility, this option replaces the entire Worker resolve object.
    *
    * @example { alias: [{ find: 'vue', replacement: '/vendor/vue.js' }] }
    * @default undefined
@@ -161,6 +173,7 @@ export interface ResolvedIdeOptions {
 export interface ResolvedVrowzerOptions {
   auto: boolean
   extract: boolean
+  workerConfig: string | undefined
   manifest: VrowzerManifestOptions | undefined
   ide: ResolvedIdeOptions
   basePath: string
@@ -200,10 +213,19 @@ function normalizeBasePath(basePath: string): string {
 }
 
 export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
+  if (options.workerConfig !== undefined) {
+    if (typeof options.workerConfig !== 'string' || options.workerConfig.trim().length === 0) {
+      throw new TypeError('Vrowzer workerConfig must be a non-empty file path')
+    }
+    if (options.extract === true) {
+      throw new TypeError('Vrowzer workerConfig cannot be combined with explicit extract: true')
+    }
+  }
   const ide = options.experimental?.ide
   return {
     auto: options.auto ?? true,
-    extract: options.extract ?? true,
+    extract: options.workerConfig === undefined ? (options.extract ?? true) : false,
+    workerConfig: options.workerConfig,
     manifest: options.manifest,
     ide: {
       enabled: !!ide,

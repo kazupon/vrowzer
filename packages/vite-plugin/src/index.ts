@@ -10,7 +10,7 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as injectModule from '@rollup/plugin-inject'
 import ServiceWorker from '@vrowzer/unplugin-service-worker/vite'
@@ -24,6 +24,7 @@ import { cleanOutputDir, prebundleWorkerConfig } from './prebundle.ts'
 import { rolldownPlugin, rolldownWorkerAssetPlugin } from './rolldown.ts'
 import { serverMiddlewarePlugin } from './server.ts'
 import { generateWebWorkerEntry } from './virtual.ts'
+import { beginWorkerConfigWatch, closeWorkerConfigWatch } from './worker-config-watch.ts'
 
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
 import type { RollupInjectOptions } from '@rollup/plugin-inject'
@@ -34,27 +35,14 @@ const inject = injectModule.default as unknown as (
   options?: RollupInjectOptions
 ) => Record<string, unknown>
 
-function createEmptyWorkerConfig(server: ResolvedConfig['server']): string {
-  const forwardedServer: Partial<Pick<ResolvedConfig['server'], 'origin' | 'forwardConsole'>> = {}
-  if (server.origin !== undefined) {
-    forwardedServer.origin = server.origin
-  }
-  if (server.forwardConsole !== undefined) {
-    forwardedServer.forwardConsole = server.forwardConsole
-  }
-  return `export default ${JSON.stringify({
-    plugins: [],
-    ...(Object.keys(forwardedServer).length > 0 ? { server: forwardedServer } : {})
-  })}`
-}
-
 export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
   const resolvedOptions = resolveOptions(options)
-  const root = process.cwd()
+  let configRoot = process.cwd()
 
   // Path to bundled Worker config (set by configResolved)
   let bundledConfigPath: string | null = null
   let isBuild = false
+  let configWatch: ReturnType<typeof beginWorkerConfigWatch> | undefined
 
   function workerEntryTransform(code: string, id: string) {
     if (!bundledConfigPath) {
@@ -126,6 +114,20 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
     },
     async configResolved(config: ResolvedConfig) {
       isBuild = config.command === 'build'
+      configRoot = config.root
+
+      if (resolvedOptions.workerConfig !== undefined && config.build.watch) {
+        throw new Error(
+          '[vrowzer] workerConfig does not support build watch. Use a normal build or the dev server.'
+        )
+      }
+      if (!resolvedOptions.extract && resolvedOptions.resolve !== undefined) {
+        config.logger.warn(
+          '[vrowzer] Vrowzer({ resolve }) is deprecated when host config extraction is disabled. ' +
+            'Move resolve to the file specified by workerConfig and remove the legacy option. ' +
+            'For compatibility, the legacy option still replaces the entire Worker resolve configuration when provided.'
+        )
+      }
 
       const viteConfigPath = config.configFile
       if (resolvedOptions.extract && !viteConfigPath) {
@@ -133,10 +135,8 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
         return
       }
 
-      cleanOutputDir(config.root)
-
       const configDir = viteConfigPath ? dirname(viteConfigPath) : config.root
-      let workerSource: string
+      let workerSource = 'export default { plugins: [] }'
       if (resolvedOptions.extract && viteConfigPath) {
         debug('extracting worker config from:', viteConfigPath)
         const viteConfigSource = readFileSync(viteConfigPath, 'utf-8')
@@ -148,24 +148,39 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
         if (unsupported.length > 0) {
           debug('unsupported patterns found:', unsupported)
         }
-      } else {
-        workerSource = createEmptyWorkerConfig(config.server)
       }
 
       debug('generated worker source:\n', workerSource)
 
-      bundledConfigPath = await prebundleWorkerConfig({
-        workerSource,
+      configWatch =
+        !isBuild && resolvedOptions.workerConfig !== undefined
+          ? beginWorkerConfigWatch(config)
+          : undefined
+      const bundled = await prebundleWorkerConfig({
+        ...(resolvedOptions.workerConfig !== undefined
+          ? { workerConfig: resolve(configDir, resolvedOptions.workerConfig) }
+          : {
+              workerSource,
+              ...(resolvedOptions.extract && viteConfigPath ? { sourcePath: viteConfigPath } : {})
+            }),
         root: config.root,
-        configDir
-      })
+        configDir,
+        ...(configWatch ? { onDependency: configWatch.onDependency } : {})
+      }).finally(() => configWatch?.finish())
+      bundledConfigPath = bundled.path
 
       debug('bundled config path:', bundledConfigPath)
     },
+    configureServer(server) {
+      configWatch?.connect(server)
+    },
     closeBundle() {
       if (isBuild && bundledConfigPath) {
-        cleanOutputDir(root)
+        cleanOutputDir(configRoot)
         debug('cleaned up prebundle output after build')
+      } else if (this.environment?.mode === 'dev') {
+        // Dependency scanning also calls closeBundle, but does not close the host server.
+        closeWorkerConfigWatch(this.environment.getTopLevelConfig())
       }
     },
     transform(code: string, id: string) {

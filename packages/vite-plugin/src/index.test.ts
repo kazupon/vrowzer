@@ -158,6 +158,9 @@ export default {
     overrides: Partial<Pick<ResolvedConfig, 'root' | 'command'>> & {
       configFile?: string | false | undefined
       server?: UserConfig['server']
+      build?: UserConfig['build']
+      configFileDependencies?: string[]
+      logger?: Pick<ResolvedConfig['logger'], 'warn'>
     } = {}
   ): Promise<void> {
     const config = {
@@ -165,13 +168,17 @@ export default {
       command: 'serve',
       configFile: '/host/vite.config.ts',
       server: {},
+      build: {},
+      configFileDependencies: [],
+      inlineConfig: {},
+      logger: { warn: vi.fn() },
       ...overrides
     } as ResolvedConfig
     await (plugin.configResolved as (config: ResolvedConfig) => Promise<void>)(config)
   }
 
   async function generatedConfig(): Promise<UserConfig> {
-    const source = vi.mocked(prebundleWorkerConfig).mock.calls.at(-1)![0].workerSource
+    const source = vi.mocked(prebundleWorkerConfig).mock.calls.at(-1)![0].workerSource!
     const module = await import(
       /* @vite-ignore */ `data:text/javascript,${encodeURIComponent(source)}`
     )
@@ -182,7 +189,9 @@ export default {
     vi.mocked(readFileSync).mockReset().mockReturnValue(hostSource)
     vi.mocked(extractWorkerConfig).mockClear()
     vi.mocked(cleanOutputDir).mockClear()
-    vi.mocked(prebundleWorkerConfig).mockReset().mockResolvedValue(bundledPath)
+    vi.mocked(prebundleWorkerConfig)
+      .mockReset()
+      .mockResolvedValue({ path: bundledPath, dependencies: [] })
   })
 
   test.each([true, false])('skips host file reads and extraction with auto=%s', async auto => {
@@ -190,7 +199,7 @@ export default {
 
     expect(readFileSync).not.toHaveBeenCalled()
     expect(extractWorkerConfig).not.toHaveBeenCalled()
-    expect(cleanOutputDir).toHaveBeenCalledWith('/host')
+    expect(cleanOutputDir).not.toHaveBeenCalled()
     expect(prebundleWorkerConfig).toHaveBeenCalledWith({
       workerSource: expect.any(String),
       root: '/host',
@@ -217,7 +226,7 @@ export default defineConfig(({ mode }) => ({
     { forwardConsole },
     { origin: 'https://assets.example.test/"quoted"\\path', forwardConsole },
     {}
-  ])('forwards only resolved server wiring: %j', async server => {
+  ])('does not forward resolved server settings with extraction disabled: %j', async server => {
     await configure(createPlugin({ extract: false }), {
       server: {
         ...server,
@@ -227,10 +236,7 @@ export default defineConfig(({ mode }) => ({
       }
     })
 
-    expect(await generatedConfig()).toEqual({
-      plugins: [],
-      ...(Object.keys(server).length > 0 ? { server } : {})
-    })
+    expect(await generatedConfig()).toEqual({ plugins: [] })
   })
 
   test.each([false, undefined] as const)(
@@ -267,7 +273,7 @@ export default defineConfig(({ mode }) => ({
           'initWebWorker()',
           '/vrowzer/web-worker.ts?worker_file&type=module'
         )
-        expect(result.code).toContain(`import config from '${bundledPath}'`)
+        expect(result.code).toContain(`import config from ${JSON.stringify(bundledPath)}`)
         expect(result.code).toContain(JSON.stringify(resolve))
         expect(result.code).toContain('Object.assign(resolved, { resolve: workerResolve })')
         expect(result.code).toContain('initWebWorker(resolved)')
@@ -323,5 +329,77 @@ export default defineConfig(({ mode }) => ({
     vi.mocked(prebundleWorkerConfig).mockRejectedValueOnce(error)
 
     await expect(configure(createPlugin({ extract: false }))).rejects.toBe(error)
+  })
+
+  test.each([
+    ['/host/config/vite.config.ts', './preview/worker.ts', '/host/config/preview/worker.ts'],
+    [false, './worker.ts', '/host/worker.ts'],
+    [undefined, '/outside/worker.ts', '/outside/worker.ts']
+  ] as const)(
+    'uses a dedicated file relative to %s',
+    async (configFile, workerConfig, expected) => {
+      const dependencies: string[] = []
+      vi.mocked(prebundleWorkerConfig).mockResolvedValue({
+        path: bundledPath,
+        dependencies: [expected]
+      })
+      await configure(createPlugin({ workerConfig }), {
+        configFile,
+        configFileDependencies: dependencies
+      })
+      expect(readFileSync).not.toHaveBeenCalled()
+      expect(extractWorkerConfig).not.toHaveBeenCalled()
+      expect(prebundleWorkerConfig).toHaveBeenCalledWith({
+        workerConfig: expected,
+        root: '/host',
+        configDir: configFile ? '/host/config' : '/host',
+        onDependency: expect.any(Function)
+      })
+      expect(dependencies).toEqual([])
+    }
+  )
+
+  test.each(['serve', 'build'] as const)(
+    'warns about legacy resolve once during %s configuration',
+    async command => {
+      const warn = vi.fn()
+      const plugin = createPlugin({ workerConfig: './worker.ts', resolve: {} })
+      await configure(plugin, { command, logger: { warn } })
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('replaces the entire Worker resolve')
+      )
+      const transform = plugin.transform as (code: string, id: string) => unknown
+      transform('initWebWorker()', '/web-worker.ts')
+      transform('initWebWorker()', '/web-worker.ts')
+      expect(warn).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  test.each([{ workerConfig: './worker.ts' }, { resolve: {} }])(
+    'does not warn unnecessarily: %j',
+    async options => {
+      const warn = vi.fn()
+      await configure(createPlugin(options), { logger: { warn } })
+      expect(warn).not.toHaveBeenCalled()
+    }
+  )
+
+  test('rejects build watch with workerConfig', async () => {
+    await expect(
+      configure(createPlugin({ workerConfig: './worker.ts' }), {
+        command: 'build',
+        build: { watch: {} }
+      })
+    ).rejects.toThrow('does not support build watch')
+    expect(prebundleWorkerConfig).not.toHaveBeenCalled()
+  })
+
+  test('cleans the configured root after a successful build, not the working directory', async () => {
+    const plugin = createPlugin({ extract: false })
+    await configure(plugin, { root: '/another-root', command: 'build' })
+    expect(cleanOutputDir).not.toHaveBeenCalled()
+    await (plugin.closeBundle as () => void)()
+    expect(cleanOutputDir).toHaveBeenCalledWith('/another-root')
   })
 })

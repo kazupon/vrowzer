@@ -397,6 +397,34 @@ importers:
         specifier: workspace:*
         version: link:../../packages/vrowzer
 
+  e2e/vite-worker-config:
+    dependencies:
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.4(react@19.2.4)
+      svelte:
+        specifier: 'catalog:'
+        version: 5.55.0
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: 'catalog:'
+        version: 6.2.4(@voidzero-dev/vite-plus-core@0.3.0)(svelte@5.55.0)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 5.1.4(@voidzero-dev/vite-plus-core@0.3.0)
+      '@vrowzer/vite-plugin':
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@0.3.0
+        version: '@voidzero-dev/vite-plus-core@0.3.0(@types/node@25.5.0)(@vitejs/devtools@0.5.2)(esbuild@0.27.3)(jiti@2.7.0)(less@4.5.1)(publint@0.3.22)(sass-embedded@1.97.3)(sass@1.97.3)(stylus@0.64.0)(terser@5.44.1)(tsx@4.21.0)(typescript@7.0.2)(unrun@0.2.22(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(synckit@0.11.11))(yaml@2.9.0)'
+      vrowzer:
+        specifier: workspace:*
+        version: link:../../packages/vrowzer
+
   examples/vue:
     dependencies:
       vue:
@@ -909,6 +937,9 @@ importers:
       buffer:
         specifier: 'catalog:'
         version: 6.0.3
+      magic-string:
+        specifier: 'catalog:'
+        version: 0.30.21
       obug:
         specifier: 'catalog:'
         version: 2.1.1

@@ -1,269 +1,252 @@
 /**
- * Pre-bundle Worker config using rolldown.
+ * Pre-bundle generated or dedicated Worker config with Rolldown.
  *
- * Takes the extracted Worker source from extract.ts and bundles it
- * into node_modules/.vrowzer/ for Worker consumption.
- *
- * @module prebundle
- */
-
-/**
  * @author kazuya kawaguchi (a.k.a. kazupon)
  * @license MIT
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { createRequire as nodeCreateRequire } from 'node:module'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
+import { dirname, extname, isAbsolute, resolve } from 'node:path'
 import { rolldown } from 'rolldown'
 import { createDebug } from 'obug'
 import { resolveAliases } from './alias.ts'
+import { validateWorkerConfigFile } from './worker-config.ts'
+import { DEFINE_CONFIG_ID, transformConfigModule } from './worker-config-transform.ts'
 
 import type { Plugin as RolldownPlugin } from 'rolldown'
 
 const debug = createDebug('vite-plugin-vrowzer:prebundle')
 
-export interface PrebundleOptions {
-  /** Generated Worker config source code */
-  workerSource: string
-  /** Project root directory */
+export type PrebundleOptions = {
   root: string
-  /** Directory of the original vite.config.ts (for resolving import.meta.dirname) */
   configDir: string
+  /** Reports dependencies even if a later load or validation fails. */
+  onDependency?: (filename: string) => void
+} & (
+  | { workerSource: string; sourcePath?: string; workerConfig?: never }
+  | { workerConfig: string; workerSource?: never }
+)
+
+export interface PrebundleResult {
+  path: string
+  dependencies: string[]
 }
 
-const OUTPUT_DIR_NAME = '.vrowzer'
 const BUNDLED_FILENAME = 'config.bundled.mjs'
 
-/**
- * Resolve the output directory path for prebundled Worker config.
- */
 export function resolveOutputDir(root: string): string {
-  return resolve(root, 'node_modules', OUTPUT_DIR_NAME)
+  return resolve(root, 'node_modules', '.vrowzer')
 }
 
-/**
- * Remove the prebundle output directory.
- */
 export function cleanOutputDir(root: string): void {
-  const outputDir = resolveOutputDir(root)
-  if (existsSync(outputDir)) {
-    rmSync(outputDir, { recursive: true })
-    debug('cleaned output dir:', outputDir)
-  }
+  rmSync(resolveOutputDir(root), { recursive: true, force: true })
 }
 
-/**
- * Pre-bundle Worker config source using rolldown.
- *
- * @returns Absolute path to the bundled config file.
- */
-export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<string> {
-  const { workerSource, root, configDir } = options
+function forbiddenConfigImport(id: string): boolean {
+  return ['@vrowzer/vite-plugin', 'vite-plus'].some(
+    name => id === name || id.startsWith(`${name}/`)
+  )
+}
+
+export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<PrebundleResult> {
+  const { root, configDir } = options
   const outputDir = resolveOutputDir(root)
-  const bundledPath = resolve(outputDir, BUNDLED_FILENAME)
+  const realOutputDir = existsSync(root) ? resolveOutputDir(realpathSync(root)) : outputDir
+  const strict = options.workerConfig !== undefined
+  const dependencies = new Set<string>()
+  const addDependency = (filename: string) => {
+    if (
+      !isAbsolute(filename) ||
+      [outputDir, realOutputDir].some(dir => filename.startsWith(`${dir}/`))
+    ) {
+      return
+    }
+    const normalized = filename.replaceAll('\\', '/')
+    dependencies.add(normalized)
+    options.onDependency?.(normalized)
+  }
+  let entryPath: string
+  if (options.workerConfig !== undefined) {
+    entryPath = options.workerConfig
+    addDependency(entryPath)
+    validateWorkerConfigFile(entryPath)
+  } else {
+    mkdirSync(outputDir, { recursive: true })
+    entryPath = resolve(outputDir, '_entry.mts')
+    writeFileSync(entryPath, options.workerSource)
+  }
 
-  debug('prebundling worker config...')
-
-  // Ensure output directory exists
-  mkdirSync(outputDir, { recursive: true })
-
-  // Write temporary entry file (.mts for TypeScript support — rolldown handles TS natively)
-  const entryPath = resolve(outputDir, '_entry.mts')
-  writeFileSync(entryPath, workerSource)
-
-  // Bundle with rolldown
-  const bundle = await rolldown({
-    input: entryPath,
-    external: [new RegExp('^@vrowzer/'), 'assert', 'v8'],
-    // Define process.env.NODE_ENV so plugin code doesn't need runtime process global
-    transform: {
-      define: {
-        'process.env.NODE_ENV': JSON.stringify('development'),
-        global: 'globalThis'
-      },
-      inject: {
-        process: '@vrowzer/node-polyfill/process'
+  const entryModules = new Set([entryPath, realpathSync(entryPath)])
+  const localModules = new Set(entryModules)
+  const aliases = resolveAliases({ 'node:process': '@vrowzer/node-polyfill/process' })
+  const inputPlugin: RolldownPlugin = {
+    name: 'vrowzer:worker-config-input',
+    async resolveId(id, importer) {
+      // Native aliases bypass plugin resolution; keep browser polyfills external explicitly.
+      const alias = aliases[id]
+      if (alias?.startsWith('@vrowzer/')) {
+        return { id: alias, external: true }
+      }
+      if (!importer || !localModules.has(importer)) {
+        return
+      }
+      const fileReference = id.startsWith('.') || isAbsolute(id)
+      const target =
+        !strict && fileReference && entryModules.has(importer) ? resolve(configDir, id) : id
+      const trackMissingImport = () => {
+        if (!fileReference) {
+          return
+        }
+        const filename = resolve(dirname(importer), target)
+        addDependency(filename)
+        if (!extname(filename)) {
+          for (const extension of ['.ts', '.mts', '.js', '.mjs', '.tsx', '.jsx', '.json']) {
+            addDependency(`${filename}${extension}`)
+            addDependency(resolve(filename, `index${extension}`))
+          }
+        }
+      }
+      let resolved
+      try {
+        resolved = await this.resolve(target, importer, { skipSelf: true })
+      } catch (error) {
+        trackMissingImport()
+        throw error
+      }
+      if (!resolved) {
+        trackMissingImport()
+      }
+      if (
+        resolved &&
+        !resolved.external &&
+        isAbsolute(resolved.id) &&
+        (fileReference || !resolved.id.replaceAll('\\', '/').includes('/node_modules/'))
+      ) {
+        debug('tracking local config dependency:', resolved.id)
+        localModules.add(resolved.id)
+        addDependency(resolved.id)
+      }
+      return resolved
+    },
+    load(id) {
+      if (localModules.has(id)) {
+        addDependency(id)
       }
     },
-    // Map Node.js builtins to browser polyfills and vite to vrowzer's shim.
-    // These are resolved at prebundle time and the aliases appear as external
-    // imports in the output (resolved by host Vite's resolve.alias at serve time).
+    transform(code, id) {
+      if (!isAbsolute(id) || !/\.[cm]?[jt]sx?$/.test(id)) {
+        return
+      }
+      if (localModules.has(id)) {
+        debug('transforming local config:', id)
+      }
+      return transformConfigModule(code, {
+        filename: !strict && entryModules.has(id) ? (options.sourcePath ?? id) : id,
+        sourceDirectory: !strict && entryModules.has(id) ? configDir : dirname(id),
+        local: localModules.has(id),
+        strict,
+        addDependency
+      })
+    }
+  }
+
+  const bundle = await rolldown({
+    input: entryPath,
+    external(id) {
+      if (strict && forbiddenConfigImport(id)) {
+        throw new Error(
+          `[vrowzer] Cannot import ${id} in workerConfig ${entryPath}. ` +
+            'Use a config object or defineConfig from "vite", without the host Vrowzer plugin.'
+        )
+      }
+      return id.startsWith('@vrowzer/') || id === 'assert' || id === 'v8'
+    },
+    transform: {
+      define: { 'process.env.NODE_ENV': JSON.stringify('development'), global: 'globalThis' },
+      inject: { process: '@vrowzer/node-polyfill/process' }
+    },
     resolve: {
-      alias: resolveAliases({
-        // Only node:process is aliased here — bare `process` stays as-is.
-        // Host Vite's @rollup/plugin-inject or resolve.alias handles it at serve time.
-        'node:process': '@vrowzer/node-polyfill/process'
-      }),
+      alias: aliases,
       mainFields: ['module', 'main'],
       conditionNames: ['browser', 'import', 'default']
     },
     platform: 'neutral',
-    plugins: [viteAliasPlugin(), inlineReadFileSyncPlugin(configDir), inlineCreateRequirePlugin()]
+    plugins: [viteAliasPlugin(), inputPlugin]
   })
 
-  await bundle.write({
-    format: 'esm',
-    dir: outputDir,
-    entryFileNames: BUNDLED_FILENAME,
-    chunkFileNames: 'chunks/[name].mjs',
-    minify: false
-  })
+  const output = await (async () => {
+    try {
+      return await bundle.generate({
+        format: 'esm',
+        entryFileNames: BUNDLED_FILENAME,
+        chunkFileNames: 'chunks/[name]-[hash].mjs',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        minify: false
+      })
+    } finally {
+      await bundle.close()
+    }
+  })()
 
-  debug('prebundle complete:', bundledPath)
+  mkdirSync(outputDir, { recursive: true })
+  const temporary = mkdtempSync(resolve(outputDir, '.tmp-'))
+  try {
+    for (const file of output.output) {
+      const staged = resolve(temporary, file.fileName)
+      mkdirSync(dirname(staged), { recursive: true })
+      writeFileSync(staged, file.type === 'chunk' ? file.code : file.source)
+    }
+    // Immutable chunk names keep existing Workers valid until the new entry is published.
+    const files = output.output.map(file => file.fileName)
+    for (const filename of files.filter(filename => filename !== BUNDLED_FILENAME)) {
+      const destination = resolve(outputDir, filename)
+      mkdirSync(dirname(destination), { recursive: true })
+      if (!existsSync(destination)) {
+        renameSync(resolve(temporary, filename), destination)
+      }
+    }
+    renameSync(resolve(temporary, BUNDLED_FILENAME), resolve(outputDir, BUNDLED_FILENAME))
+  } finally {
+    rmSync(temporary, { recursive: true, force: true })
+  }
 
-  return bundledPath
+  const path = resolve(outputDir, BUNDLED_FILENAME)
+  debug('prebundle complete:', path)
+  return { path, dependencies: [...dependencies].sort() }
 }
 
-/**
- * Rolldown plugin to redirect `vite` imports to `@vrowzer/vite-dev-server/vite`.
- * Handles both exact `vite` and subpaths like `vite/internal`.
- */
 function viteAliasPlugin(): RolldownPlugin {
-  const VITE_INTERNAL_ID = '\0vrowzer:vite-internal-stub'
+  const internalId = '\0vrowzer:vite-internal-stub'
   return {
     name: 'vrowzer:vite-alias',
     resolveId(id) {
+      if (id === DEFINE_CONFIG_ID) {
+        return id
+      }
       if (id === 'vite') {
         return { id: '@vrowzer/vite-dev-server/vite', external: true }
       }
-      // vite/internal is a Rolldown Vite 8 internal — stub it out
       if (id === 'vite/internal') {
-        return { id: VITE_INTERNAL_ID, external: false }
+        return { id: internalId, external: false }
       }
       if (id.startsWith('vite/')) {
         return { id: id.replace(/^vite\//, '@vrowzer/vite-dev-server/vite/'), external: true }
       }
     },
     load(id) {
-      if (id === VITE_INTERNAL_ID) {
+      if (id === DEFINE_CONFIG_ID) {
+        return 'export function defineConfig(config) { return config }'
+      }
+      if (id === internalId) {
         return 'export {}'
-      }
-    }
-  }
-}
-
-/**
- * Rolldown plugin to inline `readFileSync(...)` calls at prebundle time.
- *
- * When the Worker config source contains `readFileSync(path, 'utf-8')`,
- * this plugin evaluates the call at prebundle time (Node.js) and replaces
- * it with the file content as a string literal. This is necessary because
- * Worker environments cannot access the host filesystem.
- *
- * Supported patterns:
- *   readFileSync('literal/path', 'utf-8')
- *   readFileSync(resolve(import.meta.dirname, 'path'), 'utf-8')
- */
-function inlineReadFileSyncPlugin(configDir: string): RolldownPlugin {
-  // Match: readFileSync( <expr> , 'utf-8') or readFileSync( <expr> , "utf-8")
-  // Uses [\s\S]+? to handle multiline expressions (e.g. resolve(dir, 'path') on separate lines)
-  const RE = /readFileSync\(\s*([\s\S]+?)\s*,\s*['"]utf-?8['"]\s*\)/g
-
-  return {
-    name: 'vrowzer:inline-readFileSync',
-    transform(code, id) {
-      // Only process the entry file, not dependencies
-      if (!id.includes('_entry.mt') && !id.includes('.vrowzer/')) {
-        return
-      }
-      if (!code.includes('readFileSync')) {
-        return
-      }
-
-      let modified = false
-      const result = code.replace(RE, (match, pathExpr: string) => {
-        const resolvedPath = tryEvalPathExpr(pathExpr.trim(), configDir)
-        if (!resolvedPath) {
-          debug('inlineReadFileSync: could not evaluate path expr:', pathExpr)
-          return match
-        }
-
-        try {
-          const content = readFileSync(resolvedPath, 'utf-8')
-          modified = true
-          debug('inlineReadFileSync: inlined', resolvedPath, `(${content.length} bytes)`)
-          return JSON.stringify(content)
-        } catch (e) {
-          debug('inlineReadFileSync: failed to read:', resolvedPath, e)
-          return match
-        }
-      })
-
-      if (modified) {
-        // Remove now-unused node:fs and node:path imports
-        const cleaned = result
-          .replace(/import\s*\{[^}]*readFileSync[^}]*\}\s*from\s*['"]node:fs['"]\s*;?\n?/g, '')
-          .replace(/import\s*\{[^}]*resolve[^}]*\}\s*from\s*['"]node:path['"]\s*;?\n?/g, '')
-        return { code: cleaned, map: null }
-      }
-    }
-  }
-}
-
-/**
- * Try to evaluate a path expression to an absolute path string.
- */
-function tryEvalPathExpr(expr: string, configDir: string): string | null {
-  // Case 1: Simple string literal
-  const strMatch = expr.match(/^['"](.+)['"]$/)
-  if (strMatch) {
-    return resolve(configDir, strMatch[1]!)
-  }
-
-  // Case 2: resolve(import.meta.dirname, 'path') or resolve(__dirname, 'path')
-  const resolveMatch = expr.match(
-    /^resolve\(\s*(?:import\.meta\.dirname|__dirname)\s*,\s*['"](.+)['"]\s*\)$/
-  )
-  if (resolveMatch) {
-    return resolve(configDir, resolveMatch[1]!)
-  }
-
-  return null
-}
-
-/**
- * Rolldown plugin to inline `createRequire(...)("pkg/path")` calls at prebundle time.
- *
- * Some plugins (e.g. @sveltejs/vite-plugin-svelte) use `createRequire` at module
- * init time to load package.json files. This fails in Worker environments where
- * `require()` is not available. This plugin detects the pattern and replaces it
- * with the actual file content at prebundle time.
- */
-function inlineCreateRequirePlugin(): RolldownPlugin {
-  // Match: createRequire(import.meta.url)("some/package.json")
-  const RE = /createRequire\([^)]+\)\(\s*['"]([^'"]+)['"]\s*\)/g
-
-  return {
-    name: 'vrowzer:inline-createRequire',
-    transform(code, id) {
-      if (!code.includes('createRequire')) {
-        return
-      }
-
-      let modified = false
-      const result = code.replace(RE, (match, specifier: string) => {
-        // Only inline JSON files (package.json etc.)
-        if (!specifier.endsWith('.json')) {
-          return match
-        }
-
-        try {
-          // Resolve from the file that contains the createRequire call
-          const req = nodeCreateRequire(id)
-          const resolvedPath = req.resolve(specifier)
-          const content = readFileSync(resolvedPath, 'utf-8')
-          modified = true
-          debug('inlineCreateRequire: inlined', specifier, 'from', id)
-          return JSON.stringify(JSON.parse(content))
-        } catch {
-          debug('inlineCreateRequire: could not resolve', specifier, 'from', id)
-          return match
-        }
-      })
-
-      if (modified) {
-        return { code: result, map: null }
       }
     }
   }

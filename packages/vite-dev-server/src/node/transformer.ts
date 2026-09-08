@@ -21,6 +21,8 @@ import { deserializeRpcMessage, serializeRpcMessage } from '../shared/rpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { reloadOnTsconfigChange } from './plugins/esbuild'
 import { initPublicFiles } from './publicDir'
+import { assertWorkerRuntimeConfig } from './worker-runtime-config'
+import type { WorkerRuntimeConfig } from './worker-runtime-config'
 import { DevEnvironment } from './server/environment'
 import { handleHMRUpdate } from './server/hmr'
 import { ModuleGraph } from './server/mixedModuleGraph'
@@ -90,6 +92,8 @@ export interface SetupWorkerOptions {
    * @internal
    */
   previousEnvironments?: Record<string, DevEnvironment>
+  /** @internal Validate after all config hooks, before initializing the preview. */
+  runtimeConfig?: WorkerRuntimeConfig
 }
 
 /**
@@ -129,6 +133,9 @@ export async function setupWorker(
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
+  if (options.runtimeConfig) {
+    assertWorkerRuntimeConfig(config as unknown as Record<string, unknown>, options.runtimeConfig, true)
+  }
   debug?.('config:', config)
 
   setupVirtualFiles(files)
