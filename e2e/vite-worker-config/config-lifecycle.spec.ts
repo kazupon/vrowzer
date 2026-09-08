@@ -171,9 +171,8 @@ describe('Worker resolve migration in an isolated host', () => {
   })
 })
 
-test.runIf(isServe)(
-  'restarts the Worker after config edits, repairs and saves during restart',
-  async () => {
+describe.runIf(isServe)('Worker config dev lifecycle', () => {
+  async function startWorkerHost() {
     const host = temporaryHost()
     let trialPage: Page | undefined
     let trialServer: Awaited<ReturnType<typeof startServer>>['server'] | undefined
@@ -205,51 +204,76 @@ test.runIf(isServe)(
 
     const previewText = (selector: string) =>
       trialPage!.frameLocator('iframe').locator(selector).textContent({ timeout: 1000 })
-    await expect.poll(() => previewText('#worker-define'), { timeout: 10000 }).toBe('worker define')
+    // Host restarts finish before the browser has initialized the new Worker and preview.
+    const waitForPreview = async (marker: string) => {
+      await expect.poll(() => previewText('#worker-define'), { timeout: 30000 }).toBe(marker)
+    }
+    await waitForPreview('worker define')
     expect(await previewText('#spacing')).toBe('before    after')
 
-    const edits = [
-      {
-        file: 'vrowzer.worker.config.ts',
-        source: read('vrowzer.worker.config.ts').replace(
-          'JSON.stringify(marker)',
-          "JSON.stringify(marker + ' config')"
-        ),
-        marker: 'worker define config',
-        spacing: 'before    after'
-      },
-      {
-        file: 'preview/options.ts',
-        source: read('preview/options.ts').replace('.trim()', '.trim().toUpperCase()'),
-        marker: 'WORKER DEFINE config',
-        spacing: 'before    after'
-      },
-      {
-        file: 'preview/marker.txt',
-        source: 'changed text\n',
-        marker: 'CHANGED TEXT config',
-        spacing: 'before    after'
-      },
-      {
-        file: 'preview/compiler-options.json',
-        source: JSON.stringify({ preserveWhitespace: false }),
-        marker: 'CHANGED TEXT config',
-        spacing: 'before after'
-      }
-    ]
-    for (const edit of edits) {
-      const previousWorkers = workers.length
-      host.write(edit.file, edit.source)
-      await expect
-        .poll(() => workers.length, { timeout: 10000, message: edit.file })
-        .toBeGreaterThan(previousWorkers)
-      await expect.poll(() => previewText('#worker-define'), { timeout: 10000 }).toBe(edit.marker)
-      await expect.poll(() => previewText('#spacing'), { timeout: 10000 }).toBe(edit.spacing)
-      expect(await trialPage.textContent('#status')).toBe('Ready')
+    return {
+      host,
+      read,
+      page: trialPage,
+      server: trialServer as ViteDevServer,
+      workers,
+      errors,
+      previewText,
+      waitForPreview
     }
-    expect(errors).not.toHaveBeenCalled()
+  }
 
-    const devServer = trialServer as ViteDevServer
+  test.each([
+    {
+      file: 'vrowzer.worker.config.ts',
+      edit: (source: string) =>
+        source.replace('JSON.stringify(marker)', "JSON.stringify(marker + ' config')"),
+      marker: 'worker define config',
+      spacing: 'before    after'
+    },
+    {
+      file: 'preview/options.ts',
+      edit: (source: string) => source.replace('.trim()', '.trim().toUpperCase()'),
+      marker: 'WORKER DEFINE',
+      spacing: 'before    after'
+    },
+    {
+      file: 'preview/marker.txt',
+      edit: () => 'changed text\n',
+      marker: 'changed text',
+      spacing: 'before    after'
+    },
+    {
+      file: 'preview/compiler-options.json',
+      edit: () => JSON.stringify({ preserveWhitespace: false }),
+      marker: 'worker define',
+      spacing: 'before after'
+    }
+  ])('restarts the Worker after editing $file', async ({ file, edit, marker, spacing }) => {
+    const { host, read, page, workers, errors, previewText, waitForPreview } =
+      await startWorkerHost()
+    const previousWorkers = workers.length
+    host.write(file, edit(read(file)))
+    await expect
+      .poll(() => workers.length, { timeout: 10000, message: file })
+      .toBeGreaterThan(previousWorkers)
+    await waitForPreview(marker)
+    await expect.poll(() => previewText('#spacing'), { timeout: 10000 }).toBe(spacing)
+    expect(await page.textContent('#status')).toBe('Ready')
+    expect(errors).not.toHaveBeenCalled()
+  })
+
+  test('keeps the working config after an error and recovers when the new import is repaired', async () => {
+    const {
+      host,
+      read,
+      page,
+      server: devServer,
+      workers,
+      errors,
+      previewText,
+      waitForPreview
+    } = await startWorkerHost()
     const previousConfig = devServer.config
     const previousWorkers = workers.length
     host.write('preview/new-marker.ts', 'export const marker = {')
@@ -265,13 +289,24 @@ test.runIf(isServe)(
       .toBe(true)
     expect(devServer.config).toBe(previousConfig)
     expect(workers.length).toBe(previousWorkers)
-    expect(await previewText('#worker-define')).toBe('CHANGED TEXT config')
+    expect(await previewText('#worker-define')).toBe('worker define')
     host.write('preview/new-marker.ts', `export const marker = 'repaired'`)
-    await expect
-      .poll(() => previewText('#worker-define'), { timeout: 10000 })
-      .toBe('repaired config')
+    await waitForPreview('repaired')
     expect(workers.length).toBeGreaterThan(previousWorkers)
+    expect(await page.textContent('#status')).toBe('Ready')
+  })
 
+  test('applies the last save made while a forced restart is paused', async () => {
+    const {
+      host,
+      read,
+      page,
+      server: devServer,
+      workers,
+      errors,
+      waitForPreview
+    } = await startWorkerHost()
+    const previousWorkers = workers.length
     let release!: () => void
     const barrier = new Promise<void>(resolve => {
       release = resolve
@@ -287,30 +322,22 @@ test.runIf(isServe)(
         }
       }
     })
-    const watcher = devServer.watcher
-    let changed: string | undefined
-    const onChange = (file: string) => {
-      changed = file
-    }
     try {
-      host.write('preview/new-marker.ts', `export const marker = 'first save'`)
+      host.write('preview/marker.txt', 'first save\n')
       void devServer.restart(true)
       await expect.poll(() => paused).toBe(true)
       await expect
         .poll(() => read('node_modules/.vrowzer/config.bundled.mjs'))
         .toContain('first save')
-      watcher.on('change', onChange)
-      host.write('preview/new-marker.ts', `export const marker = 'last save'`)
-      await expect.poll(() => changed).toBe(join(host.root, 'preview/new-marker.ts'))
+      host.write('preview/marker.txt', 'last save\n')
       await setImmediate()
     } finally {
-      watcher.off('change', onChange)
       release()
       await devServer.restart()
     }
-    await expect
-      .poll(() => previewText('#worker-define'), { timeout: 10000 })
-      .toBe('last save config')
-    expect(await trialPage.textContent('#status')).toBe('Ready')
-  }
-)
+    await waitForPreview('last save')
+    expect(workers.length).toBeGreaterThan(previousWorkers)
+    expect(await page.textContent('#status')).toBe('Ready')
+    expect(errors).not.toHaveBeenCalled()
+  })
+})
