@@ -49,7 +49,12 @@ async function start(options: { helper?: 'local' | 'outside' | 'workspace'; watc
     root,
     configFile: false,
     customLogger: logger,
-    server: { port: 0, host: '127.0.0.1', ...(options.watch === null ? { watch: null } : {}) },
+    server: {
+      port: 0,
+      host: '127.0.0.1',
+      // Exercise the Linux watcher backend on macOS as well.
+      watch: options.watch === null ? null : { useFsEvents: false, usePolling: false }
+    },
     plugins: [
       ...Vrowzer({ auto: false, workerConfig: './worker.ts' }).filter(
         plugin => plugin.name === 'vrowzer:config'
@@ -126,6 +131,38 @@ describe('worker config dev watch', () => {
     expect(server.watcher.getWatched()).toEqual({})
   })
 
+  test.each([false, true])(
+    'waits for initial requests before restarting, with close=%s',
+    async close => {
+      const { server, write, bundle } = await start()
+      let finishRequests!: () => void
+      const pendingRequests = new Promise<void>(resolve => {
+        finishRequests = resolve
+      })
+      const idle = vi.spyOn(server, 'waitForRequestsIdle').mockReturnValue(pendingRequests)
+      const restart = vi.spyOn(server, 'restart')
+      try {
+        write('helper.ts', `export const value = 'after requests'`)
+        await vi.waitFor(() => expect(idle).toHaveBeenCalled())
+        expect(restart).not.toHaveBeenCalled()
+        expect(bundle()).toContain('first')
+        if (close) {
+          await server.close()
+        }
+      } finally {
+        finishRequests()
+      }
+      await setImmediate()
+      await vi.waitFor(
+        () => {
+          expect(restart).toHaveBeenCalledTimes(close ? 0 : 1)
+          expect(bundle()).toContain(close ? 'first' : 'after requests')
+        },
+        { timeout: 3000 }
+      )
+    }
+  )
+
   test('does not dispose host watchers when a dependency scan closes', async () => {
     const { server, write, bundle } = await start()
     const plugin = server.config.plugins.find(plugin => plugin.name === 'vrowzer:config')!
@@ -200,10 +237,6 @@ describe('worker config dev watch', () => {
         server.config.configFileDependencies.push(join(root, 'helper.ts'))
       }
       const watcher = server.watcher
-      let changedFile: string | undefined
-      const onChange = (file: string) => {
-        changedFile = file
-      }
       let release!: () => void
       const barrier = new Promise<void>(resolve => {
         release = resolve
@@ -236,12 +269,12 @@ describe('worker config dev watch', () => {
           },
           { timeout: 3000 }
         )
-        watcher.once('change', onChange)
         write(helper, `export const value = 'saved during restart'`)
-        await vi.waitFor(() => expect(changedFile).toBe(join(root, helper)), { timeout: 3000 })
+        // Deliver the overlapping notification deterministically: Chokidar can
+        // throttle two real saves within 50ms into a single change event.
+        watcher.emit('change', join(root, helper))
         await setImmediate()
       } finally {
-        watcher.off('change', onChange)
         release()
         await server.restart()
       }
@@ -325,6 +358,18 @@ describe('worker config dev watch', () => {
       'extensionless import',
       `import { value } from '../shared/missing'`,
       '../shared/missing.ts',
+      `export const value = 'recovered data'`
+    ],
+    [
+      'nested import',
+      `import { value } from '../shared/nested/missing.ts'`,
+      '../shared/nested/missing.ts',
+      `export const value = 'recovered data'`
+    ],
+    [
+      'directory index import',
+      `import { value } from '../shared/missing'`,
+      '../shared/missing/index.ts',
       `export const value = 'recovered data'`
     ],
     [

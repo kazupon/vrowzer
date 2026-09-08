@@ -5,8 +5,9 @@
  * @license MIT
  */
 
-import { statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { dirname } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import { createDebug } from 'obug'
 
@@ -16,6 +17,7 @@ type Binding = {
   server: ViteDevServer
   watcher: ViteDevServer['watcher']
   files: Set<string>
+  closed: Promise<void>
 }
 
 type WatchState = {
@@ -61,6 +63,13 @@ function reconcile(state: WatchState): void {
 }
 
 function watch(binding: Binding, filename: string): void {
+  // Chokidar's node:fs backend cannot follow a missing file through multiple
+  // missing parents. Watch the first missing directory and its future children.
+  let parent = dirname(filename)
+  while (parent !== filename && !existsSync(parent)) {
+    filename = parent
+    parent = dirname(filename)
+  }
   if (!binding.files.has(filename)) {
     binding.files.add(filename)
     binding.watcher.add(filename)
@@ -75,6 +84,13 @@ async function restart(state: WatchState): Promise<void> {
   let previousAttempt = -1
   try {
     while (state.active && state.revision > state.processed) {
+      const binding: Binding = state.active
+      // A fresh server can still have requests waiting for its initial dependency
+      // optimization. Closing it before the crawl ends can leave those pending.
+      await Promise.race([binding.server.waitForRequestsIdle(), binding.closed])
+      if (state.active !== binding || state.revision <= state.processed) {
+        continue
+      }
       const revision = state.revision
       debug('restart', state.active.server.config.root, revision, state.processed, state.attempts)
       await state.active.server.restart()
@@ -147,7 +163,15 @@ export function beginWorkerConfigWatch(config: ResolvedConfig) {
       if (server.config.server.watch === null) {
         return
       }
-      const binding: Binding = { server, watcher: server.watcher, files: new Set() }
+      let notifyClosed!: () => void
+      const binding: Binding = {
+        server,
+        watcher: server.watcher,
+        files: new Set(),
+        closed: new Promise(resolve => {
+          notifyClosed = resolve
+        })
+      }
       session.bindings.add(binding)
       session.active = binding
       // restart(true) copies inlineConfig. Scope the handoff to that call and its inputs,
@@ -187,6 +211,7 @@ export function beginWorkerConfigWatch(config: ResolvedConfig) {
       onReady()
       disposers.set(config, () => {
         debug('dispose', config.root, revision, session.active === binding)
+        notifyClosed()
         for (const event of ['add', 'change', 'unlink'] as const) {
           binding.watcher.off(event, onChange)
         }
