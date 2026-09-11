@@ -9,7 +9,7 @@ import path from 'node:path'
 // import { createImportMetaResolver, importMetaResolveWithCustomHookString } from '../module-runner/importMetaResolver'
 // import { findNearestNodeModules } from './packages'
 // NOTE(kazupon): disalbe because vrowzer will not need full bundle dev environment
-// import { rolldown } from 'rolldown'
+// import { type RolldownOutput, rolldown } from 'rolldown'
 // NOTE(kazupon): disable, because vrowzer will not need full bundle dev environment
 // import { FullBundleDevEnvironment } from './server/environments/fullBundleEnvironment'
 import { inspect, promisify } from 'node:util'
@@ -2552,16 +2552,20 @@ export function sortUserPlugins(
 //       },
 //     ],
 //   })
-//   const result = await bundle.generate({
-//     format: isESM ? 'esm' : 'cjs',
-//     sourcemap: 'inline',
-//     sourcemapPathTransform(relative) {
-//       return path.resolve(fileName, relative)
-//     },
-//     // we want to generate a single chunk like esbuild does with `splitting: false`
-//     inlineDynamicImports: true,
-//   })
-//   await bundle.close()
+//   let result: RolldownOutput
+//   try {
+//     result = await bundle.generate({
+//       format: isESM ? 'esm' : 'cjs',
+//       sourcemap: 'inline',
+//       sourcemapPathTransform(relative, sourcemapPath) {
+//         return path.resolve(path.dirname(sourcemapPath), relative)
+//       },
+//       // we want to generate a single chunk like esbuild does with `splitting: false`
+//       inlineDynamicImports: true,
+//     })
+//   } finally {
+//     await bundle.close()
+//   }
 //
 //   const entryChunk = result.output.find(
 //     (chunk): chunk is OutputChunk => chunk.type === 'chunk' && chunk.isEntry,

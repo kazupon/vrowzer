@@ -76,4 +76,34 @@ if (import.meta.hot) { import.meta.hot.accept() }
 
     await expect.poll(() => iframeInnerText(), { timeout: 10000 }).toContain('HMR Updated')
   })
+
+  test.skipIf(isBuild)('HMR - virtual module invalidation propagates to its parent', async () => {
+    await updateFile('/virtual-invalidation-dep.js', 'export const value = "Virtual initial"')
+    await updateFile(
+      '/main.ts',
+      `
+import { value } from 'virtual:invalidation?variant=query'
+document.querySelector('#app')!.textContent = value
+if (import.meta.hot) { import.meta.hot.accept() }
+`
+    )
+    await expect.poll(() => iframeInnerText(), { timeout: 10000 }).toContain('Virtual initial')
+    const body = page.frameLocator('iframe').locator('body')
+    await body.evaluate(element => element.setAttribute('data-hmr-token', 'preserved'))
+
+    await updateFile('/virtual-invalidation-dep.js', 'export const value = "Virtual updated"')
+
+    await expect.poll(() => iframeInnerText(), { timeout: 10000 }).toContain('Virtual updated')
+    expect(await body.getAttribute('data-hmr-token')).toBe('preserved')
+    expect(
+      browserRequests.some(request => {
+        const url = new URL(request)
+        return (
+          url.pathname === '/__preview__/@id/__x00__virtual:invalidation' &&
+          url.searchParams.get('variant') === 'query' &&
+          url.searchParams.has('t')
+        )
+      })
+    ).toBe(true)
+  })
 })

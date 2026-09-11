@@ -80,7 +80,6 @@ vi.mock('./server/hmr', () => ({
   handlePrunedModules: async () => undefined,
   lexAcceptedHmrDeps: () => undefined,
   lexAcceptedHmrExports: () => undefined,
-  normalizeHmrUrl: (url: string) => url,
   normalizeHotChannel: (channel: unknown) => channel,
   updateModules: async () => undefined,
 }))

@@ -14,6 +14,7 @@ import {
   createMessageChannelModuleRunnerTransport,
   normalizeModuleRunnerTransport,
 } from '../shared/moduleRunnerTransport'
+import { wrapId } from '../shared/utils'
 import { ErrorOverlay, cspNonce, overlayId } from './overlay'
 import '@vite/env'
 
@@ -196,6 +197,10 @@ const debounceReload = (time: number) => {
 }
 const pageReload = debounceReload(20)
 
+function wrapIdIfNeeded(id: string): string {
+  return id[0] === '.' || id[0] === '/' ? id : wrapId(id)
+}
+
 const hmrClient = new HMRClient(
   {
     error: (err) => console.error('[vrowzer]', err),
@@ -233,10 +238,11 @@ const hmrClient = new HMRClient(
       isWithinCircularImport,
     }) {
       const [acceptedPathWithoutQuery, query] = acceptedPath.split(`?`)
+      const browserPath = wrapIdIfNeeded(acceptedPathWithoutQuery)
       const importPromise = import(
         /* @vite-ignore */
         base +
-        acceptedPathWithoutQuery.slice(1) +
+        browserPath.slice(1) +
         `?${explicitImportRequired ? 'import&' : ''}t=${timestamp}${query ? `&${query}` : ''
         }`
       )

@@ -125,6 +125,20 @@ describe('standalone build (./browser)', () => {
     expect(testState.result.code).toContain('add')
     expect(testState.result.code).toContain('console.log')
     expect(testState.result.version).toBe('1.2.5')
+    expect(testState.result.code).toContain(`/preview/${testState.result.assetFileName}`)
+    expect(testState.result.code).toContain(`/preview/${testState.result.emittedFileName}`)
+    expect(testState.result.code).not.toMatch(/ROLLDOWN_FILE_URL|!~|%7B|%7D/)
+    expect(testState.result.fileUrlCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fileName: testState.result.assetFileName,
+          format: 'es',
+          urlId: 'assetMetadata'
+        }),
+        expect.objectContaining({ moduleId: '/src/index.js', format: 'es' })
+      ])
+    )
+    expect(testState.result.fileUrlCalls).toHaveLength(2)
 
     await context.close()
   })

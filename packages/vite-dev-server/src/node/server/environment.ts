@@ -6,7 +6,7 @@ import type { FetchFunctionOptions, FetchResult } from '../../shared/invokeMetho
 // import type { FetchFunctionOptions, FetchResult } from 'vite/module-runner'
 import type { FSWatcher } from '#dep-types/chokidar'
 import { ERR_OUTDATED_OPTIMIZED_DEP } from '../../shared/constants'
-import { promiseWithResolvers } from '../../shared/utils'
+import { promiseWithResolvers, unwrapId } from '../../shared/utils'
 import { BaseEnvironment } from '../baseEnvironment'
 import type {
   EnvironmentOptions,
@@ -170,7 +170,7 @@ export class DevEnvironment extends BaseEnvironment {
       ({ path, message, firstInvalidatedBy }, client) => {
         this.invalidateModule(
           {
-            path,
+            path: unwrapId(path),
             message,
             firstInvalidatedBy,
           },

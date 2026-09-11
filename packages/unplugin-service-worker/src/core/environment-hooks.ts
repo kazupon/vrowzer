@@ -12,7 +12,7 @@
  */
 
 import type { Plugin } from 'rolldown'
-import type { PluginOption } from 'vite'
+import type { Logger, Plugin as VitePlugin, PluginOption } from 'vite'
 
 /**
  * Vite Environment interface (minimal subset needed for hook injection).
@@ -20,9 +20,10 @@ import type { PluginOption } from 'vite'
  */
 type Environment = unknown
 
-type EnvironmentAwarePlugin = Plugin & {
-  applyToEnvironment?: (environment: Environment) => boolean | Promise<boolean> | PluginOption
-}
+type EnvironmentAwarePlugin = Plugin &
+  Pick<VitePlugin, (typeof ignoredEnvironmentPluginHooks)[number]> & {
+    applyToEnvironment?: (environment: Environment) => boolean | Promise<boolean> | PluginOption
+  }
 
 /**
  * Rolldown plugin hooks that need environment injection.
@@ -41,6 +42,7 @@ const ROLLDOWN_HOOKS: string[] = [
   'footer',
   'augmentChunkHash',
   'outputOptions',
+  'resolveFileUrl',
   'intro',
   'outro',
   'closeBundle',
@@ -176,7 +178,7 @@ function wrapEnvironmentHook(environment: Environment, plugin: Plugin, hookName:
   return wrapHook(hook as ObjectHook<typeof handler>, handler)
 }
 
-async function flattenPluginOption(pluginOption: PluginOption): Promise<Plugin[]> {
+async function flattenPluginOption(pluginOption: PluginOption): Promise<EnvironmentAwarePlugin[]> {
   const resolved = await pluginOption
   if (!resolved) {
     return []
@@ -185,8 +187,15 @@ async function flattenPluginOption(pluginOption: PluginOption): Promise<Plugin[]
     const nestedPlugins = await Promise.all(resolved.map(flattenPluginOption))
     return nestedPlugins.flat()
   }
-  return [resolved as Plugin]
+  return [resolved as EnvironmentAwarePlugin]
 }
+
+const ignoredEnvironmentPluginHooks = [
+  'config',
+  'configEnvironment',
+  'configureServer',
+  'configResolved'
+] as const
 
 /**
  * Resolve Vite's per-environment plugin hooks for a standalone environment.
@@ -196,7 +205,8 @@ async function flattenPluginOption(pluginOption: PluginOption): Promise<Plugin[]
  */
 export async function resolvePluginsForEnvironment(
   environment: Environment,
-  plugins: Plugin[]
+  plugins: Plugin[],
+  logger: Pick<Logger, 'warnOnce'>
 ): Promise<Plugin[]> {
   const environmentPlugins: Plugin[] = []
 
@@ -208,7 +218,16 @@ export async function resolvePluginsForEnvironment(
         continue
       }
       if (applied !== true) {
-        environmentPlugins.push(...(await flattenPluginOption(applied)))
+        const appliedPlugins = await flattenPluginOption(applied)
+        for (const appliedPlugin of appliedPlugins) {
+          const ignoredHooks = ignoredEnvironmentPluginHooks.filter(hook => appliedPlugin[hook])
+          if (ignoredHooks.length > 0) {
+            logger.warnOnce(
+              `Plugin "${appliedPlugin.name}" defines Vite-specific hooks (${ignoredHooks.join(', ')}) in a plugin returned from applyToEnvironment. These hooks will be ignored.`
+            )
+          }
+        }
+        environmentPlugins.push(...appliedPlugins)
         continue
       }
     }

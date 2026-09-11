@@ -247,6 +247,31 @@ describe('HMRClient', () => {
   })
 
   describe('queueUpdate', () => {
+    test.each(['virtual:entry', '\0virtual:entry?query=1'])(
+      'preserves module URL %s when an accepted update invalidates', async (url) => {
+        const client = new HMRClient(mockLogger, mockTransport, mockImportUpdatedModule)
+        const context = new HMRContext(client, url)
+        context.accept(() => context.invalidate('propagate'))
+
+        const update: Update = {
+          type: 'js-update',
+          path: url,
+          acceptedPath: url,
+          timestamp: 123,
+          firstInvalidatedBy: '\0virtual:origin?query=1',
+        }
+        await client.queueUpdate(update)
+
+        expect(mockImportUpdatedModule).toHaveBeenCalledExactlyOnceWith(update)
+        expect(mockTransport.send).toHaveBeenCalledExactlyOnceWith({
+          type: 'custom',
+          event: 'vite:invalidate',
+          data: { path: url, message: 'propagate', firstInvalidatedBy: update.firstInvalidatedBy },
+        })
+        expect(client.currentFirstInvalidatedBy).toBeUndefined()
+      },
+    )
+
     test('imports updated module', async () => {
       const client = new HMRClient(mockLogger, mockTransport, mockImportUpdatedModule)
       const update: Update = {

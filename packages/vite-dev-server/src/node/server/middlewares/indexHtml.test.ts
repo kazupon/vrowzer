@@ -35,7 +35,7 @@ import fsp from 'node:fs/promises'
 import type { ViteDevServer } from '../../server'
 import type { PreviewServer } from '../../preview'
 import type { ViteEnv } from '../index'
-import { indexHtmlMiddleware } from './indexHtml'
+import { createDevHtmlTransformFn, indexHtmlMiddleware } from './indexHtml'
 
 function createMockDevServer(options: {
   root?: string
@@ -53,6 +53,9 @@ function createMockDevServer(options: {
     config: {
       root: options.root ?? '/project',
       base: options.base ?? '/',
+      plugins: [],
+      env: {},
+      define: {},
       server: {
         headers: options.headers,
         fs: {
@@ -64,9 +67,11 @@ function createMockDevServer(options: {
       safeModulePaths: options.safeModulePaths ?? new Set(),
       logger: {
         error: vi.fn(),
+        warn: vi.fn<ViteDevServer['config']['logger']['warn']>(),
         warnOnce: vi.fn(),
       },
     },
+    environments: { client: { moduleGraph: {} } },
     transformIndexHtml: options.transformIndexHtml ?? vi.fn(async (_url, html) => html),
   } as unknown as ViteDevServer
 }
@@ -201,6 +206,34 @@ describe('indexHtmlMiddleware', () => {
       const res = await app.request('/index.html')
       const body = await res.text()
       expect(body).toBe('<html>transformed</html>')
+    })
+
+    test.each([
+      ['LF', '\n'],
+      ['CRLF', '\r\n'],
+    ])('should preserve srcset descriptors with a custom base and %s', async (_name, newline) => {
+      const html = '<!doctype html><html><head></head><body><picture>' +
+        `<source srcset="/small.png${newline}.5x,${newline}/large.png${newline}.75x">` +
+        `<img srcset="/small.png${newline}1x,${newline}/large.png${newline}2x">` +
+        '</picture></body></html>'
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(fsp.readFile).mockResolvedValue(html)
+
+      const server = createMockDevServer({ base: '/__preview__/' })
+      const transform = createDevHtmlTransformFn(server.config)
+      server.transformIndexHtml = (url, html, originalUrl) =>
+        transform(server, url, html, originalUrl)
+      const app = createApp(indexHtmlMiddleware('/project', server))
+
+      const res = await app.request('/index.html')
+      expect(res.status).toBe(200)
+      const body = await res.text()
+      expect(body).toContain(
+        '<source srcset="/__preview__/small.png .5x, /__preview__/large.png .75x">',
+      )
+      expect(body).toContain(
+        '<img srcset="/__preview__/small.png 1x, /__preview__/large.png 2x">',
+      )
     })
 
     test('should apply server headers', async () => {

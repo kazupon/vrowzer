@@ -16,6 +16,8 @@ import { readdir, realpath, stat, writeFile, mkdir } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { rolldown } from 'rolldown'
 
+import type { RolldownOutput } from 'rolldown'
+
 // --- Types ---
 
 export type PackageJson = {
@@ -539,18 +541,22 @@ export async function bundleCjsPackages(
     plugins: [wrapperPlugin]
   })
 
-  const { output } = await bundle.write({
-    format: 'esm',
-    dir: esmDir,
-    entryFileNames: '[name].js',
-    chunkFileNames: '[name]-[hash].js',
-    minify: false
-  })
-  await bundle.close()
+  let result: RolldownOutput
+  try {
+    result = await bundle.write({
+      format: 'esm',
+      dir: esmDir,
+      entryFileNames: '[name].js',
+      chunkFileNames: '[name]-[hash].js',
+      minify: false
+    })
+  } finally {
+    await bundle.close()
+  }
 
   const nodeModulesEntries: Record<string, string> = {}
 
-  for (const chunk of output) {
+  for (const chunk of result.output) {
     if (chunk.type === 'chunk') {
       const virtualPath = `/node_modules/.vrowzer-esm/${chunk.fileName}`
       const relPath = relative(sourceDir, resolve(esmDir, chunk.fileName)).replace(/\\/g, '/')

@@ -230,6 +230,7 @@ const commonjsProxyRE = /[?&]commonjs-proxy/
 const inlineRE = /[?&]inline\b/
 const inlineCSSRE = /[?&]inline-css\b/
 const styleAttrRE = /[?&]style-attr\b/
+const styleTagCloseRE = /<\/style(?=[\t\n\f\r />])/gi
 const functionCallRE = /^[A-Z_][.\w-]*\(/i
 const transformOnlyRE = /[?&]transform-only\b/
 const nonEscapedDoubleQuoteRe = /(?<!\\)"/g
@@ -392,7 +393,7 @@ export function cssPlugin(config: ResolvedConfig): Plugin {
           let resolved = await resolveUrl(id, importer)
           if (resolved) {
             if (fragment) { resolved += '#' + fragment }
-            let url = await fileToUrl(this, resolved)
+            let url = await fileToUrl(this, resolved, 'string')
             // Inherit HMR timestamp if this asset was invalidated
             if (!url.startsWith('data:') && this.environment.mode === 'dev') {
               const mod = [
@@ -540,6 +541,11 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
         if (inlineCSS && isHTMLProxy) {
           if (styleAttrRE.test(id)) {
             css = css.replace(/"/g, '&quot;')
+          } else {
+            if (config.command !== 'serve' && config.build.cssMinify) {
+              css = await minifyCSS(css, config, true, id)
+            }
+            css = css.replace(styleTagCloseRE, '<\\/style')
           }
           const index = htmlProxyIndexRE.exec(id)?.[1]
           if (index == null) {
@@ -619,7 +625,7 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
         } else if (inlined) {
           let content = css
           if (config.build.cssMinify) {
-            content = await minifyCSS(content, config, true)
+            content = await minifyCSS(content, config, true, id)
           }
           code = `export default ${JSON.stringify(content)}`
         } else {
@@ -718,23 +724,20 @@ export function cssPostPlugin(config: ResolvedConfig): Plugin {
             }
 
             // replace asset url references with resolved url.
-            chunkCSS = chunkCSS.replace(
-              assetUrlRE,
-              (_, fileHash, postfix = '') => {
-                const filename = this.getFileName(fileHash) + postfix
-                chunk.viteMetadata!.importedAssets.add(cleanUrl(filename))
-                return encodeURIPath(
-                  toOutputFilePathInCss(
-                    filename,
-                    'asset',
-                    cssAssetName,
-                    'css',
-                    config,
-                    toRelative,
-                  ),
-                )
-              },
-            )
+            chunkCSS = chunkCSS.replace(assetUrlRE, (_, fileHash) => {
+              const filename = this.getFileName(fileHash)
+              chunk.viteMetadata!.importedAssets.add(cleanUrl(filename))
+              return encodeURIPath(
+                toOutputFilePathInCss(
+                  filename,
+                  'asset',
+                  cssAssetName,
+                  'css',
+                  config,
+                  toRelative,
+                ),
+              )
+            })
             // resolve public URL from CSS paths
             if (encodedPublicUrls) {
               const relativePathToPublicFromCSS = normalizePath(
@@ -2174,6 +2177,7 @@ async function minifyCSS(
   css: string,
   config: ResolvedConfig,
   inlined: boolean,
+  _filename: string = defaultCssBundleName,
 ) {
   return css
 
@@ -2189,6 +2193,7 @@ async function minifyCSS(
       const { code, warnings } = await transform(css, {
         loader: 'css',
         target: config.build.cssTarget || undefined,
+        sourcefile: _filename,
         ...resolveMinifyCssEsbuildOptions(config.esbuild || {}),
       })
       if (warnings.length) {
@@ -2214,9 +2219,7 @@ async function minifyCSS(
     const { code, warnings } = (await importLightningCSS()).transform({
       ...config.css.lightningcss,
       targets: convertTargets(config.build.cssTarget),
-      // TODO: Pass actual filename here, which can also be passed to esbuild's
-      // `sourcefile` option below to improve error messages
-      filename: defaultCssBundleName,
+      filename: _filename,
       code: Buffer.from(css),
       minify: true,
       // the transforms should run in `compileLightningCSS` step
@@ -3298,7 +3301,7 @@ async function compileLightningCSS(
   //           return id
   //         },
   //       },
-  //       minify: config.isProduction && !!config.build.cssMinify,
+  //       minify: false,
   //       sourceMap:
   //         config.command === 'build'
   //           ? !!config.build.sourcemap
@@ -3487,9 +3490,10 @@ const convertTargetsCache = new Map<
 export const convertTargets = (
   esbuildTarget: string | string[] | false,
 ): LightningCSSOptions['targets'] => {
-  if (!esbuildTarget) { return {} }
-  const cached = convertTargetsCache.get(esbuildTarget)
-  if (cached) { return cached }
+  if (!esbuildTarget) { return undefined }
+  if (convertTargetsCache.has(esbuildTarget)) {
+    return convertTargetsCache.get(esbuildTarget)
+  }
   const targets: LightningCSSOptions['targets'] = {}
 
   const entriesWithoutES = arraify(esbuildTarget).flatMap((e) => {
@@ -3523,8 +3527,10 @@ export const convertTargets = (
     throw new Error(`Unsupported target "${entry}"`)
   }
 
-  convertTargetsCache.set(esbuildTarget, targets)
-  return targets
+  // an empty object means "no browser supports anything" to lightningcss
+  const result = Object.keys(targets).length > 0 ? targets : undefined
+  convertTargetsCache.set(esbuildTarget, result)
+  return result
 }
 
 export function resolveLibCssFilename(

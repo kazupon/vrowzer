@@ -474,42 +474,46 @@ describe('Vrowzer E2E', () => {
     })
 
     test('preview content is rendered in iframe', async () => {
-      // Wait for iframe content to load
-      await page.waitForFunction(
-        () => {
-          const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement
-          return iframe?.contentDocument?.body?.innerText?.includes('Hello from Vrowzer!')
-        },
-        undefined,
-        { timeout: 30000 }
-      )
-
-      const text = await page.evaluate(() => {
-        const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement
-        return iframe?.contentDocument?.body?.innerText
-      })
-
-      expect(text).toContain('Hello from Vrowzer!')
-      expect(text).toContain('count: 0')
+      // The initial HMR full-reload can replace the document between browser reads.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const iframe = document.querySelector(
+                '#preview-container iframe'
+              ) as HTMLIFrameElement | null
+              const text = iframe?.contentDocument?.body?.innerText
+              return {
+                greeting: text?.includes('Hello from Vrowzer!') ?? false,
+                counter: text?.includes('count: 0') ?? false
+              }
+            }),
+          { timeout: 30_000 }
+        )
+        .toEqual({ greeting: true, counter: true })
     }, 60000)
 
     test('injects preview context before application scripts run', async () => {
-      const context = await page.evaluate(() => {
-        const iframe = document.querySelector(
-          '#preview-container iframe'
-        ) as HTMLIFrameElement | null
-        return {
-          captured: (iframe?.contentWindow as any)?.__vrowzerContextAtScriptStart,
-          current: (iframe?.contentWindow as any)?.__VROWZER_PREVIEW__,
-          dataset: iframe?.contentDocument?.documentElement.dataset.vrowzerPreviewId
-        }
-      })
-
-      expect(context).toEqual({
-        captured: { id: 'preview', params: { viewport: 'primary' } },
-        current: { id: 'preview', params: { viewport: 'primary' } },
-        dataset: 'preview'
-      })
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const iframe = document.querySelector(
+                '#preview-container iframe'
+              ) as HTMLIFrameElement | null
+              return {
+                captured: (iframe?.contentWindow as any)?.__vrowzerContextAtScriptStart,
+                current: (iframe?.contentWindow as any)?.__VROWZER_PREVIEW__,
+                dataset: iframe?.contentDocument?.documentElement.dataset.vrowzerPreviewId
+              }
+            }),
+          { timeout: 30_000 }
+        )
+        .toEqual({
+          captured: { id: 'preview', params: { viewport: 'primary' } },
+          current: { id: 'preview', params: { viewport: 'primary' } },
+          dataset: 'preview'
+        })
     })
   })
 
