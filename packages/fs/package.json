@@ -1,7 +1,7 @@
 {
   "name": "@vrowzer/fs",
   "description": "Browser-compatible filesystem using memfs for vrowzer",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "author": {
     "name": "kazuya kawaguchi",
     "email": "kawakazu80@gmail.com"
