@@ -58,7 +58,7 @@ import { resolveServiceWorkerScope } from './service-worker-scope.ts'
 import { resolveServiceWorkerVersion, withServiceWorkerVersion } from './service-worker-version.ts'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
-import type { FileSystemPublisher } from '@vrowzer/fs/watcher'
+import type { FSInitMessage, FileSystemPublisher } from '@vrowzer/fs/watcher'
 import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/controller'
 
 const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
@@ -636,14 +636,16 @@ function execScript(orig, origin) {
           }
         }
 
-        // 7. Add Service Worker as publisher target + send initial files
+        // 7. Initialize Service Worker files and subscribe it to later changes.
         const serviceWorker = getServiceWorker()
         if (serviceWorker) {
           publisher.addTarget({
             postMessage: (msg: any, transfer?: any) =>
               serviceWorker.postMessage(msg, transfer ?? [])
           })
-          publisher.initFiles(allFiles)
+          // The Web Worker already loaded these files during V_WW_SETUP.
+          // Broadcasting them again emits add events and an initial HMR reload.
+          serviceWorker.postMessage({ type: 'V_FS_INIT', files: allFiles } satisfies FSInitMessage)
         }
 
         // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
