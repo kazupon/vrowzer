@@ -67,7 +67,9 @@ The non-dry-run form is intended for the OIDC-enabled `npm-release` GitHub Actio
 
 ### `release:smoke`
 
-This post-publish check requires `--tag` or `TAG`. It waits for all 11 exact package versions to become visible on npm, creates a temporary project outside the workspace, installs the published packages, verifies that every internal package resolved to the release version, and imports the main public runtime entries. The temporary project is removed afterward.
+This post-publish check requires `--tag` or `TAG`. It waits until npm can download all 11 exact package versions into its cache, creates a temporary project outside the workspace, installs the published packages, verifies that every internal package resolved to the release version, and imports the main public runtime entries. The temporary project is removed afterward.
+
+Registry metadata can become visible before the package tarballs are downloadable. The wait uses `npm cache add` to fetch the tarballs, retrying missing packages or versions up to 30 times with a 10-second delay. Authentication, integrity, and other errors fail immediately. The subsequent install reuses the downloaded tarballs.
 
 For local validation, `--tarball-directory` skips the registry wait and installs the 11 tarballs from the specified directory instead.
 

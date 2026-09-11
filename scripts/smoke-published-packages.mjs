@@ -18,21 +18,23 @@ function delay(milliseconds) {
   return new Promise(resolveDelay => setTimeout(resolveDelay, milliseconds))
 }
 
-async function getRegistryVersion(packageInfo, version, commandRunner) {
+async function isRegistryPackageAvailable(packageInfo, version, commandRunner) {
+  // Metadata can become visible before the tarball. Cache it for the subsequent install.
   const result = await commandRunner(
     'npm',
-    ['view', `${packageInfo.name}@${version}`, 'version', '--json'],
+    ['cache', 'add', `${packageInfo.name}@${version}`, '--ignore-scripts', '--json'],
     { cwd: repositoryRoot, capture: true, allowFailure: true }
   )
 
   if (result.code === 0) {
-    return JSON.parse(result.stdout)
+    return true
   }
-  if (result.stderr.includes('E404')) {
-    return null
+  const { error } = JSON.parse(result.stdout || '{}')
+  if (['E404', 'ETARGET', 'ENOVERSIONS'].includes(error?.code)) {
+    return false
   }
   throw new Error(
-    `Failed to query ${packageInfo.name}@${version}: ${result.stderr || result.stdout}`
+    `Failed to fetch ${packageInfo.name}@${version}: ${result.stderr || result.stdout}`
   )
 }
 
@@ -49,8 +51,7 @@ export async function waitForPublishedPackages({
   for (let attempt = 1; attempt <= attempts; attempt++) {
     const unpublished = []
     for (const packageInfo of missing) {
-      const publishedVersion = await getRegistryVersion(packageInfo, version, commandRunner)
-      if (publishedVersion !== version) {
+      if (!(await isRegistryPackageAvailable(packageInfo, version, commandRunner))) {
         unpublished.push(packageInfo)
       }
     }
@@ -61,14 +62,14 @@ export async function waitForPublishedPackages({
     }
     if (attempt < attempts) {
       console.log(
-        `Waiting for npm registry (${attempt}/${attempts}): ${missing.map(packageInfo => packageInfo.name).join(', ')}`
+        `Waiting for npm package tarballs (${attempt}/${attempts}): ${missing.map(packageInfo => packageInfo.name).join(', ')}`
       )
       await sleep(delayMilliseconds)
     }
   }
 
   throw new Error(
-    `npm registry did not expose ${version} for: ${missing.map(packageInfo => packageInfo.name).join(', ')}`
+    `npm registry did not provide ${version} tarballs for: ${missing.map(packageInfo => packageInfo.name).join(', ')}`
   )
 }
 
