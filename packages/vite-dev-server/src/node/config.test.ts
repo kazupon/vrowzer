@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import { fileURLToPath } from 'node:url'
-import type { PluginContext } from 'rolldown'
+import type { PluginContext, TransformPluginContext } from 'rolldown'
 import { UnknownEnvironment } from './baseEnvironment'
 import type { LibraryOptions } from './build'
 import type { InlineConfig, ResolvedConfig } from './config'
@@ -27,8 +27,12 @@ vi.mock('@vrowzer/rolldown/utils', () => ({
   transformSync: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 
+import { transformSync } from '@vrowzer/rolldown/utils'
 import { resolveConfig } from './config'
+import { createLogger } from './logger'
 import type { Plugin } from './plugin'
+import { resolveEnvironmentPlugins } from './plugin'
+import { getHookHandler } from './plugins'
 import { fileToUrl } from './plugins/asset'
 import { definePlugin } from './plugins/define'
 import { mergeConfig } from './utils'
@@ -463,11 +467,262 @@ describe('resolveConfig per-environment isBundled', () => {
         getFileName,
       } as unknown as PluginContext,
       `${fileURLToPath(import.meta.url)}?no-inline`,
+      'string',
     )
 
     expect(config.experimental.bundledDev).toBe(false)
     expect(emitFile).toHaveBeenCalledOnce()
     expect(getFileName).toHaveBeenCalledWith('asset-ref')
     expect(url).toBe('/assets/config-test.ts')
+  })
+})
+
+describe('definePlugin JavaScript pre-check', () => {
+  beforeEach(() => {
+    vi.mocked(transformSync).mockReset().mockReturnValue({
+      code: 'export const x = "bar";\n',
+      errors: [],
+      warnings: [],
+      helpersUsed: {},
+      tsconfigFilePaths: [],
+    })
+  })
+
+  afterEach(() => {
+    vi.mocked(transformSync).mockReset()
+  })
+
+  async function createTransform(define: Record<string, string>, environmentName = 'ssr') {
+    const config = await resolveConfig(
+      createInlineConfig({
+        define,
+        keepProcessEnv: true,
+        experimental: { enableNativePlugin: false },
+      }),
+      'serve',
+    )
+    const environment = new UnknownEnvironment(environmentName, config)
+    const plugin = definePlugin(config)
+    return getHookHandler(plugin.transform!).bind(
+      { environment } as unknown as TransformPluginContext,
+    )
+  }
+
+  test.each([
+    ['$FOO', '$FOO'],
+    ['FOO$', 'FOO$'],
+    ['$APP.VERSION', '$APP.VERSION'],
+    ['APP.$VERSION', 'APP?.$VERSION'],
+    ['APP.VERSION', 'APP.VERSION'],
+    ['APP.VERSION', 'APP?.VERSION'],
+  ])('passes define key %s to the transformer for %s', async (key, expression) => {
+    const define = { [key]: JSON.stringify('bar') }
+    const transform = await createTransform(define)
+    const code = `export const x = ${expression};`
+
+    await expect(transform(code, '/entry.js')).resolves.toEqual({
+      code: 'export const x = "bar";\n',
+      map: null,
+    })
+    expect(transformSync).toHaveBeenCalledExactlyOnceWith('/entry.js', code, {
+      lang: 'js',
+      sourceType: 'module',
+      define,
+      sourcemap: true,
+      tsconfig: false,
+    })
+  })
+
+  test.each([
+    ['$FOO', 'obj.FOO'],
+    ['$FOO', 'obj?.FOO'],
+    ['$FOO', '$BAR'],
+    ['APP.VERSION', 'APPxVERSION'],
+  ])('skips the transformer for %s when code only contains %s', async (key, expression) => {
+    const transform = await createTransform({ [key]: JSON.stringify('bar') })
+
+    await expect(transform(`export const x = ${expression};`, '/entry.js')).resolves.toBeUndefined()
+    expect(transformSync).not.toHaveBeenCalled()
+  })
+
+  test('keeps client-side define handling outside this transform', async () => {
+    const transform = await createTransform({ $FOO: JSON.stringify('bar') }, 'client')
+
+    await expect(transform('export const x = $FOO;', '/entry.js')).resolves.toBeUndefined()
+    expect(transformSync).not.toHaveBeenCalled()
+  })
+
+  test('keeps the define plugin disabled in the resolved runtime pipeline', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({ define: { $FOO: JSON.stringify('bar') } }),
+      'serve',
+    )
+
+    expect(Object.keys(config.environments)).toEqual(['client', 'ssr'])
+    expect(config.plugins.map(plugin => plugin.name)).not.toContain('vite:define')
+    for (const environment of Object.values(config.environments)) {
+      expect(environment.plugins.map(plugin => plugin.name)).not.toContain('vite:define')
+    }
+    expect(transformSync).not.toHaveBeenCalled()
+  })
+})
+
+describe('resolveConfig applyToEnvironment warnings', () => {
+  test('warns once about ignored hooks across environments and repeated resolution', async () => {
+    const warn = vi.fn<Console['warn']>()
+    const logger = createLogger('warn', {
+      allowClearScreen: false,
+      console: { warn } as unknown as Console,
+    })
+    const configHook = vi.fn<() => void>()
+    const configEnvironment = vi.fn<() => void>()
+    const configureServer = vi.fn<() => void>()
+    const configResolved = vi.fn<() => void>()
+    const returned: Plugin = {
+      name: 'test:environment-plugin',
+      config: configHook,
+      configEnvironment,
+      configureServer,
+      configResolved,
+      resolveId: () => null,
+    }
+    const config = await resolveConfig(
+      createInlineConfig({
+        customLogger: logger,
+        plugins: [{ name: 'test:parent', applyToEnvironment: () => returned }],
+      }),
+      'serve',
+    )
+
+    expect(Object.keys(config.environments)).toEqual(['client', 'ssr'])
+    for (const environment of Object.values(config.environments)) {
+      expect(environment.plugins).toContain(returned)
+    }
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      'Plugin "test:environment-plugin" defines Vite-specific hooks (config, configEnvironment, configureServer, configResolved) in a plugin returned from applyToEnvironment. These hooks will be ignored.',
+    )
+
+    const plugins = await resolveEnvironmentPlugins(new UnknownEnvironment('client', config))
+    expect(plugins).toContain(returned)
+    expect(warn).toHaveBeenCalledOnce()
+    expect(configHook).not.toHaveBeenCalled()
+    expect(configEnvironment).not.toHaveBeenCalled()
+    expect(configureServer).not.toHaveBeenCalled()
+    expect(configResolved).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    'config', 'configEnvironment', 'configureServer', 'configResolved',
+  ] as const)('warns about an object-form %s hook without executing it', async hookName => {
+    const warn = vi.fn<Console['warn']>()
+    const logger = createLogger('warn', {
+      allowClearScreen: false,
+      console: { warn } as unknown as Console,
+    })
+    const handler = vi.fn<() => void>()
+    const returned: Plugin = {
+      name: 'test:object-hook',
+      [hookName]: { handler },
+    }
+    const config = await resolveConfig(
+      createInlineConfig({
+        customLogger: logger,
+        plugins: [{ name: 'test:parent', applyToEnvironment: () => returned }],
+      }),
+      'serve',
+    )
+
+    expect(config.environments.client.plugins).toContain(returned)
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      `Plugin "test:object-hook" defines Vite-specific hooks (${hookName}) in a plugin returned from applyToEnvironment. These hooks will be ignored.`,
+    )
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  test('preserves plugin selection without warning about ordinary or supported plugins', async () => {
+    const warn = vi.fn<Console['warn']>()
+    const logger = createLogger('warn', {
+      allowClearScreen: false,
+      console: { warn } as unknown as Console,
+    })
+    const ordinary: Plugin = { name: 'test:ordinary', config: () => undefined }
+    const retained: Plugin = {
+      name: 'test:retained',
+      applyToEnvironment: () => true,
+      configResolved: () => undefined,
+    }
+    const supported: Plugin = {
+      name: 'test:supported',
+      config: undefined,
+      resolveId: () => null,
+    }
+    const tail: Plugin = { name: 'test:tail' }
+    const config = await resolveConfig(
+      createInlineConfig({
+        customLogger: logger,
+        plugins: [
+          ordinary,
+          retained,
+          {
+            name: 'test:false',
+            applyToEnvironment: async () => false,
+            configResolved: () => undefined,
+          },
+          { name: 'test:null', applyToEnvironment: () => null },
+          { name: 'test:undefined', applyToEnvironment: () => undefined },
+          { name: 'test:parent', applyToEnvironment: async () => supported },
+          tail,
+        ],
+      }),
+      'serve',
+    )
+
+    for (const environment of Object.values(config.environments)) {
+      expect(environment.plugins.filter(plugin => plugin.name.startsWith('test:'))).toEqual([
+        ordinary, retained, supported, tail,
+      ])
+    }
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  test('preserves nested Promise plugin order and skips falsy entries when warning', async () => {
+    const warn = vi.fn<Console['warn']>()
+    const logger = createLogger('warn', {
+      allowClearScreen: false,
+      console: { warn } as unknown as Console,
+    })
+    const first: Plugin = { name: 'test:first', resolveId: () => null }
+    const configHook = vi.fn<() => void>()
+    const ignored: Plugin = { name: 'test:ignored', config: configHook }
+    const last: Plugin = { name: 'test:last' }
+    const tail: Plugin = { name: 'test:tail' }
+    const config = await resolveConfig(
+      createInlineConfig({
+        customLogger: logger,
+        plugins: [
+          {
+            name: 'test:parent',
+            applyToEnvironment: async () => [
+              false,
+              Promise.resolve([first, null, [Promise.resolve(ignored), undefined]]),
+              Promise.resolve(false),
+              last,
+            ],
+          },
+          tail,
+        ],
+      }),
+      'serve',
+    )
+
+    for (const environment of Object.values(config.environments)) {
+      expect(environment.plugins.filter(plugin => plugin.name.startsWith('test:'))).toEqual([
+        first, ignored, last, tail,
+      ])
+    }
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      'Plugin "test:ignored" defines Vite-specific hooks (config) in a plugin returned from applyToEnvironment. These hooks will be ignored.',
+    )
+    expect(configHook).not.toHaveBeenCalled()
   })
 })

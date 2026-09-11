@@ -24,7 +24,7 @@ import { detectAndResolveServiceWorkers, needsTransform } from './transform/util
 
 import type { Compiler as RspackCompiler } from '@rspack/core'
 import type { PluginBuild as EsbuildPluginBuild } from 'esbuild'
-import type { TransformPluginContext as RolldownTransformContext } from 'rolldown'
+import type { RolldownOutput, TransformPluginContext as RolldownTransformContext } from 'rolldown'
 import type {
   Plugin as RollupPlugin,
   TransformPluginContext as RollupTransformContext
@@ -672,18 +672,21 @@ async function bundleServiceWorkerWithRolldown(
     transform: { define: mergedDefines }
   })
 
-  const { output } = await bundle.generate({
-    format,
-    // ESM format: disable code splitting to produce a single file.
-    // Modules marked as external are preserved as import() calls.
-    ...(format === 'esm' && { codeSplitting: false }),
-    sourcemap: options.sourcemap ? 'inline' : false,
-    minify: options.minify ?? false
-  })
+  let result: RolldownOutput
+  try {
+    result = await bundle.generate({
+      format,
+      // ESM format: disable code splitting to produce a single file.
+      // Modules marked as external are preserved as import() calls.
+      ...(format === 'esm' && { codeSplitting: false }),
+      sourcemap: options.sourcemap ? 'inline' : false,
+      minify: options.minify ?? false
+    })
+  } finally {
+    await bundle.close()
+  }
 
-  await bundle.close()
-
-  const chunk = output.find(o => o.type === 'chunk' && o.isEntry)
+  const chunk = result.output.find(o => o.type === 'chunk' && o.isEntry)
   if (!chunk || chunk.type !== 'chunk') {
     return null
   }
@@ -953,7 +956,11 @@ function createViteConfigResolved(ctx: PluginContext) {
       }
 
       if (swEnvironment) {
-        const environmentPlugins = await resolvePluginsForEnvironment(swEnvironment, workerPlugins)
+        const environmentPlugins = await resolvePluginsForEnvironment(
+          swEnvironment,
+          workerPlugins,
+          swEnvironment.logger
+        )
         adaptedPlugins = environmentPlugins.map(p => injectEnvironmentToHooks(swEnvironment, p))
       }
     }

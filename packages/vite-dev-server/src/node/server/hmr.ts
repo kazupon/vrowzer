@@ -13,7 +13,7 @@ import type {
   InvokeResponseData,
   InvokeSendData,
 } from '../../shared/invokeMethods'
-import { withTrailingSlash, wrapId } from '../../shared/utils'
+import { withTrailingSlash } from '../../shared/utils'
 import { CLIENT_DIR } from '../constants'
 import {
   ignoreDeprecationWarnings,
@@ -705,8 +705,7 @@ export function updateModules(
     if (
       firstInvalidatedBy &&
       boundaries.some(
-        ({ acceptedVia }) =>
-          normalizeHmrUrl(acceptedVia.url) === firstInvalidatedBy,
+        ({ acceptedVia }) => acceptedVia.url === firstInvalidatedBy,
       )
     ) {
       needFullReload = 'circular import invalidate'
@@ -718,8 +717,8 @@ export function updateModules(
         ({ boundary, acceptedVia, isWithinCircularImport }) => ({
           type: `${boundary.type}-update` as const,
           timestamp,
-          path: normalizeHmrUrl(boundary.url),
-          acceptedPath: normalizeHmrUrl(acceptedVia.url),
+          path: boundary.url,
+          acceptedPath: acceptedVia.url,
           explicitImportRequired:
             boundary.type === 'js'
               ? isExplicitImportRequired(acceptedVia.url)
@@ -1106,13 +1105,6 @@ export function lexAcceptedHmrExports(
     exportNames.add(url)
   }
   return urls.size > 0
-}
-
-export function normalizeHmrUrl(url: string): string {
-  if (url[0] !== '.' && url[0] !== '/') {
-    url = wrapId(url)
-  }
-  return url
 }
 
 function error(pos: number) {

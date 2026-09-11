@@ -42,14 +42,73 @@ vi.mock('./hmr', () => ({
   }),
 }))
 
-import type { InputOption } from 'rolldown'
+import type { FunctionPluginHooks, InputOption } from 'rolldown'
+import type { InvalidatePayload } from '#types/customEvent'
 import type { Plugin } from '../plugin'
 import type { ResolvedConfig } from '../config'
 import type { DepsOptimizer } from '../optimizer'
 import { createDepsOptimizer, createExplicitDepsOptimizer } from '../optimizer/optimizer'
 import { DevEnvironment } from './environment'
+import type { NormalizedHotChannelClient } from './hmr'
+import { updateModules } from './hmr'
+import { EnvironmentModuleNode } from './moduleGraph'
 import { createEnvironmentPluginContainer } from './pluginContainer'
 import { registerInputsAsSafeModules } from './safeModulePaths'
+
+describe('DevEnvironment HMR invalidation', () => {
+  test.each([
+    ['/entry.js', '/entry.js'],
+    ['virtual:entry', 'virtual:entry'],
+    ['\0virtual:entry?query=1', '\0virtual:entry?query=1'],
+    ['/@id/virtual:entry', 'virtual:entry'],
+    ['/@id/__x00__virtual:entry?query=1', '\0virtual:entry?query=1'],
+  ])('looks up %s as module URL %s', async (path, moduleUrl) => {
+    const config = {
+      root: '/',
+      plugins: [],
+      build: { rollupOptions: {} },
+      environments: { client: { plugins: [], resolve: { builtins: [] } } },
+      server: { perEnvironmentStartEndDuringDev: false },
+      logger: { info: vi.fn<() => void>() },
+    } as unknown as ResolvedConfig
+    const environment = new DevEnvironment('client', config, {
+      hot: true,
+      disableDepsOptimizer: true,
+    })
+    const parent = new EnvironmentModuleNode('/parent.js', 'client')
+    const module = new EnvironmentModuleNode(moduleUrl, 'client')
+    module.file = moduleUrl
+    module.isSelfAccepting = true
+    module.lastHMRTimestamp = 123
+    module.importers.add(parent)
+    module.importers.add(module)
+    environment.moduleGraph.urlToModuleMap.set(moduleUrl, module)
+    const on = vi.mocked(environment.hot.on)
+    expect(on).toHaveBeenCalledExactlyOnceWith('vite:invalidate', expect.any(Function))
+    const listener = on.mock.calls[0][1] as (
+      data: InvalidatePayload,
+      client: NormalizedHotChannelClient,
+    ) => void
+    const client = { send: vi.fn<NormalizedHotChannelClient['send']>() }
+    const payload = { path, message: 'updated', firstInvalidatedBy: moduleUrl }
+    vi.mocked(updateModules).mockClear()
+
+    await environment.init()
+    try {
+      listener(payload, client)
+
+      expect(module.lastHMRInvalidationReceived).toBe(true)
+      expect(updateModules).toHaveBeenCalledExactlyOnceWith(
+        environment, moduleUrl, [parent], 123, moduleUrl,
+      )
+
+      listener(payload, client)
+      expect(updateModules).toHaveBeenCalledOnce()
+    } finally {
+      await environment.close()
+    }
+  })
+})
 
 describe('Worker dependency optimizer isolation', () => {
   test.each([
@@ -302,5 +361,86 @@ describe('plugin container input lifecycle', () => {
     } finally {
       await container.close()
     }
+  })
+})
+
+describe('plugin container close lifecycle', () => {
+  test('closes only once when hooks succeed', async () => {
+    const buildEnd = vi.fn<FunctionPluginHooks['buildEnd']>()
+    const closeBundle = vi.fn<FunctionPluginHooks['closeBundle']>()
+    const plugins: Plugin[] = [
+      { name: 'test:build-end', buildEnd },
+      { name: 'test:close-bundle', closeBundle },
+    ]
+    const { environment } = createLifecycleEnvironment(plugins)
+    const container = await createEnvironmentPluginContainer(environment, plugins)
+
+    await expect(container.close()).resolves.toBeUndefined()
+    expect(buildEnd).toHaveBeenCalledOnce()
+    expect(closeBundle).toHaveBeenCalledExactlyOnceWith(undefined)
+
+    await expect(container.close()).resolves.toBeUndefined()
+    expect(buildEnd).toHaveBeenCalledOnce()
+    expect(closeBundle).toHaveBeenCalledOnce()
+  })
+
+  test.each([
+    ['a failing buildEnd', true, false],
+    ['a failing closeBundle', false, true],
+    ['both hooks failing', true, true],
+  ] as const)('closes only once with %s', async (_, failBuildEnd, failCloseBundle) => {
+    const buildEndError = failBuildEnd ? new Error('buildEnd failed') : undefined
+    const closeBundleError = failCloseBundle ? new Error('closeBundle failed') : undefined
+    const calls: string[] = []
+    const buildEnd = vi.fn<FunctionPluginHooks['buildEnd']>(async () => {
+      await Promise.resolve()
+      calls.push('buildEnd')
+      if (buildEndError) {
+        throw buildEndError
+      }
+    })
+    const closeBundle = vi.fn<FunctionPluginHooks['closeBundle']>(async () => {
+      await Promise.resolve()
+      calls.push('closeBundle')
+      if (closeBundleError) {
+        throw closeBundleError
+      }
+    })
+    const plugins: Plugin[] = [
+      { name: 'test:build-end', buildEnd },
+      { name: 'test:close-bundle', closeBundle },
+    ]
+    const { environment } = createLifecycleEnvironment(plugins)
+    const container = await createEnvironmentPluginContainer(environment, plugins)
+
+    await expect(container.close()).rejects.toBe(closeBundleError ?? buildEndError)
+    expect(calls).toEqual(['buildEnd', 'closeBundle'])
+    expect(buildEnd).toHaveBeenCalledOnce()
+    expect(closeBundle).toHaveBeenCalledExactlyOnceWith(buildEndError)
+
+    await expect(container.close()).resolves.toBeUndefined()
+    expect(buildEnd).toHaveBeenCalledOnce()
+    expect(closeBundle).toHaveBeenCalledOnce()
+  })
+
+  test('passes a synchronous buildEnd error to closeBundle', async () => {
+    const buildEndError = new Error('buildEnd failed synchronously')
+    const buildEnd = vi.fn<FunctionPluginHooks['buildEnd']>(() => {
+      throw buildEndError
+    })
+    const closeBundle = vi.fn<FunctionPluginHooks['closeBundle']>()
+    const plugins: Plugin[] = [
+      { name: 'test:sync-build-end', buildEnd },
+      { name: 'test:close-bundle', closeBundle },
+    ]
+    const { environment } = createLifecycleEnvironment(plugins)
+    const container = await createEnvironmentPluginContainer(environment, plugins)
+
+    await expect(container.close()).rejects.toBe(buildEndError)
+    expect(closeBundle).toHaveBeenCalledExactlyOnceWith(buildEndError)
+
+    await expect(container.close()).resolves.toBeUndefined()
+    expect(buildEnd).toHaveBeenCalledOnce()
+    expect(closeBundle).toHaveBeenCalledOnce()
   })
 })

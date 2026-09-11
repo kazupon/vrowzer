@@ -516,7 +516,7 @@ export {
   createServerHotChannel, getShortName, handlePrunedModules,
   lexAcceptedHmrDeps,
   lexAcceptedHmrExports,
-  normalizeHmrUrl, normalizeHotChannel, updateModules
+  normalizeHotChannel, updateModules
 } from './server/hmr'
 export type {
   HmrContext, HmrOptions, HotChannel,

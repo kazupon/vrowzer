@@ -25,6 +25,7 @@ import {
   interopNamedImports,
   transformCjsImport,
 } from './importAnalysis'
+import { EnvironmentModuleGraph } from '../server/moduleGraph'
 
 const config = {
   command: 'serve',
@@ -120,6 +121,65 @@ describe('optimized dependency import interop', () => {
     )
     expect(transformed).not.toContain('__vite__cjsImport')
   })
+})
+
+describe('HMR module URLs', () => {
+  it.each(['/entry.js', 'virtual:entry', '\0virtual:entry', '\0virtual:entry?query=1'])(
+    'uses %s in hot contexts and accepted dependencies with a custom base', async (url) => {
+      const root = '/project'
+      const specifier = 'virtual:dep?query=1'
+      const resolveId = async (id: string) => ({
+        id: id === specifier ? `\0${id}` : id.startsWith('/') ? root + id : id,
+      })
+      const moduleGraph = new EnvironmentModuleGraph('client', resolveId)
+      const module = await moduleGraph.ensureEntryFromUrl(url)
+      const dependency = await moduleGraph.ensureEntryFromUrl('\0virtual:dep?query=1')
+      const transformConfig = {
+        root,
+        base: '/custom-preview/',
+        command: 'serve',
+        build: { sourcemap: false },
+        experimental: { hmrPartialAccept: false },
+        resolve: { alias: [] },
+        env: {},
+        define: {},
+        legacy: {},
+        assetsInclude: () => false,
+        safeModulePaths: new Set<string>(),
+      } as unknown as ResolvedConfig
+      const environment = {
+        config: {
+          root,
+          consumer: 'client',
+          resolve: { builtins: [] },
+          dev: { preTransformRequests: false },
+        },
+        moduleGraph,
+      } as unknown as DevEnvironment
+      const transform = getTransformHandler(importAnalysisPlugin(transformConfig))
+      const context = {
+        environment,
+        resolve: resolveId,
+        error(error: unknown) { throw error },
+      } as unknown as PluginContext
+      const result = await transform.call(context, [
+        `import ${JSON.stringify(specifier)}`,
+        `import.meta.hot.accept(${JSON.stringify(specifier)}, () => {})`,
+      ].join('\n'), module.id!)
+
+      expect(result).toEqual(expect.objectContaining({
+        code: expect.stringContaining(`__vite__createHotContext(${JSON.stringify(url)})`),
+      }))
+      expect(result).toEqual(expect.objectContaining({
+        code: expect.stringContaining(`import.meta.hot.accept(${JSON.stringify(dependency.url)}`),
+      }))
+      expect(result).toEqual(expect.objectContaining({
+        code: expect.stringContaining('/custom-preview/@id/__x00__virtual:dep?query=1'),
+      }))
+      expect(module.acceptedHmrDeps).toEqual(new Set([dependency]))
+      expect(module.importedModules).toContain(dependency)
+    },
+  )
 })
 
 async function rewriteCjsImport(

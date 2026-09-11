@@ -11,8 +11,13 @@ type FakeRolldownOutput = {
   output: []
 }
 
+type FakeRolldownGenerateOutput = {
+  output: [{ code: string }]
+}
+
 const rolldownMocks = vi.hoisted(() => ({
   close: vi.fn<() => Promise<void>>(),
+  generate: vi.fn<(...args: unknown[]) => Promise<FakeRolldownGenerateOutput>>(),
   rolldown: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   write: vi.fn<(...args: unknown[]) => Promise<FakeRolldownOutput>>(),
 }))
@@ -41,7 +46,7 @@ vi.mock('./resolve', () => ({
   expandGlobIds: vi.fn<(...args: unknown[]) => string[]>(() => []),
 }))
 
-import { initDepsOptimizerMetadata, runOptimizeDeps } from './index'
+import { extractExportsData, initDepsOptimizerMetadata, runOptimizeDeps } from './index'
 
 let root: string
 
@@ -101,11 +106,15 @@ function createDepsInfo(): Record<string, OptimizedDepInfo> {
 beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'vrowzer-optimizer-'))
   rolldownMocks.close.mockReset()
+  rolldownMocks.generate.mockReset().mockResolvedValue({
+    output: [{ code: 'export const value = 42; export default value;' }],
+  })
   rolldownMocks.rolldown.mockReset()
   rolldownMocks.write.mockReset()
   rolldownMocks.close.mockResolvedValue()
   rolldownMocks.rolldown.mockResolvedValue({
     close: rolldownMocks.close,
+    generate: rolldownMocks.generate,
     write: rolldownMocks.write,
   })
 })
@@ -242,5 +251,129 @@ describe('runOptimizeDeps bundle lifecycle', () => {
     const result = await optimization.result
     expect(vi.getTimerCount()).toBe(0)
     await result.cancel()
+  })
+})
+
+describe('extractExportsData custom extension bundle lifecycle', () => {
+  let environment: Environment
+  let filePath: string
+
+  beforeEach(() => {
+    environment = createEnvironment({ comments: { legal: false } })
+    environment.config.optimizeDeps.extensions = ['.custom']
+    filePath = path.join(root, 'entry.custom')
+  })
+
+  it.each([
+    {
+      kind: 'ESM',
+      code: 'export const value = 42; export default value;',
+      expected: { hasModuleSyntax: true, exports: ['value', 'default'] },
+    },
+    {
+      kind: 'CommonJS',
+      code: 'module.exports = { value: 42 };',
+      expected: { hasModuleSyntax: false, exports: [] },
+    },
+  ])('closes once after analyzing $kind output', async ({ code, expected }) => {
+    rolldownMocks.generate.mockResolvedValue({ output: [{ code }] })
+
+    await expect(extractExportsData(environment, filePath)).resolves.toEqual(expected)
+    expect(rolldownMocks.rolldown).toHaveBeenCalledExactlyOnceWith({
+      output: { comments: { legal: false } },
+      plugins: [expect.objectContaining({ name: 'externalize' })],
+      input: [filePath],
+      moduleTypes: { '.css': 'js' },
+    })
+    expect(rolldownMocks.generate).toHaveBeenCalledExactlyOnceWith({
+      comments: { legal: false },
+      format: 'esm',
+      sourcemap: false,
+    })
+    expect(rolldownMocks.close).toHaveBeenCalledExactlyOnceWith()
+    expect(rolldownMocks.generate.mock.invocationCallOrder[0]).toBeLessThan(
+      rolldownMocks.close.mock.invocationCallOrder[0],
+    )
+    expect(rolldownMocks.write).not.toHaveBeenCalled()
+  })
+
+  it('waits for close before returning the analyzed exports', async () => {
+    const closing = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    rolldownMocks.close.mockImplementationOnce(() => {
+      started.resolve()
+      return closing.promise
+    })
+    let settled = false
+    const result = extractExportsData(environment, filePath).finally(() => {
+      settled = true
+    })
+    try {
+      await Promise.race([started.promise, result])
+      expect(rolldownMocks.close).toHaveBeenCalledExactlyOnceWith()
+      expect(settled).toBe(false)
+    } finally {
+      closing.resolve()
+      await result
+    }
+    await expect(result).resolves.toEqual({
+      hasModuleSyntax: true,
+      exports: ['value', 'default'],
+    })
+    expect(rolldownMocks.close).toHaveBeenCalledExactlyOnceWith()
+  })
+
+  it('closes once when generate rejects and preserves the original error', async () => {
+    const error = new Error('generate failed')
+    rolldownMocks.generate.mockRejectedValueOnce(error)
+
+    await expect(extractExportsData(environment, filePath)).rejects.toBe(error)
+    expect(rolldownMocks.close).toHaveBeenCalledExactlyOnceWith()
+  })
+
+  it('closes once when es-module-lexer rejects the generated code', async () => {
+    rolldownMocks.generate.mockResolvedValueOnce({ output: [{ code: 'export {' }] })
+
+    await expect(extractExportsData(environment, filePath)).rejects.toThrow('Parse error')
+    expect(rolldownMocks.close).toHaveBeenCalledExactlyOnceWith()
+  })
+
+  it.each(['success', 'generate failure', 'parse failure'])(
+    'propagates close failure after %s',
+    async outcome => {
+      if (outcome === 'generate failure') {
+        rolldownMocks.generate.mockRejectedValueOnce(new Error('generate failed'))
+      } else if (outcome === 'parse failure') {
+        rolldownMocks.generate.mockResolvedValueOnce({ output: [{ code: 'export {' }] })
+      }
+      const error = new Error('close failed')
+      rolldownMocks.close.mockRejectedValueOnce(error)
+
+      await expect(extractExportsData(environment, filePath)).rejects.toBe(error)
+      expect(rolldownMocks.close).toHaveBeenCalledExactlyOnceWith()
+    },
+  )
+
+  it('does not generate or close a bundle when its creation fails', async () => {
+    const error = new Error('creation failed')
+    rolldownMocks.rolldown.mockRejectedValueOnce(error)
+
+    await expect(extractExportsData(environment, filePath)).rejects.toBe(error)
+    expect(rolldownMocks.generate).not.toHaveBeenCalled()
+    expect(rolldownMocks.close).not.toHaveBeenCalled()
+  })
+
+  it('keeps ordinary JavaScript analysis independent of a bundle', async () => {
+    const jsPath = path.join(root, 'entry.js')
+    fs.writeFileSync(jsPath, 'export const value = 42;')
+
+    await expect(extractExportsData(environment, jsPath)).resolves.toEqual({
+      hasModuleSyntax: true,
+      exports: ['value'],
+      jsxLoader: false,
+    })
+    expect(rolldownMocks.rolldown).not.toHaveBeenCalled()
+    expect(rolldownMocks.generate).not.toHaveBeenCalled()
+    expect(rolldownMocks.close).not.toHaveBeenCalled()
   })
 })

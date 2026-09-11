@@ -9,8 +9,111 @@ import {
   isFilePathESM,
   isFilePathFormatExplicit,
   mergeConfig,
+  parseSrcset,
+  processSrcSet,
+  processSrcSetSync,
+  removeTimestampQuery,
   setupHmrWsOptionCompat,
 } from './utils'
+
+describe('removeTimestampQuery', () => {
+  it.each([
+    ['/foo.js?t=1712345678901', '/foo.js'],
+    ['/foo.js?t=1712345678901&bar=1', '/foo.js?bar=1'],
+    ['/foo.js?bar=1&t=1712345678901', '/foo.js?bar=1'],
+    ['/foo.js?bar=1&t=1712345678901&baz=2', '/foo.js?bar=1&baz=2'],
+    [
+      '/foo.js?current-t=1711111111111&t=1712345678901&bar=1',
+      '/foo.js?current-t=1711111111111&bar=1',
+    ],
+  ])('removes the timestamp parameter from %s', (url, expected) => {
+    expect(removeTimestampQuery(url)).toBe(expected)
+  })
+
+  it.each([
+    '/foo.js',
+    '/foo.js?current-t=1712345678901',
+    '/foo.js?my-t=1712345678901&other=1',
+    '/foo.js#t=1712345678901',
+    '/foo.js?other=1#t=1712345678901',
+    '/foo.js?t=171234567890',
+    '/foo.js?t=17123456789012',
+    '/foo.js?t=1712345678901-extra',
+  ])('preserves %s without a matching timestamp parameter', (url) => {
+    expect(removeTimestampQuery(url)).toBe(url)
+  })
+})
+
+describe('srcset', () => {
+  it.each([
+    ['LF', '\n'],
+    ['CRLF', '\r\n'],
+  ])('keeps URLs separate from descriptors with %s', (_name, newline) => {
+    const source = `asset.png${newline}1x,${newline}nested/asset.png${newline}2x`
+
+    expect(parseSrcset(source)).toEqual([
+      { url: 'asset.png', descriptor: '1x' },
+      { url: 'nested/asset.png', descriptor: '2x' },
+    ])
+    expect(
+      processSrcSetSync(source, ({ url }) => path.posix.join('/base/', url)),
+    ).toBe('/base/asset.png 1x, /base/nested/asset.png 2x')
+  })
+
+  it.each(['', '"', "'"])(
+    'preserves fractional density descriptors with quote %j',
+    (quote) => {
+      const source = `${quote}./small.png${quote} .5x,${quote}./large.png${quote} .75x`
+
+      expect(parseSrcset(source)).toEqual([
+        { url: `${quote}./small.png${quote}`, descriptor: '.5x' },
+        { url: `${quote}./large.png${quote}`, descriptor: '.75x' },
+      ])
+      expect(
+        processSrcSetSync(source, ({ url }) => {
+          const file = quote ? url.slice(1, -1) : url
+          return `${quote}${path.posix.join('/base/', file)}${quote}`
+        }),
+      ).toBe(`${quote}/base/small.png${quote} .5x, ${quote}/base/large.png${quote} .75x`)
+    },
+  )
+
+  it.each([
+    'asset.png, nested/asset.png 400w',
+    'data:image/avif;base64,aA+/0= 400w, data:image/avif;base64,bB+/9= 800w',
+    'asset.png?param1=true,param2=false 400w, asset.png?param1=true,param2=false 800w',
+  ])('preserves candidates in %s', (source) => {
+    expect(processSrcSetSync(source, ({ url }) => url)).toBe(source)
+  })
+
+  it('keeps CSS functions containing commas intact', async () => {
+    const gradient = 'linear-gradient(cornflowerblue, white)'
+    const image = 'url("https://example.com/dpr_2,f_auto/img")'
+    const source = `${gradient} 1x,\n${image} 2x`
+    const result = `${gradient} 1x, ${image} 2x`
+
+    expect(parseSrcset(source)).toEqual([
+      { url: gradient, descriptor: '1x' },
+      { url: image, descriptor: '2x' },
+    ])
+    expect(processSrcSetSync(source, ({ url }) => url)).toBe(result)
+    await expect(
+      processSrcSet(source, ({ url }) => Promise.resolve(url)),
+    ).resolves.toBe(result)
+  })
+
+  it('passes separated URLs and descriptors to the async replacer', async () => {
+    const replacer = vi.fn<Parameters<typeof processSrcSet>[1]>(({ url }) =>
+      Promise.resolve(path.posix.join('/base/', url)),
+    )
+
+    await expect(
+      processSrcSet('asset.png\n.5x,\nnested/asset.png\n.75x', replacer),
+    ).resolves.toBe('/base/asset.png .5x, /base/nested/asset.png .75x')
+    expect(replacer).toHaveBeenNthCalledWith(1, { url: 'asset.png', descriptor: '.5x' })
+    expect(replacer).toHaveBeenNthCalledWith(2, { url: 'nested/asset.png', descriptor: '.75x' })
+  })
+})
 
 describe('isFilePathESM', () => {
   it('treats virtual modules as ESM without consulting package type', () => {

@@ -32,7 +32,15 @@ export interface Update {
    * This only exists when full-bundle mode is enabled.
    */
   url?: string
+  /**
+   * Module URL of the HMR boundary.
+   * @remarks This changed from a browser-safe URL to a module URL.
+   */
   path: string
+  /**
+   * Module URL of the accepted module.
+   * @remarks This changed from a browser-safe URL to a module URL.
+   */
   acceptedPath: string
   timestamp: number
   /** @internal */
