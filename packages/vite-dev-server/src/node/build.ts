@@ -477,7 +477,6 @@ export async function resolveBuildPlugins(config: ResolvedConfig): Promise<{
     post: [
       // TODO(kazupon): implement later ...
       // ...(isBuild ? buildImportAnalysisPlugin(config) : []),
-      // ...(config.nativePluginEnabledLevel >= 1 ? [] : [buildOxcPlugin()]),
       // ...(config.build.minify === 'esbuild' ? [buildEsbuildPlugin()] : []),
       // ...(isBuild ? [terserPlugin(config)] : []),
       // ...(isBuild && !config.isWorker

@@ -6,7 +6,7 @@ import type { PartialEnvironment } from './baseEnvironment'
 import type { ResolvedConfig } from './config'
 import type { Environment } from './environment'
 import type { InternalResolveOptions } from './plugins/resolve'
-import { oxcResolvePlugin, resolvePlugin } from './plugins/resolve'
+import { resolvePlugin } from './plugins/resolve'
 import type { EnvironmentPluginContainer } from './server/pluginContainer'
 import { createEnvironmentPluginContainer } from './server/pluginContainer'
 
@@ -71,34 +71,20 @@ export function createIdResolver(
         [
           // @ts-expect-error  the aliasPlugin uses rollup types
           aliasPlugin({ entries: environment.config.resolve.alias }),
-          ...(config.experimental.enableNativePlugin
-            ? oxcResolvePlugin(
-              {
-                root: config.root,
-                isProduction: config.isProduction,
-                isBuild: config.command === 'build',
-                asSrc: true,
-                preferRelative: false,
-                tryIndex: true,
-                ...options,
-                // Ignore sideEffects and other computations as we only need the id
-                idOnly: true,
-              },
-              environment.config,
-            )
-            : [
-              resolvePlugin({
-                root: config.root,
-                isProduction: config.isProduction,
-                isBuild: config.command === 'build',
-                asSrc: true,
-                preferRelative: false,
-                tryIndex: true,
-                ...options,
-                // Ignore sideEffects and other computations as we only need the id
-                idOnly: true,
-              }),
-            ]),
+          // NOTE(kazupon): Vite (f9d92130f) always uses `oxcResolvePlugin` here.
+          // Vrowzer always uses the JavaScript `resolvePlugin` instead,
+          // because the Service Worker and the Web Worker share the same JavaScript resolver.
+          resolvePlugin({
+            root: config.root,
+            isProduction: config.isProduction,
+            isBuild: config.command === 'build',
+            asSrc: true,
+            preferRelative: false,
+            tryIndex: true,
+            ...options,
+            // Ignore sideEffects and other computations as we only need the id
+            idOnly: true,
+          }),
         ],
         undefined,
         false,

@@ -119,7 +119,7 @@ export interface ResolveOptions extends EnvironmentResolveOptions {
   /**
    * Enable tsconfig paths resolution
    *
-   * This option does not have any effect if `experimental.enableNativePlugin` is set to `false`.
+   * This option does not have any effect in Vrowzer, because Vrowzer always uses the JavaScript resolver.
    *
    * @default false
    * @experimental
@@ -229,6 +229,14 @@ const perEnvironmentOrWorkerPlugin = (
     },
   ]
 }
+/**
+ * Not implemented yet. Kept to follow Vite's `resolve.ts` structure.
+ *
+ * NOTE(kazupon): `createIdResolver` and `resolvePlugins` do not use this plugin.
+ * Vrowzer always uses the JavaScript `resolvePlugin` instead.
+ *
+ * @internal
+ */
 export function oxcResolvePlugin(
   resolveOptions: ResolvePluginOptionsWithOverrides,
   overrideEnvConfig: (ResolvedConfig & ResolvedEnvironmentOptions) | undefined,

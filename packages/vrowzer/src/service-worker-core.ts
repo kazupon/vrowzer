@@ -65,7 +65,6 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
         importGlobRestoreExtension: false,
         renderBuiltUrl: () => undefined,
         hmrPartialAccept: false,
-        enableNativePlugin: 'v2',
         bundledDev: false
       }
     },
