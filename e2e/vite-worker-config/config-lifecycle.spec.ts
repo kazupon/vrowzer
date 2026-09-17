@@ -171,6 +171,73 @@ describe('Worker resolve migration in an isolated host', () => {
   })
 })
 
+describe('bundled dev mode in an isolated host', () => {
+  test('fails Worker setup when an environment is bundled during serve', async () => {
+    const host = temporaryHost()
+    let trialPage: Page | undefined
+    let trialServer: Awaited<ReturnType<typeof startServer>>['server'] | undefined
+    onTestFinished(async () => {
+      await trialPage?.close()
+      await trialServer?.close()
+      host.remove()
+    })
+
+    host.write(
+      'vite.config.ts',
+      `
+      import { Vrowzer } from '@vrowzer/vite-plugin'
+      import { defineConfig } from 'vite-plus'
+      export default defineConfig(() => ({
+        server: { fs: { allow: ${JSON.stringify([host.root, resolve(import.meta.dirname, '../..')])} } },
+        plugins: [Vrowzer(${JSON.stringify({
+          auto: false,
+          extract: false,
+          basePath: '/worker-preview/',
+          workerConfig: './vrowzer.worker.config.ts'
+        })})],
+      }))
+    `
+    )
+    host.write(
+      'vrowzer.worker.config.ts',
+      `
+      import { defineConfig } from 'vite'
+      export default defineConfig({
+        environments: { client: { isBundled: true } }
+      })
+    `
+    )
+    host.write(
+      'index.ts',
+      `
+      import { Vrowzer } from 'vrowzer'
+      const instance = Vrowzer()
+      const ready = await instance.ready({ files: {
+        '/index.html': '<div id="app"></div><script type="module" src="/main.js"></script>',
+        '/main.js': "document.querySelector('#app').textContent = 'preview works'",
+      } })
+      if (ready) instance.mount(document.getElementById('app'), { id: 'preview' })
+      document.getElementById('status').textContent = ready ? 'Ready' : 'Failed'
+    `
+    )
+
+    const result = await startServer(host.root, createLogger('silent'))
+    trialServer = result.server
+    trialPage = await browser.newPage()
+    const logs: string[] = []
+    trialPage.on('console', message => logs.push(message.text()))
+    await trialPage.goto(result.serverUrl)
+    await trialPage.waitForFunction(() =>
+      ['Ready', 'Failed'].includes(document.getElementById('status')?.textContent ?? '')
+    )
+
+    expect(await trialPage.textContent('#status'), logs.join('\n')).toBe('Failed')
+    expect(logs.join('\n')).toContain(
+      'Bundled dev mode is not supported: environment "client" is bundled during serve'
+    )
+  })
+})
+
 describe.runIf(isServe)('Worker config dev lifecycle', () => {
   async function startWorkerHost() {
     const host = temporaryHost()

@@ -56,7 +56,7 @@ Porting status of `packages/vite-dev-server/src/node/server/middlewares/`.
 
 ### Not Yet Ported
 
-- [ ] memoryFiles.ts — In-memory file serving (added in Vite 8.0.0)
+- [ ] memoryFiles.ts — Part of Vite's bundled dev mode. Not supported; port the whole feature from the latest Vite in a separate plan
 - [ ] rejectInvalidRequest.ts — Invalid request rejection
 - [ ] rejectNoCorsRequest.ts — CORS validation
 

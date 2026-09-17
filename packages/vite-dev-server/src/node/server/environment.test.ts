@@ -68,6 +68,7 @@ describe('DevEnvironment HMR invalidation', () => {
       plugins: [],
       build: { rollupOptions: {} },
       environments: { client: { plugins: [], resolve: { builtins: [] } } },
+      experimental: { bundledDev: false },
       server: { perEnvironmentStartEndDuringDev: false },
       logger: { info: vi.fn<() => void>() },
     } as unknown as ResolvedConfig
@@ -129,6 +130,7 @@ describe('Worker dependency optimizer isolation', () => {
       plugins: [],
       build: { rollupOptions: {} },
       environments: { client: environmentOptions, ssr: environmentOptions },
+      experimental: { bundledDev: false },
       server: { perEnvironmentStartEndDuringDev: false },
     } as unknown as ResolvedConfig
 
@@ -153,6 +155,59 @@ describe('Worker dependency optimizer isolation', () => {
     expect(createDepsOptimizer).not.toHaveBeenCalled()
     expect(createExplicitDepsOptimizer).not.toHaveBeenCalled()
     expect(init).not.toHaveBeenCalled()
+  })
+})
+
+describe('DevEnvironment bundled dev mode guard', () => {
+  function createConfig(isBundled: boolean, bundledDev: boolean) {
+    const environmentOptions = {
+      isBundled,
+      plugins: [],
+      resolve: { builtins: [] },
+    }
+    return {
+      root: '/',
+      plugins: [],
+      build: { rollupOptions: {} },
+      environments: { client: environmentOptions, ssr: environmentOptions },
+      experimental: { bundledDev },
+      server: { perEnvironmentStartEndDuringDev: false },
+    } as unknown as ResolvedConfig
+  }
+
+  test.each([
+    { name: 'client', isBundled: true, bundledDev: false },
+    { name: 'client', isBundled: false, bundledDev: true },
+    { name: 'ssr', isBundled: true, bundledDev: false },
+  ])(
+    'rejects $name with isBundled=$isBundled and bundledDev=$bundledDev',
+    ({ name, isBundled, bundledDev }) => {
+      expect(
+        () =>
+          new DevEnvironment(name, createConfig(isBundled, bundledDev), {
+            hot: false,
+            disableDepsOptimizer: true,
+          }),
+      ).toThrow(`[vrowzer] Bundled dev mode is not supported: environment "${name}"`)
+    },
+  )
+
+  test.each(['client', 'ssr'])('creates an unbundled %s environment', name => {
+    const environment = new DevEnvironment(name, createConfig(false, false), {
+      hot: false,
+      disableDepsOptimizer: true,
+    })
+
+    expect(environment.name).toBe(name)
+  })
+
+  test('creates the ssr environment when bundledDev only seeds the client', () => {
+    const environment = new DevEnvironment('ssr', createConfig(false, true), {
+      hot: false,
+      disableDepsOptimizer: true,
+    })
+
+    expect(environment.name).toBe('ssr')
   })
 })
 

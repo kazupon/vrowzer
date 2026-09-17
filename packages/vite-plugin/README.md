@@ -253,6 +253,8 @@ Equivalent values are accepted. Other `optimizeDeps` and `experimental` fields r
 
 The runtime supplies `optimizeDeps.disabled: true`, and directly overriding it is unsupported. Framework hooks may normalize this deprecated field, such as Svelte changing it to `'build'`. Vrowzer keeps dependency optimization disabled through the environment creation context instead of requiring the resolved flag to remain `true`.
 
+Vite's bundled dev mode is not supported in the preview Worker. If `experimental.bundledDev` or `environments.<name>.isBundled` makes an environment bundled during serve, Worker setup fails with an error instead of serving an unbundled preview.
+
 ### Editing the dedicated config
 
 In dev, changes to the dedicated file, local imports and inlined text / JSON require the host server to restart and the page to reload so a new Worker evaluates the plugins. This is separate from preview-source HMR through `updateFile()`. Reloading can discard unsaved editor state.
