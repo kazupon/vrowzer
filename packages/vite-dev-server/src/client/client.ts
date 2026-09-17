@@ -2,8 +2,6 @@
 
 import type { ErrorPayload, HotPayload } from '#types/hmrPayload'
 import type { ViteHotContext } from '#types/hot'
-import type { DevRuntime as DevRuntimeType } from 'rolldown/experimental/runtime-types'
-import { nanoid } from 'nanoid/non-secure'
 import {
   type ResolvedForwardConsoleOptions,
   setupForwardConsoleHandler,
@@ -29,7 +27,6 @@ declare const __HMR_BASE__: string
 declare const __HMR_TIMEOUT__: number
 declare const __HMR_ENABLE_OVERLAY__: boolean
 declare const __WS_TOKEN__: string
-declare const __BUNDLED_DEV__: boolean
 declare const __SERVER_FORWARD_CONSOLE__: ResolvedForwardConsoleOptions
 
 // NOTE(kazupon): for console debug for vite
@@ -48,7 +45,6 @@ const directSocketHost = __HMR_DIRECT_TARGET__
 const base = __BASE__ || '/'
 const hmrTimeout = __HMR_TIMEOUT__
 const wsToken = __WS_TOKEN__
-const isBundleMode = __BUNDLED_DEV__
 const forwardConsole = __SERVER_FORWARD_CONSOLE__
 let willUnload = false
 
@@ -210,53 +206,32 @@ const hmrClient = new HMRClient(
     // debug: (...msg) => console.debug('[vite]', ...msg),
   },
   transport,
-  isBundleMode
-    ? async function importUpdatedModule({
-      url,
-      acceptedPath,
-      isWithinCircularImport,
-    }) {
-      const importPromise = import(base + url!).then(() =>
-        // @ts-expect-error globalThis.__rolldown_runtime__
-        globalThis.__rolldown_runtime__.loadExports(acceptedPath),
-      )
-      if (isWithinCircularImport) {
-        importPromise.catch(() => {
-          console.info(
-            `[hmr] ${acceptedPath} failed to apply HMR as it's within a circular import. Reloading page to reset the execution order. ` +
-            `To debug and break the circular import, you can run \`vite --debug hmr\` to log the circular dependency path if a file change triggered it.`,
-          )
-          pageReload()
-        })
-      }
-      return await importPromise
+  async function importUpdatedModule({
+    acceptedPath,
+    timestamp,
+    explicitImportRequired,
+    isWithinCircularImport,
+  }) {
+    const [acceptedPathWithoutQuery, query] = acceptedPath.split(`?`)
+    const browserPath = wrapIdIfNeeded(acceptedPathWithoutQuery)
+    const importPromise = import(
+      /* @vite-ignore */
+      base +
+      browserPath.slice(1) +
+      `?${explicitImportRequired ? 'import&' : ''}t=${timestamp}${query ? `&${query}` : ''
+      }`
+    )
+    if (isWithinCircularImport) {
+      importPromise.catch(() => {
+        console.info(
+          `[hmr] ${acceptedPath} failed to apply HMR as it's within a circular import. Reloading page to reset the execution order. ` +
+          `To debug and break the circular import, you can run \`vite --debug hmr\` to log the circular dependency path if a file change triggered it.`,
+        )
+        pageReload()
+      })
     }
-    : async function importUpdatedModule({
-      acceptedPath,
-      timestamp,
-      explicitImportRequired,
-      isWithinCircularImport,
-    }) {
-      const [acceptedPathWithoutQuery, query] = acceptedPath.split(`?`)
-      const browserPath = wrapIdIfNeeded(acceptedPathWithoutQuery)
-      const importPromise = import(
-        /* @vite-ignore */
-        base +
-        browserPath.slice(1) +
-        `?${explicitImportRequired ? 'import&' : ''}t=${timestamp}${query ? `&${query}` : ''
-        }`
-      )
-      if (isWithinCircularImport) {
-        importPromise.catch(() => {
-          console.info(
-            `[hmr] ${acceptedPath} failed to apply HMR as it's within a circular import. Reloading page to reset the execution order. ` +
-            `To debug and break the circular import, you can run \`vite --debug hmr\` to log the circular dependency path if a file change triggered it.`,
-          )
-          pageReload()
-        })
-      }
-      return await importPromise
-    },
+    return await importPromise
+  },
 )
 
 console.log('[vrowzer] connecting to HMR MessageChannel server...')
@@ -702,19 +677,3 @@ export function injectQuery(url: string, queryToInject: string): string {
 }
 
 export { ErrorOverlay }
-
-declare const DevRuntime: typeof DevRuntimeType
-
-if (isBundleMode && typeof DevRuntime !== 'undefined') {
-  class ViteDevRuntime extends DevRuntime {
-    override createModuleHotContext(moduleId: string) {
-      const ctx = createHotContext(moduleId)
-      // @ts-expect-error TODO: support CSS properly
-      ctx._internal = { updateStyle, removeStyle }
-      return ctx
-    }
-  }
-
-  const clientId = nanoid()
-  ;(globalThis as any).__rolldown_runtime__ ??= new ViteDevRuntime(clientId)
-}

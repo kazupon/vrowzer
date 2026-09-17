@@ -35,9 +35,6 @@ describe('clientInjectionsPlugin', () => {
         },
       },
       webSocketToken: 'test-token',
-      experimental: {
-        bundledDev: false,
-      },
     } as ResolvedConfig
     const plugin = clientInjectionsPlugin(config)
     const environment = {

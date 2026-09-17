@@ -12,8 +12,6 @@ export interface CustomEventMap {
   'vite:ws:disconnect': WebSocketConnectionPayload
   /** @internal */
   'vite:forward-console': ForwardConsolePayload
-  /** @internal */
-  'vite:module-loaded': { modules: string[] }
 
   // server events
   'vite:client:connect': undefined

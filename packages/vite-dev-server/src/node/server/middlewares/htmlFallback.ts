@@ -27,14 +27,11 @@ const debug = createDebugger('vite:html-fallback')
 export function htmlFallbackMiddleware(
   root: string,
   spaFallback: boolean,
-  // NOTE(kazupon): vrowzer does not use FullBundleDevEnvironment, so clientEnvironment is not needed
+  // NOTE(kazupon): Vrowzer does not support bundled dev mode, so clientEnvironment is not needed
   // clientEnvironment?: DevEnvironment,
 ): MiddlewareHandler<ViteEnv> {
-  // NOTE(kazupon): vrowzer does not use FullBundleDevEnvironment memoryFiles
-  // const memoryFiles =
-  //   clientEnvironment instanceof FullBundleDevEnvironment
-  //     ? clientEnvironment.memoryFiles
-  //     : undefined
+  // NOTE(kazupon): Vrowzer does not support bundled dev mode, so bundled dev memory files are not available
+  // const memoryFiles = clientEnvironment?.bundledDev?.memoryFiles
 
   function checkFileExists(relativePath: string) {
     return fs.existsSync(path.join(root, relativePath))
@@ -119,10 +116,7 @@ export function htmlFallbackMiddleware(
 //   spaFallback: boolean,
 //   clientEnvironment?: DevEnvironment,
 // ): Connect.NextHandleFunction {
-//   const memoryFiles =
-//     clientEnvironment instanceof FullBundleDevEnvironment
-//       ? clientEnvironment.memoryFiles
-//       : undefined
+//   const memoryFiles = clientEnvironment?.bundledDev?.memoryFiles
 //
 //   function checkFileExists(relativePath: string) {
 //     return (

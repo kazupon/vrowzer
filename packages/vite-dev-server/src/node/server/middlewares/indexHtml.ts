@@ -61,8 +61,6 @@ import {
 import { send } from '../send'
 import { getCodeWithSourcemap, injectSourcesContent } from '../sourcemap'
 import { checkLoadingAccess, respondWithAccessDenied } from './static'
-// NOTE(kazupon): commented out, because we need to know about background later
-// import { FullBundleDevEnvironment } from '../environments/fullBundleEnvironment'
 import { getRequestPath } from './utils'
 
 import type { MiddlewareHandler } from 'hono'
@@ -477,11 +475,8 @@ export function indexHtmlMiddleware(
   // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
   // const isDev = isDevServer(server)
   const fullBundleEnv = undefined
-  // NOTE(kazupon): comment out, because fullBundleEnv is not supported in vrowzer yet
-  // const fullBundleEnv =
-  //   isDev && server.environments.client instanceof FullBundleDevEnvironment
-  //     ? server.environments.client
-  //     : undefined
+  // NOTE(kazupon): comment out, because Vrowzer does not support bundled dev mode
+  // const fullBundle = isDev && server.environments.client.bundledDev
 
   return async function viteIndexHtmlMiddleware(c, next) {
     console.log('[index-html] viteIndexHtmlMiddleware called for:', c.req.url)
@@ -490,8 +485,8 @@ export function indexHtmlMiddleware(
     // htmlFallbackMiddleware appends '.html' to URLs
     if (url.endsWith('.html') && c.req.header('sec-fetch-dest') !== 'script') {
       if (fullBundleEnv) {
-        // TODO(kazupon): Implement the logic to serve index.html from fullBundleEnv later ...
-        // ...
+        // NOTE(kazupon): unreachable, Vrowzer does not support bundled dev mode.
+        // Vite serves index.html from the bundled dev memory files here.
       }
 
       let filePath: string
