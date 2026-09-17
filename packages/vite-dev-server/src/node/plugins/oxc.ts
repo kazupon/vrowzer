@@ -397,10 +397,7 @@ export function oxcPlugin(config: ResolvedConfig): Plugin {
   return {
     name: 'vite:oxc',
     applyToEnvironment(environment) {
-      if (
-        environment.config.isBundled &&
-        config.nativePluginEnabledLevel >= 1
-      ) {
+      if (environment.config.isBundled) {
         const {
           jsxInject,
           include = /\.(m?ts|[jt]sx)$/,

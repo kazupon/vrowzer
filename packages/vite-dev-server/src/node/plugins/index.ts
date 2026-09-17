@@ -26,8 +26,6 @@ export async function resolvePlugins(
     ? await (await import('../build')).resolveBuildPlugins(config)
     : { pre: [], post: [] }
   const { modulePreload } = config.build
-  const enableNativePlugin = config.nativePluginEnabledLevel >= 0
-  const enableNativePluginV1 = config.nativePluginEnabledLevel >= 1
 
   if (__VROWZER_SERVICE_WORKER__) {
     return [
@@ -96,7 +94,7 @@ export async function resolvePlugins(
       cssPlugin(config),
       // esbuildBannerFooterCompatPlugin(config),
       config.oxc !== false && oxcPlugin(config),
-      jsonPlugin(config.json, isBuild, enableNativePluginV1),
+      jsonPlugin(config.json, isBuild),
       // wasmHelperPlugin(config),
       // webWorkerPlugin(config),
       assetPlugin(config),

@@ -114,7 +114,6 @@ export async function setupWorker(
       importGlobRestoreExtension: false,
       renderBuiltUrl: () => undefined,
       hmrPartialAccept: false,
-      enableNativePlugin: 'v2',
       bundledDev: false,
     }
   },

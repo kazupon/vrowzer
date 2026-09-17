@@ -27,6 +27,7 @@ vi.mock('@vrowzer/rolldown/utils', () => ({
   transformSync: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 
+import { viteJsonPlugin } from '@vrowzer/rolldown/experimental'
 import { transformSync } from '@vrowzer/rolldown/utils'
 import { resolveConfig } from './config'
 import { createLogger } from './logger'
@@ -378,27 +379,18 @@ describe('resolveConfig per-environment isBundled', () => {
     expect(ssrPlugins).not.toContain('vite:oxc')
   })
 
-  test('preserves the native plugin enablement level', async () => {
-    const config = await resolveConfig(
-      createInlineConfig({
-        environments: {
-          bundled: {
-            consumer: 'client',
-            isBundled: true,
-          },
-        },
-        experimental: {
-          enableNativePlugin: false,
-        },
-      }),
-      'serve',
-    )
-    const bundledPlugins = config.environments.bundled.plugins.map(
-      (plugin) => plugin.name,
-    )
+  test('registers the native JSON plugin for every environment', async () => {
+    vi.mocked(viteJsonPlugin).mockClear()
+    const config = await resolveMixedClientConfig()
 
-    expect(bundledPlugins).toContain('vite:oxc')
-    expect(bundledPlugins).not.toContain('native:transform')
+    expect(viteJsonPlugin).toHaveBeenCalledExactlyOnceWith({
+      namedExports: true,
+      stringify: 'auto',
+      minify: false,
+    })
+    for (const name of ['client', 'bundled']) {
+      findEnvironmentPlugin(config, name, 'vite:json')
+    }
   })
 
   test('selects the define implementation per environment', async () => {
@@ -497,7 +489,6 @@ describe('definePlugin JavaScript pre-check', () => {
       createInlineConfig({
         define,
         keepProcessEnv: true,
-        experimental: { enableNativePlugin: false },
       }),
       'serve',
     )
@@ -724,5 +715,67 @@ describe('resolveConfig applyToEnvironment warnings', () => {
       'Plugin "test:ignored" defines Vite-specific hooks (config) in a plugin returned from applyToEnvironment. These hooks will be ignored.',
     )
     expect(configHook).not.toHaveBeenCalled()
+  })
+})
+
+describe('resolveConfig unsupported option warnings', () => {
+  function createWarnLogger() {
+    const warn = vi.fn<Console['warn']>()
+    const logger = createLogger('warn', {
+      allowClearScreen: false,
+      console: { warn } as unknown as Console,
+    })
+    return { warn, logger }
+  }
+
+  test.each([false, true, 'v2'])(
+    'ignores the removed experimental.enableNativePlugin option: %j',
+    async (enableNativePlugin) => {
+      const { warn, logger } = createWarnLogger()
+      const config = await resolveConfig(
+        createInlineConfig({
+          customLogger: logger,
+          environments: {
+            bundled: {
+              consumer: 'client',
+              isBundled: true,
+            },
+          },
+          experimental: {
+            enableNativePlugin,
+          } as InlineConfig['experimental'],
+        }),
+        'serve',
+      )
+
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        expect.stringContaining(
+          '(!) experimental.enableNativePlugin is no longer supported and is ignored.',
+        ),
+      )
+      expect(config).not.toHaveProperty('nativePluginEnabledLevel')
+      const bundledPlugins = config.environments.bundled.plugins.map(
+        (plugin) => plugin.name,
+      )
+      expect(bundledPlugins).toContain('native:transform')
+      expect(bundledPlugins).not.toContain('vite:oxc')
+    },
+  )
+
+  test('warns that resolve.tsconfigPaths has no effect', async () => {
+    const { warn, logger } = createWarnLogger()
+    await resolveConfig(
+      createInlineConfig({
+        customLogger: logger,
+        resolve: { tsconfigPaths: true },
+      }),
+      'serve',
+    )
+
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining(
+        '(!) resolve.tsconfigPaths is not supported by the JavaScript resolver used in Vrowzer. The option has no effect.',
+      ),
+    )
   })
 })

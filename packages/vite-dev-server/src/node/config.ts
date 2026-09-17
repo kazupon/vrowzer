@@ -597,18 +597,6 @@ export interface ExperimentalOptions {
    */
   hmrPartialAccept?: boolean
   /**
-   * Enable builtin plugin that written by rust, which is faster than js plugin.
-   *
-   * - 'resolver' (deprecated, will be removed in v8 stable): Enable only the native resolver plugin.
-   * - 'v1' (will be deprecated, will be removed in v8 stable): Enable the first stable set of native plugins (including resolver).
-   * - 'v2' (will be deprecated, will be removed in v8 stable): Enable the improved dynamicImportVarsPlugin and importGlobPlugin.
-   * - true: Enable all native plugins (currently an alias of 'v2', it will map to a newer one in the future versions).
-   *
-   * @experimental
-   * @default 'v2'
-   */
-  enableNativePlugin?: boolean | 'resolver' | 'v1' | 'v2'
-  /**
    * Enable full bundle mode during `serve`.
    *
    * This seeds the default for the client environment's `isBundled` option.
@@ -765,8 +753,6 @@ export interface ResolvedConfig extends Readonly<
     /** @internal */
     safeModulePaths: Set<string>
     /** @internal */
-    nativePluginEnabledLevel: number
-    /** @internal */
     [SYMBOL_RESOLVED_CONFIG]: true
   } & PluginHookUtils
 > { }
@@ -837,9 +823,6 @@ const configDefaults = Object.freeze({
     importGlobRestoreExtension: false,
     renderBuiltUrl: undefined,
     hmrPartialAccept: false,
-    enableNativePlugin: import.meta.env._VITE_TEST_JS_PLUGIN ? false : 'v2',
-    // NOTE(kazupon): comment out, because we need to understand the previous implementation as background
-    // enableNativePlugin: process.env._VITE_TEST_JS_PLUGIN ? false : 'v2',
     bundledDev: false,
   },
   future: {
@@ -2066,9 +2049,6 @@ export async function resolveConfig(
       },
     ),
     safeModulePaths: new Set<string>(),
-    nativePluginEnabledLevel: resolveNativePluginEnabledLevel(
-      experimental.enableNativePlugin,
-    ),
     [SYMBOL_RESOLVED_CONFIG]: true,
   }
   resolved = {
@@ -2193,40 +2173,29 @@ assetFileNames isn't equal for every build.rollupOptions.output. A single patter
     )
   }
 
-  if (
-    resolved.resolve.tsconfigPaths &&
-    resolved.experimental.enableNativePlugin === false
-  ) {
+  // NOTE(kazupon): Vite removed `experimental.enableNativePlugin` without a warning.
+  // Vrowzer warns because existing `workerConfig` files may still set it.
+  // TODO(kazupon): remove this compatibility warning in a future minor release
+  // @ts-expect-error Option removed
+  if (config.experimental?.enableNativePlugin !== undefined) {
     resolved.logger.warn(
       colors.yellow(`
-(!) resolve.tsconfigPaths is set to true, but native plugins are disabled. To use resolve.tsconfigPaths, please enable native plugins via experimental.enableNativePlugin.
+(!) experimental.enableNativePlugin is no longer supported and is ignored. Native plugins are selected per environment by "isBundled".
+`),
+    )
+  }
+
+  // NOTE(kazupon): Vite resolves tsconfig paths with the native resolver.
+  // Vrowzer always uses the JavaScript resolver, which does not support this option.
+  if (resolved.resolve.tsconfigPaths) {
+    resolved.logger.warn(
+      colors.yellow(`
+(!) resolve.tsconfigPaths is not supported by the JavaScript resolver used in Vrowzer. The option has no effect.
 `),
     )
   }
 
   return resolved
-}
-
-function resolveNativePluginEnabledLevel(
-  enableNativePlugin: Exclude<
-    ExperimentalOptions['enableNativePlugin'],
-    undefined
-  >,
-) {
-  switch (enableNativePlugin) {
-    case 'resolver':
-      return 0
-    case 'v1':
-      return 1
-    case 'v2':
-    case true:
-      return 2
-    case false:
-      return -1
-    default:
-      enableNativePlugin satisfies never
-      return -1
-  }
 }
 
 /**

@@ -583,7 +583,6 @@ function execScript(orig, origin) {
                     experimental: {
                       importGlobRestoreExtension: false,
                       hmrPartialAccept: false,
-                      enableNativePlugin: 'v2',
                       bundledDev: false
                     }
                   },

@@ -1262,6 +1262,116 @@ globalThis.__vrowzerFsHtmlProxyResults = results
     })
   })
 
+  describe('CSS relative resolution', () => {
+    test('rewrites a relative url() with the JavaScript resolver', async () => {
+      await addPreviewFiles({
+        '/css-resolve-url/entry.css': '.css-resolve-url { background-image: url(./bg.png); }',
+        '/css-resolve-url/bg.png': 'css resolve background',
+        '/css-resolve-url/sentinel.js': 'export const sentinel = true'
+      })
+
+      await waitForPreviewBodyContaining('/css-resolve-url/sentinel.js?import', 'sentinel = true')
+
+      const response = await waitForPreviewResponse('/css-resolve-url/entry.css?direct', 200)
+
+      expect(response.body).toContain('.css-resolve-url')
+      expect(response.body).toContain(
+        'url(https://assets.vrowzer.test/__preview__/css-resolve-url/bg.png)'
+      )
+      expect(response.body).not.toContain('url(./bg.png)')
+    })
+
+    test('inlines a relative @import with the JavaScript resolver', async () => {
+      await addPreviewFiles({
+        '/css-resolve-import/entry.css':
+          "@import './partial.css';\n.css-resolve-import-entry { color: blue; }",
+        '/css-resolve-import/partial.css': '.css-resolve-import-partial { color: red; }',
+        '/css-resolve-import/sentinel.js': 'export const sentinel = true'
+      })
+
+      await waitForPreviewBodyContaining(
+        '/css-resolve-import/sentinel.js?import',
+        'sentinel = true'
+      )
+
+      const response = await waitForPreviewResponse('/css-resolve-import/entry.css?direct', 200)
+
+      expect(response.body).toContain('.css-resolve-import-partial')
+      expect(response.body).toContain('.css-resolve-import-entry')
+      expect(response.body).not.toContain('@import')
+    })
+  })
+
+  describe('JSON imports', () => {
+    // Add the files once. Re-adding a JSON file that is already in the module graph
+    // triggers a full reload of the preview iframe.
+    beforeAll(async () => {
+      await addPreviewFiles({
+        '/json-import/data.json':
+          '{ "name": "vrowzer", "nested": { "value": 1 }, "invalid-key": true }',
+        '/json-import/list.json': '[1, 2, 3]',
+        '/json-import/entry.js': `
+import data, { name, nested } from './data.json'
+import list from './list.json'
+
+globalThis.__vrowzerJsonImportResult = { data, name, nested, list }
+`
+      })
+    })
+
+    test('transforms JSON files to ES modules with the native JSON plugin', async () => {
+      const data = await waitForPreviewBodyContaining(
+        '/json-import/data.json?import',
+        'export default'
+      )
+      expect(data.status).toBe(200)
+      expect(data.body).toContain('export const name = "vrowzer";')
+      expect(data.body).toContain('export const nested = {"value":1};')
+      expect(data.body).toContain('"invalid-key": true')
+      expect(data.body).not.toContain('export const invalid')
+
+      const list = await waitForPreviewResponse('/json-import/list.json?import', 200)
+      expect(list.body).toContain('export default [1,2,3];')
+    })
+
+    test('imports default and named JSON exports in the preview', async () => {
+      await waitForPreviewBodyContaining('/json-import/entry.js?import', 'data.json')
+
+      await page.evaluate(() => {
+        const iframe = document.querySelector(
+          '#preview-container iframe'
+        ) as HTMLIFrameElement | null
+        const iframeDocument = iframe?.contentDocument
+        if (!iframeDocument) {
+          throw new Error('Preview iframe is not available')
+        }
+
+        const script = iframeDocument.createElement('script')
+        script.type = 'module'
+        script.src = '/__preview__/json-import/entry.js'
+        iframeDocument.head.append(script)
+      })
+
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const iframe = document.querySelector(
+                '#preview-container iframe'
+              ) as HTMLIFrameElement | null
+              return (iframe?.contentWindow as any)?.__vrowzerJsonImportResult
+            }),
+          { timeout: 15_000 }
+        )
+        .toEqual({
+          data: { name: 'vrowzer', nested: { value: 1 }, 'invalid-key': true },
+          name: 'vrowzer',
+          nested: { value: 1 },
+          list: [1, 2, 3]
+        })
+    })
+  })
+
   describe('CSS server.origin', () => {
     test('applies server.origin to public URLs', async () => {
       const expectedUrl = 'https://assets.vrowzer.test/__preview__/server-origin-icon.png'

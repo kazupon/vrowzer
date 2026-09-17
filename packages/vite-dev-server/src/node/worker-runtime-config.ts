@@ -11,7 +11,6 @@ import { posix } from 'pathe'
 const experimentalKeys = [
   'importGlobRestoreExtension',
   'hmrPartialAccept',
-  'enableNativePlugin',
   'bundledDev',
 ] as const
 

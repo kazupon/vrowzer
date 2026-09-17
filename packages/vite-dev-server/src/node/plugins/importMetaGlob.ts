@@ -32,19 +32,6 @@ interface ParsedGeneralImportGlobOptions extends GeneralImportGlobOptions {
 /*
  TODO(kazupon): Native plugin implementation
 export function importGlobPlugin(config: ResolvedConfig): Plugin {
-  if (config.isBundled && config.nativePluginEnabledLevel >= 1) {
-    return nativeImportGlobPlugin({
-      root: config.root,
-      restoreQueryExtension: config.experimental.importGlobRestoreExtension,
-      isV2:
-        config.nativePluginEnabledLevel >= 2
-          ? {
-            sourcemap: !!config.build.sourcemap,
-          }
-          : undefined,
-    })
-  }
-
   const importGlobMaps = new Map<
     Environment,
     Map<string, Array<(file: string) => boolean>>
@@ -52,6 +39,17 @@ export function importGlobPlugin(config: ResolvedConfig): Plugin {
 
   return {
     name: 'vite:import-glob',
+    applyToEnvironment(environment) {
+      if (environment.config.isBundled) {
+        return nativeImportGlobPlugin({
+          root: environment.config.root,
+          sourcemap: !!environment.config.build.sourcemap,
+          restoreQueryExtension:
+            environment.config.experimental.importGlobRestoreExtension,
+        })
+      }
+      return true
+    },
     buildStart() {
       importGlobMaps.clear()
     },

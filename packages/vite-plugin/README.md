@@ -232,6 +232,9 @@ The legacy plugin option `Vrowzer({ resolve })` is still supported. When extract
 
 While present, the legacy option replaces the **entire** Worker `resolve` object, including a dedicated file's `dedupe` or other settings. Even `resolve: {}` replaces it with an empty object. There is no alias concatenation or deep merge. Ordinary host extraction does not emit this migration warning. The host's top-level `resolve` is a separate setting, not this compatibility option.
 
+> [!WARNING]
+> `experimental.enableNativePlugin` is no longer supported. Native Rolldown plugins are selected per environment by `isBundled`, which is `false` in the standard preview Worker. Remove the option from `workerConfig`; a leftover value is ignored, and the Worker logs a warning.
+
 ### Runtime-owned settings
 
 The standard `initWebWorker()` path keeps the preview aligned with the Service Worker. Omit the following settings from the dedicated config; conflicting direct values or changes made by config hooks fail through the existing Worker setup error path:
@@ -244,7 +247,6 @@ The standard `initWebWorker()` path keeps the preview aligned with the Service W
 | Dependency optimizer | No optimizer is created or initialized in Worker environments, regardless of framework normalization of the deprecated `optimizeDeps.disabled` flag |
 | `experimental.importGlobRestoreExtension` | `false` |
 | `experimental.hmrPartialAccept` | `false` |
-| `experimental.enableNativePlugin` | `'v2'` |
 | `experimental.bundledDev` | `false` |
 
 Equivalent values are accepted. Other `optimizeDeps` and `experimental` fields remain usable without removing the runtime-owned defaults. This is a limited merge of these two blocks, not a host-config merge. The checks are not enabled by default for standalone use of the lower-level dev-server APIs.

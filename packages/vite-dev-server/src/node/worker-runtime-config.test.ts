@@ -9,7 +9,6 @@ const runtime = {
   experimental: {
     importGlobRestoreExtension: false,
     hmrPartialAccept: false,
-    enableNativePlugin: 'v2',
     bundledDev: false,
   },
 }
@@ -43,6 +42,15 @@ describe('standard Worker runtime config', () => {
     expect(mergeWorkerRuntimeConfig(runtime, user, snapshotWorkerRuntimeConfig(runtime))).toEqual(runtime)
   })
 
+  test('keeps the removed native plugin option as a non-reserved setting', () => {
+    const user = { experimental: { enableNativePlugin: false } }
+    const policy = snapshotWorkerRuntimeConfig(runtime)
+    const config = mergeWorkerRuntimeConfig(runtime, user, policy)
+    expect(config.experimental).toEqual({ ...runtime.experimental, enableNativePlugin: false })
+    expect(policy.experimental).not.toHaveProperty('enableNativePlugin')
+    expect(() => assertWorkerRuntimeConfig(config, policy, true)).not.toThrow()
+  })
+
   test.each([
     ['root', { root: '/host' }],
     ['base', { base: '/another/' }],
@@ -52,7 +60,6 @@ describe('standard Worker runtime config', () => {
     ['optimizeDeps.disabled', { optimizeDeps: { disabled: false } }],
     ['experimental.importGlobRestoreExtension', { experimental: { importGlobRestoreExtension: true } }],
     ['experimental.hmrPartialAccept', { experimental: { hmrPartialAccept: true } }],
-    ['experimental.enableNativePlugin', { experimental: { enableNativePlugin: false } }],
     ['experimental.bundledDev', { experimental: { bundledDev: true } }],
   ])('rejects changing %s', (key, user) => {
     expect(() => mergeWorkerRuntimeConfig(runtime, user as Record<string, unknown>, snapshotWorkerRuntimeConfig(runtime)))
