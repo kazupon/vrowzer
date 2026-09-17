@@ -10,8 +10,6 @@ import path from 'node:path'
 // import { findNearestNodeModules } from './packages'
 // NOTE(kazupon): disalbe because vrowzer will not need full bundle dev environment
 // import { type RolldownOutput, rolldown } from 'rolldown'
-// NOTE(kazupon): disable, because vrowzer will not need full bundle dev environment
-// import { FullBundleDevEnvironment } from './server/environments/fullBundleEnvironment'
 import { inspect, promisify } from 'node:util'
 import colors from 'picocolors'
 import picomatch from 'picomatch'
@@ -175,7 +173,7 @@ export interface CreateDevEnvironmentContext {
   // In Worker environments, packages are resolved via vendor aliases (e.g. svelte → /vendor/svelte.js),
   // not through node_modules prebundling. The dep optimizer must be disabled to prevent
   // `.vite/deps/` paths from being generated for packages that don't exist in the virtual FS.
-  // Upstream Vite only uses `disableDepsOptimizer` internally in FullBundleDevEnvironment,
+  // Upstream Vite sets `disableDepsOptimizer` in the `DevEnvironment` constructor for bundled environments,
   // but vrowzer needs to pass it through the factory context for Worker DevEnvironment creation.
   disableDepsOptimizer?: boolean
 }
@@ -243,14 +241,6 @@ function defaultCreateClientDevEnvironment(
   config: ResolvedConfig,
   context: CreateDevEnvironmentContext,
 ) {
-  // NOTE(kazupon): disable, because vrowzer will not need full bundle dev environment
-  // if (config.experimental.bundledDev) {
-  //   return new FullBundleDevEnvironment(name, config, {
-  //     hot: true,
-  //     transport: context.ws,
-  //   })
-  // }
-
   return new DevEnvironment(name, config, {
     hot: true,
     transport: context.ws,
