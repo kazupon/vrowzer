@@ -23,6 +23,7 @@ import {
   serializeRpcMessage,
 } from '../shared/rpc'
 import { shouldHandleViteFetch } from '../shared/serviceWorkerFetch'
+import { assertBundledDevUnsupported } from './bundled-dev-guard'
 import { isResolvedConfig, resolveConfig } from './config'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
@@ -369,6 +370,8 @@ export function createServer(
     const config = isResolvedConfig(inlineConfig)
       ? inlineConfig
       : await resolveConfig(inlineConfig, 'serve')
+    // NOTE(kazupon): the Service Worker does not create `DevEnvironment`, so it checks bundled dev mode here.
+    assertBundledDevUnsupported(config)
     debug?.('config:', config)
 
     const initPublicFilesPromise = initPublicFiles(config)
@@ -599,8 +602,8 @@ export function createServer(
     }
 
     if (config.experimental.bundledDev) {
-      // TODO: implement memoryFilesMiddleware later
-      // middlewares.use(memoryFilesMiddleware(server))
+      // NOTE(kazupon): unreachable, `assertBundledDevUnsupported` rejects bundled dev mode above.
+      // Vite registers `triggerLazyBundlingMiddleware` and `memoryFilesMiddleware` here.
     } else {
       // main transform middleware
       middlewares.use('*', transformMiddleware(server as ViteDevServer))

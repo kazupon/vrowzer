@@ -8,6 +8,7 @@ import type { FSWatcher } from '#dep-types/chokidar'
 import { ERR_OUTDATED_OPTIMIZED_DEP } from '../../shared/constants'
 import { promiseWithResolvers, unwrapId } from '../../shared/utils'
 import { BaseEnvironment } from '../baseEnvironment'
+import { assertBundledDevEnvironmentUnsupported } from '../bundled-dev-guard'
 import type {
   EnvironmentOptions,
   ResolvedConfig,
@@ -135,6 +136,11 @@ export class DevEnvironment extends BaseEnvironment {
       ) as ResolvedEnvironmentOptions
     }
     super(name, config, options)
+
+    // NOTE(kazupon): Vite creates `BundledDev` here for the same condition.
+    // Vrowzer does not support bundled dev mode yet, so fail fast instead of
+    // creating a dev environment without a bundler.
+    assertBundledDevEnvironmentUnsupported(name, options, config)
 
     this._pendingRequests = new Map()
 
