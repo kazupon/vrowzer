@@ -27,12 +27,6 @@ export interface UpdatePayload {
 export interface Update {
   type: 'js-update' | 'css-update'
   /**
-   * URL of HMR patch chunk
-   *
-   * This only exists when full-bundle mode is enabled.
-   */
-  url?: string
-  /**
    * Module URL of the HMR boundary.
    * @remarks This changed from a browser-safe URL to a module URL.
    */
