@@ -413,7 +413,11 @@ export async function handleHMRUpdate(
   const { config } = server
   const mixedModuleGraph = ignoreDeprecationWarnings(() => server.moduleGraph)
 
-  const environments = Object.values(server.environments)
+  const environmentSnapshot = server.environments
+  const environments = Object.values(environmentSnapshot)
+  // A plugin hook may restart the server, replacing the environments and
+  // invalidating this HMR transaction.
+  const isStale = () => server.environments !== environmentSnapshot
   const shortFile = getShortName(file, config.root)
 
   const isConfig = file === config.configFile
@@ -510,14 +514,13 @@ export async function handleHMRUpdate(
   const clientHotUpdateOptions = hotMap.get(clientEnvironment)!.options
   const ssrHotUpdateOptions = hotMap.get(ssrEnvironment)?.options
   try {
-    for (const plugin of getSortedHotUpdatePlugins(
-      server.environments.client,
-    )) {
+    for (const plugin of getSortedHotUpdatePlugins(clientEnvironment)) {
       if (plugin.hotUpdate) {
         const filteredModules = await getHookHandler(plugin.hotUpdate).call(
           clientContext,
           clientHotUpdateOptions,
         )
+        if (isStale()) { return }
         if (filteredModules) {
           clientHotUpdateOptions.modules = filteredModules
           // Invalidate the hmrContext to force compat modules to be updated
@@ -553,6 +556,7 @@ export async function handleHMRUpdate(
         const filteredModules = await getHookHandler(
           plugin.handleHotUpdate!,
         ).call(contextForHandleHotUpdate, mixedHmrContext)
+        if (isStale()) { return }
         if (filteredModules) {
           mixedHmrContext.modules = filteredModules
           clientHotUpdateOptions.modules =
@@ -591,7 +595,8 @@ export async function handleHMRUpdate(
       }
     }
   } catch (error) {
-    hotMap.get(server.environments.client)!.error = error
+    if (isStale()) { return }
+    hotMap.get(clientEnvironment)!.error = error
   }
 
   for (const environment of environments) {
@@ -605,17 +610,20 @@ export async function handleHMRUpdate(
             context,
             hot.options,
           )
+          if (isStale()) { return }
           if (filteredModules) {
             hot.options.modules = filteredModules
           }
         }
       }
     } catch (error) {
+      if (isStale()) { return }
       hot.error = error
     }
   }
 
   async function hmr(environment: DevEnvironment) {
+    if (isStale()) { return }
     try {
       const { options, error } = hotMap.get(environment)!
       if (error) {
@@ -654,6 +662,8 @@ export async function handleHMRUpdate(
       })
     }
   }
+
+  if (isStale()) { return }
 
   const hotUpdateEnvironments =
     server.config.server.hotUpdateEnvironments ??
