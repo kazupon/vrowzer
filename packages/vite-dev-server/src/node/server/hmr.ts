@@ -860,7 +860,7 @@ function propagateUpdate(
   }
 
   for (const importer of node.importers) {
-    const subChain = currentChain.concat(importer)
+    const subChain = [...currentChain, importer]
 
     if (importer.acceptedHmrDeps.has(node)) {
       // acceptedHmrDeps has value only for js and css
@@ -948,7 +948,7 @@ function isNodeWithinCircularImports(
         // Combined                      : [E, B, C, ACCEPTED, D, E]
         const importChain = [
           importer,
-          ...[...currentChain].reverse(),
+          ...currentChain.toReversed(),
           ...nodeChain.slice(importerIndex, -1).reverse(),
         ]
         debugHmr(
@@ -964,7 +964,7 @@ function isNodeWithinCircularImports(
       const result = isNodeWithinCircularImports(
         importer,
         nodeChain,
-        currentChain.concat(importer),
+        [...currentChain, importer],
         traversedModules,
       )
       if (result) { return result }

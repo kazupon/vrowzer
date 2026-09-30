@@ -211,7 +211,7 @@ export function serveStaticMiddleware(
     let fileUrl = path.resolve(dir, removeLeadingSlash(resolvedPathname))
     if (
       resolvedPathname.endsWith('/') &&
-      fileUrl[fileUrl.length - 1] !== '/'
+      fileUrl.at(-1) !== '/'
     ) {
       fileUrl = withTrailingSlash(fileUrl)
     }
