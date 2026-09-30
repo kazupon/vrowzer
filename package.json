@@ -57,7 +57,7 @@
     "test:integration:svc": "vp test run --project service-worker:integration",
     "test:integration:unplugin": "vp test run --project unplugin-service-worker:integration",
     "test:integration:vrowzer": "vp test run --project vrowzer:integration",
-    "test:unit": "vp test run --project *:unit",
+    "test:unit": "vp test run --project *:unit --project *:unit:*",
     "test:unit:fs": "vp test run --project fs:unit",
     "test:unit:polyfill": "vp test run --project node-polyfill:unit",
     "test:unit:port": "vp test run --project safe-port:unit",
