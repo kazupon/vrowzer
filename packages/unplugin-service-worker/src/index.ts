@@ -1213,9 +1213,9 @@ function createViteGenerateBundle(
       const result = await bundleServiceWorkerWithRolldown(swPath, {
         minify: ctx.viteConfig.build.minify !== false,
         sourcemap: ctx.viteConfig.build.sourcemap ? 'inline' : false,
+        format: options.format,
         define: ctx.bundlerConfig.define,
         alias: ctx.bundlerConfig.alias,
-
         plugins: resolveProductionPlugins(options, ctx.bundlerConfig.plugins)
       })
 
@@ -1363,9 +1363,9 @@ function setupEsbuildHooks(build: EsbuildPluginBuild, options: OptionsResolved):
       const bundleResult = await bundleServiceWorkerWithRolldown(swPath, {
         minify: build.initialOptions.minify ?? false,
         sourcemap: normalizedSourcemap ?? false,
+        format: options.format,
         define: bundlerConfig.define,
         alias: bundlerConfig.alias,
-
         plugins: resolveProductionPlugins(options, bundlerConfig.plugins)
       })
 
@@ -1526,9 +1526,9 @@ function createFarmFinishExecutor(
       const result = await bundleServiceWorkerWithRolldown(swPath, {
         minify: false,
         sourcemap: false,
+        format: options.format,
         define: ctx.bundlerConfig.define,
         alias: ctx.bundlerConfig.alias,
-
         plugins: resolveProductionPlugins(options, ctx.bundlerConfig.plugins)
       })
 
