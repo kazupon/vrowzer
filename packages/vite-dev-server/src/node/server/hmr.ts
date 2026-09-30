@@ -123,6 +123,11 @@ export type HotChannelListener<T extends string = string> = (
 
 export interface HotChannel<Api = any> {
   /**
+   * When true, the fs access check is skipped in fetchModule.
+   * Set this for transports that is not exposed over the network.
+   */
+  skipFsCheck?: boolean
+  /**
    * Broadcast events to all clients
    */
   send?(payload: HotPayload): void
@@ -1219,6 +1224,7 @@ export function createServerHotChannel(): ServerHotChannel {
   const outsideEmitter = new EventEmitter()
 
   return {
+    skipFsCheck: true,
     send(payload: HotPayload) {
       outsideEmitter.emit('send', payload)
     },

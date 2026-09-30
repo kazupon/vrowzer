@@ -49,11 +49,13 @@ import type { ResolvedConfig } from '../config'
 import type { DepsOptimizer } from '../optimizer'
 import { createDepsOptimizer, createExplicitDepsOptimizer } from '../optimizer/optimizer'
 import { DevEnvironment } from './environment'
-import type { NormalizedHotChannelClient } from './hmr'
+import type { HotChannel, NormalizedHotChannelClient } from './hmr'
 import { updateModules } from './hmr'
 import { EnvironmentModuleNode } from './moduleGraph'
 import { createEnvironmentPluginContainer } from './pluginContainer'
 import { registerInputsAsSafeModules } from './safeModulePaths'
+import { transformRequest } from './transformRequest'
+import { isMessageChannelServer } from './ws'
 
 describe('DevEnvironment HMR invalidation', () => {
   test.each([
@@ -497,5 +499,80 @@ describe('plugin container close lifecycle', () => {
     await expect(container.close()).resolves.toBeUndefined()
     expect(buildEnd).toHaveBeenCalledOnce()
     expect(closeBundle).toHaveBeenCalledOnce()
+  })
+})
+
+describe('DevEnvironment server.fs checks', () => {
+  function createConfig() {
+    return {
+      root: '/',
+      plugins: [],
+      build: { rollupOptions: {} },
+      environments: { client: { plugins: [], resolve: { builtins: [] } } },
+      experimental: { bundledDev: false },
+      server: { perEnvironmentStartEndDuringDev: false },
+      logger: { info: vi.fn<() => void>(), error: vi.fn<() => void>() },
+    } as unknown as ResolvedConfig
+  }
+
+  function createHotChannel(skipFsCheck: boolean): HotChannel {
+    return {
+      skipFsCheck,
+      send: vi.fn<() => void>(),
+      on: vi.fn<() => void>(),
+      off: vi.fn<() => void>(),
+      listen: vi.fn<() => void>(),
+      close: vi.fn<() => void>(),
+    }
+  }
+
+  test('checks server.fs for transform requests but not for warmups', async () => {
+    const environment = new DevEnvironment('client', createConfig(), {
+      hot: true,
+      disableDepsOptimizer: true,
+    })
+    vi.mocked(transformRequest).mockClear()
+
+    await environment.transformRequest('/main.js')
+    await environment.warmupRequest('/main.js')
+
+    expect(transformRequest).toHaveBeenNthCalledWith(1, environment, '/main.js', {
+      skipFsCheck: false,
+    })
+    expect(transformRequest).toHaveBeenNthCalledWith(2, environment, '/main.js', {
+      skipFsCheck: true,
+    })
+  })
+
+  test('skips server.fs checks only for hot channels that opt out', () => {
+    const create = (transport: DevEnvironment['hot'] | HotChannel) =>
+      new DevEnvironment('client', createConfig(), {
+        transport: transport as HotChannel,
+        disableDepsOptimizer: true,
+      })
+
+    expect(create(createHotChannel(true))._skipFsCheck).toBe(true)
+    expect(create(createHotChannel(false))._skipFsCheck).toBe(false)
+
+    // The preview MessageChannel server is reachable from preview documents.
+    const messageChannelServer = {
+      ...createHotChannel(true),
+      [isMessageChannelServer]: true,
+      setInvokeHandler: vi.fn<() => void>(),
+    }
+    expect(create(messageChannelServer as never)._skipFsCheck).toBe(false)
+  })
+
+  test('rejects fetchModule invocations when disabled', () => {
+    const environment = new DevEnvironment('client', createConfig(), {
+      hot: true,
+      disableFetchModule: true,
+      disableDepsOptimizer: true,
+    })
+    const handlers = vi.mocked(environment.hot.setInvokeHandler).mock.calls[0][0]!
+
+    expect(() => handlers.fetchModule('/main.js')).toThrow(
+      'fetchModule is disabled in this environment',
+    )
   })
 })

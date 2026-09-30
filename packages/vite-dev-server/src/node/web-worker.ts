@@ -28,9 +28,6 @@ import { V_WW_READY, V_WW_SETUP_ACK, V_WW_SETUP_ERROR, V_SW_CONNECT_PORT_ACK } f
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage, WorkerReadyMessage } from '../shared/messages'
 import type { ViteDevServer } from './server/index'
 import type { Plugin } from './plugin'
-import type {
-  TransformOptionsInternal,
-} from './server/transformRequest'
 import type { ViteDevServerForWorker } from './transformer'
 
 const debug = createDebugger('vrowzer:web-worker')
@@ -174,18 +171,8 @@ export function createServer(
                 return Promise.resolve(null)
               }
 
-              return clientEnv?.transformRequest(url, {
-                ...options,
-                allowId(id: string) {
-                  return (
-                    id[0] === '\0' ||
-                    !transformer.isServerAccessDeniedForTransform(
-                      (server as unknown as ViteDevServer).config,
-                      id,
-                    )
-                  )
-                },
-              } as TransformOptionsInternal) || Promise.resolve(null)
+              // `server.fs` access is checked by DevEnvironment.transformRequest().
+              return clientEnv?.transformRequest(url) || Promise.resolve(null)
             },
             warmupRequest: async (url) => {
               debug?.('warmupRequest:', url)

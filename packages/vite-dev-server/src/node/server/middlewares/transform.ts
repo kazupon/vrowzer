@@ -163,14 +163,7 @@ export function transformMiddleware(
         // resolve, load and transform using the plugin container
         const result = await server.transformRequest(url)
         // NOTE(kazupon): keep the original codes, because we need to maintain forked codes from original codes later with LLMs.
-        // const result = await environment.transformRequest(url, {
-        //   allowId(id) {
-        //     return (
-        //       id[0] === '\0' ||
-        //       !isServerAccessDeniedForTransform(server.config, id)
-        //     )
-        //   },
-        // })
+        // const result = await environment.transformRequest(url)
         if (result) {
           // TODO(kazupon): disable optimizer, because we don't still implement it.
           // const depsOptimizer = environment.depsOptimizer

@@ -250,3 +250,29 @@ describe('Web Worker server listen timeout', () => {
     )
   })
 })
+
+describe('Web Worker transform requests', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  test('leaves the server.fs check to the client environment', async () => {
+    const setupResult = createSetupResult()
+    transformerMocks.setupWorker.mockResolvedValue(setupResult)
+    const workerScope = createWorkerScope()
+    const server = createServer(workerScope)
+    const listening = server.listen(0)
+
+    await dispatchSetup(workerScope)
+    const readyServer = await listening
+    await readyServer.transformRequest('/secret.txt?raw', { ssr: false })
+
+    expect(setupResult.environments.client.transformRequest)
+      .toHaveBeenCalledExactlyOnceWith('/secret.txt?raw')
+    expect(transformerMocks.isServerAccessDeniedForTransform).not.toHaveBeenCalled()
+  })
+})
