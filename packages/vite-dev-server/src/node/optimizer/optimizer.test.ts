@@ -143,6 +143,28 @@ describe('createDepsOptimizer initialization', () => {
     await optimizer.close()
   })
 
+  // regression test for https://github.com/vitejs/vite/issues/23143
+  it('resolves discovered dep processing promise on close before init', async () => {
+    const optimizer = createDepsOptimizer(createEnvironment())
+    const info = optimizer.registerMissingImport(
+      'example',
+      '/node_modules/example/index.js',
+    )
+    let resolved = false
+    void info.processing?.then(() => {
+      resolved = true
+    })
+
+    // The processing promise stays pending because init() has not run.
+    await vi.advanceTimersByTimeAsync(500)
+    expect(resolved).toBe(false)
+
+    // close() resolves it so requests waiting on the dep can unblock.
+    await optimizer.close()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(resolved).toBe(true)
+  })
+
   it('does not schedule an optimizer run while initializing', async () => {
     let resolveCachedMetadata:
       | ((metadata: DepOptimizationMetadata) => void)
