@@ -162,7 +162,9 @@ export default defineConfig({
         test: {
           name: 'vite-dev-server:unit:node',
           environment: 'node',
-          include: ['./packages/vite-dev-server/src/**/*.test.ts']
+          include: ['./packages/vite-dev-server/src/**/*.test.ts'],
+          // Logger assertions expect plain text, but picocolors enables colors when `CI` is set
+          env: { NO_COLOR: '1' }
         }
       },
       {
