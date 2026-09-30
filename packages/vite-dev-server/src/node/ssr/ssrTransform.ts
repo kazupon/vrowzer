@@ -31,8 +31,6 @@ export const ssrExportAllKey = `__vite_ssr_exportAll__`
 export const ssrExportNameKey = `__vite_ssr_exportName__`
 export const ssrImportMetaKey = `__vite_ssr_import_meta__`
 
-const hashbangRE = /^#!.*\n/
-
 export async function ssrTransform(
   code: string,
   inMap: SourceMap | { mappings: '' } | null,
