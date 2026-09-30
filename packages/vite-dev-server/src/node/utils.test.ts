@@ -454,6 +454,31 @@ describe('server hmr/ws option compatibility', () => {
     expect(merged.server.ws?.overlay).toBeUndefined()
   })
 
+  it('`mergeConfig` does not crash when `server.ws` is false and `server.hmr` is merged', () => {
+    const baseConfig = {
+      server: {
+        ws: false,
+        hmr: {
+          host: 'localhost',
+        },
+      },
+    }
+
+    const newConfig = {
+      server: {
+        hmr: {
+          port: 5173,
+        },
+      },
+    }
+
+    const mergedConfig = mergeConfig(baseConfig, newConfig)
+
+    expect(mergedConfig.server.ws).toBe(false)
+    expect(mergedConfig.server.hmr).toBeTypeOf('object')
+    expect(mergedConfig.server.hmr).toBeTruthy()
+  })
+
   it('normalizes standalone server options and keeps aliases synchronized', () => {
     const server = {
       hmr: {
