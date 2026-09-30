@@ -22,7 +22,10 @@ vi.mock('../plugins/resolve', () => ({
 }))
 
 import type { Environment } from '../environment'
-import { rolldownDepPlugin } from './rolldownDepPlugin'
+import {
+  rolldownCjsExternalPlugin,
+  rolldownDepPlugin,
+} from './rolldownDepPlugin'
 
 type ResolveIdHandler = (
   this: PluginContext,
@@ -154,6 +157,96 @@ describe('rolldownDepPlugin asset entrypoints', () => {
       id: resolved,
       external: 'absolute',
     })
+  })
+})
+
+describe('rolldownDepPlugin browser externals', () => {
+  const importer = '/project/node_modules/dep/index.js'
+
+  test('treats an exact browser-external id as an explicit browser:false mapping', async () => {
+    const { depPlugin } = createPlugins('__vite-browser-external')
+
+    expect(
+      await getResolveIdHandler(depPlugin).call(context, 'shimmed', importer, {
+        isEntry: false,
+        kind: 'import-statement',
+      }),
+    ).toEqual({ id: '__vite-browser-external' })
+    expect(
+      await getLoadHandler(depPlugin).call(context, '__vite-browser-external'),
+    ).toEqual({ code: 'module.exports = {}' })
+  })
+
+  test('keeps the warning proxy for unsupported Node builtins', async () => {
+    const { depPlugin } = createPlugins('__vite-browser-external:fs')
+
+    expect(
+      await getResolveIdHandler(depPlugin).call(context, 'fs', importer, {
+        isEntry: false,
+        kind: 'import-statement',
+      }),
+    ).toEqual({ id: 'browser-external:fs' })
+    expect(
+      await getLoadHandler(depPlugin).call(context, 'browser-external:fs'),
+    ).toMatchObject({
+      code: expect.stringContaining(
+        'has been externalized for browser compatibility',
+      ),
+    })
+  })
+})
+
+describe('rolldownCjsExternalPlugin', () => {
+  const importer = '/project/node_modules/dep/index.js'
+
+  function createCjsExternalPlugin(resolve: () => Promise<string>) {
+    const config = {
+      createResolver: () => vi.fn<() => Promise<string>>(resolve),
+    }
+    const environment = {
+      name: 'client',
+      config,
+      getTopLevelConfig: () => config,
+    } as unknown as Environment
+    const plugin = rolldownCjsExternalPlugin(
+      ['optional-peer', 'excluded'],
+      'browser',
+      environment,
+    )
+    if (!plugin) {
+      throw new Error('Could not create the cjs-external plugin')
+    }
+    return plugin
+  }
+
+  test('keeps a missing optional peer require on the pre-bundler CJS stub', async () => {
+    const resolved = '__vite-optional-peer-dep:optional-peer:dep'
+    const plugin = createCjsExternalPlugin(async () => resolved)
+
+    expect(
+      await getResolveIdHandler(plugin).call(context, 'optional-peer', importer, {
+        isEntry: false,
+        kind: 'require-call',
+      }),
+    ).toEqual({ id: 'optional-peer-dep:' + resolved })
+  })
+
+  test('converts other excluded requires to ESM facades', async () => {
+    const resolvedPlugin = createCjsExternalPlugin(
+      async () => '/project/node_modules/excluded/index.js',
+    )
+    const unresolvablePlugin = createCjsExternalPlugin(() =>
+      Promise.reject(new Error('not resolvable until served')),
+    )
+
+    for (const plugin of [resolvedPlugin, unresolvablePlugin]) {
+      expect(
+        await getResolveIdHandler(plugin).call(context, 'excluded', importer, {
+          isEntry: false,
+          kind: 'require-call',
+        }),
+      ).toEqual({ id: 'vite:cjs-external-facadeexcluded' })
+    }
   })
 })
 

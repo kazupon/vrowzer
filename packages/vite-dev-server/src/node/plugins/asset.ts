@@ -43,8 +43,9 @@ import {
 import type { Environment } from '../environment'
 import type { PartialEnvironment } from '../baseEnvironment'
 
-// referenceId is base64url but replaces - with $
-export const assetUrlRE: RegExp = /__VITE_ASSET__([\w$]+)__/g
+// referenceId is a 22-character base64url string but replaces - with $
+export const assetUrlRE: RegExp =
+  /__VITE_ASSET__([\w$]{22})(?:_([a-f\d]{24}))?__/g
 
 const encodedHashPlaceholderRE = /!~%7B([\w$]{1,17})%7D~/g
 function unescapeHashPlaceholders(uri: string): string {
@@ -53,6 +54,7 @@ function unescapeHashPlaceholders(uri: string): string {
 
 interface FileUrlMetadata {
   asFileUrl: boolean
+  postfix: string
 }
 
 const fileUrlMetadata = new WeakMap<Environment, Map<string, FileUrlMetadata>>()
@@ -138,12 +140,12 @@ export function renderAssetUrlInJS(
   assetUrlRE.lastIndex = 0
   while ((match = assetUrlRE.exec(code))) {
     s ||= new MagicString(code)
-    const [full, referenceId] = match
+    const [full, referenceId, urlId] = match
     const file = pluginContext.getFileName(referenceId)
     chunk.viteMetadata!.importedAssets.add(cleanUrl(file))
     const replacement = toOutputFilePathInJS(
       environment,
-      file,
+      file + getAssetUrlPostfix(environment, urlId),
       'asset',
       chunk.fileName,
       'js',
@@ -283,7 +285,11 @@ export function assetPlugin(config: ResolvedConfig): Plugin {
         }
 
         return {
-          code: `export default ${formatBuiltAsset(resolved, 'js')}`,
+          code: `export default ${formatBuiltAsset(
+            resolved,
+            'js',
+            addFileUrlMetadataForAsset(this.environment, resolved, 'js'),
+          )}`,
           // Force rollup to keep this module from being shared between other entry points if it's an entrypoint.
           // If the resulting chunk is empty, it will be removed in generateBundle.
           moduleSideEffects:
@@ -325,7 +331,7 @@ export function assetPlugin(config: ResolvedConfig): Plugin {
             }
             const replacement = toOutputFilePathInJS(
               environment,
-              fileName,
+              fileName + (metadata?.postfix ?? ''),
               'asset',
               chunkId,
               'js',
@@ -547,11 +553,28 @@ async function fileToBuiltUrl(
     skipPublicCheck,
     forceInline,
   )
-  const urlId =
-    resolved.type === 'reference' && format === 'js' && asFileUrl
-      ? addFileUrlMetadata(pluginContext.environment, { asFileUrl })
-      : undefined
+  const urlId = addFileUrlMetadataForAsset(
+    pluginContext.environment,
+    resolved,
+    format,
+    asFileUrl,
+  )
   return formatBuiltAsset(resolved, format, urlId)
+}
+
+function addFileUrlMetadataForAsset(
+  environment: Environment,
+  resolved: FileToBuiltUrlResult,
+  format: AssetUrlFormat,
+  useFileUrl = false,
+): string | undefined {
+  if (resolved.type !== 'reference') { return }
+
+  const asFileUrl = format === 'js' && useFileUrl
+  const { postfix } = resolved
+  if (!asFileUrl && !postfix) { return }
+
+  return addFileUrlMetadata(environment, { asFileUrl, postfix })
 }
 
 function addFileUrlMetadata(
@@ -573,6 +596,15 @@ function addFileUrlMetadata(
   return urlId
 }
 
+export function getAssetUrlPostfix(
+  environment: Environment,
+  urlId: string | undefined,
+): string {
+  return urlId
+    ? (fileUrlMetadata.get(environment)?.get(urlId)?.postfix ?? '')
+    : ''
+}
+
 /** Format a resolved asset as either a JS expression or a plain-text string. */
 function formatBuiltAsset(
   resolved: FileToBuiltUrlResult,
@@ -584,11 +616,9 @@ function formatBuiltAsset(
       const base = urlId
         ? `import.meta.ROLLDOWN_FILE_URL_${resolved.referenceId}_${urlId}`
         : `import.meta.ROLLDOWN_FILE_URL_${resolved.referenceId}`
-      return resolved.postfix
-        ? `${base} + ${JSON.stringify(resolved.postfix)}`
-        : base
+      return base
     }
-    return `__VITE_ASSET__${resolved.referenceId}__${resolved.postfix}`
+    return `__VITE_ASSET__${resolved.referenceId}${urlId ? `_${urlId}` : ''}__`
   }
   return format === 'js'
     ? JSON.stringify(encodeURIPath(resolved.value))
