@@ -775,7 +775,7 @@ export function createMessageChannelServer(
 //
 //     [isWebSocketServer]: true,
 //     get clients() {
-//       return new Set(Array.from(wss.clients).map(getSocketClient))
+//       return new Set([...wss.clients].map(getSocketClient))
 //     },
 //   }
 // }

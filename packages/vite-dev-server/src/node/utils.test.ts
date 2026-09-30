@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vite-plus/test'
 import type { PackageCache, PackageData } from './packages'
 import {
   flattenId,
+  formatAndTruncateFileList,
   generateCodeFrame,
   getFileStartIndex,
   getHash,
@@ -310,6 +311,37 @@ describe('isInNodeModules', () => {
     expect(isInNodeModules('/project/my_node_modules/src/main.js')).toBe(false)
     expect(isInNodeModules('/project/src/node_modules.js')).toBe(false)
     expect(isInNodeModules('C:\\node_modules_bug\\src\\main.js')).toBe(false)
+  })
+})
+
+describe('formatAndTruncateFileList', () => {
+  it('joins all files when they fit within the log length', () => {
+    expect(formatAndTruncateFileList(['/src/a.ts', '/src/b.ts'])).toEqual({
+      formatted: '/src/a.ts, /src/b.ts',
+      truncated: false,
+    })
+  })
+
+  it('returns an empty string for no files', () => {
+    expect(formatAndTruncateFileList([])).toEqual({
+      formatted: '',
+      truncated: false,
+    })
+  })
+
+  it('truncates the list and reports the remaining count', () => {
+    const files = Array.from(
+      { length: 100 },
+      (_, i) => `/src/components/file-${i}.ts`,
+    )
+    const { formatted, truncated } = formatAndTruncateFileList(files)
+    const [list, rest] = formatted.split(' and ')
+    const shown = list.split(', ')
+
+    expect(truncated).toBe(true)
+    expect(list.length).toBeLessThan(500)
+    expect(shown).toEqual(files.slice(0, shown.length))
+    expect(rest).toBe(`${files.length - shown.length} more`)
   })
 })
 

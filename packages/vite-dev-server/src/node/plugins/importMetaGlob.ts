@@ -250,7 +250,7 @@ export async function parseImportGlob(
     // skip invalid js code
     return []
   }
-  const matches = Array.from(cleanCode.matchAll(importGlobRE))
+  const matches = [...cleanCode.matchAll(importGlobRE)]
 
   const tasks = matches.map(async (match, index) => {
     const start = match.index!

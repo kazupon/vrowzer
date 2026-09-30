@@ -13,7 +13,8 @@ vi.mock('@vrowzer/rolldown/utils', () => ({
   transformSync: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 
-import { updateModules } from './hmr'
+import type { ViteDevServer } from '..'
+import { handleHMRUpdate, updateModules } from './hmr'
 import { EnvironmentModuleGraph, EnvironmentModuleNode } from './moduleGraph'
 
 function createEnvironment() {
@@ -72,5 +73,83 @@ describe('HMR module URLs', () => {
       path: '*',
       triggeredBy: '/project/entry.js',
     })
+  })
+})
+
+describe('handleHMRUpdate during a server restart', () => {
+  // Worker-side servers cannot restart, so a plugin hook replacing
+  // `server.environments` stands in for `server.restart()`.
+  function createServer(
+    onHotUpdate: (server: ViteDevServer) => void | Promise<void>,
+  ) {
+    const send = vi.fn<(payload: HotPayload) => void>()
+    const hotUpdateEnvironments = vi.fn<() => Promise<void>>(
+      async () => undefined,
+    )
+    const client = {
+      name: 'client',
+      hot: { send },
+      moduleGraph: new EnvironmentModuleGraph('client', async () => null),
+      pluginContainer: { minimalContext: {} },
+      plugins: [
+        {
+          name: 'restart-during-hot-update',
+          async hotUpdate() {
+            await onHotUpdate(server)
+          },
+        },
+      ],
+    } as unknown as DevEnvironment
+    const server = {
+      config: {
+        root: '/project',
+        configFileDependencies: [],
+        experimental: {},
+        logger: { info: vi.fn<() => void>(), error: vi.fn<() => void>() },
+        server: { hotUpdateEnvironments },
+      },
+      environments: { client },
+      moduleGraph: { getModulesByFile: () => undefined },
+    } as unknown as ViteDevServer
+    return { server, send, hotUpdateEnvironments }
+  }
+
+  function restart(server: ViteDevServer) {
+    server.environments = {
+      client: { ...server.environments.client } as DevEnvironment,
+    }
+  }
+
+  test('dispatches HMR when the environments are unchanged', async () => {
+    const { server, hotUpdateEnvironments } = createServer(() => undefined)
+
+    await handleHMRUpdate('update', '/project/main.js', server)
+
+    expect(hotUpdateEnvironments).toHaveBeenCalledOnce()
+  })
+
+  test('cancels HMR when the server restarts during a hot update', async () => {
+    const { server, send, hotUpdateEnvironments } = createServer(restart)
+
+    await expect(
+      handleHMRUpdate('update', '/project/main.js', server),
+    ).resolves.toBeUndefined()
+
+    expect(hotUpdateEnvironments).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  test('drops a hot update error thrown after the server restarts', async () => {
+    const { server, send, hotUpdateEnvironments } = createServer((server) => {
+      restart(server)
+      throw new Error('hot update interrupted by restart')
+    })
+
+    await expect(
+      handleHMRUpdate('update', '/project/main.js', server),
+    ).resolves.toBeUndefined()
+
+    expect(hotUpdateEnvironments).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
   })
 })
