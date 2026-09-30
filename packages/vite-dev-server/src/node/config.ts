@@ -244,6 +244,7 @@ function defaultCreateClientDevEnvironment(
   return new DevEnvironment(name, config, {
     hot: true,
     transport: context.ws,
+    disableFetchModule: true,
     // NOTE(kazupon): vrowzer extension — pass through disableDepsOptimizer from factory context
     disableDepsOptimizer: context.disableDepsOptimizer,
   })

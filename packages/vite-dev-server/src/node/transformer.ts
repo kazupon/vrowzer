@@ -506,8 +506,7 @@ export {
   ERR_DENIED_ID, ERR_LOAD_PUBLIC_URL, ERR_LOAD_URL, getModuleTypeFromId, transformRequest
 } from './server/transformRequest'
 export type {
-  TransformOptions,
-  TransformOptionsInternal, TransformResult
+  TransformOptions, TransformResult
 } from './server/transformRequest'
 
 // === HMR computation ===
