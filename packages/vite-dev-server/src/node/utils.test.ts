@@ -4,12 +4,15 @@ import { describe, expect, it, vi } from 'vite-plus/test'
 import type { PackageCache, PackageData } from './packages'
 import {
   flattenId,
+  generateCodeFrame,
   getFileStartIndex,
   getHash,
   isFilePathESM,
   isFilePathFormatExplicit,
+  isInNodeModules,
   mergeConfig,
   parseSrcset,
+  posToNumber,
   processSrcSet,
   processSrcSetSync,
   removeTimestampQuery,
@@ -287,6 +290,77 @@ describe('getFileStartIndex', () => {
   })
 })
 
+describe('isInNodeModules', () => {
+  it('should detect node_modules path segments', () => {
+    expect(isInNodeModules('/project/node_modules/foo/index.js')).toBe(true)
+    expect(isInNodeModules('node_modules/foo/index.js')).toBe(true)
+    expect(
+      isInNodeModules(
+        '/project/node_modules/.pnpm/foo@1/node_modules/foo/i.js',
+      ),
+    ).toBe(true)
+    expect(isInNodeModules('C:\\project\\node_modules\\foo\\index.js')).toBe(
+      true,
+    )
+    expect(isInNodeModules('/project/node_modules')).toBe(true)
+  })
+
+  it('should not match node_modules as part of a directory name', () => {
+    expect(isInNodeModules('/project/node_modules_bug/src/main.js')).toBe(false)
+    expect(isInNodeModules('/project/my_node_modules/src/main.js')).toBe(false)
+    expect(isInNodeModules('/project/src/node_modules.js')).toBe(false)
+    expect(isInNodeModules('C:\\node_modules_bug\\src\\main.js')).toBe(false)
+  })
+})
+
+describe('posToNumber', () => {
+  it('crlf', () => {
+    const actual = posToNumber('a\r\nb', { line: 2, column: 0 })
+    expect(actual).toBe(3)
+  })
+})
+
+describe('generateCodeFrames', () => {
+  const longSource = `
+import foo from './foo'
+
+foo()
+// 1
+// 2
+// 3
+`.trim()
+
+  it('works with CRLF given an offset', () => {
+    const longSourceCrLf = longSource.replaceAll('\n', '\r\n')
+    // the frame should point to the same location regardless of the line endings
+    expect(
+      generateCodeFrame(longSourceCrLf, longSourceCrLf.indexOf('// 3')),
+    ).toBe(generateCodeFrame(longSource, longSource.indexOf('// 3')))
+  })
+
+  it('works with CRLF given a range', () => {
+    const longSourceCrLf = longSource.replaceAll('\n', '\r\n')
+    expect(
+      generateCodeFrame(
+        longSourceCrLf,
+        longSourceCrLf.indexOf('foo()'),
+        longSourceCrLf.indexOf('// 2'),
+      ),
+    ).toBe(
+      [
+        `1  |  import foo from './foo'`,
+        `2  |  `,
+        `3  |  foo()`,
+        `   |  ^^^^^`,
+        `4  |  // 1`,
+        `   |  ^^^^`,
+        `5  |  // 2`,
+        `   |  ^^`,
+      ].join('\n'),
+    )
+  })
+})
+
 describe('server hmr/ws option compatibility', () => {
   it('syncs deprecated server.hmr connection options to server.ws', () => {
     const customServer = {}
@@ -378,6 +452,31 @@ describe('server hmr/ws option compatibility', () => {
 
     expect(merged.server.hmr.overlay).toBe(false)
     expect(merged.server.ws?.overlay).toBeUndefined()
+  })
+
+  it('`mergeConfig` does not crash when `server.ws` is false and `server.hmr` is merged', () => {
+    const baseConfig = {
+      server: {
+        ws: false,
+        hmr: {
+          host: 'localhost',
+        },
+      },
+    }
+
+    const newConfig = {
+      server: {
+        hmr: {
+          port: 5173,
+        },
+      },
+    }
+
+    const mergedConfig = mergeConfig(baseConfig, newConfig)
+
+    expect(mergedConfig.server.ws).toBe(false)
+    expect(mergedConfig.server.hmr).toBeTypeOf('object')
+    expect(mergedConfig.server.hmr).toBeTruthy()
   })
 
   it('normalizes standalone server options and keeps aliases synchronized', () => {

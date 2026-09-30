@@ -8,6 +8,7 @@ import type { Logger } from '../logger'
 import {
   blankReplacer,
   createDebugger,
+  isExternalUrl,
   isParentDirectory,
   normalizePath,
 } from '../utils'
@@ -50,7 +51,7 @@ export function getNodeModulesPackageRoot(
 // prefixes used for special handling in esbuildDepPlugin.
 const virtualSourceRE = /^(?:dep:|browser-external:|virtual:)|\0/
 
-interface SourceMapLike {
+export interface SourceMapLike {
   sources: string[]
   sourcesContent?: (string | null)[]
   sourceRoot?: string
@@ -72,6 +73,10 @@ export async function injectSourcesContent(
   file: string,
   logger: Logger,
 ): Promise<void> {
+  if (map.sourceRoot && isExternalUrl(map.sourceRoot)) {
+    return
+  }
+
   let sourceRootPromise: Promise<string | undefined>
 
   const packageRoot = getNodeModulesPackageRoot(file)
@@ -83,6 +88,7 @@ export async function injectSourcesContent(
     if (
       sourcesContent[index] == null &&
       sourcePath &&
+      !isExternalUrl(sourcePath) &&
       !virtualSourceRE.test(sourcePath)
     ) {
       sourcesContentPromises.push(

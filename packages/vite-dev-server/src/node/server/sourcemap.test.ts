@@ -17,6 +17,7 @@ import {
   getCodeWithSourcemap,
   getNodeModulesPackageRoot,
   injectSourcesContent,
+  type SourceMapLike,
 } from './sourcemap'
 
 import type { SourceMap } from 'rolldown'
@@ -170,6 +171,59 @@ describe('injectSourcesContent', () => {
     expect(map.sourcesContent).toEqual(['export const shared = true'])
     expect(fsPromises.readFile).toHaveBeenCalledWith('/shared.ts', 'utf-8')
     expect(logger.warnOnce).not.toHaveBeenCalled()
+  })
+
+  it('leaves maps with a remote sourceRoot alone', async () => {
+    const map: SourceMapLike = {
+      sources: ['index.ts'],
+      sourceRoot: 'https://raw.githubusercontent.com/fb55/domutils/abc123/src/',
+    }
+    const logger = createLogger()
+
+    await injectSourcesContent(
+      map,
+      '/project/node_modules/domutils/lib/esm/index.js',
+      logger,
+    )
+
+    expect(logger.warnOnce).not.toHaveBeenCalled()
+    expect(map.sourcesContent).toBeUndefined()
+    expect(fsPromises.readFile).not.toHaveBeenCalled()
+  })
+
+  it('does not inject content for remote sources', async () => {
+    const map: SourceMapLike = {
+      sources: [
+        'https://raw.githubusercontent.com/fb55/domutils/abc123/src/index.ts',
+      ],
+    }
+    const logger = createLogger()
+
+    await injectSourcesContent(
+      map,
+      '/project/node_modules/domutils/lib/esm/index.js',
+      logger,
+    )
+
+    expect(logger.warnOnce).not.toHaveBeenCalled()
+    expect(map.sourcesContent).toStrictEqual([])
+    expect(fsPromises.readFile).not.toHaveBeenCalled()
+  })
+
+  it('warns for sources that resolve outside the package', async () => {
+    const map: SourceMapLike = {
+      sources: ['/outside/project/index.ts'],
+    }
+    const logger = createLogger()
+
+    await injectSourcesContent(
+      map,
+      '/project/node_modules/foo/dist/index.js',
+      logger,
+    )
+
+    expect(logger.warnOnce).toHaveBeenCalledOnce()
+    expect(map.sourcesContent).toStrictEqual([null])
   })
 })
 
