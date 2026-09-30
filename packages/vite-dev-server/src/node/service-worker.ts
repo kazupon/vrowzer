@@ -407,6 +407,9 @@ export function createServer(
     const { publicDir } = config
 
     const watchEnabled = serverConfig.watch !== null
+    // NOTE(kazupon): upstream wraps the chokidar watcher with makeWatcherCloseFinal(), because
+    // chokidar's add() reopens a closed watcher. The virtual watcher is frozen and its add()
+    // never opens file system handles, so it is not wrapped here.
     const watcher = watchEnabled && options.watcherFactory
       ? options.watcherFactory([
         ...(config.experimental.bundledDev ? [] : [root]),

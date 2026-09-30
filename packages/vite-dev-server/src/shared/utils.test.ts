@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
-import { generateEtag } from './utils'
+import { decodeSourceURL, encodeSourceURL, generateEtag } from './utils'
 
 describe('generateEtag', () => {
   it('should generate a weak etag by default', () => {
@@ -68,5 +68,29 @@ describe('generateEtag', () => {
     const content = 'a'.repeat(100000)
     const etag = generateEtag(content)
     expect(etag).toMatch(/^W\/"[0-9a-f]+-[0-9a-z]+"$/)
+  })
+})
+
+describe('encodeSourceURL', () => {
+  it('percent-encodes whitespace only', () => {
+    expect(encodeSourceURL('/project/with space/has-error.js')).toBe(
+      '/project/with%20space/has-error.js',
+    )
+    expect(encodeSourceURL('/project/tab\there.js')).toBe(
+      '/project/tab%09here.js',
+    )
+    expect(encodeSourceURL('/project/100%/a+b.js')).toBe('/project/100%/a+b.js')
+  })
+})
+
+describe('decodeSourceURL', () => {
+  it('reverses encodeSourceURL', () => {
+    const id = '/project/with space/tab\there.js'
+    expect(decodeSourceURL(encodeSourceURL(id))).toBe(id)
+  })
+
+  it('keeps percent-encoded sequences that are not whitespace', () => {
+    expect(decodeSourceURL('/project/a%2Fb%20c.js')).toBe('/project/a%2Fb c.js')
+    expect(decodeSourceURL('/project/%E0%A4%A.js')).toBe('/project/%E0%A4%A.js')
   })
 })
