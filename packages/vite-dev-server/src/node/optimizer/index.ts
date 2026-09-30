@@ -62,6 +62,7 @@ export type ExportsData = {
 
 export interface DepsOptimizer {
   init: () => Promise<void>
+  initState: 'idle' | 'initializing' | 'initialized'
 
   metadata: DepOptimizationMetadata
   scanProcessing?: Promise<void>
