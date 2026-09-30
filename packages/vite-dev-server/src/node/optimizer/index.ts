@@ -79,8 +79,8 @@ export interface DepsOptimizer {
 
 export interface DepOptimizationConfig {
   /**
-    * Force optimize listed dependencies (must be resolvable import paths,
-    * cannot be globs).
+    * Force optimize listed dependencies (must be resolvable import paths).
+    * Supports experimental glob patterns for deep imports.
     */
   include?: string[]
   /**
