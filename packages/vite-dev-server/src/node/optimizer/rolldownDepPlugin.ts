@@ -1,6 +1,6 @@
 import path from 'node:path'
 import type { ImportKind, Plugin, RolldownPlugin } from 'rolldown'
-import { prefixRegex } from 'rolldown/filter'
+import { exactRegex, prefixRegex } from 'rolldown/filter'
 import MagicString from 'magic-string'
 import { stripLiteral } from 'strip-literal'
 import { JS_TYPES_RE, KNOWN_ASSET_TYPES } from '../constants'
@@ -125,6 +125,11 @@ export function rolldownDepPlugin(
   }
 
   const resolveResult = (id: string, resolved: string, kind: ImportKind) => {
+    // An exact browser-external id is an explicit browser:false mapping.
+    // Suffixed ids are unsupported Node builtins and still need the warning.
+    if (resolved === browserExternalId) {
+      return { id: browserExternalId }
+    }
     if (resolved.startsWith(browserExternalId)) {
       return {
         id: browserExternalNamespace + id,
@@ -260,11 +265,15 @@ export function rolldownDepPlugin(
       load: {
         filter: {
           id: [
+            exactRegex(browserExternalId),
             prefixRegex(browserExternalNamespace),
             prefixRegex(optionalPeerDepNamespace),
           ],
         },
         handler(id) {
+          if (id === browserExternalId) {
+            return { code: 'module.exports = {}' }
+          }
           if (id.startsWith(browserExternalNamespace)) {
             const path = id.slice(browserExternalNamespace.length)
             if (isProduction) {

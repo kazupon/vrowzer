@@ -160,6 +160,42 @@ describe('rolldownDepPlugin asset entrypoints', () => {
   })
 })
 
+describe('rolldownDepPlugin browser externals', () => {
+  const importer = '/project/node_modules/dep/index.js'
+
+  test('treats an exact browser-external id as an explicit browser:false mapping', async () => {
+    const { depPlugin } = createPlugins('__vite-browser-external')
+
+    expect(
+      await getResolveIdHandler(depPlugin).call(context, 'shimmed', importer, {
+        isEntry: false,
+        kind: 'import-statement',
+      }),
+    ).toEqual({ id: '__vite-browser-external' })
+    expect(
+      await getLoadHandler(depPlugin).call(context, '__vite-browser-external'),
+    ).toEqual({ code: 'module.exports = {}' })
+  })
+
+  test('keeps the warning proxy for unsupported Node builtins', async () => {
+    const { depPlugin } = createPlugins('__vite-browser-external:fs')
+
+    expect(
+      await getResolveIdHandler(depPlugin).call(context, 'fs', importer, {
+        isEntry: false,
+        kind: 'import-statement',
+      }),
+    ).toEqual({ id: 'browser-external:fs' })
+    expect(
+      await getLoadHandler(depPlugin).call(context, 'browser-external:fs'),
+    ).toMatchObject({
+      code: expect.stringContaining(
+        'has been externalized for browser compatibility',
+      ),
+    })
+  })
+})
+
 describe('rolldownCjsExternalPlugin', () => {
   const importer = '/project/node_modules/dep/index.js'
 
