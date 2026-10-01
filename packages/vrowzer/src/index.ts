@@ -52,13 +52,18 @@ import {
   V_WW_CONNECT_PORT_ACK,
   V_SW_CONNECT_PORT_ACK
 } from '@vrowzer/vite-dev-server/messages'
+import { abortable } from './abort.ts'
 import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
 import { resolvePreviewBasePath } from './preview-base.ts'
 import { resolveServiceWorkerScope } from './service-worker-scope.ts'
 import { resolveServiceWorkerVersion, withServiceWorkerVersion } from './service-worker-version.ts'
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
-import type { FSInitMessage, FileSystemPublisher } from '@vrowzer/fs/watcher'
+import type {
+  FSInitMessage,
+  FileSystemPublisher,
+  FileSystemPublisherTarget
+} from '@vrowzer/fs/watcher'
 import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/controller'
 
 const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
@@ -72,7 +77,7 @@ const PREVIEW_LOAD_ERROR_MESSAGE_MAX_LENGTH = 1000
 const PREVIEW_LOAD_ERROR_URL_MAX_LENGTH = 2048
 const PREVIEW_LOAD_ERROR_NAME_MAX_LENGTH = 100
 
-type ReadyState = 'idle' | 'initializing' | 'ready' | 'failed'
+type ReadyState = 'idle' | 'initializing' | 'ready' | 'failed' | 'disposed'
 
 /**
  * VrowzerOptions defines the configuration options for {@link Vrowzer}.
@@ -298,6 +303,7 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
   /**
    * Unmounts one preview session, or every session when no target is provided.
    * The shared Service Worker, Web Worker, and virtual filesystem remain active.
+   * Use {@link Vrowzer.dispose} to release the whole instance.
    *
    * @param target - A session ID or mounted session object.
    */
@@ -320,6 +326,26 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * @param filePath - The path of the file to be deleted.
    */
   deleteFile(filePath: string): void
+  /**
+   * Disposes this instance.
+   *
+   * An in-progress {@link Vrowzer.ready} is aborted and resolves to `false`. Every preview session
+   * is unmounted, the Web Worker is terminated, Service Worker controller events are no longer
+   * forwarded, and all event handlers are removed right away. The Service Worker registration and
+   * its virtual filesystem are kept for other clients.
+   *
+   * After disposal, `ready()` rejects, `mount()` and the file methods throw, and `unmount()` and
+   * `reloadPreview()` do nothing. Create a new instance to start again.
+   *
+   * @returns A promise that resolves when every resource is released. Calling this method again
+   * returns the same promise. It rejects with an `AggregateError` when some resources could not
+   * be released; the remaining resources are still released.
+   */
+  dispose(): Promise<void>
+  /**
+   * Same as {@link Vrowzer.dispose}, for `await using`.
+   */
+  [Symbol.asyncDispose](): Promise<void>
 }
 
 interface ResolvedVrowzerOptions {
@@ -350,16 +376,37 @@ function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+  signal?: AbortSignal
+): Promise<T> {
+  if (signal?.aborted) {
+    return abortable(promise, signal)
+  }
+
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    const settle = () => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+    }
+    const onAbort = () => {
+      settle()
+      reject(signal?.reason)
+    }
+    const timer = setTimeout(() => {
+      settle()
+      reject(new Error(`${label} timed out after ${ms}ms`))
+    }, ms)
+    signal?.addEventListener('abort', onAbort, { once: true })
     promise.then(
       value => {
-        clearTimeout(timer)
+        settle()
         resolve(value)
       },
-      error => {
-        clearTimeout(timer)
+      (error: unknown) => {
+        settle()
         reject(error)
       }
     )
@@ -383,6 +430,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? value.slice(0, maxLength) : value
+}
+
+/**
+ * Runs a cleanup step and collects its error, so that the remaining steps still run.
+ */
+function attempt(errors: unknown[], step: () => void): void {
+  try {
+    step()
+  } catch (error) {
+    errors.push(error)
+  }
 }
 
 /**
@@ -445,17 +503,48 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   let webWorker: Worker | null = null
   let readyState: ReadyState = 'idle'
   let listeningPreviewMessages = false
+  let disposePromise: Promise<void> | null = null
+  let readyAbortController: AbortController | null = null
+  let readyPromise: Promise<boolean> | null = null
+  // Release failures of an aborted ready(), reported by dispose()
+  const readyReleaseErrors: unknown[] = []
+  const controllerSubscriptions: (() => void)[] = []
+  let serviceWorkerTarget: FileSystemPublisherTarget | null = null
 
   function cleanupWebWorker(): void {
-    if (!webWorker) {
+    const worker = webWorker
+    if (!worker) {
       return
     }
 
-    publisher.removeTarget(webWorker)
-    webWorker.onmessage = null
-    webWorker.onerror = null
-    webWorker.terminate()
+    // Forget the Worker first, so that a failing terminate() is not retried
     webWorker = null
+    publisher.removeTarget(worker)
+    worker.onmessage = null
+    worker.onerror = null
+    worker.terminate()
+  }
+
+  /**
+   * Releases what initialization created: Service Worker controller event forwarding,
+   * the file sync targets, and the Web Worker. Used by a failed ready() and by dispose().
+   */
+  function releaseRuntime(errors: unknown[]): void {
+    for (const stop of controllerSubscriptions.splice(0)) {
+      attempt(errors, stop)
+    }
+    const target = serviceWorkerTarget
+    serviceWorkerTarget = null
+    if (target) {
+      attempt(errors, () => publisher.removeTarget(target))
+    }
+    attempt(errors, cleanupWebWorker)
+  }
+
+  function assertNotDisposed(method: string): void {
+    if (readyState === 'disposed') {
+      throw new Error(`[Vrowzer] ${method}() cannot be called after dispose()`)
+    }
   }
 
   /**
@@ -463,49 +552,68 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
    * Creates a MessageChannel, sends one port to each side,
    * and waits for both ACKs (handshake + birpc ready).
    */
-  async function establishChannel(): Promise<void> {
+  async function establishChannel(signal: AbortSignal): Promise<void> {
     const serviceWorker = getServiceWorker()
-    if (!serviceWorker || !webWorker) {
+    const worker = webWorker
+    if (!serviceWorker || !worker) {
       return
     }
 
     const channel = new MessageChannel()
     const controller = getController()
+    let stopWaitingForServiceWorker = () => {}
+    let stopWaitingForWebWorker = () => {}
 
     // Wait for Service Worker's ACK
     const serviceWorkerAck = new Promise<void>(resolve => {
       const handler = (event: MessageEvent) => {
         if (event.data?.type === V_WW_CONNECT_PORT_ACK) {
-          controller?.container.removeEventListener('message', handler)
+          stopWaitingForServiceWorker()
           resolve()
         }
       }
       controller?.container.addEventListener('message', handler)
+      stopWaitingForServiceWorker = () => {
+        controller?.container.removeEventListener('message', handler)
+      }
     })
 
     // Wait for Web Worker's ACK
     const webWorkerAck = new Promise<void>(resolve => {
-      const prevHandler = webWorker!.onmessage
-      webWorker!.onmessage = (event: MessageEvent) => {
+      const prevHandler = worker.onmessage
+      const handler = (event: MessageEvent) => {
         if (event.data.type === V_SW_CONNECT_PORT_ACK) {
-          webWorker!.onmessage = prevHandler
+          stopWaitingForWebWorker()
           resolve()
           return
         }
-        prevHandler?.call(webWorker!, event)
+        prevHandler?.call(worker, event)
+      }
+      worker.onmessage = handler
+      stopWaitingForWebWorker = () => {
+        if (worker.onmessage === handler) {
+          worker.onmessage = prevHandler
+        }
       }
     })
 
     // Transfer ports
     serviceWorker.postMessage({ type: V_WW_CONNECT_PORT }, [channel.port1])
-    webWorker.postMessage({ type: V_SW_CONNECT_PORT }, [channel.port2])
+    worker.postMessage({ type: V_SW_CONNECT_PORT }, [channel.port2])
 
-    // Wait for both sides to complete handshake + birpc setup
-    await withTimeout(
-      Promise.all([serviceWorkerAck, webWorkerAck]),
-      15000,
-      'MessageChannel handshake'
-    )
+    try {
+      // Wait for both sides to complete handshake + birpc setup
+      await withTimeout(
+        Promise.all([serviceWorkerAck, webWorkerAck]),
+        15000,
+        'MessageChannel handshake',
+        signal
+      )
+    } finally {
+      // Stop waiting for the ACKs after a timeout or an abort as well
+      stopWaitingForServiceWorker()
+      stopWaitingForWebWorker()
+    }
   }
 
   function handlePreviewMessage(event: MessageEvent): void {
@@ -730,104 +838,92 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     stopListeningPreviewMessagesIfIdle()
   }
 
-  const instance: Vrowzer = {
-    ..._emitter,
-    async ready(config: VrowzerConfig): Promise<boolean> {
-      if (readyState !== 'idle') {
-        throw new Error(
-          `[Vrowzer] ready() can only be called once per instance (current state: ${readyState})`
-        )
-      }
-      readyState = 'initializing'
+  async function initialize(config: VrowzerConfig, signal: AbortSignal): Promise<boolean> {
+    try {
+      // 1. Create Web Worker + add as publisher target
+      webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
+      const currentWebWorker = webWorker
+      publisher.addTarget(currentWebWorker)
 
-      try {
-        // 1. Create Web Worker + add as publisher target
-        webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
-        const currentWebWorker = webWorker
-        publisher.addTarget(currentWebWorker)
+      // 2. Start loading dist client files immediately. This work is included
+      // in the single Worker setup deadline below.
+      let allFiles!: Record<string, string>
+      const allFilesReady = Promise.all([
+        import('@vrowzer/vite-dev-server/dist/client/client.mjs?raw'),
+        import('@vrowzer/vite-dev-server/dist/client/env.mjs?raw')
+      ]).then(([{ default: clientCode }, { default: envCode }]) => {
+        allFiles = {
+          ...(config.files as Record<string, string>),
+          '/dist/client/client.mjs': clientCode,
+          '/dist/client/env.mjs': envCode
+        }
+        return allFiles
+      })
 
-        // 2. Start loading dist client files immediately. This work is included
-        // in the single Worker setup deadline below.
-        let allFiles!: Record<string, string>
-        const allFilesReady = Promise.all([
-          import('@vrowzer/vite-dev-server/dist/client/client.mjs?raw'),
-          import('@vrowzer/vite-dev-server/dist/client/env.mjs?raw')
-        ]).then(([{ default: clientCode }, { default: envCode }]) => {
-          allFiles = {
-            ...(config.files as Record<string, string>),
-            '/dist/client/client.mjs': clientCode,
-            '/dist/client/env.mjs': envCode
-          }
-          return allFiles
-        })
+      // 3. Manage READY, config preparation, and SETUP_ACK as one operation.
+      const webWorkerSetup = new Promise<void>((resolve, reject) => {
+        currentWebWorker.onerror = event => {
+          console.error('[Vrowzer] Web Worker error:', event.message, event.filename, event.lineno)
+          const error = new Error(`Web Worker failed: ${event.message || 'unknown error'}`)
+          reject(error)
+        }
 
-        // 3. Manage READY, config preparation, and SETUP_ACK as one operation.
-        const webWorkerSetup = new Promise<void>((resolve, reject) => {
-          currentWebWorker.onerror = event => {
-            console.error(
-              '[Vrowzer] Web Worker error:',
-              event.message,
-              event.filename,
-              event.lineno
-            )
-            const error = new Error(`Web Worker failed: ${event.message || 'unknown error'}`)
-            reject(error)
+        void allFilesReady.catch(reject)
+
+        currentWebWorker.onmessage = (event: MessageEvent) => {
+          if (event.data.type !== V_WW_READY) {
+            return
           }
 
-          void allFilesReady.catch(reject)
-
-          currentWebWorker.onmessage = (event: MessageEvent) => {
-            if (event.data.type !== V_WW_READY) {
+          currentWebWorker.onmessage = (setupEvent: MessageEvent) => {
+            if (setupEvent.data.type === V_WW_SETUP_ACK) {
+              currentWebWorker.onmessage = null
+              resolve()
               return
             }
-
-            currentWebWorker.onmessage = (setupEvent: MessageEvent) => {
-              if (setupEvent.data.type === V_WW_SETUP_ACK) {
-                currentWebWorker.onmessage = null
-                resolve()
-                return
-              }
-              if (setupEvent.data.type === V_WW_SETUP_ERROR) {
-                currentWebWorker.onmessage = null
-                const errData = setupEvent.data.error ?? {}
-                reject(new Error(`Web Worker setup failed: ${errData.message ?? 'unknown error'}`))
-              }
+            if (setupEvent.data.type === V_WW_SETUP_ERROR) {
+              currentWebWorker.onmessage = null
+              const errData = setupEvent.data.error ?? {}
+              reject(new Error(`Web Worker setup failed: ${errData.message ?? 'unknown error'}`))
             }
-
-            void allFilesReady.then(
-              files => {
-                currentWebWorker.postMessage({
-                  type: V_WW_SETUP,
-                  config: {
-                    root: '/',
-                    base: resolved.basePath,
-                    publicDir: 'public',
-                    optimizeDeps: { disabled: true },
-                    experimental: {
-                      importGlobRestoreExtension: false,
-                      hmrPartialAccept: false,
-                      bundledDev: false
-                    }
-                  },
-                  options: { basePath: resolved.basePath },
-                  files
-                })
-              },
-              () => undefined
-            )
           }
-        })
 
-        const webWorkerSetupWithTimeout = withTimeout(
-          webWorkerSetup,
-          resolved.webWorkerSetupTimeout,
-          'Web Worker setup'
-        )
+          void allFilesReady.then(
+            files => {
+              currentWebWorker.postMessage({
+                type: V_WW_SETUP,
+                config: {
+                  root: '/',
+                  base: resolved.basePath,
+                  publicDir: 'public',
+                  optimizeDeps: { disabled: true },
+                  experimental: {
+                    importGlobRestoreExtension: false,
+                    hmrPartialAccept: false,
+                    bundledDev: false
+                  }
+                },
+                options: { basePath: resolved.basePath },
+                files
+              })
+            },
+            () => undefined
+          )
+        }
+      })
 
-        // 4. Initialize Service Worker and Web Worker in parallel
-        // initServiceWorker waits for both controller.ready() AND listen() completion,
-        // so when it resolves the SW is fully ready to accept MessageChannel connections.
-        await Promise.all([
+      const webWorkerSetupWithTimeout = withTimeout(
+        webWorkerSetup,
+        resolved.webWorkerSetupTimeout,
+        'Web Worker setup',
+        signal
+      )
+
+      // 4. Initialize Service Worker and Web Worker in parallel
+      // initServiceWorker waits for both controller.ready() AND listen() completion,
+      // so when it resolves the SW is fully ready to accept MessageChannel connections.
+      await abortable(
+        Promise.all([
           initServiceWorker({
             scriptURL: withServiceWorkerVersion(
               new URL('./service-worker.ts', import.meta.url),
@@ -835,55 +931,125 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
             ),
             version: resolved.serviceWorkerVersion,
             scope: resolved.serviceWorkerScope,
-            readyTimeout: resolved.serviceWorkerReadyTimeout
+            readyTimeout: resolved.serviceWorkerReadyTimeout,
+            signal
           }),
           webWorkerSetupWithTimeout
-        ])
+        ]),
+        signal
+      )
 
-        // 6. Forward controller events to Vrowzer emitter
-        const controller = getController()
-        if (controller) {
-          const events = [
-            'progress',
-            'reloadSuggested',
-            'changeState',
-            'suspended',
-            'terminated',
-            'resumed'
-          ] as const
-          for (const event of events) {
+      // 6. Forward controller events to Vrowzer emitter
+      const controller = getController()
+      if (controller) {
+        const events = [
+          'progress',
+          'reloadSuggested',
+          'changeState',
+          'suspended',
+          'terminated',
+          'resumed'
+        ] as const
+        for (const event of events) {
+          controllerSubscriptions.push(
             controller.on(event, ((...args: any[]) => {
               ;(_emitter.emit as any)(event, ...args)
             }) as any)
-          }
+          )
         }
+      }
 
-        // 7. Initialize Service Worker files and subscribe it to later changes.
-        const serviceWorker = getServiceWorker()
-        if (serviceWorker) {
-          publisher.addTarget({
-            postMessage: (msg: any, transfer?: any) =>
-              serviceWorker.postMessage(msg, transfer ?? [])
-          })
-          // The Web Worker already loaded these files during V_WW_SETUP.
-          // Broadcasting them again emits add events and an initial HMR reload.
-          serviceWorker.postMessage({ type: 'V_FS_INIT', files: allFiles } satisfies FSInitMessage)
+      // 7. Initialize Service Worker files and subscribe it to later changes.
+      const serviceWorker = getServiceWorker()
+      if (serviceWorker) {
+        serviceWorkerTarget = {
+          postMessage: (msg: any, transfer?: any) => serviceWorker.postMessage(msg, transfer ?? [])
         }
+        publisher.addTarget(serviceWorkerTarget)
+        // The Web Worker already loaded these files during V_WW_SETUP.
+        // Broadcasting them again emits add events and an initial HMR reload.
+        serviceWorker.postMessage({ type: 'V_FS_INIT', files: allFiles } satisfies FSInitMessage)
+      }
 
-        // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
-        await establishChannel()
+      // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
+      await establishChannel(signal)
+      // dispose() may have been called while the last ACK was being delivered
+      signal.throwIfAborted()
 
-        readyState = 'ready'
-        return true
-      } catch (error) {
-        readyState = 'failed'
-        cleanupWebWorker()
-        console.error('[Vrowzer] ready() failed:', error)
+      readyState = 'ready'
+      return true
+    } catch (error) {
+      const releaseErrors: unknown[] = []
+      releaseRuntime(releaseErrors)
+      if (signal.aborted) {
+        // dispose() aborted the initialization and reports these failures itself
+        readyReleaseErrors.push(...releaseErrors)
         return false
       }
+
+      readyState = 'failed'
+      console.error('[Vrowzer] ready() failed:', error)
+      for (const releaseError of releaseErrors) {
+        console.error('[Vrowzer] Failed to release a resource after ready() failed:', releaseError)
+      }
+      return false
+    }
+  }
+
+  function dispose(): Promise<void> {
+    if (disposePromise) {
+      return disposePromise
+    }
+    readyState = 'disposed'
+    const errors: unknown[] = []
+    // Remove the handlers first, so that nothing reaches the host after dispose()
+    attempt(errors, () => _emitter.dispose())
+    readyAbortController?.abort(new Error('[Vrowzer] The instance was disposed'))
+
+    disposePromise = (async () => {
+      // An aborted ready() releases what it created and resolves to false
+      await readyPromise
+      errors.push(...readyReleaseErrors.splice(0))
+      // Deleting entries while iterating a Map is safe, so no copy is needed
+      for (const record of previewSessions.values()) {
+        attempt(errors, () => unmountSession(record))
+      }
+      releaseRuntime(errors)
+      if (errors.length > 0) {
+        throw new AggregateError(errors, '[Vrowzer] dispose() could not release every resource')
+      }
+    })()
+    return disposePromise
+  }
+
+  const instance: Vrowzer = {
+    on: _emitter.on,
+    off: _emitter.off,
+    once: _emitter.once,
+    emit: _emitter.emit,
+    ready(config: VrowzerConfig): Promise<boolean> {
+      if (readyState === 'disposed') {
+        return Promise.reject(new Error('[Vrowzer] ready() cannot be called after dispose()'))
+      }
+      if (readyState !== 'idle') {
+        return Promise.reject(
+          new Error(
+            `[Vrowzer] ready() can only be called once per instance (current state: ${readyState})`
+          )
+        )
+      }
+      readyState = 'initializing'
+
+      const abortController = new AbortController()
+      readyAbortController = abortController
+      readyPromise = initialize(config, abortController.signal).finally(() => {
+        readyAbortController = null
+      })
+      return readyPromise
     },
 
     mount(container: HTMLElement, options: PreviewMountOptions): PreviewSession {
+      assertNotDisposed('mount')
       if (!options || typeof options.id !== 'string' || options.id.length === 0) {
         throw new TypeError('[Vrowzer] mount() requires a non-empty preview session id')
       }
@@ -971,16 +1137,23 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     },
 
     addFile(filePath: string, content: string | ArrayBuffer): void {
+      assertNotDisposed('addFile')
       publisher.writeFile(filePath, content)
     },
 
     updateFile(filePath: string, content: string | ArrayBuffer): void {
+      assertNotDisposed('updateFile')
       publisher.writeFile(filePath, content)
     },
 
     deleteFile(filePath: string): void {
+      assertNotDisposed('deleteFile')
       publisher.unlink(filePath)
-    }
+    },
+
+    dispose,
+
+    [Symbol.asyncDispose]: dispose
   }
 
   return Object.freeze(instance)
