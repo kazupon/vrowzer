@@ -188,6 +188,19 @@ describe('Vrowzer file synchronization', () => {
     ])
   })
 
+  test('gives both Workers the same default /index.html when ready() gets none', async () => {
+    const vrowzer = Vrowzer()
+
+    await expect(vrowzer.ready({ files: { '/main.js': 'export {}' } })).resolves.toBe(true)
+
+    const webWorkerIndex = workers[0]!.messages[0]!.files!['/index.html']
+    const init = controllerMocks.postMessage.mock.calls[0]![0] as TestMessage
+    expect(webWorkerIndex).toBeTypeOf('string')
+    expect(init.files!['/index.html']).toBe(webWorkerIndex)
+    expect(webWorkerIndex).toContain('<div id="app"></div>')
+    expect(webWorkerIndex).toContain('<script type="module" src="/main.js"></script>')
+  })
+
   test('sends binary files to both Workers as copies, without transferring them', async () => {
     const bytes = [0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]
     const buffer = new Uint8Array(bytes).buffer
@@ -211,6 +224,7 @@ describe('Vrowzer file synchronization', () => {
       type: 'V_FS_INIT',
       files: {
         '/main.js': 'export {}',
+        '/index.html': expect.stringContaining('<div id="app"></div>'),
         '/dist/client/client.mjs': 'client code',
         '/dist/client/env.mjs': 'env code'
       },

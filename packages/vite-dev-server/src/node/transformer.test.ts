@@ -235,6 +235,8 @@ describe('virtual files', () => {
 
     expect(fs.writeFileSync).toHaveBeenCalledWith('/public/logo.png', new Uint8Array(bytes))
     expect(fs.writeFileSync).toHaveBeenCalledWith('/main.js', 'export {}', { encoding: 'utf8' })
+    // The runtime provides /index.html, so the Web Worker does not write a default one
+    expect(vi.mocked(fs.writeFileSync).mock.calls.map(([path]) => path)).not.toContain('/index.html')
   })
 })
 

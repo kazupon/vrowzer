@@ -24,15 +24,27 @@ const initialBinaryFiles = {
 }
 ;(window as any).__initialBinaryFiles__ = initialBinaryFiles
 
+// `?files=readme-example` gives ready() only the files of the README usage example, which has no
+// /index.html. A test opens it in a new browser context, with a Service Worker of its own.
+const readmeExample = new URLSearchParams(location.search).get('files') === 'readme-example'
+const readmeExampleFiles = {
+  '/main.js': `
+      document.getElementById('app').innerHTML = '<h1>Hello!</h1>'
+      if (import.meta.hot) { import.meta.hot.accept() }
+    `
+}
+
 async function init() {
   try {
     status.textContent = 'Initializing vrowzer...'
 
     const ready = await vrowzer.ready({
-      files: {
-        ...initialBinaryFiles,
-        '/public/initial-public.txt': 'initial public file',
-        '/index.html': `<!doctype html>
+      files: readmeExample
+        ? readmeExampleFiles
+        : {
+            ...initialBinaryFiles,
+            '/public/initial-public.txt': 'initial public file',
+            '/index.html': `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -44,7 +56,7 @@ async function init() {
     <script type="module" src="/main.js"></script>
   </body>
 </html>`,
-        '/main.js': `
+            '/main.js': `
 document.getElementById('app').innerHTML = \`
   <h1>Hello from Vrowzer!</h1>
   <p id="counter">count: 0</p>
@@ -55,7 +67,7 @@ if (import.meta.hot) {
   import.meta.hot.accept()
 }
 `
-      }
+          }
     })
 
     if (!ready) {
