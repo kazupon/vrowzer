@@ -347,7 +347,10 @@ export function createServer(
     claimOnActivate: true,
     debug: createDebugger('vrowzer:svc-worker-server')!,
   })
-  const honoFetchHandler = handle(middlewares)
+  // NOTE(kazupon): Without options, Hono's Service Worker adapter fetches a 404 response again
+  // from the network, so requests for missing preview files reached the host server. Requests
+  // within the base path belong to the virtual project, so answer them with the 404, as Vite does.
+  const honoFetchHandler = handle(middlewares, {})
   const fetchHandler = (event: FetchEvent) => {
     // Leave requests outside the virtual project unanswered so the browser
     // performs the fetch with the controlled client's native semantics.
