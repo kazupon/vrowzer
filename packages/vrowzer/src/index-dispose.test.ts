@@ -23,6 +23,7 @@ vi.mock('./controller.ts', () => ({
   initServiceWorker: (options: { signal?: AbortSignal }) => runtime.initServiceWorker(options)
 }))
 vi.mock('@vrowzer/fs/watcher', () => ({
+  V_FS_ACK: 'V_FS_ACK',
   createFileSystemPublisher: () => runtime.publisher
 }))
 vi.mock('@vrowzer/vite-dev-server/dist/client/client.mjs?raw', () => ({ default: '' }))
@@ -80,8 +81,9 @@ class FakeController {
 
 class FakePublisher {
   readonly targets = new Set<unknown>()
-  readonly writeFile = vi.fn<(path: string, content: string | ArrayBuffer) => void>()
-  readonly unlink = vi.fn<(path: string) => void>()
+  readonly writeFile =
+    vi.fn<(path: string, content: string | ArrayBuffer, options?: { id?: string }) => void>()
+  readonly unlink = vi.fn<(path: string, options?: { id?: string }) => void>()
 
   addTarget(target: unknown): void {
     this.targets.add(target)
@@ -254,13 +256,17 @@ describe('Vrowzer dispose', () => {
     expect(() => vrowzer.mount(createContainer() as unknown as HTMLElement, { id: 'x' })).toThrow(
       'mount() cannot be called after dispose()'
     )
-    expect(() => vrowzer.addFile('/a.js', '')).toThrow('addFile() cannot be called after dispose()')
-    expect(() => vrowzer.updateFile('/a.js', '')).toThrow(
+    await expect(vrowzer.addFile('/a.js', '')).rejects.toThrow(
+      'addFile() cannot be called after dispose()'
+    )
+    await expect(vrowzer.updateFile('/a.js', '')).rejects.toThrow(
       'updateFile() cannot be called after dispose()'
     )
-    expect(() => vrowzer.deleteFile('/a.js')).toThrow(
+    await expect(vrowzer.deleteFile('/a.js')).rejects.toThrow(
       'deleteFile() cannot be called after dispose()'
     )
+    expect(publisher.writeFile).not.toHaveBeenCalled()
+    expect(publisher.unlink).not.toHaveBeenCalled()
     expect(vrowzer.sessions()).toEqual([])
     expect(vrowzer.getSession('x')).toBeUndefined()
     expect(() => {
@@ -358,6 +364,38 @@ describe('Vrowzer dispose', () => {
     expect(vrowzer.sessions()).toEqual([])
     controller.emit('progress', 'late')
     expect(progress).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('rejects the file operations that wait for the Workers', async () => {
+    const vrowzer = Vrowzer()
+    const worker = await readyFully(vrowzer)
+    expect(controller.container.listeners.size).toBe(1)
+
+    const updating = vrowzer.updateFile('/a.js', 'updated')
+    const deleting = vrowzer.deleteFile('/b.js')
+    const rejections = Promise.allSettled([updating, deleting])
+    expect(vi.getTimerCount()).toBe(2)
+
+    await vrowzer.dispose()
+
+    expect(await rejections).toEqual([
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({
+          message: '[Vrowzer] updateFile("/a.js") was cancelled by dispose()'
+        })
+      },
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({
+          message: '[Vrowzer] deleteFile("/b.js") was cancelled by dispose()'
+        })
+      }
+    ])
+    expect(controller.container.listeners.size).toBe(0)
+    expect(worker.onmessage).toBeNull()
+    expect(worker.onerror).toBeNull()
     expect(vi.getTimerCount()).toBe(0)
   })
 

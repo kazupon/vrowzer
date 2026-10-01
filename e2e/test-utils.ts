@@ -144,7 +144,8 @@ export async function getBgColor(selector: string): Promise<string> {
 
 /**
  * Update a file in the vrowzer virtual filesystem via the browser API.
- * Triggers HMR in serve mode.
+ * Triggers HMR in serve mode. Resolves when the Workers have applied the change,
+ * without waiting for HMR.
  *
  * @param filename - Virtual path (e.g. '/App.vue', '/main.ts')
  * @param content - Full new file content
@@ -152,7 +153,7 @@ export async function getBgColor(selector: string): Promise<string> {
 export async function updateFile(filename: string, content: string): Promise<void> {
   await page.evaluate(
     ([path, code]) => {
-      ;(window as any).__vrowzer__.updateFile(path, code)
+      return (window as any).__vrowzer__.updateFile(path, code)
     },
     [filename, content] as const
   )
@@ -164,7 +165,7 @@ export async function updateFile(filename: string, content: string): Promise<voi
 export async function addFile(filename: string, content: string): Promise<void> {
   await page.evaluate(
     ([path, code]) => {
-      ;(window as any).__vrowzer__.addFile(path, code)
+      return (window as any).__vrowzer__.addFile(path, code)
     },
     [filename, content] as const
   )
@@ -175,7 +176,7 @@ export async function addFile(filename: string, content: string): Promise<void> 
  */
 export async function removeFile(filename: string): Promise<void> {
   await page.evaluate(path => {
-    ;(window as any).__vrowzer__.deleteFile(path)
+    return (window as any).__vrowzer__.deleteFile(path)
   }, filename)
 }
 

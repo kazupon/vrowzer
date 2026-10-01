@@ -125,11 +125,11 @@ interface SourceMapPayload {
 }
 
 async function addPreviewFiles(files: Record<string, string>): Promise<void> {
-  await page.evaluate(filesToAdd => {
+  await page.evaluate(async filesToAdd => {
     const vrowzer = (window as any).__vrowzer__
-    for (const [filePath, content] of Object.entries(filesToAdd)) {
-      vrowzer.addFile(filePath, content)
-    }
+    await Promise.all(
+      Object.entries(filesToAdd).map(([filePath, content]) => vrowzer.addFile(filePath, content))
+    )
   }, files)
 }
 
@@ -522,7 +522,7 @@ describe('Vrowzer E2E', () => {
       // Update main.js via vrowzer API
       await page.evaluate(() => {
         const vrowzer = (window as any).__vrowzer__
-        vrowzer.updateFile(
+        return vrowzer.updateFile(
           '/main.js',
           `
 document.getElementById('app').innerHTML = '<h1>Updated!</h1><p id="result">1 + 1 = 2</p>'
@@ -558,7 +558,7 @@ if (import.meta.hot) {
       const dangerousMarker = '</script>\u2028\u2029'
 
       await page.evaluate(source => {
-        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+        return (window as any).__vrowzer__.updateFile('/main.js', source)
       }, createMultiSessionSource('multi-1'))
 
       await expect
@@ -671,7 +671,7 @@ if (import.meta.hot) {
       expect(new Set(clientIdsBeforeReload).size).toBe(3)
 
       await page.evaluate(source => {
-        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+        return (window as any).__vrowzer__.updateFile('/main.js', source)
       }, createMultiSessionSource('multi-2'))
 
       await page.waitForFunction(
@@ -758,7 +758,7 @@ if (import.meta.hot) {
       expect(await waitForHmrClientCount(2)).toHaveLength(2)
 
       await page.evaluate(source => {
-        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+        return (window as any).__vrowzer__.updateFile('/main.js', source)
       }, createMultiSessionSource('multi-3'))
 
       await page.waitForFunction(
@@ -943,7 +943,7 @@ if (import.meta.hot) {
 
     afterAll(async () => {
       await page.evaluate(
-        ({ ids, paths }) => {
+        async ({ ids, paths }) => {
           const vrowzer = (window as any).__vrowzer__
           for (const id of ids) {
             vrowzer.unmount(id)
@@ -952,9 +952,7 @@ if (import.meta.hot) {
           ;(window as any).__stopPreviewLoadErrors?.()
           delete (window as any).__previewLoadErrors
           delete (window as any).__stopPreviewLoadErrors
-          for (const path of paths) {
-            vrowzer.deleteFile(path)
-          }
+          await Promise.all(paths.map((path: string) => vrowzer.deleteFile(path)))
         },
         { ids: sessionIds, paths: Object.keys(fixtureFiles) }
       )
@@ -1188,7 +1186,7 @@ if (import.meta.hot) {
         expect(response.body).toContain(filePath)
       } finally {
         await page.evaluate(path => {
-          ;(window as any).__vrowzer__.deleteFile(path)
+          return (window as any).__vrowzer__.deleteFile(path)
         }, filePath)
       }
     })
