@@ -825,6 +825,255 @@ if (import.meta.hot) {
     }, 120_000)
   })
 
+  describe('preview load errors', () => {
+    interface LoadErrorReport {
+      id: string
+      stage: string
+      message: string
+      url?: string
+      status?: number
+      error?: { name: string; message: string }
+    }
+
+    // Every session loads the same preview URL, so breaking `/index.html` would fail all of them.
+    // Instead, these tests point one session's bootstrap at another URL right after mount().
+    // The bootstrap embeds the preview URL as a JSON string, and the load token is kept,
+    // so the host still accepts the reports from the replaced document.
+    const PREVIEW_URL_LITERAL = JSON.stringify('/__preview__/')
+    const UNREACHABLE_URL = 'http://127.0.0.1:9/'
+    const sessionIds: string[] = []
+    const fixtureFiles: Record<string, string> = {}
+
+    async function mountSession(id: string, previewUrl?: string): Promise<void> {
+      sessionIds.push(id)
+      await page.evaluate(
+        ({ id, previewUrl, previewUrlLiteral }) => {
+          const container = document.createElement('div')
+          container.id = `load-error-${id}`
+          document.body.append(container)
+          const session = (window as any).__vrowzer__.mount(container, { id })
+          if (previewUrl !== undefined) {
+            session.iframe.srcdoc = session.iframe.srcdoc.replaceAll(
+              previewUrlLiteral,
+              JSON.stringify(previewUrl)
+            )
+          }
+        },
+        { id, previewUrl, previewUrlLiteral: PREVIEW_URL_LITERAL }
+      )
+    }
+
+    async function readLoadErrors(id: string): Promise<LoadErrorReport[]> {
+      return page.evaluate(
+        sessionId =>
+          ((window as any).__previewLoadErrors as LoadErrorReport[]).filter(
+            info => info.id === sessionId
+          ),
+        id
+      )
+    }
+
+    async function waitForLoadError(id: string): Promise<LoadErrorReport> {
+      let reports: LoadErrorReport[] = []
+      await expect
+        .poll(
+          async () => {
+            reports = await readLoadErrors(id)
+            return reports.length
+          },
+          { timeout: 15_000 }
+        )
+        .toBeGreaterThan(0)
+      return reports[0]!
+    }
+
+    async function waitForScriptGlobal(id: string, name: string): Promise<void> {
+      await page.waitForFunction(
+        ({ id, name }) =>
+          (document.querySelector(`#load-error-${id} iframe`) as HTMLIFrameElement | null)
+            ?.contentWindow?.[name as keyof Window] !== undefined,
+        { id, name },
+        { timeout: 30_000 }
+      )
+    }
+
+    let fixturesReady: Promise<void> | undefined
+
+    // expect.poll() cannot run in hooks, so each test awaits this shared preparation
+    function prepareFixtures(): Promise<void> {
+      fixturesReady ??= addFixtures()
+      return fixturesReady
+    }
+
+    async function addFixtures(): Promise<void> {
+      Object.assign(fixtureFiles, {
+        '/load-error-missing-entry.html':
+          '<!doctype html>\n<script type="module" src="/load-error-missing.js"></script>\n',
+        '/load-error-graph.html':
+          '<!doctype html>\n<script type="module" src="/load-error-entry.js"></script>\n',
+        '/load-error-entry.js': "import './load-error-broken.ts'\n",
+        '/load-error-broken.ts': 'export const = 1\n',
+        '/load-error-classic.html': `<!doctype html>\n<script src="${crossOriginAssetServerUrl}/load-error-missing-classic.js"></script>\n`,
+        '/load-error-fixable.html':
+          '<!doctype html>\n<script type="module" src="/load-error-fixable.js"></script>\n'
+      })
+      await addPreviewFiles(fixtureFiles)
+      // Missing files fall back to index.html, so wait until each fixture is served
+      await waitForPreviewBodyContaining('/load-error-missing-entry.html', 'load-error-missing.js')
+      await waitForPreviewBodyContaining('/load-error-graph.html', 'load-error-entry.js')
+      await waitForPreviewBodyContaining(
+        '/load-error-classic.html',
+        'load-error-missing-classic.js'
+      )
+      await waitForPreviewBodyContaining('/load-error-fixable.html', 'load-error-fixable.js')
+      await waitForPreviewBodyContaining('/load-error-entry.js', 'load-error-broken.ts')
+      await waitForPreviewResponse('/load-error-broken.ts', 500)
+
+      await page.evaluate(() => {
+        const reports: unknown[] = []
+        ;(window as any).__previewLoadErrors = reports
+        ;(window as any).__stopPreviewLoadErrors = (window as any).__vrowzer__.on(
+          'previewLoadError',
+          (info: unknown) => {
+            reports.push(info)
+          }
+        )
+      })
+    }
+
+    afterAll(async () => {
+      await page.evaluate(
+        ({ ids, paths }) => {
+          const vrowzer = (window as any).__vrowzer__
+          for (const id of ids) {
+            vrowzer.unmount(id)
+            document.getElementById(`load-error-${id}`)?.remove()
+          }
+          ;(window as any).__stopPreviewLoadErrors?.()
+          delete (window as any).__previewLoadErrors
+          delete (window as any).__stopPreviewLoadErrors
+          for (const path of paths) {
+            vrowzer.deleteFile(path)
+          }
+        },
+        { ids: sessionIds, paths: Object.keys(fixtureFiles) }
+      )
+
+      expect(
+        await page.evaluate(() =>
+          (window as any).__vrowzer__.sessions().map((session: { id: string }) => session.id)
+        )
+      ).toEqual(['preview'])
+    })
+
+    test('reports an error status of the preview HTML', async () => {
+      await prepareFixtures()
+      await mountSession('html-status', '/__preview__/load-error-broken.ts')
+
+      const report = await waitForLoadError('html-status')
+
+      expect(report).toMatchObject({
+        id: 'html-status',
+        stage: 'html',
+        status: 500,
+        url: `${serverUrl}/__preview__/load-error-broken.ts`
+      })
+      expect(report.message).toContain('500')
+    })
+
+    test('reports a rejected fetch of the preview HTML', async () => {
+      await prepareFixtures()
+      await mountSession('html-fetch', UNREACHABLE_URL)
+
+      const report = await waitForLoadError('html-fetch')
+
+      expect(report).toMatchObject({
+        id: 'html-fetch',
+        stage: 'html',
+        url: UNREACHABLE_URL,
+        error: { name: 'TypeError' }
+      })
+      expect(report.status).toBeUndefined()
+      expect(report.message.length).toBeGreaterThan(0)
+    })
+
+    test('reports a missing entry module', async () => {
+      await prepareFixtures()
+      await mountSession('missing-entry', '/__preview__/load-error-missing-entry.html')
+
+      const report = await waitForLoadError('missing-entry')
+
+      expect(report).toMatchObject({
+        id: 'missing-entry',
+        stage: 'script',
+        url: `${serverUrl}/__preview__/load-error-missing.js`
+      })
+    })
+
+    test('reports a module graph that fails to load', async () => {
+      await prepareFixtures()
+      await mountSession('broken-graph', '/__preview__/load-error-graph.html')
+
+      const report = await waitForLoadError('broken-graph')
+
+      expect(report).toMatchObject({
+        id: 'broken-graph',
+        stage: 'script',
+        url: `${serverUrl}/__preview__/load-error-entry.js`
+      })
+    })
+
+    test('reports a classic script that fails to load', async () => {
+      await prepareFixtures()
+      await mountSession('classic', '/__preview__/load-error-classic.html')
+
+      const report = await waitForLoadError('classic')
+
+      expect(report).toMatchObject({
+        id: 'classic',
+        stage: 'script',
+        url: `${crossOriginAssetServerUrl}/load-error-missing-classic.js`
+      })
+    })
+
+    test('identifies only the session that failed', async () => {
+      await prepareFixtures()
+      await mountSession('healthy')
+      await mountSession('failing', UNREACHABLE_URL)
+
+      await waitForLoadError('failing')
+      // Both the playground's main.js and createMultiSessionSource() set this global
+      await waitForScriptGlobal('healthy', '__vrowzerContextAtScriptStart')
+
+      expect(await readLoadErrors('healthy')).toEqual([])
+    })
+
+    test('loads after the input is fixed and the session reloads', async () => {
+      await prepareFixtures()
+      await mountSession('fixable', '/__preview__/load-error-fixable.html')
+      await waitForLoadError('fixable')
+
+      fixtureFiles['/load-error-fixable.js'] = 'globalThis.__vrowzerLoadErrorFixed = true\n'
+      await addPreviewFiles({ '/load-error-fixable.js': fixtureFiles['/load-error-fixable.js'] })
+      await waitForPreviewBodyContaining('/load-error-fixable.js', '__vrowzerLoadErrorFixed')
+      await page.evaluate(
+        ({ previewUrlLiteral }) => {
+          const session = (window as any).__vrowzer__.getSession('fixable')
+          // reload() renews the load token; point the new document at the same fixture
+          session.reload()
+          session.iframe.srcdoc = session.iframe.srcdoc.replaceAll(
+            previewUrlLiteral,
+            JSON.stringify('/__preview__/load-error-fixable.html')
+          )
+        },
+        { previewUrlLiteral: PREVIEW_URL_LITERAL }
+      )
+
+      await waitForScriptGlobal('fixable', '__vrowzerLoadErrorFixed')
+      expect(await readLoadErrors('fixable')).toHaveLength(1)
+    })
+  })
+
   describe('Service Worker', () => {
     test('Service Worker is registered and active', async () => {
       const swState = await page.evaluate(async () => {

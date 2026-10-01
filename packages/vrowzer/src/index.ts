@@ -559,6 +559,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     const serializedContext = serializeInlineScriptValue(context)
     const serializedLoadToken = serializeInlineScriptValue(loadToken)
     const serializedHostOrigin = serializeInlineScriptValue(window.location.origin)
+    const serializedMessageType = serializeInlineScriptValue(PREVIEW_LOAD_ERROR_MESSAGE_TYPE)
 
     // Fetch preview HTML via SW, then inject DOM and execute scripts manually.
     // We avoid document.write() (deprecated) because it doesn't guarantee
@@ -566,82 +567,136 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     return `<!doctype html>
 <html><head><meta charset="utf-8"></head><body>
 <script>
-(async () => {
-  // Used to report load failures to the host
+(() => {
+  const previewUrl = ${serializedPreviewUrl};
+  // The host accepts a report only from this session's iframe with the current token
   const token = ${serializedLoadToken};
   const hostOrigin = ${serializedHostOrigin};
-  try {
-    const res = await fetch(${serializedPreviewUrl});
-    const html = await res.text();
-    const origin = new URL(res.url).origin;
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
 
-    // Copy non-script nodes
-    for (const n of [...parsed.head.childNodes])
-      if (n.nodeName !== 'SCRIPT') document.head.appendChild(document.importNode(n, true));
-    document.body.innerHTML = '';
-    for (const n of [...parsed.body.childNodes])
-      if (n.nodeName !== 'SCRIPT') document.body.appendChild(document.importNode(n, true));
+  function report(stage, detail) {
+    try {
+      parent.postMessage(
+        Object.assign({ type: ${serializedMessageType}, token: token, stage: stage }, detail),
+        hostOrigin
+      );
+    } catch (e) {}
+  }
 
-    // Expose the pane context before any preview script runs.
-    const previewContext = ${serializedContext};
-    if (previewContext.params) Object.freeze(previewContext.params);
-    Object.freeze(previewContext);
-    document.documentElement.dataset.vrowzerPreviewId = previewContext.id;
-    window.__VROWZER_PREVIEW__ = previewContext;
+  function toErrorInfo(e) {
+    return e instanceof Error
+      ? { name: e.name, message: e.message }
+      : { name: 'Error', message: String(e) };
+  }
 
-    // Pre-setup React DevTools hook so hook.inject() populates renderers Map
-    // before React Refresh's injectIntoGlobalHook() wraps it.
-    if (!window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
-      var __id = 0;
-      window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
-        renderers: new Map(), supportsFiber: true,
-        inject: function(i) { var id = __id++; this.renderers.set(id, i); return id; },
-        onScheduleFiberRoot: function() {},
-        onCommitFiberRoot: function() {},
-        onCommitFiberUnmount: function() {},
-      };
+  function resolveUrl(url) {
+    try {
+      return new URL(url, document.baseURI).href;
+    } catch (e) {
+      return url;
     }
+  }
 
-    // Execute scripts sequentially (module scripts awaited via onload).
-    for (const orig of parsed.querySelectorAll('script')) {
-      await execScript(orig, origin).catch(function() {});
+  (async () => {
+    try {
+      const res = await fetch(previewUrl);
+      if (!res.ok) {
+        // Keep rendering the response body, as a browser does for an error page
+        report('html', {
+          message: 'Failed to load the preview HTML: ' + res.status + (res.statusText ? ' ' + res.statusText : ''),
+          url: res.url || resolveUrl(previewUrl),
+          status: res.status
+        });
+      }
+      const html = await res.text();
+      const origin = new URL(res.url).origin;
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+
+      // Copy non-script nodes
+      for (const n of [...parsed.head.childNodes])
+        if (n.nodeName !== 'SCRIPT') document.head.appendChild(document.importNode(n, true));
+      document.body.innerHTML = '';
+      for (const n of [...parsed.body.childNodes])
+        if (n.nodeName !== 'SCRIPT') document.body.appendChild(document.importNode(n, true));
+
+      // Expose the pane context before any preview script runs.
+      const previewContext = ${serializedContext};
+      if (previewContext.params) Object.freeze(previewContext.params);
+      Object.freeze(previewContext);
+      document.documentElement.dataset.vrowzerPreviewId = previewContext.id;
+      window.__VROWZER_PREVIEW__ = previewContext;
+
+      // Pre-setup React DevTools hook so hook.inject() populates renderers Map
+      // before React Refresh's injectIntoGlobalHook() wraps it.
+      if (!window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+        var __id = 0;
+        window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+          renderers: new Map(), supportsFiber: true,
+          inject: function(i) { var id = __id++; this.renderers.set(id, i); return id; },
+          onScheduleFiberRoot: function() {},
+          onCommitFiberRoot: function() {},
+          onCommitFiberUnmount: function() {},
+        };
+      }
+
+      // Execute scripts sequentially (module scripts awaited via onload).
+      for (const orig of parsed.querySelectorAll('script')) {
+        await execScript(orig, origin).catch(function() {});
+      }
+    } catch (e) {
+      const error = toErrorInfo(e);
+      report('html', {
+        message: 'Failed to load the preview HTML: ' + error.message,
+        url: resolveUrl(previewUrl),
+        error: error
+      });
+      document.body.textContent = 'Preview load error: ' + error.message;
     }
-  } catch (e) {
-    document.body.textContent = 'Preview load error: ' + e.message;
+  })();
+
+  function execScript(orig, origin) {
+    return new Promise(function(resolve) {
+      var s = document.createElement('script');
+      for (var a of orig.attributes) s.setAttribute(a.name, a.value);
+      if (s.type === 'module') {
+        var inline = !s.src && orig.textContent;
+        if (inline) {
+          // Inline module → Blob URL with absolute import paths.
+          // Virtual IDs (/@xxx) get @id/ prefix to match Vite's import rewrite.
+          var code = orig.textContent.replace(
+            /from\\s*["'](\\/[^"']+)["']/g,
+            function(_, p) {
+              return 'from "' + origin + p.replace(
+                /(\\/(?:__[^/]+__\\/)?)(@(?!id\\/|vite\\/))/,  '$1@id//$2'
+              ) + '"';
+            }
+          );
+          var b = new Blob([code], { type: 'text/javascript' });
+          s.src = URL.createObjectURL(b);
+          s.onload = function() { URL.revokeObjectURL(s.src); resolve(); };
+        } else {
+          s.onload = resolve;
+        }
+        s.onerror = function() {
+          if (inline) URL.revokeObjectURL(s.src);
+          reportScriptError(s, inline);
+          resolve();
+        };
+      } else {
+        if (orig.textContent) s.textContent = orig.textContent;
+        // Classic scripts are not awaited, but a failed load is still reported
+        if (s.src) s.onerror = function() { reportScriptError(s, false); };
+        resolve();
+      }
+      (orig.closest('head') ? document.head : document.body).appendChild(s);
+    });
+  }
+
+  function reportScriptError(s, inline) {
+    report('script', inline
+      ? { message: 'Failed to load an inline module script' }
+      : { message: 'Failed to load the script: ' + s.src, url: s.src });
   }
 })();
-
-function execScript(orig, origin) {
-  return new Promise(function(resolve) {
-    var s = document.createElement('script');
-    for (var a of orig.attributes) s.setAttribute(a.name, a.value);
-    if (s.type === 'module') {
-      if (!s.src && orig.textContent) {
-        // Inline module → Blob URL with absolute import paths.
-        // Virtual IDs (/@xxx) get @id/ prefix to match Vite's import rewrite.
-        var code = orig.textContent.replace(
-          /from\\s*["'](\\/[^"']+)["']/g,
-          function(_, p) {
-            return 'from "' + origin + p.replace(
-              /(\\/(?:__[^/]+__\\/)?)(@(?!id\\/|vite\\/))/,  '$1@id//$2'
-            ) + '"';
-          }
-        );
-        var b = new Blob([code], { type: 'text/javascript' });
-        s.src = URL.createObjectURL(b);
-        s.onload = function() { URL.revokeObjectURL(s.src); resolve(); };
-      } else {
-        s.onload = resolve;
-      }
-      s.onerror = resolve;
-    } else {
-      if (orig.textContent) s.textContent = orig.textContent;
-      resolve();
-    }
-    (orig.closest('head') ? document.head : document.body).appendChild(s);
-  });
-}
 </script>
 </body></html>`
   }
