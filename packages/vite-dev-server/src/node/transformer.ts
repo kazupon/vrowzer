@@ -112,6 +112,7 @@ export interface SetupWorkerOptions {
  *
  * @param inlineConfig - Vite config object or resolved config
  * @param options - Setup options for the worker
+ * @param files - Initial files. A string is written as UTF-8 text, and an ArrayBuffer as bytes.
  */
 export async function setupWorker(
   inlineConfig: InlineConfig | ResolvedConfig = {
@@ -125,7 +126,7 @@ export async function setupWorker(
     }
   },
   options: SetupWorkerOptions = {},
-  files?: Record<string, string>,
+  files?: Record<string, string | ArrayBuffer>,
   externalWatcher?: import('#dep-types/chokidar').FSWatcher,
 ): Promise<SetupWorkerResult> {
   // Inject client base fix plugin for HMR module re-imports
@@ -410,7 +411,7 @@ export async function setupHMR(server: ViteDevServer): Promise<FileChangeTracker
   }
 }
 
-function setupVirtualFiles(files?: Record<string, string>): void {
+function setupVirtualFiles(files?: Record<string, string | ArrayBuffer>): void {
   fs.mkdirSync('/public', { recursive: true })
   fs.writeFileSync('/public/.gitkeep', '', { encoding: 'utf8' })
   fs.writeFileSync(
@@ -505,18 +506,23 @@ export function connectServiceWorkerPort(
  *
  * This ensures the file is written to the same @vrowzer/fs instance
  * used by DevEnvironment and the transform pipeline.
+ * A string is written as UTF-8 text, and an ArrayBuffer as bytes.
  */
-export function updateFile(path: string, content: string): void {
+export function updateFile(path: string, content: string | ArrayBuffer): void {
   const dir = path.substring(0, path.lastIndexOf('/'))
   if (dir && !fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true })
   }
-  fs.writeFileSync(path, content, { encoding: 'utf8' })
+  if (typeof content === 'string') {
+    fs.writeFileSync(path, content, { encoding: 'utf8' })
+  } else {
+    fs.writeFileSync(path, new Uint8Array(content))
+  }
   debug?.('file updated:', path)
   debug?.('current virtual files:', vol.toTree())
 }
 
-function updateFiles(files: Record<string, string>): void {
+function updateFiles(files: Record<string, string | ArrayBuffer>): void {
   for (const [path, content] of Object.entries(files)) {
     updateFile(path, content)
   }

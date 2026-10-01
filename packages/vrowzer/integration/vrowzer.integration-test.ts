@@ -784,6 +784,48 @@ if (import.meta.hot) {
     })
   })
 
+  describe('binary files given to ready()', () => {
+    // The bytes of the playground's initialBinaryFiles
+    const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]
+
+    test('serves them from the Service Worker with the same bytes', async () => {
+      // A public file, served by servePublicMiddleware
+      expect(await fetchBytesFromServiceWorker('/initial-public.png')).toEqual({
+        status: 200,
+        bytes
+      })
+      // A file outside the public directory, served by serveStaticMiddleware
+      expect(await fetchBytesFromServiceWorker('/initial-binary/pixel.png')).toEqual({
+        status: 200,
+        bytes
+      })
+    })
+
+    test('reads them in the Web Worker with the same bytes', async () => {
+      // The Web Worker inlines the file from its own virtual filesystem
+      const inlined = await fetchFromServiceWorker('/initial-binary/pixel.png?import&inline')
+      const base64 = inlined.body.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)/)?.[1]
+      expect(base64).toBeDefined()
+      expect([...Buffer.from(base64!, 'base64')]).toEqual(bytes)
+    }, 30000)
+
+    test("keeps the caller's buffers usable", async () => {
+      const buffers = await page.evaluate(() =>
+        Object.entries((window as any).__initialBinaryFiles__ as Record<string, ArrayBuffer>).map(
+          ([path, buffer]) => ({
+            path,
+            byteLength: buffer.byteLength,
+            bytes: [...new Uint8Array(buffer)]
+          })
+        )
+      )
+      expect(buffers).toEqual([
+        { path: '/public/initial-public.png', byteLength: bytes.length, bytes },
+        { path: '/initial-binary/pixel.png', byteLength: bytes.length, bytes }
+      ])
+    })
+  })
+
   describe('preview sessions', () => {
     test('keeps multiple panes alive with targeted reload and unmount', async () => {
       const dangerousMarker = '</script>\u2028\u2029'

@@ -15,12 +15,22 @@ const vrowzer = Vrowzer({
 })
 ;(window as any).__vrowzer__ = vrowzer
 
+// Binary files given to ready(). The tests check their bytes in both Workers, and that these
+// buffers stay usable after ready().
+const initialBinaryBytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]
+const initialBinaryFiles = {
+  '/public/initial-public.png': new Uint8Array(initialBinaryBytes).buffer,
+  '/initial-binary/pixel.png': new Uint8Array(initialBinaryBytes).buffer
+}
+;(window as any).__initialBinaryFiles__ = initialBinaryFiles
+
 async function init() {
   try {
     status.textContent = 'Initializing vrowzer...'
 
     const ready = await vrowzer.ready({
       files: {
+        ...initialBinaryFiles,
         '/public/initial-public.txt': 'initial public file',
         '/index.html': `<!doctype html>
 <html lang="en">

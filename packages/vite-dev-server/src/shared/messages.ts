@@ -45,9 +45,10 @@ export interface SetupWorkerMessage {
   options?: Record<string, unknown>
   /**
    * Initial files to populate the virtual filesystem (@vrowzer/fs).
-   * Keys are absolute paths (e.g. '/main.js'), values are file contents.
+   * Keys are absolute paths (e.g. '/main.js'). A string value is written as UTF-8 text,
+   * and an ArrayBuffer value as bytes.
    */
-  files?: Record<string, string>
+  files?: Record<string, string | ArrayBuffer>
 }
 
 /**

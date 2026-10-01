@@ -14,6 +14,8 @@ interface TestMessage {
   id?: string
   path?: string
   content?: unknown
+  files?: Record<string, string | ArrayBuffer>
+  binaryFiles?: Record<string, ArrayBuffer>
 }
 
 interface AckError {
@@ -184,6 +186,62 @@ describe('Vrowzer file synchronization', () => {
       { type: 'V_FS_INIT', files: initialFiles },
       { type: V_WW_CONNECT_PORT }
     ])
+  })
+
+  test('sends binary files to both Workers as copies, without transferring them', async () => {
+    const bytes = [0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]
+    const buffer = new Uint8Array(bytes).buffer
+    const vrowzer = Vrowzer()
+
+    await expect(
+      vrowzer.ready({ files: { '/main.js': 'export {}', '/public/logo.png': buffer } })
+    ).resolves.toBe(true)
+
+    // The Web Worker writes each file by its type
+    const setupFiles = workers[0]!.messages[0]!.files!
+    expect(setupFiles['/main.js']).toBe('export {}')
+    expect(setupFiles['/public/logo.png']).toBeInstanceOf(ArrayBuffer)
+    expect(setupFiles['/public/logo.png']).not.toBe(buffer)
+    expect([...new Uint8Array(setupFiles['/public/logo.png'] as ArrayBuffer)]).toEqual(bytes)
+    expect(workers[0]!.transfers[0]).toBeUndefined()
+
+    // The Service Worker gets the binary files in binaryFiles
+    const [init, transfer] = controllerMocks.postMessage.mock.calls[0]!
+    expect(init).toEqual({
+      type: 'V_FS_INIT',
+      files: {
+        '/main.js': 'export {}',
+        '/dist/client/client.mjs': 'client code',
+        '/dist/client/env.mjs': 'env code'
+      },
+      binaryFiles: { '/public/logo.png': expect.any(ArrayBuffer) }
+    })
+    const serviceWorkerCopy = (init as TestMessage).binaryFiles!['/public/logo.png']!
+    expect(serviceWorkerCopy).not.toBe(buffer)
+    expect([...new Uint8Array(serviceWorkerCopy)]).toEqual(bytes)
+    expect(transfer).toBeUndefined()
+
+    // The caller's buffer is not detached
+    expect(buffer.byteLength).toBe(bytes.length)
+    expect([...new Uint8Array(buffer)]).toEqual(bytes)
+  })
+
+  test('sends the files as they were when ready() was called', async () => {
+    const buffer = new Uint8Array([1, 2, 3]).buffer
+    const files: Record<string, string | ArrayBuffer> = { '/data.bin': buffer }
+    const vrowzer = Vrowzer()
+
+    const ready = vrowzer.ready({ files })
+    new Uint8Array(buffer).fill(0)
+    files['/late.js'] = 'export {}'
+    await expect(ready).resolves.toBe(true)
+
+    const setupFiles = workers[0]!.messages[0]!.files!
+    expect(Object.keys(setupFiles)).not.toContain('/late.js')
+    expect([...new Uint8Array(setupFiles['/data.bin'] as ArrayBuffer)]).toEqual([1, 2, 3])
+    const init = controllerMocks.postMessage.mock.calls[0]![0] as TestMessage
+    expect(Object.keys(init.files!)).not.toContain('/late.js')
+    expect([...new Uint8Array(init.binaryFiles!['/data.bin']!)]).toEqual([1, 2, 3])
   })
 
   test('continues sending file additions, updates, and deletions to both Workers', async () => {

@@ -12,4 +12,4 @@ export interface VrowzerConfig
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `files` | `Record<string, string \| ArrayBuffer>` | A record of file paths and their corresponding content, which can be either a string or an ArrayBuffer. |
+| `files` | `Record<string, string \| ArrayBuffer>` | A record of file paths and their corresponding content, which can be either a string or an ArrayBuffer. An ArrayBuffer is copied for the Workers when [`Vrowzer.ready`](/packages/vrowzer/docs/default/interfaces/Vrowzer.md#method-ready) is called, and stays usable. |
