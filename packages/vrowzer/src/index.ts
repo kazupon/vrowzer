@@ -71,6 +71,24 @@ const DEFAULT_WEB_WORKER_SETUP_TIMEOUT = 90_000
 const DEFAULT_FILE_SYNC_TIMEOUT = 10_000
 
 /**
+ * The `/index.html` used when the files given to `ready()` have none. It loads `/main.js` as a
+ * module script, with an empty `#app` element to render into.
+ */
+const DEFAULT_INDEX_HTML = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
+`
+
+/**
  * `postMessage()` type used by the preview bootstrap to report load failures to the host.
  */
 const PREVIEW_LOAD_ERROR_MESSAGE_TYPE = 'vrowzer:preview-load-error'
@@ -1091,6 +1109,10 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     try {
       // The files are sent later, so copy them as they are when ready() is called
       const initialFiles = copyInitialFiles(config.files)
+      // A preview always loads /index.html, so give both Workers the same default
+      if (!Object.hasOwn(initialFiles, '/index.html')) {
+        initialFiles['/index.html'] = DEFAULT_INDEX_HTML
+      }
 
       // 1. Create Web Worker + add as publisher target
       webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
