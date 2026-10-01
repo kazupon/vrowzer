@@ -21,6 +21,7 @@ async function init() {
 
     const ready = await vrowzer.ready({
       files: {
+        '/public/initial-public.txt': 'initial public file',
         '/index.html': `<!doctype html>
 <html lang="en">
   <head>

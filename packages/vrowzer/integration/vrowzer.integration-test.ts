@@ -228,10 +228,16 @@ async function fetchFromPreview(requestPath: string): Promise<PreviewResponse> {
  * Reads a preview file through the Service Worker from the host page. Unlike the preview iframe,
  * the host page is not reloaded by HMR, so a read right after a file change is not interrupted.
  */
-async function fetchFromServiceWorker(requestPath: string): Promise<PreviewResponse> {
+async function fetchFromServiceWorker(
+  requestPath: string
+): Promise<PreviewResponse & { contentType: string | null }> {
   return page.evaluate(async path => {
     const response = await fetch(`/__preview__${path}`)
-    return { status: response.status, body: await response.text() }
+    return {
+      status: response.status,
+      body: await response.text(),
+      contentType: response.headers.get('Content-Type')
+    }
   }, requestPath)
 }
 
@@ -242,6 +248,16 @@ async function fetchBytesFromServiceWorker(
     const response = await fetch(`/__preview__${path}`)
     return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] }
   }, requestPath)
+}
+
+/**
+ * Runs `addFile()`, `updateFile()` or `deleteFile()` on the playground's instance and waits for it.
+ */
+async function runFileOperation(operation: string, args: unknown[]): Promise<void> {
+  await page.evaluate(({ operation, args }) => (window as any).__vrowzer__[operation](...args), {
+    operation,
+    args
+  })
 }
 
 /**
@@ -627,28 +643,23 @@ if (import.meta.hot) {
 
     test('resolves each kind of operation, and later reads follow them', async () => {
       const path = '/file-sync/kinds/module.js'
-      const run = (operation: string, args: unknown[]) =>
-        page.evaluate(({ operation, args }) => (window as any).__vrowzer__[operation](...args), {
-          operation,
-          args
-        })
 
-      await run('addFile', [path, selfAccepting(`export const value = 'kinds-v1'`)])
+      await runFileOperation('addFile', [path, selfAccepting(`export const value = 'kinds-v1'`)])
       expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v1')
 
-      await run('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
+      await runFileOperation('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
       expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v2')
 
       // Writing the same content, and adding a file that nothing imports, settle as well
-      await run('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
-      await run('addFile', ['/file-sync/kinds/unused.js', 'export {}'])
+      await runFileOperation('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
+      await runFileOperation('addFile', ['/file-sync/kinds/unused.js', 'export {}'])
 
-      await run('deleteFile', [path])
+      await runFileOperation('deleteFile', [path])
       expect((await fetchFromServiceWorker(path)).body).not.toContain('kinds-v2')
       // Deleting a file that no longer exists settles too
-      await run('deleteFile', [path])
+      await runFileOperation('deleteFile', [path])
 
-      await run('addFile', [path, selfAccepting(`export const value = 'kinds-v3'`)])
+      await runFileOperation('addFile', [path, selfAccepting(`export const value = 'kinds-v3'`)])
       expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v3')
     }, 30000)
 
@@ -712,6 +723,65 @@ if (import.meta.hot) {
       expect(response.body).toContain('fail-v2')
       expect(response.body).not.toContain('fail-v1')
     }, 30000)
+  })
+
+  describe('public files', () => {
+    test('serves a public file given to ready()', async () => {
+      expect(await fetchFromServiceWorker('/initial-public.txt')).toEqual({
+        status: 200,
+        body: 'initial public file',
+        contentType: expect.stringContaining('text/plain')
+      })
+    })
+
+    test('serves public file changes as soon as the file operations resolve', async () => {
+      const path = '/public/public-files/added.txt'
+      const url = '/public-files/added.txt'
+
+      // No polling: the promise resolves after the Service Worker has updated its public file list
+      await runFileOperation('addFile', [path, 'public v1'])
+      expect(await fetchFromServiceWorker(url)).toEqual({
+        status: 200,
+        body: 'public v1',
+        contentType: expect.stringContaining('text/plain')
+      })
+
+      await runFileOperation('updateFile', [path, 'public v2'])
+      expect((await fetchFromServiceWorker(url)).body).toBe('public v2')
+
+      await runFileOperation('deleteFile', [path])
+      expect((await fetchFromServiceWorker(url)).body).not.toContain('public v2')
+    })
+
+    test('serves binary public files with the same bytes', async () => {
+      const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]
+
+      await page.evaluate(
+        bytes =>
+          (window as any).__vrowzer__.addFile(
+            '/public/public-files/pixel.png',
+            new Uint8Array(bytes).buffer
+          ),
+        bytes
+      )
+
+      expect(await fetchBytesFromServiceWorker('/public-files/pixel.png')).toEqual({
+        status: 200,
+        bytes
+      })
+    })
+
+    test('serves a public file instead of a module with the same path', async () => {
+      await addPreviewFiles({
+        '/public-files/precedence.js': `export const source = 'module'`,
+        '/public/public-files/precedence.js': `export const source = 'public'`
+      })
+
+      // Public files are served as-is, before the transform middleware
+      expect((await fetchFromServiceWorker('/public-files/precedence.js')).body).toBe(
+        `export const source = 'public'`
+      )
+    })
   })
 
   describe('preview sessions', () => {
