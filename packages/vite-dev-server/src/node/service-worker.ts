@@ -28,6 +28,7 @@ import { isResolvedConfig, resolveConfig } from './config'
 import { syncPublicFiles } from './public-files-sync'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
+import { beforeRequestMiddleware } from './server/middlewares/beforeRequest'
 import { crossOriginMiddleware } from './server/middlewares/crossOrigin'
 import { errorMiddleware } from './server/middlewares/error'
 import { htmlFallbackMiddleware } from './server/middlewares/htmlFallback'
@@ -307,6 +308,18 @@ export interface CreateServerOptions {
    */
   watcherFactory?: (targets: string[], options: WatchOptions) => FSWatcher
   /**
+   * Called before a request within the base path is handled. The request waits until the returned
+   * promise resolves. When it resolves to a `Response`, that response is returned instead, with the
+   * headers that the earlier middlewares set.
+   */
+  beforeRequest?: (request: Request) => Promise<Response | undefined>
+  /**
+   * Called each time the channel handshake with a Web Worker (`V_WW_CONNECT_PORT`) completes,
+   * before the client is told that the connection is established. A later connection replaces
+   * the previous channel.
+   */
+  onWorkerChannelReady?: () => void
+  /**
    * @internal
    */
   previousEnvironments?: Record<string, DevEnvironment>
@@ -547,6 +560,13 @@ export function createServer(
     // Cross-origin isolation headers (CORP/COEP/COOP) for credentialless iframe + SW
     middlewares.use(crossOriginMiddleware())
 
+    // Let the owner hold requests until they can be served, e.g. until a restarted Service Worker
+    // has the project files and the Web Worker channel again. This is registered before the
+    // configureServer hooks, so that the middlewares of plugins wait as well.
+    if (options.beforeRequest) {
+      middlewares.use(beforeRequestMiddleware(options.beforeRequest))
+    }
+
     // TODO(kazupon): disable middlewares, after implementing them
     // middlewares.use(rejectInvalidRequestMiddleware())
     // middlewares.use(rejectNoCorsRequestMiddleware())
@@ -721,6 +741,10 @@ export function createServer(
                 timeout: 30_000,
               }
             )
+
+            // Requests can be transformed again. Tell the owner before the client hears that the
+            // connection is established, so that requests held by `beforeRequest` can go on by then.
+            options.onWorkerChannelReady?.()
 
             // Notify the originating client that the connection is established
             if (clientId) {
