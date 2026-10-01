@@ -239,6 +239,27 @@ describe('servePublicMiddleware', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toContain('text/plain')
     })
+
+    test('should follow changes to publicFiles after the middleware is created', async () => {
+      // getContent() returns `data.buffer`. Node slices small Buffers from a shared pool, so give
+      // the Buffer its own ArrayBuffer, as the Service Worker's file system does.
+      const content = new TextEncoder().encode('svg content')
+      vi.mocked(fsp.readFile).mockResolvedValue(Buffer.from(content.buffer))
+
+      const server = createMockServer()
+      const publicFiles = new Set<string>()
+      const app = createApp(servePublicMiddleware(server, publicFiles))
+
+      // The Service Worker adds public files that arrive after it has started
+      publicFiles.add('/added.svg')
+      const added = await app.request('/added.svg')
+      expect(added.status).toBe(200)
+      expect(await added.text()).toBe('svg content')
+
+      publicFiles.delete('/added.svg')
+      const deleted = await app.request('/added.svg')
+      expect(await deleted.text()).toBe('fallthrough')
+    })
   })
 })
 
