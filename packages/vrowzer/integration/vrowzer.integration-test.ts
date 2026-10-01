@@ -1179,7 +1179,8 @@ if (import.meta.hot) {
       await addPreviewFiles({ [filePath]: 'export const = 1\n' })
 
       try {
-        // 404 until the file reaches the Workers, then 500 from the failed transform
+        // index.html (200, via the SPA fallback) until the file reaches the Workers,
+        // then 500 from the failed transform
         const response = await waitForPreviewResponse(filePath, 500)
 
         expect(response.body).toContain('<!DOCTYPE html>')
