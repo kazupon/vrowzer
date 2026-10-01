@@ -139,7 +139,7 @@ publisher.writeFile('/main.js', 'export const x = 1') // text
 publisher.writeFile('/image.png', arrayBuffer) // binary (each target gets its own copy)
 publisher.unlink('/old-file.js')
 publisher.mkdir('/new-dir')
-publisher.initFiles({ '/main.js': 'code' }) // bulk init
+publisher.initFiles({ '/main.js': 'code' }, { '/logo.png': arrayBuffer }) // bulk init (each target gets its own copy of the binary files)
 ```
 
 `writeFile()` and `unlink()` accept an operation ID, which is set on the message. A Worker that applies such a message can acknowledge it with a `V_FS_ACK` message (`{ type: 'V_FS_ACK', id, error? }`), so that the main thread knows when the change is applied. `@vrowzer/fs` does not send acknowledgements by itself: the Worker that handles the messages decides when a change counts as applied.

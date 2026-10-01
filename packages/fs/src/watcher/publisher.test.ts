@@ -254,17 +254,71 @@ describe('FileSystemPublisher', () => {
       expect(target.calls[0]!.message.binaryFiles).toEqual(binaryFiles)
     })
 
-    test('binaryFiles ArrayBuffers are included in transfer list', () => {
+    test("transfers a copy of each binary file, not the caller's buffer", () => {
       const target = createMockTarget()
       const publisher = createFileSystemPublisher([target])
-      const buf1 = new ArrayBuffer(4)
-      const buf2 = new ArrayBuffer(8)
-      const binaryFiles = { '/a.wasm': buf1, '/b.wasm': buf2 }
+      const buf1 = new Uint8Array([1, 2]).buffer
+      const buf2 = new Uint8Array([3, 4, 5]).buffer
 
-      publisher.initFiles(undefined, binaryFiles)
+      publisher.initFiles(undefined, { '/a.wasm': buf1, '/b.wasm': buf2 })
 
-      expect(target.calls[0]!.transfer).toContain(buf1)
-      expect(target.calls[0]!.transfer).toContain(buf2)
+      const { message, transfer } = target.calls[0]!
+      expect(transfer).toHaveLength(2)
+      expect(transfer[0]).toBe(message.binaryFiles['/a.wasm'])
+      expect(transfer[1]).toBe(message.binaryFiles['/b.wasm'])
+      expect(transfer).not.toContain(buf1)
+      expect(transfer).not.toContain(buf2)
+      expect([...new Uint8Array(message.binaryFiles['/a.wasm'])]).toEqual([1, 2])
+      expect([...new Uint8Array(message.binaryFiles['/b.wasm'])]).toEqual([3, 4, 5])
+    })
+
+    test('binaryFiles with multiple targets: every target gets its own copies', () => {
+      const target1 = createMockTarget()
+      const target2 = createMockTarget()
+      const publisher = createFileSystemPublisher([target1, target2])
+      const buffer = new Uint8Array([1, 2, 3, 4]).buffer
+
+      publisher.initFiles(undefined, { '/app.wasm': buffer })
+
+      // Neither target gets the caller's buffer, and the copies are not shared
+      const copy1 = target1.calls[0]!.message.binaryFiles['/app.wasm']
+      const copy2 = target2.calls[0]!.message.binaryFiles['/app.wasm']
+      expect(copy1).not.toBe(buffer)
+      expect(copy2).not.toBe(buffer)
+      expect(copy1).not.toBe(copy2)
+      expect(target1.calls[0]!.transfer[0]).toBe(copy1)
+      expect(target2.calls[0]!.transfer[0]).toBe(copy2)
+      expect([...new Uint8Array(copy1)]).toEqual([1, 2, 3, 4])
+      expect([...new Uint8Array(copy2)]).toEqual([1, 2, 3, 4])
+    })
+
+    test('keeps the caller ArrayBuffers usable and delivers the files to every target', async () => {
+      const first = createPortTarget()
+      const second = createPortTarget()
+      const publisher = createFileSystemPublisher([first.target, second.target])
+      const buffer = new Uint8Array([1, 2, 3, 4]).buffer
+
+      publisher.initFiles({ '/main.js': 'code' }, { '/app.wasm': buffer })
+
+      expect(buffer.byteLength).toBe(4)
+      expect([...new Uint8Array(buffer)]).toEqual([1, 2, 3, 4])
+      for (const message of await Promise.all([first.received, second.received])) {
+        expect(message).toMatchObject({ type: 'V_FS_INIT', files: { '/main.js': 'code' } })
+        expect([...new Uint8Array(message.binaryFiles['/app.wasm'])]).toEqual([1, 2, 3, 4])
+      }
+    })
+
+    test('accepts the same ArrayBuffer for several paths', async () => {
+      const { target, received } = createPortTarget()
+      const publisher = createFileSystemPublisher([target])
+      const buffer = new Uint8Array([1, 2, 3]).buffer
+
+      publisher.initFiles(undefined, { '/a.bin': buffer, '/b.bin': buffer })
+
+      expect([...new Uint8Array(buffer)]).toEqual([1, 2, 3])
+      const message = await received
+      expect([...new Uint8Array(message.binaryFiles['/a.bin'])]).toEqual([1, 2, 3])
+      expect([...new Uint8Array(message.binaryFiles['/b.bin'])]).toEqual([1, 2, 3])
     })
   })
 })

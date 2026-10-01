@@ -74,7 +74,8 @@ export interface FileSystemPublisher {
    * Initialize files in bulk.
    *
    * @param files - Text files: path -> UTF-8 string content
-   * @param binaryFiles - Binary files: path -> ArrayBuffer content (transferred)
+   * @param binaryFiles - Binary files: path -> ArrayBuffer content. Each target receives its own copy
+   *   via postMessage's transfer list, so the caller's ArrayBuffers stay usable.
    */
   initFiles(files?: Record<string, string>, binaryFiles?: Record<string, ArrayBuffer>): void
   /**
@@ -102,9 +103,9 @@ export function createFileSystemPublisher(
 ): Readonly<FileSystemPublisher> {
   const _targets = new Set<FileSystemPublisherTarget>(targets)
 
-  function broadcast(message: FileSystemSyncMessage, transfer: Transferable[] = []) {
+  function broadcast(message: FileSystemSyncMessage) {
     for (const target of _targets) {
-      target.postMessage(message, transfer)
+      target.postMessage(message, [])
     }
   }
 
@@ -143,15 +144,24 @@ export function createFileSystemPublisher(
     },
 
     initFiles(files, binaryFiles) {
-      const transfer: Transferable[] = binaryFiles ? Object.values(binaryFiles) : []
-      const msg: FSInitMessage = { type: 'V_FS_INIT' }
-      if (files) {
-        msg.files = files
+      // Each target gets its own copies of the binary files in the transfer list.
+      // The caller's buffers are never transferred, so they stay usable.
+      for (const target of _targets) {
+        const msg: FSInitMessage = { type: 'V_FS_INIT' }
+        if (files) {
+          msg.files = files
+        }
+        const transfer: ArrayBuffer[] = []
+        if (binaryFiles) {
+          msg.binaryFiles = {}
+          for (const [path, content] of Object.entries(binaryFiles)) {
+            const buf = content.slice(0)
+            msg.binaryFiles[path] = buf
+            transfer.push(buf)
+          }
+        }
+        target.postMessage(msg, transfer)
       }
-      if (binaryFiles) {
-        msg.binaryFiles = binaryFiles
-      }
-      broadcast(msg, transfer)
     },
 
     addTarget(target) {

@@ -48,7 +48,7 @@ Initialize files in bulk.
 | Name | Type | Description |
 | --- | --- | --- |
 | `files` | `Record<string, string>` | Text files: path -> UTF-8 string content _(optional)_ |
-| `binaryFiles` | `Record<string, ArrayBuffer>` | Binary files: path -> ArrayBuffer content (transferred) _(optional)_ |
+| `binaryFiles` | `Record<string, ArrayBuffer>` | Binary files: path -> ArrayBuffer content. Each target receives its own copy via postMessage's transfer list, so the caller's ArrayBuffers stay usable. _(optional)_ |
 
 #### Returns
 
