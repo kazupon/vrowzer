@@ -28,7 +28,7 @@ import { V_WW_READY, V_WW_SETUP_ACK, V_WW_SETUP_ERROR, V_SW_CONNECT_PORT_ACK } f
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage, WorkerReadyMessage } from '../shared/messages'
 import type { ViteDevServer } from './server/index'
 import type { Plugin } from './plugin'
-import type { ViteDevServerForWorker } from './transformer'
+import type { FileChangeTracker, ViteDevServerForWorker } from './transformer'
 
 const debug = createDebugger('vrowzer:web-worker')
 
@@ -122,6 +122,7 @@ export function createServer(
   // State: set after V_WW_SETUP completes
   let server: ViteDevServerForWorker | null = null
   let ws: import('./server/ws').MessageChannelServer | null = null
+  let fileChanges: FileChangeTracker | null = null
 
   // Register onmessage immediately (lightweight, no WASM)
   workerScope.onmessage = async (event: MessageEvent<InternalWorkerMessage>) => {
@@ -182,10 +183,12 @@ export function createServer(
               debug?.('transformIndexHtml:', url)
               return devHtmlTransformFn(server as unknown as ViteDevServer, url, html, originalUrl)
             },
+            // Nothing is being processed before setupHMR() connects the watcher
+            waitForFileChange: (file) => fileChanges?.waitForFileChange(file) ?? Promise.resolve(),
           }
 
           // Setup HMR after server is ready
-          await transformer.setupHMR(server as unknown as ViteDevServer)
+          fileChanges = await transformer.setupHMR(server as unknown as ViteDevServer)
 
           // Call configureServer hooks on user plugins.
           // Plugins like @vitejs/plugin-vue store the server reference in configureServer

@@ -12,7 +12,12 @@
  * @license MIT
  */
 
-import type { FSInitMessage, FSWriteMessage, FileSystemSyncMessage } from './protocol.ts'
+import type {
+  FSInitMessage,
+  FSUnlinkMessage,
+  FSWriteMessage,
+  FileSystemSyncMessage
+} from './protocol.ts'
 
 /**
  * A postMessage target compatible like Service Worker and Web Worker APIs.
@@ -20,6 +25,16 @@ import type { FSInitMessage, FSWriteMessage, FileSystemSyncMessage } from './pro
 export interface FileSystemPublisherTarget {
   postMessage(message: any, transfer: Transferable[]): void
   postMessage(message: any, options?: StructuredSerializeOptions): void
+}
+
+/**
+ * Options for a single {@link FileSystemPublisher} operation.
+ */
+export interface FileSystemPublishOptions {
+  /**
+   * Operation ID set on the message, so that a Worker can acknowledge it with `V_FS_ACK`.
+   */
+  id?: string
 }
 
 /**
@@ -37,15 +52,18 @@ export interface FileSystemPublisher {
    * @param path - Path of the file to write. Must not end with '/' (directories use mkdir with path ending in '/').
    * @param content - Content of the file. Type determines encoding:
    *   - string: UTF-8 text content
-   *   - ArrayBuffer: binary content (transferred via postMessage's transfer list for zero-copy performance)
+   *   - ArrayBuffer: binary content. Each target receives its own copy via postMessage's transfer list,
+   *     so the caller's ArrayBuffer stays usable.
+   * @param options - Options for this operation, such as its ID
    */
-  writeFile(path: string, content: string | ArrayBuffer): void
+  writeFile(path: string, content: string | ArrayBuffer, options?: FileSystemPublishOptions): void
   /**
    * Delete a file.
    *
    * @param path - Path of the file to delete. Must not end with '/' (directories use mkdir with path ending in '/').
+   * @param options - Options for this operation, such as its ID
    */
-  unlink(path: string): void
+  unlink(path: string, options?: FileSystemPublishOptions): void
   /**
    * Create a directory.
    *
@@ -90,25 +108,34 @@ export function createFileSystemPublisher(
     }
   }
 
+  function idOf(options?: FileSystemPublishOptions): { id?: string } {
+    return options?.id === undefined ? {} : { id: options.id }
+  }
+
   const instance: FileSystemPublisher = {
-    writeFile(path, content) {
+    writeFile(path, content, options) {
       if (typeof content === 'string') {
-        broadcast({ type: 'V_FS_WRITE', path, encoding: 'text', content })
+        broadcast({ type: 'V_FS_WRITE', path, encoding: 'text', content, ...idOf(options) })
       } else {
-        // ArrayBuffer: transfer list for zero-copy.
-        // First target gets the original buffer, subsequent targets get copies.
-        const targetList = [..._targets]
-        for (let i = 0; i < targetList.length; i++) {
-          const buf = i === 0 ? content : content.slice(0)
-          const msg: FSWriteMessage = { type: 'V_FS_WRITE', path, encoding: 'binary', content: buf }
-          // @ts-expect-error - postMessage with transfer list is supported by both Worker and ServiceWorker targets, but TypeScript typings may not reflect this accurately.
-          targetList[i].postMessage(msg, [buf])
+        // ArrayBuffer: each target gets its own copy in the transfer list.
+        // The caller's buffer is never transferred, so it stays usable.
+        for (const target of _targets) {
+          const buf = content.slice(0)
+          const msg: FSWriteMessage = {
+            type: 'V_FS_WRITE',
+            path,
+            encoding: 'binary',
+            content: buf,
+            ...idOf(options)
+          }
+          target.postMessage(msg, [buf])
         }
       }
     },
 
-    unlink(path) {
-      broadcast({ type: 'V_FS_UNLINK', path })
+    unlink(path, options) {
+      const msg: FSUnlinkMessage = { type: 'V_FS_UNLINK', path, ...idOf(options) }
+      broadcast(msg)
     },
 
     mkdir(path) {

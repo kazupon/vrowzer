@@ -97,7 +97,7 @@ describe('Vrowzer dispose', () => {
         errors.mount = (error as Error).message
       }
       try {
-        vrowzer.addFile('/added.js', '')
+        await vrowzer.addFile('/added.js', '')
       } catch (error) {
         errors.addFile = (error as Error).message
       }

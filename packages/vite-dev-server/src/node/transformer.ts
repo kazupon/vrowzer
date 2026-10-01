@@ -66,6 +66,13 @@ export type ViteDevServerForWorker = Pick<ViteDevServer,
 > & {
   /** Virtual filesystem used by this transformer's DevEnvironment instance. */
   readonly fileSystem: typeof fs
+  /**
+   * Waits for the latest watcher event for `file` to be processed up to module graph
+   * invalidation. HMR runs afterwards and is not awaited.
+   *
+   * @see {@link FileChangeTracker.waitForFileChange}
+   */
+  waitForFileChange(file: string): Promise<void>
 }
 
 /**
@@ -248,6 +255,23 @@ function clientBasePlugin() {
 }
 
 /**
+ * Watcher events processed by {@link setupHMR}.
+ */
+export interface FileChangeTracker {
+  /**
+   * Takes the processing of the latest watcher event for `file`, up to module graph invalidation.
+   *
+   * The processing starts synchronously in the watcher listener, so call this right after the
+   * event is emitted. HMR runs afterwards and is not included. Resolves at once when there is
+   * no event for `file` to wait for, including when it was already taken.
+   *
+   * @param file - The path that the watcher event was emitted with
+   * @returns A promise that rejects when processing the event failed, e.g. in a plugin's `watchChange` hook
+   */
+  waitForFileChange(file: string): Promise<void>
+}
+
+/**
  * Connect watcher events to HMR pipeline.
  *
  * Simplified version of Vite's server/index.ts watcher setup.
@@ -255,8 +279,9 @@ function clientBasePlugin() {
  * to trigger module graph invalidation and HMR updates.
  *
  * @see https://github.com/vitejs/vite/blob/main/packages/vite/src/node/server/index.ts
+ * @returns A tracker to wait for the module graph invalidation of watcher events
  */
-export async function setupHMR(server: ViteDevServer): Promise<void> {
+export async function setupHMR(server: ViteDevServer): Promise<FileChangeTracker> {
   const { watcher, environments, config } = server
   const { server: serverConfig } = config
 
@@ -264,6 +289,10 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
   const publicFiles = await initPublicFilesPromise
   const { publicDir } = config
   debug?.('publicDir:', publicDir, 'publicFiles:', publicFiles)
+
+  // Processing of the latest watcher event for each path, up to module graph invalidation.
+  // Keyed by the path that the watcher emitted, before normalization.
+  const fileChanges = new Map<string, Promise<void>>()
 
   const onHMRUpdate = async (
     type: 'create' | 'delete' | 'update',
@@ -274,7 +303,8 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
     }
   }
 
-  const onFileAddUnlink = async (file: string, isUnlink: boolean) => {
+  // Processes an add or unlink event up to module graph invalidation and returns the normalized file
+  const invalidateOnFileAddUnlink = async (file: string, isUnlink: boolean) => {
     file = normalizePath(file)
     reloadOnTsconfigChange(server, file)
 
@@ -304,15 +334,20 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
       }
     }
     if (isUnlink) {
-      // invalidate module graph cache on file change
       for (const environment of Object.values(server.environments)) {
+        // onFileDelete() keeps the cached transform result of the deleted file, which Vite
+        // clears only during the HMR update. Clear it before waitForFileChange() resolves,
+        // so that later reads do not get the deleted file's transform result.
+        environment.moduleGraph.onFileChange(file)
+        // invalidate module graph cache on file change
         environment.moduleGraph.onFileDelete(file)
       }
     }
-    await onHMRUpdate(isUnlink ? 'delete' : 'create', file)
+    return file
   }
 
-  const onFileChange = async (file: string) => {
+  // Processes a change event up to module graph invalidation and returns the normalized file
+  const invalidateOnFileChange = async (file: string) => {
     debug?.('watcher change:', file)
 
     file = normalizePath(file)
@@ -327,21 +362,52 @@ export async function setupHMR(server: ViteDevServer): Promise<void> {
     for (const environment of Object.values(environments)) {
       environment.moduleGraph.onFileChange(file)
     }
+    return file
+  }
 
-    await onHMRUpdate('update', file)
+  // Records the invalidation of a watcher event, then runs HMR after it
+  const trackFileChange = (
+    watchedFile: string,
+    type: 'create' | 'delete' | 'update',
+    invalidation: Promise<string>,
+  ) => {
+    const invalidated = invalidation.then(() => undefined)
+    fileChanges.set(watchedFile, invalidated)
+    const forget = () => {
+      // A later event for the same path may have replaced this one
+      if (fileChanges.get(watchedFile) === invalidated) {
+        fileChanges.delete(watchedFile)
+      }
+    }
+    invalidated.then(forget, forget)
+
+    invalidation
+      .then((file) => onHMRUpdate(type, file))
+      .catch((e) => server.config.logger.error(e))
   }
 
   watcher.on('change', (file) => {
-    onFileChange(file).catch((e) => server.config.logger.error(e))
+    trackFileChange(file, 'update', invalidateOnFileChange(file))
   })
 
   watcher.on('add', (file) => {
-    onFileAddUnlink(file, false).catch((e) => server.config.logger.error(e))
+    trackFileChange(file, 'create', invalidateOnFileAddUnlink(file, false))
   })
 
   watcher.on('unlink', (file) => {
-    onFileAddUnlink(file, true).catch((e) => server.config.logger.error(e))
+    trackFileChange(file, 'delete', invalidateOnFileAddUnlink(file, true))
   })
+
+  return {
+    waitForFileChange(file) {
+      const invalidated = fileChanges.get(file)
+      if (!invalidated) {
+        return Promise.resolve()
+      }
+      fileChanges.delete(file)
+      return invalidated
+    },
+  }
 }
 
 function setupVirtualFiles(files?: Record<string, string>): void {

@@ -11,7 +11,9 @@ const transformerMocks = vi.hoisted(() => ({
   createDevHtmlTransformFn: vi.fn<() => () => void>(() => vi.fn<() => void>()),
   fs: {},
   isServerAccessDeniedForTransform: vi.fn<() => boolean>(() => false),
-  setupHMR: vi.fn<() => Promise<void>>(async () => undefined),
+  setupHMR: vi.fn<() => Promise<{ waitForFileChange: (file: string) => Promise<void> }>>(
+    async () => ({ waitForFileChange: async () => undefined }),
+  ),
   setupWorker: vi.fn<() => Promise<unknown>>(),
 }))
 
@@ -274,5 +276,30 @@ describe('Web Worker transform requests', () => {
     expect(setupResult.environments.client.transformRequest)
       .toHaveBeenCalledExactlyOnceWith('/secret.txt?raw')
     expect(transformerMocks.isServerAccessDeniedForTransform).not.toHaveBeenCalled()
+  })
+})
+
+describe('Web Worker file changes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  test('waits for file changes with the tracker from setupHMR', async () => {
+    const waitForFileChange = vi.fn<(file: string) => Promise<void>>(async () => undefined)
+    transformerMocks.setupHMR.mockResolvedValueOnce({ waitForFileChange })
+    transformerMocks.setupWorker.mockResolvedValue(createSetupResult())
+    const workerScope = createWorkerScope()
+    const server = createServer(workerScope)
+    const listening = server.listen(0)
+
+    await dispatchSetup(workerScope)
+    const readyServer = await listening
+    await readyServer.waitForFileChange('/src/main.ts')
+
+    expect(waitForFileChange).toHaveBeenCalledExactlyOnceWith('/src/main.ts')
   })
 })

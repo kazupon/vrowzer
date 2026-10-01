@@ -182,7 +182,9 @@ describe('Vrowzer Web Worker setup timeout', () => {
     await ready
     const messageCount = worker.messages.length
 
-    vrowzer.updateFile('/main.ts', 'export const value = 1')
+    await expect(vrowzer.updateFile('/main.ts', 'export const value = 1')).rejects.toThrow(
+      'updateFile() can only be called after ready() resolves to true (current state: failed)'
+    )
 
     expect(worker.messages).toHaveLength(messageCount)
   })
@@ -193,9 +195,13 @@ describe('Vrowzer Web Worker setup timeout', () => {
 
     await expect(ready).resolves.toBe(true)
     const messageCount = worker.messages.length
-    vrowzer.updateFile('/main.ts', 'export const value = 1')
+    const updating = vrowzer.updateFile('/main.ts', 'export const value = 1')
 
     expect(worker.terminate).not.toHaveBeenCalled()
     expect(worker.messages.length).toBeGreaterThan(messageCount)
+    // Without a Service Worker controller, only the Web Worker is waited for
+    const { id } = worker.messages.at(-1) as { id: string }
+    worker.onmessage?.({ data: { type: 'V_FS_ACK', id } } as MessageEvent)
+    await expect(updating).resolves.toBeUndefined()
   })
 })

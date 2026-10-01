@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vite-plus/test'
-import { V_FS_INIT, V_FS_MKDIR, V_FS_UNLINK, V_FS_WRITE } from './protocol.ts'
+import { V_FS_ACK, V_FS_INIT, V_FS_MKDIR, V_FS_UNLINK, V_FS_WRITE } from './protocol.ts'
 
 describe('@vrowzer/fs/watcher protocol', () => {
   test('V_FS_WRITE constant has correct value', () => {
@@ -16,5 +16,9 @@ describe('@vrowzer/fs/watcher protocol', () => {
 
   test('V_FS_INIT constant has correct value', () => {
     expect(V_FS_INIT).toBe('V_FS_INIT')
+  })
+
+  test('V_FS_ACK constant has correct value', () => {
+    expect(V_FS_ACK).toBe('V_FS_ACK')
   })
 })

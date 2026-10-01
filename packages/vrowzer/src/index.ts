@@ -22,8 +22,8 @@
  *   vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
  * }
  *
- * // Update files (triggers HMR)
- * vrowzer.updateFile(
+ * // Update files (triggers HMR). The promise resolves when later preview requests see the change.
+ * await vrowzer.updateFile(
  *   '/main.js',
  *   `
  *   document.getElementById('app').innerHTML = '<h1>Updated!</h1>'
@@ -41,7 +41,7 @@
  */
 
 import { Emitter } from '@kazupon/jts-utils/event'
-import { createFileSystemPublisher } from '@vrowzer/fs/watcher'
+import { V_FS_ACK, createFileSystemPublisher } from '@vrowzer/fs/watcher'
 import {
   V_WW_READY,
   V_WW_SETUP,
@@ -68,6 +68,7 @@ import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/contro
 
 const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
 const DEFAULT_WEB_WORKER_SETUP_TIMEOUT = 90_000
+const DEFAULT_FILE_SYNC_TIMEOUT = 10_000
 
 /**
  * `postMessage()` type used by the preview bootstrap to report load failures to the host.
@@ -78,6 +79,10 @@ const PREVIEW_LOAD_ERROR_URL_MAX_LENGTH = 2048
 const PREVIEW_LOAD_ERROR_NAME_MAX_LENGTH = 100
 
 type ReadyState = 'idle' | 'initializing' | 'ready' | 'failed' | 'disposed'
+
+type FileOperation = 'addFile' | 'updateFile' | 'deleteFile'
+
+type FileSyncTarget = 'Web Worker' | 'Service Worker'
 
 /**
  * VrowzerOptions defines the configuration options for {@link Vrowzer}.
@@ -125,6 +130,18 @@ export interface VrowzerOptions {
    * @default 90000
    */
   webWorkerSetupTimeout?: number
+  /**
+   * Timeout in milliseconds for the Web Worker and the Service Worker to apply a change made with
+   * {@link Vrowzer.addFile}, {@link Vrowzer.updateFile} or {@link Vrowzer.deleteFile}.
+   *
+   * The Web Worker applies a change after the plugins' `watchChange` hooks finish. This timeout is
+   * shorter than the 30 seconds that the Service Worker waits for the Web Worker to transform a
+   * request, so with slow plugins or heavy transforms an operation can reject although the change
+   * is applied later. Increase it in such environments. Writing the file again resynchronizes it.
+   *
+   * @default 10000
+   */
+  fileSyncTimeout?: number
 }
 
 /**
@@ -311,21 +328,43 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
   /**
    * Adds a new file to the preview environment with the specified content.
    *
+   * The promise resolves when later preview requests see the change: the Web Worker and the
+   * Service Worker have written the file to their virtual filesystems, and the Web Worker has
+   * invalidated the modules that depend on it. HMR updates of mounted previews are not awaited.
+   *
+   * It rejects without sending the change before {@link Vrowzer.ready} resolves to `true`, after it
+   * fails, and after {@link Vrowzer.dispose}. It also rejects when a Worker fails to apply the change,
+   * when the Web Worker reports an error, when the Workers do not reply within
+   * {@link VrowzerOptions.fileSyncTimeout}, or when the instance is disposed first. The change may
+   * be partly applied then; write the file again to resynchronize.
+   *
+   * Public files (under `/public/`) are currently not served by the Service Worker, so they do not
+   * become visible to preview requests.
+   *
    * @param filePath - The path of the file to be added.
-   * @param content - The content of the file, which can be a string or an ArrayBuffer.
+   * @param content - The content of the file, which can be a string or an ArrayBuffer. An
+   * ArrayBuffer is copied for the Workers and stays usable.
    */
-  addFile(filePath: string, content: string | ArrayBuffer): void
+  addFile(filePath: string, content: string | ArrayBuffer): Promise<void>
   /**
    * Updates the content of a specific file in the preview environment.
+   *
+   * The promise resolves and rejects as with {@link Vrowzer.addFile}.
+   *
    * @param filePath - The path of the file to be updated.
-   * @param content - The new content for the file, which can be a string or an ArrayBuffer.
+   * @param content - The new content for the file, which can be a string or an ArrayBuffer. An
+   * ArrayBuffer is copied for the Workers and stays usable.
    */
-  updateFile(filePath: string, content: string | ArrayBuffer): void
+  updateFile(filePath: string, content: string | ArrayBuffer): Promise<void>
   /**
    * Deletes a specific file from the preview environment.
+   *
+   * The promise resolves when later preview requests no longer see the file, and rejects as with
+   * {@link Vrowzer.addFile}. Deleting a file that does not exist resolves as well.
+   *
    * @param filePath - The path of the file to be deleted.
    */
-  deleteFile(filePath: string): void
+  deleteFile(filePath: string): Promise<void>
   /**
    * Disposes this instance.
    *
@@ -334,8 +373,9 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * forwarded, and all event handlers are removed right away. The Service Worker registration and
    * its virtual filesystem are kept for other clients.
    *
-   * After disposal, `ready()` rejects, `mount()` and the file methods throw, and `unmount()` and
-   * `reloadPreview()` do nothing. Create a new instance to start again.
+   * File operations still waiting for the Workers reject. After disposal, `ready()` and the file
+   * methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
+   * new instance to start again.
    *
    * @returns A promise that resolves when every resource is released. Calling this method again
    * returns the same promise. It rejects with an `AggregateError` when some resources could not
@@ -354,6 +394,22 @@ interface ResolvedVrowzerOptions {
   serviceWorkerScope: string
   serviceWorkerReadyTimeout: number
   webWorkerSetupTimeout: number
+  fileSyncTimeout: number
+}
+
+/**
+ * A file operation waiting for the Workers to acknowledge it.
+ */
+interface PendingFileOperation {
+  operation: FileOperation
+  path: string
+  /**
+   * Workers that have not acknowledged the operation yet.
+   */
+  waitingFor: Set<FileSyncTarget>
+  resolve: () => void
+  reject: (error: Error) => void
+  timer: ReturnType<typeof setTimeout>
 }
 
 interface PreviewSessionRecord {
@@ -372,7 +428,8 @@ function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
     serviceWorkerScope: resolveServiceWorkerScope(options.serviceWorkerScope),
     serviceWorkerReadyTimeout:
       options.serviceWorkerReadyTimeout ?? DEFAULT_SERVICE_WORKER_READY_TIMEOUT,
-    webWorkerSetupTimeout: options.webWorkerSetupTimeout ?? DEFAULT_WEB_WORKER_SETUP_TIMEOUT
+    webWorkerSetupTimeout: options.webWorkerSetupTimeout ?? DEFAULT_WEB_WORKER_SETUP_TIMEOUT,
+    fileSyncTimeout: options.fileSyncTimeout ?? DEFAULT_FILE_SYNC_TIMEOUT
   }
 }
 
@@ -430,6 +487,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? value.slice(0, maxLength) : value
+}
+
+function describeFileOperation(operation: FileOperation, path: string): string {
+  return `[Vrowzer] ${operation}(${JSON.stringify(path)})`
+}
+
+/**
+ * Rebuilds the error that a Worker reported in a `V_FS_ACK` message.
+ */
+function toWorkerError(error: unknown): Error {
+  const workerError = new Error(
+    isRecord(error) && typeof error.message === 'string' ? error.message : 'unknown error'
+  )
+  workerError.name = isRecord(error) && typeof error.name === 'string' ? error.name : 'Error'
+  return workerError
 }
 
 /**
@@ -510,6 +582,9 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   const readyReleaseErrors: unknown[] = []
   const controllerSubscriptions: (() => void)[] = []
   let serviceWorkerTarget: FileSystemPublisherTarget | null = null
+  // File operations waiting for acknowledgements, by operation id
+  const pendingFileOperations = new Map<string, PendingFileOperation>()
+  let stopListeningServiceWorkerAcks: (() => void) | null = null
 
   function cleanupWebWorker(): void {
     const worker = webWorker
@@ -527,11 +602,17 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
 
   /**
    * Releases what initialization created: Service Worker controller event forwarding,
-   * the file sync targets, and the Web Worker. Used by a failed ready() and by dispose().
+   * the file sync targets and acknowledgement listener, and the Web Worker.
+   * Used by a failed ready() and by dispose().
    */
   function releaseRuntime(errors: unknown[]): void {
     for (const stop of controllerSubscriptions.splice(0)) {
       attempt(errors, stop)
+    }
+    const stopListeningAcks = stopListeningServiceWorkerAcks
+    stopListeningServiceWorkerAcks = null
+    if (stopListeningAcks) {
+      attempt(errors, stopListeningAcks)
     }
     const target = serviceWorkerTarget
     serviceWorkerTarget = null
@@ -545,6 +626,144 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     if (readyState === 'disposed') {
       throw new Error(`[Vrowzer] ${method}() cannot be called after dispose()`)
     }
+  }
+
+  function settleFileOperation(id: string, error?: Error): void {
+    const pending = pendingFileOperations.get(id)
+    if (!pending) {
+      return
+    }
+    pendingFileOperations.delete(id)
+    clearTimeout(pending.timer)
+    if (error) {
+      pending.reject(error)
+    } else {
+      pending.resolve()
+    }
+  }
+
+  /**
+   * Rejects the pending file operations, or only those still waiting for `target`.
+   */
+  function rejectFileOperations(
+    toError: (pending: PendingFileOperation) => Error,
+    target?: FileSyncTarget
+  ): void {
+    // Deleting entries while iterating a Map is safe, so no copy is needed
+    for (const [id, pending] of pendingFileOperations) {
+      if (target === undefined || pending.waitingFor.has(target)) {
+        settleFileOperation(id, toError(pending))
+      }
+    }
+  }
+
+  function handleFileSyncAck(target: FileSyncTarget, data: unknown): void {
+    if (!isRecord(data) || data.type !== V_FS_ACK || typeof data.id !== 'string') {
+      return
+    }
+    const pending = pendingFileOperations.get(data.id)
+    // Unknown ids belong to another instance in the same page, or to settled operations
+    if (!pending || !pending.waitingFor.has(target)) {
+      return
+    }
+    if (data.error !== undefined) {
+      const cause = toWorkerError(data.error)
+      settleFileOperation(
+        data.id,
+        new Error(
+          `${describeFileOperation(pending.operation, pending.path)} failed in the ${target}: ${cause.message}`,
+          { cause }
+        )
+      )
+      return
+    }
+    pending.waitingFor.delete(target)
+    if (pending.waitingFor.size === 0) {
+      settleFileOperation(data.id)
+    }
+  }
+
+  /**
+   * Receives file sync acknowledgements from the Workers, once the instance is ready.
+   */
+  function listenFileSyncAcks(worker: Worker): void {
+    worker.onmessage = event => handleFileSyncAck('Web Worker', event.data)
+    worker.onerror = event => {
+      console.error('[Vrowzer] Web Worker error:', event.message, event.filename, event.lineno)
+      const message = event.message || 'unknown error'
+      rejectFileOperations(
+        pending =>
+          new Error(
+            `${describeFileOperation(pending.operation, pending.path)} failed because the Web Worker reported an error: ${message}`
+          ),
+        'Web Worker'
+      )
+    }
+
+    const container = getController()?.container
+    if (container) {
+      const handler = (event: MessageEvent) => handleFileSyncAck('Service Worker', event.data)
+      container.addEventListener('message', handler)
+      stopListeningServiceWorkerAcks = () => container.removeEventListener('message', handler)
+    }
+  }
+
+  /**
+   * Sends a file operation to the Workers and waits until both have applied it.
+   */
+  function syncFile(
+    operation: FileOperation,
+    path: string,
+    send: (options: { id: string }) => void
+  ): Promise<void> {
+    if (readyState === 'disposed') {
+      return Promise.reject(new Error(`[Vrowzer] ${operation}() cannot be called after dispose()`))
+    }
+    if (readyState !== 'ready') {
+      return Promise.reject(
+        new Error(
+          `[Vrowzer] ${operation}() can only be called after ready() resolves to true (current state: ${readyState})`
+        )
+      )
+    }
+
+    const waitingFor = new Set<FileSyncTarget>()
+    if (webWorker) {
+      waitingFor.add('Web Worker')
+    }
+    if (serviceWorkerTarget) {
+      waitingFor.add('Service Worker')
+    }
+    const id = crypto.randomUUID()
+    const timeout = resolved.fileSyncTimeout
+
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const pending = pendingFileOperations.get(id)
+        if (pending) {
+          const targets = [...pending.waitingFor].map(target => `the ${target}`).join(' and ')
+          settleFileOperation(
+            id,
+            new Error(
+              `${describeFileOperation(operation, path)} timed out after ${timeout}ms waiting for ${targets}`
+            )
+          )
+        }
+      }, timeout)
+      pendingFileOperations.set(id, { operation, path, waitingFor, resolve, reject, timer })
+
+      try {
+        send({ id })
+      } catch (error) {
+        settleFileOperation(
+          id,
+          new Error(
+            `${describeFileOperation(operation, path)} could not be sent: ${error instanceof Error ? error.message : String(error)}`,
+            { cause: error }
+          )
+        )
+      }
+    })
   }
 
   /**
@@ -976,6 +1195,9 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       // dispose() may have been called while the last ACK was being delivered
       signal.throwIfAborted()
 
+      // 9. File operations are accepted from now on, so listen for their acknowledgements
+      listenFileSyncAcks(currentWebWorker)
+
       readyState = 'ready'
       return true
     } catch (error) {
@@ -1005,6 +1227,12 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     // Remove the handlers first, so that nothing reaches the host after dispose()
     attempt(errors, () => _emitter.dispose())
     readyAbortController?.abort(new Error('[Vrowzer] The instance was disposed'))
+    rejectFileOperations(
+      pending =>
+        new Error(
+          `${describeFileOperation(pending.operation, pending.path)} was cancelled by dispose()`
+        )
+    )
 
     disposePromise = (async () => {
       // An aborted ready() releases what it created and resolves to false
@@ -1136,19 +1364,20 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       }
     },
 
-    addFile(filePath: string, content: string | ArrayBuffer): void {
-      assertNotDisposed('addFile')
-      publisher.writeFile(filePath, content)
+    addFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
+      return syncFile('addFile', filePath, options =>
+        publisher.writeFile(filePath, content, options)
+      )
     },
 
-    updateFile(filePath: string, content: string | ArrayBuffer): void {
-      assertNotDisposed('updateFile')
-      publisher.writeFile(filePath, content)
+    updateFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
+      return syncFile('updateFile', filePath, options =>
+        publisher.writeFile(filePath, content, options)
+      )
     },
 
-    deleteFile(filePath: string): void {
-      assertNotDisposed('deleteFile')
-      publisher.unlink(filePath)
+    deleteFile(filePath: string): Promise<void> {
+      return syncFile('deleteFile', filePath, options => publisher.unlink(filePath, options))
     },
 
     dispose,

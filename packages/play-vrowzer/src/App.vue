@@ -111,7 +111,9 @@ onMounted(async () => {
 })
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
-  vrowzer.updateFile(path, content)
+  vrowzer.updateFile(path, content).catch((err: Error) => {
+    console.error('[Vrowzer Playground] updateFile failed:', err)
+  })
 }
 
 function handleReload() {

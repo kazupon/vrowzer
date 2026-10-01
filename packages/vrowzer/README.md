@@ -63,8 +63,8 @@ if (ready) {
   vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
 }
 
-// Update files (triggers HMR)
-vrowzer.updateFile(
+// Update files (triggers HMR). The promise resolves when later preview requests see the change.
+await vrowzer.updateFile(
   '/main.js',
   `
   document.getElementById('app').innerHTML = '<h1>Updated!</h1>'
@@ -143,6 +143,12 @@ const vrowzer = Vrowzer({ webWorkerSetupTimeout: 120000 })
 
 Set this option to `0` for an immediate timeout. It does not apply to Service Worker readiness and does not need a corresponding Vite plugin option.
 
+`fileSyncTimeout` controls how long `addFile()`, `updateFile()` and `deleteFile()` wait for the Web Worker and the Service Worker to apply a change. It defaults to 10000 milliseconds. The Web Worker applies a change after the plugins' `watchChange` hooks finish, so slow plugins make it take longer. The default is shorter than the 30 seconds that the Service Worker waits for the Web Worker to transform a request, so in such environments an operation can reject although the change is applied later. Increase the timeout there:
+
+```ts
+const vrowzer = Vrowzer({ fileSyncTimeout: 30000 })
+```
+
 **Options:**
 
 | Option                      | Type     | Default                           | Description                                                  |
@@ -152,6 +158,7 @@ Set this option to `0` for an immediate timeout. It does not apply to Service Wo
 | `serviceWorkerScope`        | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value            |
 | `serviceWorkerReadyTimeout` | `number` | `60000`                           | Milliseconds to wait for the Service Worker page controller   |
 | `webWorkerSetupTimeout`     | `number` | `90000`                           | Milliseconds from Web Worker creation through setup completion |
+| `fileSyncTimeout`           | `number` | `10000`                           | Milliseconds to wait for the Workers to apply a file change    |
 
 ### Instance Methods
 
@@ -220,21 +227,39 @@ desktop.unmount()
 vrowzer.unmount()
 ```
 
-#### `updateFile(path, content): void`
+#### `updateFile(path, content): Promise<void>`
 
 Updates a file in the virtual filesystem. Triggers HMR if the preview supports it.
 
 ```ts
-vrowzer.updateFile('/main.js', 'console.log("updated")')
+await vrowzer.updateFile('/main.js', 'console.log("updated")')
 ```
 
-#### `addFile(path, content): void`
+#### `addFile(path, content): Promise<void>`
 
 Adds a new file to the virtual filesystem.
 
-#### `deleteFile(path): void`
+#### `deleteFile(path): Promise<void>`
 
-Deletes a file from the virtual filesystem.
+Deletes a file from the virtual filesystem. Deleting a file that does not exist resolves as well.
+
+#### Waiting for file changes
+
+The promise of `addFile()`, `updateFile()` and `deleteFile()` resolves when later preview requests see the change: the Web Worker and the Service Worker have written the file to their virtual filesystems, and the Web Worker has invalidated the modules that depend on it. It does not wait for HMR updates of mounted previews. To load the new contents in a fresh document, wait for the promise before reloading:
+
+```ts
+await vrowzer.updateFile('/main.js', source)
+vrowzer.reloadPreview()
+```
+
+- Operations awaited one after another are applied in that order. Operations started together may resolve in any order, and several files are not applied as one transaction.
+- `ArrayBuffer` content is copied for each Worker, so the caller's buffer stays usable.
+- The promise rejects without sending the change before `ready()` resolves to `true`, after it fails, and after `dispose()`. It also rejects when a Worker fails to apply the change (for example, a plugin's `watchChange` hook throws), when the Web Worker reports an error, when the Workers do not reply within `fileSyncTimeout`, or when the instance is disposed first. The error message names the operation, the path and the Worker.
+- After a rejection, the change may be partly applied. Write the file again, or delete it, to resynchronize.
+- Public files (under `/public/`) are currently not served by the Service Worker, whether they are passed to `ready()` or added later: the Service Worker builds its list of public files when it starts, before it receives any file. The promises above therefore do not make them visible.
+
+> [!NOTE]
+> Up to vrowzer 0.4.x, these methods returned `void` without waiting for the Workers, and calls made before `ready()` completed were dropped or reached only the Web Worker.
 
 #### `dispose(): Promise<void>`
 
@@ -262,7 +287,7 @@ With `await using`, the instance is disposed at the end of the scope.
 ```
 
 - If `ready()` is still in progress, it is aborted and resolves to `false`.
-- After disposal, `ready()` rejects, `mount()`, `addFile()`, `updateFile()` and `deleteFile()` throw, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
+- File operations still waiting for the Workers reject. After disposal, `ready()`, `addFile()`, `updateFile()` and `deleteFile()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
 - Calling `dispose()` again returns the same promise. If some resources cannot be released, the remaining ones are still released, and the promise rejects with an `AggregateError`.
 
 > [!NOTE]

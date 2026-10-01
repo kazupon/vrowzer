@@ -125,11 +125,11 @@ interface SourceMapPayload {
 }
 
 async function addPreviewFiles(files: Record<string, string>): Promise<void> {
-  await page.evaluate(filesToAdd => {
+  await page.evaluate(async filesToAdd => {
     const vrowzer = (window as any).__vrowzer__
-    for (const [filePath, content] of Object.entries(filesToAdd)) {
-      vrowzer.addFile(filePath, content)
-    }
+    await Promise.all(
+      Object.entries(filesToAdd).map(([filePath, content]) => vrowzer.addFile(filePath, content))
+    )
   }, files)
 }
 
@@ -222,6 +222,42 @@ async function fetchFromPreview(requestPath: string): Promise<PreviewResponse> {
       body: await response.text()
     }
   }, requestPath)
+}
+
+/**
+ * Reads a preview file through the Service Worker from the host page. Unlike the preview iframe,
+ * the host page is not reloaded by HMR, so a read right after a file change is not interrupted.
+ */
+async function fetchFromServiceWorker(requestPath: string): Promise<PreviewResponse> {
+  return page.evaluate(async path => {
+    const response = await fetch(`/__preview__${path}`)
+    return { status: response.status, body: await response.text() }
+  }, requestPath)
+}
+
+async function fetchBytesFromServiceWorker(
+  requestPath: string
+): Promise<{ status: number; bytes: number[] }> {
+  return page.evaluate(async path => {
+    const response = await fetch(`/__preview__${path}`)
+    return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] }
+  }, requestPath)
+}
+
+/**
+ * Makes a test module accept its own updates, so that changing it does not reload the preview.
+ */
+function selfAccepting(code: string): string {
+  return `${code}\nif (import.meta.hot) { import.meta.hot.accept() }\n`
+}
+
+/**
+ * Releases what the playground's file sync test plugin holds in the Web Worker.
+ */
+async function releaseHeldFileChanges(): Promise<void> {
+  await page.evaluate(() => {
+    return (window as any).__vrowzer__.updateFile('/file-sync/release', '')
+  })
 }
 
 async function waitForPreviewResponse(
@@ -522,7 +558,7 @@ describe('Vrowzer E2E', () => {
       // Update main.js via vrowzer API
       await page.evaluate(() => {
         const vrowzer = (window as any).__vrowzer__
-        vrowzer.updateFile(
+        return vrowzer.updateFile(
           '/main.js',
           `
 document.getElementById('app').innerHTML = '<h1>Updated!</h1><p id="result">1 + 1 = 2</p>'
@@ -551,6 +587,131 @@ if (import.meta.hot) {
         )
         .toEqual({ updated: true, result: true })
     }, 30000)
+
+    test('stays pending while the Web Worker applies a change, and later reads see it', async () => {
+      const path = '/file-sync/held/module.js'
+      await addPreviewFiles({ [path]: selfAccepting(`export const value = 'held-v1'`) })
+      // Cache the transform result of the first version
+      expect((await fetchFromServiceWorker(path)).body).toContain('held-v1')
+
+      try {
+        await page.evaluate(
+          ({ path, content }) => {
+            const state = { settled: false }
+            ;(window as any).__fileSyncHeld__ = state
+            ;(window as any).__fileSyncHeldUpdate__ = (window as any).__vrowzer__
+              .updateFile(path, content)
+              .finally(() => {
+                state.settled = true
+              })
+          },
+          { path, content: selfAccepting(`export const value = 'held-v2'`) }
+        )
+
+        await page.waitForTimeout(500)
+        expect(await page.evaluate(() => (window as any).__fileSyncHeld__.settled)).toBe(false)
+        // The Web Worker has not invalidated the module yet, so reads still get the cached result
+        expect((await fetchFromServiceWorker(path)).body).toContain('held-v1')
+
+        // Releasing writes another path, so it resolves without waiting for the held change
+        await releaseHeldFileChanges()
+        await page.evaluate(() => (window as any).__fileSyncHeldUpdate__)
+
+        const response = await fetchFromServiceWorker(path)
+        expect(response.body).toContain('held-v2')
+        expect(response.body).not.toContain('held-v1')
+      } finally {
+        await releaseHeldFileChanges()
+      }
+    }, 30000)
+
+    test('resolves each kind of operation, and later reads follow them', async () => {
+      const path = '/file-sync/kinds/module.js'
+      const run = (operation: string, args: unknown[]) =>
+        page.evaluate(({ operation, args }) => (window as any).__vrowzer__[operation](...args), {
+          operation,
+          args
+        })
+
+      await run('addFile', [path, selfAccepting(`export const value = 'kinds-v1'`)])
+      expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v1')
+
+      await run('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
+      expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v2')
+
+      // Writing the same content, and adding a file that nothing imports, settle as well
+      await run('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
+      await run('addFile', ['/file-sync/kinds/unused.js', 'export {}'])
+
+      await run('deleteFile', [path])
+      expect((await fetchFromServiceWorker(path)).body).not.toContain('kinds-v2')
+      // Deleting a file that no longer exists settles too
+      await run('deleteFile', [path])
+
+      await run('addFile', [path, selfAccepting(`export const value = 'kinds-v3'`)])
+      expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v3')
+    }, 30000)
+
+    test('makes a deletion visible before its HMR update finishes', async () => {
+      const path = '/file-sync/held-hmr/module.js'
+      await addPreviewFiles({ [path]: selfAccepting(`export const value = 'held-hmr-v1'`) })
+      // Cache the transform result of the file
+      expect((await fetchFromServiceWorker(path)).body).toContain('held-hmr-v1')
+
+      try {
+        // The plugin holds the HMR update of this deletion, which does not delay the promise
+        await page.evaluate(path => (window as any).__vrowzer__.deleteFile(path), path)
+        expect((await fetchFromServiceWorker(path)).body).not.toContain('held-hmr-v1')
+      } finally {
+        await releaseHeldFileChanges()
+      }
+    }, 30000)
+
+    test('copies binary content for both Workers and keeps the caller buffer usable', async () => {
+      const path = '/file-sync/binary/pixel.png'
+      const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]
+
+      const caller = await page.evaluate(
+        async ({ path, bytes }) => {
+          const buffer = new Uint8Array(bytes).buffer
+          await (window as any).__vrowzer__.addFile(path, buffer)
+          return { byteLength: buffer.byteLength, bytes: [...new Uint8Array(buffer)] }
+        },
+        { path, bytes }
+      )
+      expect(caller).toEqual({ byteLength: bytes.length, bytes })
+
+      // The Service Worker serves the file from its virtual filesystem
+      expect(await fetchBytesFromServiceWorker(path)).toEqual({ status: 200, bytes })
+      // The Web Worker inlines the file from its own virtual filesystem
+      const inlined = await fetchFromServiceWorker(`${path}?import&inline`)
+      const base64 = inlined.body.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)/)?.[1]
+      expect(base64).toBeDefined()
+      expect([...Buffer.from(base64!, 'base64')]).toEqual(bytes)
+    }, 30000)
+
+    test('rejects when the Web Worker fails to apply a change, and writing again converges', async () => {
+      const path = '/file-sync/fail-once/module.js'
+
+      const message = await page.evaluate(async path => {
+        try {
+          await (window as any).__vrowzer__.addFile(path, `export const value = 'fail-v1'`)
+          return null
+        } catch (error) {
+          return (error as Error).message
+        }
+      }, path)
+      expect(message).toContain(`addFile("${path}") failed in the Web Worker`)
+      expect(message).toContain(`vrowzer-test: watchChange failed for ${path}`)
+
+      await page.evaluate(
+        path => (window as any).__vrowzer__.updateFile(path, `export const value = 'fail-v2'`),
+        path
+      )
+      const response = await fetchFromServiceWorker(path)
+      expect(response.body).toContain('fail-v2')
+      expect(response.body).not.toContain('fail-v1')
+    }, 30000)
   })
 
   describe('preview sessions', () => {
@@ -558,7 +719,7 @@ if (import.meta.hot) {
       const dangerousMarker = '</script>\u2028\u2029'
 
       await page.evaluate(source => {
-        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+        return (window as any).__vrowzer__.updateFile('/main.js', source)
       }, createMultiSessionSource('multi-1'))
 
       await expect
@@ -671,7 +832,7 @@ if (import.meta.hot) {
       expect(new Set(clientIdsBeforeReload).size).toBe(3)
 
       await page.evaluate(source => {
-        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+        return (window as any).__vrowzer__.updateFile('/main.js', source)
       }, createMultiSessionSource('multi-2'))
 
       await page.waitForFunction(
@@ -758,7 +919,7 @@ if (import.meta.hot) {
       expect(await waitForHmrClientCount(2)).toHaveLength(2)
 
       await page.evaluate(source => {
-        ;(window as any).__vrowzer__.updateFile('/main.js', source)
+        return (window as any).__vrowzer__.updateFile('/main.js', source)
       }, createMultiSessionSource('multi-3'))
 
       await page.waitForFunction(
@@ -943,7 +1104,7 @@ if (import.meta.hot) {
 
     afterAll(async () => {
       await page.evaluate(
-        ({ ids, paths }) => {
+        async ({ ids, paths }) => {
           const vrowzer = (window as any).__vrowzer__
           for (const id of ids) {
             vrowzer.unmount(id)
@@ -952,9 +1113,7 @@ if (import.meta.hot) {
           ;(window as any).__stopPreviewLoadErrors?.()
           delete (window as any).__previewLoadErrors
           delete (window as any).__stopPreviewLoadErrors
-          for (const path of paths) {
-            vrowzer.deleteFile(path)
-          }
+          await Promise.all(paths.map((path: string) => vrowzer.deleteFile(path)))
         },
         { ids: sessionIds, paths: Object.keys(fixtureFiles) }
       )
@@ -1188,7 +1347,7 @@ if (import.meta.hot) {
         expect(response.body).toContain(filePath)
       } finally {
         await page.evaluate(path => {
-          ;(window as any).__vrowzer__.deleteFile(path)
+          return (window as any).__vrowzer__.deleteFile(path)
         }, filePath)
       }
     })

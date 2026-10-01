@@ -210,6 +210,66 @@ function hmrClientTrackingWebWorkerPlugin(): Plugin {
   }
 }
 
+/**
+ * Lets the file synchronization tests delay and fail how the Web Worker applies file changes.
+ *
+ * - `watchChange` of an update under `/file-sync/held/` waits until `/file-sync/release` is written.
+ * - `watchChange` under `/file-sync/fail-once/` throws the first time for each path.
+ * - `hotUpdate` of a deletion under `/file-sync/held-hmr/` waits until `/file-sync/release` is written.
+ */
+function fileSyncWebWorkerPlugin(): Plugin {
+  const failedPaths = new Set<string>()
+  let isWebWorker = false
+  let hold: { promise: Promise<void>; release: () => void } | null = null
+
+  function waitForRelease(): Promise<void> {
+    if (!hold) {
+      let release!: () => void
+      const promise = new Promise<void>(resolve => {
+        release = resolve
+      })
+      hold = { promise, release }
+    }
+    return hold.promise
+  }
+
+  return {
+    name: 'vrowzer-test:file-sync-web-worker',
+    apply: 'serve',
+    configureServer(server) {
+      const middlewares = (server as { middlewares?: unknown }).middlewares
+      if (server.config.root !== '/' || middlewares) {
+        return
+      }
+
+      isWebWorker = true
+    },
+    async watchChange(id, { event }) {
+      if (!isWebWorker) {
+        return
+      }
+      if (id === '/file-sync/release') {
+        hold?.release()
+        hold = null
+        return
+      }
+      if (id.startsWith('/file-sync/held/') && event === 'update') {
+        await waitForRelease()
+        return
+      }
+      if (id.startsWith('/file-sync/fail-once/') && !failedPaths.has(id)) {
+        failedPaths.add(id)
+        throw new Error(`vrowzer-test: watchChange failed for ${id}`)
+      }
+    },
+    async hotUpdate({ type, file }) {
+      if (isWebWorker && type === 'delete' && file.startsWith('/file-sync/held-hmr/')) {
+        await waitForRelease()
+      }
+    }
+  }
+}
+
 export default defineConfig({
   server: {
     origin: 'https://assets.vrowzer.test'
@@ -219,6 +279,7 @@ export default defineConfig({
     fsHtmlProxyWebWorkerPlugin(),
     postcssOnceExitWebWorkerPlugin(),
     hmrClientTrackingWebWorkerPlugin(),
+    fileSyncWebWorkerPlugin(),
     Vrowzer({
       auto: false,
       basePath: '/__preview__/',

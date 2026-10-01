@@ -51,7 +51,9 @@ function connectRpc() {
             editorPanel.value.editableFiles.set(path, content)
           }
           // Update vrowzer preview
-          vrowzer.updateFile(path, content)
+          vrowzer.updateFile(path, content).catch((err: Error) => {
+            console.error('[Vrowzer IDE] updateFile failed:', err)
+          })
         }
       },
       {
@@ -122,7 +124,9 @@ onUnmounted(() => {
 
 function handleFileChange({ path, content }: { path: string; content: string }) {
   // 1. Update preview via HMR (immediate)
-  vrowzer.updateFile(path, content)
+  vrowzer.updateFile(path, content).catch((err: Error) => {
+    console.error('[Vrowzer IDE] updateFile failed:', err)
+  })
 
   // 2. Write back to local FS via birpc (async, no await)
   if (rpc) {

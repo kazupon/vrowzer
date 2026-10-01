@@ -1,5 +1,11 @@
 import { createVirtualFSWatcher } from '@vrowzer/fs/watcher'
-import { describe, expect, onTestFinished, test, vi } from 'vite-plus/test'
+import { beforeEach, describe, expect, onTestFinished, test, vi } from 'vite-plus/test'
+
+const hmrMocks = vi.hoisted(() => ({
+  handleHMRUpdate: vi.fn<
+    (type: 'create' | 'delete' | 'update', file: string, server: unknown) => Promise<void>
+  >(async () => undefined),
+}))
 
 // transformer.ts is also a runtime barrel. Stub its re-export graph so this
 // test exercises setupWorker and setupHMR without initializing browser WASM.
@@ -76,7 +82,7 @@ vi.mock('./server/transformRequest', () => ({
 vi.mock('./server/hmr', () => ({
   createServerHotChannel: () => ({}),
   getShortName: (file: string) => file,
-  handleHMRUpdate: async () => undefined,
+  handleHMRUpdate: hmrMocks.handleHMRUpdate,
   handlePrunedModules: async () => undefined,
   lexAcceptedHmrDeps: () => undefined,
   lexAcceptedHmrExports: () => undefined,
@@ -247,4 +253,172 @@ describe('setupHMR watcher error handling', () => {
       })
     },
   )
+})
+
+interface Deferred {
+  promise: Promise<void>
+  resolve: () => void
+}
+
+function deferred(): Deferred {
+  let resolve!: () => void
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
+async function isPending(promise: Promise<unknown>): Promise<boolean> {
+  let settled = false
+  promise.then(
+    () => { settled = true },
+    () => { settled = true },
+  )
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  return !settled
+}
+
+function createHMRServer() {
+  const calls: string[] = []
+  const logError = vi.fn<(error: unknown) => void>()
+  const watchChange = vi.fn<
+    (file: string, options: { event: 'create' | 'delete' | 'update' }) => Promise<void>
+  >(async (file, { event }) => {
+    calls.push(`watchChange:${event}:${file}`)
+  })
+  const watcher = createVirtualFSWatcher()
+  onTestFinished(() => watcher.close())
+
+  const server = {
+    watcher,
+    environments: {
+      client: {
+        pluginContainer: { watchChange },
+        moduleGraph: {
+          onFileChange: vi.fn<(file: string) => void>((file) => {
+            calls.push(`onFileChange:${file}`)
+          }),
+          onFileDelete: vi.fn<(file: string) => void>((file) => {
+            calls.push(`onFileDelete:${file}`)
+          }),
+        },
+      },
+    },
+    config: {
+      publicDir: false,
+      server: {
+        hmr: true,
+      },
+      logger: {
+        error: logError,
+      },
+    },
+  } as unknown as Parameters<typeof setupHMR>[0]
+
+  return { calls, logError, server, watchChange, watcher }
+}
+
+describe('setupHMR file change tracking', () => {
+  beforeEach(() => {
+    hmrMocks.handleHMRUpdate.mockReset()
+  })
+
+  test.each([
+    ['change', 'update', ['watchChange:update:/src/main.ts', 'onFileChange:/src/main.ts']],
+    ['add', 'create', ['watchChange:create:/src/main.ts']],
+    // A deleted file is invalidated before HMR as well, so that its cached transform
+    // result is not served after waitForFileChange() resolves
+    [
+      'unlink',
+      'delete',
+      ['watchChange:delete:/src/main.ts', 'onFileChange:/src/main.ts', 'onFileDelete:/src/main.ts'],
+    ],
+  ] as const)(
+    'waits for watchChange and invalidation of %s events, but not for HMR',
+    async (watcherEvent, hmrType, invalidation) => {
+      const { calls, server, watcher } = createHMRServer()
+      const hmr = deferred()
+      onTestFinished(() => hmr.resolve())
+      hmrMocks.handleHMRUpdate.mockImplementation(async (type, file) => {
+        calls.push(`hmr:${type}:${file}`)
+        await hmr.promise
+      })
+      const { waitForFileChange } = await setupHMR(server)
+
+      watcher.notify(watcherEvent, '/src/main.ts')
+
+      await expect(waitForFileChange('/src/main.ts')).resolves.toBeUndefined()
+      expect(calls.slice(0, invalidation.length)).toEqual(invalidation)
+      // HMR still runs after the invalidation, and it has not finished
+      await vi.waitFor(() => {
+        expect(calls).toEqual([...invalidation, `hmr:${hmrType}:/src/main.ts`])
+      })
+    },
+  )
+
+  test.each(['add', 'change', 'unlink'] as const)(
+    'rejects with the watchChange error of %s events and skips HMR',
+    async (watcherEvent) => {
+      const { logError, server, watchChange, watcher } = createHMRServer()
+      const error = new Error(`${watcherEvent} failed`)
+      watchChange.mockRejectedValue(error)
+      const { waitForFileChange } = await setupHMR(server)
+
+      watcher.notify(watcherEvent, '/src/main.ts')
+
+      await expect(waitForFileChange('/src/main.ts')).rejects.toBe(error)
+      await vi.waitFor(() => {
+        expect(logError).toHaveBeenCalledWith(error)
+      })
+      expect(hmrMocks.handleHMRUpdate).not.toHaveBeenCalled()
+    },
+  )
+
+  test('returns the processing of each event for the same path', async () => {
+    const { server, watchChange, watcher } = createHMRServer()
+    const held = deferred()
+    watchChange.mockImplementationOnce(() => held.promise)
+    const { waitForFileChange } = await setupHMR(server)
+
+    watcher.notify('change', '/src/main.ts')
+    const first = waitForFileChange('/src/main.ts')
+    watcher.notify('change', '/src/main.ts')
+    const second = waitForFileChange('/src/main.ts')
+
+    await expect(second).resolves.toBeUndefined()
+    expect(await isPending(first)).toBe(true)
+    held.resolve()
+    await expect(first).resolves.toBeUndefined()
+  })
+
+  test('resolves at once without an event to wait for', async () => {
+    const { server, watchChange, watcher } = createHMRServer()
+    const held = deferred()
+    watchChange.mockImplementationOnce(() => held.promise)
+    const { waitForFileChange } = await setupHMR(server)
+
+    await expect(waitForFileChange('/src/none.ts')).resolves.toBeUndefined()
+
+    watcher.notify('change', '/src/main.ts')
+    const taken = waitForFileChange('/src/main.ts')
+    // The event was already taken, so nothing is left to wait for
+    await expect(waitForFileChange('/src/main.ts')).resolves.toBeUndefined()
+    expect(await isPending(taken)).toBe(true)
+    held.resolve()
+    await expect(taken).resolves.toBeUndefined()
+  })
+
+  test('forgets an event that settled without being taken', async () => {
+    const { logError, server, watchChange, watcher } = createHMRServer()
+    const error = new Error('change failed')
+    watchChange.mockRejectedValueOnce(error)
+    const { waitForFileChange } = await setupHMR(server)
+
+    watcher.notify('change', '/src/main.ts')
+    await vi.waitFor(() => {
+      expect(logError).toHaveBeenCalledWith(error)
+    })
+
+    await expect(waitForFileChange('/src/main.ts')).resolves.toBeUndefined()
+  })
 })

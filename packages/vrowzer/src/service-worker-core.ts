@@ -20,7 +20,7 @@
 /// <reference lib="webworker" />
 
 import { fs, vol } from '@vrowzer/fs'
-import { createFileSystemSubscriber } from '@vrowzer/fs/watcher'
+import { V_FS_ACK, createFileSystemSubscriber } from '@vrowzer/fs/watcher'
 import client from '@vrowzer/vite-dev-server/dist/client/client.mjs?raw' // oxlint-disable-line import/default -- ignore for raw import
 import env from '@vrowzer/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer } from '@vrowzer/vite-dev-server/service-worker'
@@ -28,11 +28,17 @@ import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-ser
 import { resolvePreviewBasePath } from './preview-base.ts'
 import { resolveServiceWorkerVersionForWorker } from './service-worker-version.ts'
 
-import type { FileSystemSyncMessage } from '@vrowzer/fs/watcher'
+import type { FSAckMessage, FileSystemSyncMessage } from '@vrowzer/fs/watcher'
 import type { CreateServerOptions } from '@vrowzer/vite-dev-server/service-worker'
 import type { Plugin } from '@vrowzer/vite-dev-server/vite'
 
 declare const self: ServiceWorkerGlobalScope
+
+function toAckError(error: unknown): NonNullable<FSAckMessage['error']> {
+  return error instanceof Error
+    ? { name: error.name, message: error.message }
+    : { name: 'Error', message: String(error) }
+}
 
 export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
   // Initial volume setup: client files + public dir
@@ -106,7 +112,25 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
 
     // V_FS_* messages: update virtual FS via subscriber
     if (typeof message?.type === 'string' && message.type.startsWith('V_FS_')) {
-      subscriber.handleMessage(event.data as FileSystemSyncMessage)
+      const syncMessage = message as FileSystemSyncMessage
+      const id =
+        syncMessage.type === 'V_FS_WRITE' || syncMessage.type === 'V_FS_UNLINK'
+          ? syncMessage.id
+          : undefined
+      if (id === undefined) {
+        subscriber.handleMessage(syncMessage)
+        return
+      }
+
+      // The virtual filesystem is written synchronously, so later requests see the change
+      // as soon as handleMessage() returns. Acknowledge it to the client that sent it.
+      let ack: FSAckMessage = { type: V_FS_ACK, id }
+      try {
+        subscriber.handleMessage(syncMessage)
+      } catch (error) {
+        ack = { type: V_FS_ACK, id, error: toAckError(error) }
+      }
+      event.source?.postMessage(ack)
       return
     }
   })
