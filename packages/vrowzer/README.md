@@ -212,7 +212,7 @@ vrowzer.reloadPreview()
 
 #### `unmount(target?): void`
 
-Removes the selected session iframe and its HMR client. Omitting the target unmounts every iframe. The shared Service Worker, Web Worker, and virtual filesystem remain ready.
+Removes the selected session iframe and its HMR client. Omitting the target unmounts every iframe. The shared Service Worker, Web Worker, and virtual filesystem remain ready. To release the whole instance, use [`dispose()`](#dispose-promisevoid).
 
 ```ts
 vrowzer.unmount('mobile')
@@ -235,6 +235,38 @@ Adds a new file to the virtual filesystem.
 #### `deleteFile(path): void`
 
 Deletes a file from the virtual filesystem.
+
+#### `dispose(): Promise<void>`
+
+Disposes the instance when the host application stops using it. The promise resolves after these resources are released:
+
+- every preview session, as with `unmount()`
+- the instance's Web Worker
+- the forwarding of Service Worker controller events and the file synchronization to the Service Worker
+- all event handlers, which are removed as soon as `dispose()` is called
+
+The Service Worker registration and its virtual filesystem are shared with other clients and are kept, so a new instance can start right away.
+
+```ts
+await vrowzer.dispose()
+```
+
+With `await using`, the instance is disposed at the end of the scope.
+
+```ts
+{
+  await using scoped = Vrowzer()
+  await scoped.ready({ files })
+  // ...
+} // scoped.dispose() completes here
+```
+
+- If `ready()` is still in progress, it is aborted and resolves to `false`.
+- After disposal, `ready()` rejects, `mount()`, `addFile()`, `updateFile()` and `deleteFile()` throw, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
+- Calling `dispose()` again returns the same promise. If some resources cannot be released, the remaining ones are still released, and the promise rejects with an `AggregateError`.
+
+> [!NOTE]
+> Up to vrowzer 0.4.x, `dispose()` only removed the event handlers and returned `void`.
 
 ### Events
 
