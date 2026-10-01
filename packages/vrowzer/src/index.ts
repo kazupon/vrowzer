@@ -168,6 +168,9 @@ export interface VrowzerOptions {
    * request, so with slow plugins or heavy transforms an operation can reject although the change
    * is applied later. Increase it in such environments. Writing the file again resynchronizes it.
    *
+   * It also limits how long Vrowzer takes to restore the project in a restarted Service Worker. See
+   * {@link VrowzerEventMap.serviceWorkerRecoveryError}.
+   *
    * @default 10000
    */
   fileSyncTimeout?: number
@@ -291,7 +294,7 @@ declare global {
  * Event map for {@link Vrowzer}.
  *
  * Forwards all {@link SvcWorkerControllerEventMap} events from the underlying Service Worker controller,
- * and adds events for preview sessions.
+ * and adds events for preview sessions and for restoring a restarted Service Worker.
  */
 export type VrowzerEventMap = SvcWorkerControllerEventMap & {
   /**
@@ -392,6 +395,9 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * {@link VrowzerOptions.fileSyncTimeout}, or when the instance is disposed first. The change may
    * be partly applied then; write the file again to resynchronize.
    *
+   * While Vrowzer restores the project in a restarted Service Worker, the change is held and sent
+   * afterwards, and the timeout counts from then. It rejects when the restoration fails.
+   *
    * @param filePath - The path of the file to be added.
    * @param content - The content of the file, which can be a string or an ArrayBuffer. An
    * ArrayBuffer is copied for the Workers and stays usable.
@@ -419,10 +425,11 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
   /**
    * Disposes this instance.
    *
-   * An in-progress {@link Vrowzer.ready} is aborted and resolves to `false`. Every preview session
-   * is unmounted, the Web Worker is terminated, Service Worker controller events are no longer
-   * forwarded, and all event handlers are removed right away. The Service Worker registration and
-   * its virtual filesystem are kept for other clients.
+   * An in-progress {@link Vrowzer.ready} is aborted and resolves to `false`, and a restoration of a
+   * restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
+   * terminated, Service Worker controller events are no longer forwarded, and all event handlers are
+   * removed right away. The Service Worker registration and its virtual filesystem are kept for
+   * other clients.
    *
    * File operations still waiting for the Workers reject. After disposal, `ready()` and the file
    * methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a

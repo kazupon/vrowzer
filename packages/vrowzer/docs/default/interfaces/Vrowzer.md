@@ -32,6 +32,9 @@ when the Web Worker reports an error, when the Workers do not reply within
 [VrowzerOptions.fileSyncTimeout](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-filesynctimeout), or when the instance is disposed first. The change may
 be partly applied then; write the file again to resynchronize.
 
+While Vrowzer restores the project in a restarted Service Worker, the change is held and sent
+afterwards, and the timeout counts from then. It rejects when the restoration fails.
+
 #### Parameters
 
 | Name | Type | Description |
@@ -76,10 +79,11 @@ dispose(): Promise<void>;
 
 Disposes this instance.
 
-An in-progress [Vrowzer.ready](#method-ready) is aborted and resolves to `false`. Every preview session
-is unmounted, the Web Worker is terminated, Service Worker controller events are no longer
-forwarded, and all event handlers are removed right away. The Service Worker registration and
-its virtual filesystem are kept for other clients.
+An in-progress [Vrowzer.ready](#method-ready) is aborted and resolves to `false`, and a restoration of a
+restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
+terminated, Service Worker controller events are no longer forwarded, and all event handlers are
+removed right away. The Service Worker registration and its virtual filesystem are kept for
+other clients.
 
 File operations still waiting for the Workers reject. After disposal, `ready()` and the file
 methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
