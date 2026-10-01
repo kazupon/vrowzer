@@ -1,3 +1,4 @@
+import { fs } from '@vrowzer/fs'
 import { createVirtualFSWatcher } from '@vrowzer/fs/watcher'
 import { beforeEach, describe, expect, onTestFinished, test, vi } from 'vite-plus/test'
 
@@ -8,9 +9,13 @@ const hmrMocks = vi.hoisted(() => ({
 }))
 
 // transformer.ts is also a runtime barrel. Stub its re-export graph so this
-// test exercises setupWorker and setupHMR without initializing browser WASM.
+// test exercises setupWorker, setupHMR and updateFile without initializing browser WASM.
 vi.mock('@vrowzer/fs', () => ({
-  fs: { mkdirSync: vi.fn<() => void>(), writeFileSync: vi.fn<() => void>() },
+  fs: {
+    existsSync: vi.fn<(path: string) => boolean>(() => false),
+    mkdirSync: vi.fn<(path: string, options?: unknown) => void>(),
+    writeFileSync: vi.fn<(path: string, data: unknown, options?: unknown) => void>(),
+  },
   vol: {},
 }))
 
@@ -146,7 +151,7 @@ vi.mock('./watch', () => ({
   resolveEmptyOutDir: () => false,
 }))
 
-import { setupHMR, setupWorker } from './transformer'
+import { setupHMR, setupWorker, updateFile } from './transformer'
 import { resolveConfig } from './config'
 import { createMessageChannelServer } from './server/ws'
 import { snapshotWorkerRuntimeConfig } from './worker-runtime-config'
@@ -193,6 +198,43 @@ describe('setupWorker runtime config boundary', () => {
     finish({ ...runtime, base: '/changed-by-hook/' } as Awaited<ReturnType<typeof resolveConfig>>)
     expect(await failure).toMatchObject({ message: expect.stringContaining('runtime-owned base') })
     expect(createMessageChannelServer).not.toHaveBeenCalled()
+  })
+})
+
+describe('virtual files', () => {
+  const bytes = [0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]
+
+  beforeEach(() => {
+    vi.mocked(fs.existsSync).mockClear()
+    vi.mocked(fs.mkdirSync).mockClear()
+    vi.mocked(fs.writeFileSync).mockClear()
+  })
+
+  test('updateFile() writes an ArrayBuffer as bytes and a string as UTF-8 text', () => {
+    updateFile('/assets/logo.png', new Uint8Array(bytes).buffer)
+    updateFile('/main.js', 'export {}')
+
+    expect(fs.mkdirSync).toHaveBeenCalledWith('/assets', { recursive: true })
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/assets/logo.png', new Uint8Array(bytes))
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/main.js', 'export {}', { encoding: 'utf8' })
+  })
+
+  test('setupWorker() writes each initial file as bytes or UTF-8 text by its type', async () => {
+    vi.mocked(resolveConfig).mockResolvedValueOnce({
+      root: '/',
+      base: '/',
+      publicDir: '/public',
+      build: { outDir: 'dist', rollupOptions: {} },
+      environments: {},
+    } as unknown as Awaited<ReturnType<typeof resolveConfig>>)
+
+    await setupWorker({}, {}, {
+      '/public/logo.png': new Uint8Array(bytes).buffer,
+      '/main.js': 'export {}',
+    })
+
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/public/logo.png', new Uint8Array(bytes))
+    expect(fs.writeFileSync).toHaveBeenCalledWith('/main.js', 'export {}', { encoding: 'utf8' })
   })
 })
 
