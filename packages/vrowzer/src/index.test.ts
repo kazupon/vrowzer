@@ -345,7 +345,7 @@ describe('Vrowzer events', () => {
     expect(count).toBe(1)
   })
 
-  test('dispose() clears all handlers', () => {
+  test('dispose() clears all handlers', async () => {
     const vrowzer = Vrowzer()
     let count = 0
     vrowzer.on('progress', () => {
@@ -356,7 +356,7 @@ describe('Vrowzer events', () => {
     })
     vrowzer.emit('progress', 'test')
     expect(count).toBe(1)
-    vrowzer.dispose()
+    await vrowzer.dispose()
     vrowzer.emit('progress', 'after-dispose')
     vrowzer.emit('suspended')
     expect(count).toBe(1)

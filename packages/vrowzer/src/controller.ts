@@ -13,6 +13,7 @@
 
 import { createSvcWorkerController } from '@vrowzer/service-worker/controller'
 import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-server/messages'
+import { abortable } from './abort.ts'
 
 import type { SvcWorkerController } from '@vrowzer/service-worker/controller'
 
@@ -48,7 +49,16 @@ export async function initServiceWorker(options: {
   scope: string
   readyTimeout: number
   listenReadyTimeout?: number
+  /**
+   * Aborts initialization: the returned promise rejects with `signal.reason`, and the
+   * `listen()` polling stops. The controller is shared within the page, so its own `ready()`
+   * wait is not cancelled; its result is ignored.
+   */
+  signal?: AbortSignal
 }): Promise<SvcWorkerController> {
+  const { signal } = options
+  signal?.throwIfAborted()
+
   controller = createSvcWorkerController({
     scriptURL: options.scriptURL,
     version: options.version,
@@ -56,11 +66,14 @@ export async function initServiceWorker(options: {
     type: 'module'
   })
 
-  const ready = await controller.ready({
-    timeout: options.readyTimeout,
-    skipWaitingPolicy: 'force',
-    waitForController: true
-  })
+  const ready = await abortable(
+    controller.ready({
+      timeout: options.readyTimeout,
+      skipWaitingPolicy: 'force',
+      waitForController: true
+    }),
+    signal
+  )
   if (!ready) {
     throw new Error(
       `Service Worker controller did not become ready within ${options.readyTimeout}ms`
@@ -78,22 +91,32 @@ export async function initServiceWorker(options: {
 
   const container = controller.container
   const timeout = options.listenReadyTimeout ?? 30000
+  // The signal may have been aborted while the controller's ready() result was being delivered
+  signal?.throwIfAborted()
   await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
+    const stop = () => {
+      clearTimeout(timer)
       clearInterval(pollId)
       container.removeEventListener('message', handler)
+      signal?.removeEventListener('abort', onAbort)
+    }
+    const onAbort = () => {
+      stop()
+      reject(signal?.reason)
+    }
+    const timer = setTimeout(() => {
+      stop()
       reject(new Error(`Service Worker listen() did not complete within ${timeout}ms`))
     }, timeout)
 
     const handler = (event: MessageEvent) => {
       if (event.data?.type === V_SW_LISTEN_READY) {
-        clearTimeout(timer)
-        clearInterval(pollId)
-        container.removeEventListener('message', handler)
+        stop()
         resolve()
       }
     }
     container.addEventListener('message', handler)
+    signal?.addEventListener('abort', onAbort, { once: true })
 
     // Poll: Service Worker responds to ping only after listen() completes
     const pollId = setInterval(() => {

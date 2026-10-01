@@ -55,6 +55,28 @@ Deletes a specific file from the preview environment.
 
 ***
 
+### dispose()
+
+```ts
+dispose(): Promise<void>;
+```
+
+Disposes this instance.
+
+An in-progress [Vrowzer.ready](#method-ready) is aborted and resolves to `false`. Every preview session
+is unmounted, the Web Worker is terminated, Service Worker controller events are no longer
+forwarded, and all event handlers are removed right away. The Service Worker registration and
+its virtual filesystem are kept for other clients.
+
+After disposal, `ready()` rejects, `mount()` and the file methods throw, and `unmount()` and
+`reloadPreview()` do nothing. Create a new instance to start again.
+
+#### Returns
+
+`Promise<void>` — A promise that resolves when every resource is released. Calling this method again returns the same promise. It rejects with an `AggregateError` when some resources could not be released; the remaining resources are still released.
+
+***
+
 ### getSession()
 
 ```ts
@@ -168,6 +190,7 @@ unmount(target?: PreviewSessionRef): void;
 
 Unmounts one preview session, or every session when no target is provided.
 The shared Service Worker, Web Worker, and virtual filesystem remain active.
+Use [Vrowzer.dispose](#method-dispose) to release the whole instance.
 
 #### Parameters
 
