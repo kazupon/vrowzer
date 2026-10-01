@@ -99,7 +99,7 @@ Remove a postMessage target.
 ### unlink()
 
 ```ts
-unlink(path: string): void;
+unlink(path: string, options?: FileSystemPublishOptions): void;
 ```
 
 Delete a file.
@@ -109,6 +109,7 @@ Delete a file.
 | Name | Type | Description |
 | --- | --- | --- |
 | `path` | `string` | Path of the file to delete. Must not end with '/' (directories use mkdir with path ending in '/'). |
+| `options` | [`FileSystemPublishOptions`](/packages/fs/docs/watcher/interfaces/FileSystemPublishOptions.md) | Options for this operation, such as its ID _(optional)_ |
 
 #### Returns
 
@@ -119,7 +120,7 @@ Delete a file.
 ### writeFile()
 
 ```ts
-writeFile(path: string, content: string | ArrayBuffer): void;
+writeFile(path: string, content: string | ArrayBuffer, options?: FileSystemPublishOptions): void;
 ```
 
 Write a file. Encoding is inferred: string → text, ArrayBuffer → binary.
@@ -129,7 +130,8 @@ Write a file. Encoding is inferred: string → text, ArrayBuffer → binary.
 | Name | Type | Description |
 | --- | --- | --- |
 | `path` | `string` | Path of the file to write. Must not end with '/' (directories use mkdir with path ending in '/'). |
-| `content` | `string \| ArrayBuffer` | Content of the file. Type determines encoding: - string: UTF-8 text content - ArrayBuffer: binary content (transferred via postMessage's transfer list for zero-copy performance) |
+| `content` | `string \| ArrayBuffer` | Content of the file. Type determines encoding: - string: UTF-8 text content - ArrayBuffer: binary content. Each target receives its own copy via postMessage's transfer list, so the caller's ArrayBuffer stays usable. |
+| `options` | [`FileSystemPublishOptions`](/packages/fs/docs/watcher/interfaces/FileSystemPublishOptions.md) | Options for this operation, such as its ID _(optional)_ |
 
 #### Returns
 

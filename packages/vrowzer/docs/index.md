@@ -24,8 +24,8 @@ if (ready) {
   vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
 }
 
-// Update files (triggers HMR)
-vrowzer.updateFile(
+// Update files (triggers HMR). The promise resolves when later preview requests see the change.
+await vrowzer.updateFile(
   '/main.js',
   `
   document.getElementById('app').innerHTML = '<h1>Updated!</h1>'

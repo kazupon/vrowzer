@@ -6,6 +6,7 @@ Virtual filesystem watcher with Pub-Sub sync protocol.
 
 | Variable | Description |
 | ------ | ------ |
+| [V_FS_ACK](/packages/fs/docs/watcher/variables/V_FS_ACK.md) |  |
 | [V_FS_INIT](/packages/fs/docs/watcher/variables/V_FS_INIT.md) |  |
 | [V_FS_MKDIR](/packages/fs/docs/watcher/variables/V_FS_MKDIR.md) |  |
 | [V_FS_UNLINK](/packages/fs/docs/watcher/variables/V_FS_UNLINK.md) |  |
@@ -27,7 +28,9 @@ Virtual filesystem watcher with Pub-Sub sync protocol.
 | [FileSystemInterfaces](/packages/fs/docs/watcher/interfaces/FileSystemInterfaces.md) | Minimal fs interface required by FileSystemSubscriber. |
 | [FileSystemPublisher](/packages/fs/docs/watcher/interfaces/FileSystemPublisher.md) | Publisher for broadcasting filesystem operations to Workers. |
 | [FileSystemPublisherTarget](/packages/fs/docs/watcher/interfaces/FileSystemPublisherTarget.md) | A postMessage target compatible like Service Worker and Web Worker APIs. |
+| [FileSystemPublishOptions](/packages/fs/docs/watcher/interfaces/FileSystemPublishOptions.md) | Options for a single [FileSystemPublisher](/packages/fs/docs/watcher/interfaces/FileSystemPublisher.md) operation. |
 | [FileSystemSubscriber](/packages/fs/docs/watcher/interfaces/FileSystemSubscriber.md) | Subscriber for processing filesystem sync messages in Workers. |
+| [FSAckMessage](/packages/fs/docs/watcher/interfaces/FSAckMessage.md) | Worker -> Main Thread: Acknowledge a message that has an `id`. |
 | [FSInitMessage](/packages/fs/docs/watcher/interfaces/FSInitMessage.md) | Main Thread -> Worker: Initialize files in bulk. Used during setup to populate the virtual filesystem. |
 | [FSMkdirMessage](/packages/fs/docs/watcher/interfaces/FSMkdirMessage.md) | Main Thread -> Worker: Create a directory. |
 | [FSUnlinkMessage](/packages/fs/docs/watcher/interfaces/FSUnlinkMessage.md) | Main Thread -> Worker: Delete a file. |

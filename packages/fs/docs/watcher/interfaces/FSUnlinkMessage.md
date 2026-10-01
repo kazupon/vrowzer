@@ -12,5 +12,6 @@ export interface FSUnlinkMessage
 
 | Name | Type | Description |
 | --- | --- | --- |
+| `id` _(optional)_ | `string` | Operation ID. A Worker that applies the message can acknowledge it with [FSAckMessage](/packages/fs/docs/watcher/interfaces/FSAckMessage.md). |
 | `path` | `string` | Path of the file to delete. Must not end with '/' (directories use FS_MKDIR with path ending in '/'). |
 | `type` | `"V_FS_UNLINK"` |  |
