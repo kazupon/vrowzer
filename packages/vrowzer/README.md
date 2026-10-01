@@ -178,6 +178,8 @@ const ready = await vrowzer.ready({
 
 File contents can be strings or `ArrayBuffer`s. Each `ArrayBuffer` is copied for the Workers when `ready()` is called, so the caller's buffer stays usable.
 
+If `files` has no `/index.html`, Vrowzer uses a default one: an empty `<div id="app">` and a module script that loads `/main.js`.
+
 #### `mount(container, options): PreviewSession`
 
 Mounts a preview iframe into the given DOM element. `options.id` is a host-defined, non-empty pane identity. Mounting the same ID again returns the existing session without moving or reloading its iframe; the first container and params remain in effect.

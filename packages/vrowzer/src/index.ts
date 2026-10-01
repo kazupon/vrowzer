@@ -169,6 +169,8 @@ export interface VrowzerConfig {
   /**
    * A record of file paths and their corresponding content, which can be either a string or an ArrayBuffer.
    * An ArrayBuffer is copied for the Workers when {@linkcode Vrowzer.ready} is called, and stays usable.
+   * Without `/index.html`, a default one is used: an empty `#app` element and a module script that
+   * loads `/main.js`.
    */
   files: Record<string, string | ArrayBuffer>
 }
