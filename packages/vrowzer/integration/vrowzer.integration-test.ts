@@ -41,6 +41,8 @@ let crossOriginAssetServerUrl: string
 let pageConsoleLogs: string[] = []
 let delayedServiceWorkerRequests = 0
 let hmrClientProbeId = 0
+// Requests within the preview base path that reached the host server
+const hostPreviewRequests: string[] = []
 
 function delayServiceWorkerResponse(delay: number): Plugin {
   return {
@@ -73,6 +75,26 @@ function serveHostFetchProbe(): Plugin {
         response.setHeader('Content-Type', 'text/plain; charset=utf-8')
         response.setHeader('Cache-Control', 'no-store')
         response.end('host-owned')
+      })
+    }
+  }
+}
+
+/**
+ * Records the requests within the preview base path that reach the host server. It runs before
+ * the guard of `@vrowzer/vite-plugin`, which answers such requests.
+ */
+function recordHostPreviewRequests(): Plugin {
+  return {
+    name: 'vrowzer:test-record-host-preview-requests',
+    enforce: 'pre',
+    configurePreviewServer(server) {
+      server.middlewares.use((request, _response, next) => {
+        const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        if (pathname.startsWith('/__preview__/')) {
+          hostPreviewRequests.push(`${request.method} ${pathname}`)
+        }
+        next()
       })
     }
   }
@@ -398,6 +420,7 @@ beforeAll(async () => {
   server = await preview({
     root: PLAYGROUND_DIR,
     plugins: [
+      recordHostPreviewRequests(),
       serveHostFetchProbe(),
       ...(SERVICE_WORKER_RESPONSE_DELAY > 0
         ? [delayServiceWorkerResponse(SERVICE_WORKER_RESPONSE_DELAY)]
@@ -1252,6 +1275,21 @@ if (import.meta.hot) {
       expect(report.message).toContain('500')
     })
 
+    test('reports a missing preview HTML once with 404', async () => {
+      await prepareFixtures()
+      // The SPA fallback answers other missing paths with index.html, and removing index.html would
+      // break the other sessions. The fallback skips /favicon.ico, so its request ends in a 404.
+      await mountSession('html-missing', '/__preview__/favicon.ico')
+
+      const report = await waitForLoadError('html-missing')
+
+      expect(report).toMatchObject({ id: 'html-missing', stage: 'html', status: 404 })
+      // A page that reloads the preview, such as the host's "Waiting for Service Worker..." page,
+      // would report the error again every second
+      await new Promise(resolve => setTimeout(resolve, 2500))
+      expect(await readLoadErrors('html-missing')).toHaveLength(1)
+    })
+
     test('reports a rejected fetch of the preview HTML', async () => {
       await prepareFixtures()
       await mountSession('html-fetch', UNREACHABLE_URL)
@@ -1441,6 +1479,32 @@ if (import.meta.hot) {
       expect(result).toContain('preview-owned')
       expect(response?.status()).toBe(200)
       expect(response?.fromServiceWorker()).toBe(true)
+    })
+
+    test('answers missing files within basePath with 404 without asking the host', async () => {
+      const hostRequestCount = hostPreviewRequests.length
+
+      const responses = await page.evaluate(async () => {
+        const read = async (path: string, init?: RequestInit) => {
+          const response = await fetch(path, init)
+          return { status: response.status, body: await response.text() }
+        }
+        return {
+          narrowAccept: await read('/__preview__/missing-files/data.json', {
+            headers: { Accept: 'application/json' }
+          }),
+          post: await read('/__preview__/missing-files/data.json', { method: 'POST', body: '{}' }),
+          favicon: await read('/__preview__/favicon.ico')
+        }
+      })
+
+      // The SPA fallback does not answer these requests, so they end in the 404 handler
+      expect(responses).toEqual({
+        narrowAccept: { status: 404, body: '' },
+        post: { status: 404, body: '' },
+        favicon: { status: 404, body: '' }
+      })
+      expect(hostPreviewRequests.slice(hostRequestCount)).toEqual([])
     })
   })
 
