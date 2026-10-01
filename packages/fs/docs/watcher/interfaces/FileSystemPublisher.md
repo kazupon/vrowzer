@@ -38,7 +38,7 @@ Add a postMessage target.
 ### initFiles()
 
 ```ts
-initFiles(files?: Record<string, string>, binaryFiles?: Record<string, ArrayBuffer>): void;
+initFiles(files?: Record<string, string>, binaryFiles?: Record<string, ArrayBuffer>, options?: FileSystemPublishOptions): void;
 ```
 
 Initialize files in bulk.
@@ -49,6 +49,7 @@ Initialize files in bulk.
 | --- | --- | --- |
 | `files` | `Record<string, string>` | Text files: path -> UTF-8 string content _(optional)_ |
 | `binaryFiles` | `Record<string, ArrayBuffer>` | Binary files: path -> ArrayBuffer content. Each target receives its own copy via postMessage's transfer list, so the caller's ArrayBuffers stay usable. _(optional)_ |
+| `options` | [`FileSystemPublishOptions`](/packages/fs/docs/watcher/interfaces/FileSystemPublishOptions.md) | Options for this operation, such as its ID _(optional)_ |
 
 #### Returns
 

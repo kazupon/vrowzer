@@ -19,4 +19,5 @@ export interface FSInitMessage
 | --- | --- | --- |
 | `binaryFiles` _(optional)_ | `Record<string, ArrayBuffer>` | Binary files: path -> ArrayBuffer content (a copy transferred via postMessage's transfer list) |
 | `files` _(optional)_ | `Record<string, string>` | Text files: path -> UTF-8 string content |
+| `id` _(optional)_ | `string` | Operation ID. A Worker that applies the message can acknowledge it with [FSAckMessage](/packages/fs/docs/watcher/interfaces/FSAckMessage.md). |
 | `type` | `"V_FS_INIT"` |  |
