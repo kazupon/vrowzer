@@ -479,7 +479,6 @@ export function indexHtmlMiddleware(
   // const fullBundle = isDev && server.environments.client.bundledDev
 
   return async function viteIndexHtmlMiddleware(c, next) {
-    console.log('[index-html] viteIndexHtmlMiddleware called for:', c.req.url)
     const requestPath = getRequestPath(c)
     const url = cleanUrl(requestPath)
     // htmlFallbackMiddleware appends '.html' to URLs

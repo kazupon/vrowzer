@@ -93,7 +93,6 @@ export function errorMiddleware(
   // note the 4 args must be kept for connect to treat this as error middleware
   // Keep the named function. The name is visible in debug logs via `DEBUG=connect:dispatcher ...`
   return function viteErrorHandler(err, c) {
-    console.log('[error] viteErrorHandler called for:', c.req.url)
     logError(server, err as RollupError)
 
     if (allowNext) {

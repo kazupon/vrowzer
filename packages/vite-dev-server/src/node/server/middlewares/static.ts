@@ -94,7 +94,6 @@ export function servePublicMiddleware(
   })
 
   return async function viteServePublicMiddleware(c, next) {
-    console.log('[serve-public] viteServePublicMiddleware called for:', c.req.url)
     const requestPath = getRequestPath(c)
 
     // Reconstruct path with query string for import/url checks
@@ -166,7 +165,6 @@ export function serveStaticMiddleware(
   })
 
   return async function viteServeStaticMiddleware(c, next) {
-    console.log('[serve-static] viteServeStaticMiddleware called for:', c.req.url)
     const requestPath = getRequestPath(c)
 
     // only serve the file if it's not an html request or ends with `/`
@@ -261,7 +259,6 @@ export function serveRawFsMiddleware(
   })
 
   return async function viteServeRawFsMiddleware(c, next) {
-    console.log('[serve-raw-fs] viteServeRawFsMiddleware called for:', c.req.url)
     const requestPath = getRequestPath(c)
 
     // In some cases (e.g. linked monorepos) files outside of root will
