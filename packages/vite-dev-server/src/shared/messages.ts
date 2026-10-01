@@ -81,6 +81,11 @@ export interface SetupWorkerErrorMessage {
  */
 export interface ConnectWebWorkerPortMessage {
   type: 'V_WW_CONNECT_PORT'
+  /**
+   * ID of the runtime that owns the channel. The Service Worker does not use it yet. It marks the
+   * owner for when several runtimes share one Service Worker.
+   */
+  runtimeId?: string
 }
 
 /**
@@ -162,6 +167,28 @@ export interface ServiceWorkerListenReadyPingMessage {
  */
 export interface ServiceWorkerListenReadyMessage {
   type: 'V_SW_LISTEN_READY'
+  /**
+   * ID of the Service Worker instance. A new ID is created each time the Service Worker script is
+   * evaluated, including after the browser restarts the Service Worker process.
+   */
+  instanceId: string
+}
+
+/**
+ * Service Worker -> Main Thread: A Service Worker instance has completed `listen()`.
+ * Sent to every window client that the Service Worker controls, each time the Service Worker
+ * script is evaluated.
+ *
+ * When the browser restarts the Service Worker process, the registration and the controller stay
+ * the same, and no `activate` or `controllerchange` event fires. A runtime notices the restart by
+ * an `instanceId` that differs from the one it knows, and restores what the Service Worker lost.
+ */
+export interface ServiceWorkerInstanceStartedMessage {
+  type: 'V_SW_INSTANCE_STARTED'
+  /**
+   * ID of the Service Worker instance that started.
+   */
+  instanceId: string
 }
 
 // ---- Protocol message type constants ----
@@ -178,4 +205,5 @@ export const V_SW_CONNECT_PORT_ACK = 'V_SW_CONNECT_PORT_ACK' as const
 export const V_WW_HMR_PORT = 'V_WW_HMR_PORT' as const
 export const V_SW_LISTEN_READY_PING = 'V_SW_LISTEN_READY_PING' as const
 export const V_SW_LISTEN_READY = 'V_SW_LISTEN_READY' as const
+export const V_SW_INSTANCE_STARTED = 'V_SW_INSTANCE_STARTED' as const
 export const MC_INIT_EVENT = 'vite:mc:init' as const

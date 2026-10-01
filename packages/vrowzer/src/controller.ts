@@ -18,6 +18,7 @@ import { abortable } from './abort.ts'
 import type { SvcWorkerController } from '@vrowzer/service-worker/controller'
 
 let controller: SvcWorkerController | null = null
+let serviceWorkerInstanceId: string | null = null
 
 /**
  * Get the active Service Worker Controller
@@ -31,6 +32,15 @@ export function getController(): SvcWorkerController | null {
  */
 export function getServiceWorker(): ServiceWorker | null {
   return controller?.serviceWorker ?? null
+}
+
+/**
+ * Get the ID of the Service Worker instance that answered the last {@link initServiceWorker}.
+ * The Service Worker creates a new ID each time its script is evaluated, so a different ID means
+ * that the browser restarted the Service Worker process.
+ */
+export function getServiceWorkerInstanceId(): string | null {
+  return serviceWorkerInstanceId
 }
 
 /**
@@ -111,6 +121,8 @@ export async function initServiceWorker(options: {
 
     const handler = (event: MessageEvent) => {
       if (event.data?.type === V_SW_LISTEN_READY) {
+        const { instanceId } = event.data
+        serviceWorkerInstanceId = typeof instanceId === 'string' ? instanceId : null
         stop()
         resolve()
       }

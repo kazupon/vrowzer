@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 import {
+  V_SW_CONNECT_PORT,
+  V_SW_CONNECT_PORT_ACK,
   V_WW_READY,
   V_WW_SETUP,
   V_WW_SETUP_ACK,
@@ -7,7 +9,7 @@ import {
 } from '../shared/messages'
 
 const transformerMocks = vi.hoisted(() => ({
-  connectServiceWorkerPort: vi.fn<() => Promise<void>>(),
+  connectServiceWorkerPort: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   createDevHtmlTransformFn: vi.fn<() => () => void>(() => vi.fn<() => void>()),
   fs: {},
   isServerAccessDeniedForTransform: vi.fn<() => boolean>(() => false),
@@ -41,6 +43,7 @@ function createSetupResult() {
   return {
     config: {
       getSortedPluginHooks: vi.fn<() => []>(() => []),
+      safeModulePaths: new Set<string>(),
     },
     environments: {
       client: {
@@ -301,5 +304,132 @@ describe('Web Worker file changes', () => {
     await readyServer.waitForFileChange('/src/main.ts')
 
     expect(waitForFileChange).toHaveBeenCalledExactlyOnceWith('/src/main.ts')
+  })
+})
+
+describe('Web Worker Service Worker channel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function createPort() {
+    return { close: vi.fn<() => void>() }
+  }
+
+  function createRpc() {
+    return {
+      $close: vi.fn<(error?: Error) => void>(),
+      registerSafeModulePaths: vi.fn<(paths: string[]) => Promise<void>>(async () => undefined),
+    }
+  }
+
+  function dispatchConnectPort(
+    workerScope: DedicatedWorkerGlobalScope,
+    port: ReturnType<typeof createPort>,
+  ): Promise<void> {
+    return Promise.resolve(workerScope.onmessage?.({
+      data: { type: V_SW_CONNECT_PORT },
+      ports: [port],
+    } as unknown as MessageEvent) as unknown as Promise<void>)
+  }
+
+  function connectPortAcks(workerScope: DedicatedWorkerGlobalScope): unknown[] {
+    return vi.mocked(workerScope.postMessage).mock.calls
+      .map(([message]) => message)
+      .filter(message => (message as { type?: string }).type === V_SW_CONNECT_PORT_ACK)
+  }
+
+  async function readyWorkerScope(safeModulePaths: string[] = []): Promise<DedicatedWorkerGlobalScope> {
+    const setupResult = createSetupResult()
+    setupResult.config.safeModulePaths = new Set(safeModulePaths)
+    transformerMocks.setupWorker.mockResolvedValue(setupResult)
+    const workerScope = createWorkerScope()
+    const server = createServer(workerScope)
+    const listening = server.listen(0)
+    await dispatchSetup(workerScope)
+    await listening
+    return workerScope
+  }
+
+  test('closes the previous port and its RPC when a new port connects', async () => {
+    const firstRpc = createRpc()
+    const secondRpc = createRpc()
+    transformerMocks.connectServiceWorkerPort
+      .mockResolvedValueOnce(firstRpc)
+      .mockResolvedValueOnce(secondRpc)
+    const workerScope = await readyWorkerScope()
+    const firstPort = createPort()
+    const secondPort = createPort()
+
+    await dispatchConnectPort(workerScope, firstPort)
+    expect(firstPort.close).not.toHaveBeenCalled()
+    await dispatchConnectPort(workerScope, secondPort)
+
+    expect(firstPort.close).toHaveBeenCalledOnce()
+    expect(firstRpc.$close).toHaveBeenCalledOnce()
+    expect(secondPort.close).not.toHaveBeenCalled()
+    expect(secondRpc.$close).not.toHaveBeenCalled()
+    expect(connectPortAcks(workerScope)).toHaveLength(2)
+  })
+
+  test('does not acknowledge a port that a new port replaced during the handshake', async () => {
+    let completeFirstHandshake!: (rpc: unknown) => void
+    const firstRpc = createRpc()
+    const secondRpc = createRpc()
+    transformerMocks.connectServiceWorkerPort
+      .mockReturnValueOnce(new Promise((resolve) => {
+        completeFirstHandshake = resolve
+      }))
+      .mockResolvedValueOnce(secondRpc)
+    const workerScope = await readyWorkerScope()
+    const firstPort = createPort()
+    const secondPort = createPort()
+
+    const firstConnection = dispatchConnectPort(workerScope, firstPort)
+    // Send the second port while the first one is in its handshake
+    await vi.waitFor(() => {
+      expect(transformerMocks.connectServiceWorkerPort).toHaveBeenCalledOnce()
+    })
+    await dispatchConnectPort(workerScope, secondPort)
+    completeFirstHandshake(firstRpc)
+    await firstConnection
+
+    expect(firstPort.close).toHaveBeenCalledOnce()
+    expect(firstRpc.$close).toHaveBeenCalledOnce()
+    expect(firstRpc.registerSafeModulePaths).not.toHaveBeenCalled()
+    expect(secondRpc.$close).not.toHaveBeenCalled()
+    expect(connectPortAcks(workerScope)).toHaveLength(1)
+  })
+
+  test('stops without an acknowledgement when a new port replaces one that is sending its safe paths', async () => {
+    let rejectRegistration!: (error: Error) => void
+    const firstRpc = createRpc()
+    firstRpc.registerSafeModulePaths.mockReturnValueOnce(new Promise((_, reject) => {
+      rejectRegistration = reject
+    }))
+    // Closing a birpc rejects its pending calls
+    firstRpc.$close.mockImplementation((error) => {
+      rejectRegistration(error ?? new Error('closed'))
+    })
+    const secondRpc = createRpc()
+    transformerMocks.connectServiceWorkerPort
+      .mockResolvedValueOnce(firstRpc)
+      .mockResolvedValueOnce(secondRpc)
+    const workerScope = await readyWorkerScope(['/src/main.ts'])
+
+    const firstConnection = dispatchConnectPort(workerScope, createPort())
+    await vi.waitFor(() => {
+      expect(firstRpc.registerSafeModulePaths).toHaveBeenCalledOnce()
+    })
+    await dispatchConnectPort(workerScope, createPort())
+
+    await expect(firstConnection).resolves.toBeUndefined()
+    expect(firstRpc.$close).toHaveBeenCalledOnce()
+    expect(secondRpc.registerSafeModulePaths).toHaveBeenCalledExactlyOnceWith(['/src/main.ts'])
+    expect(connectPortAcks(workerScope)).toHaveLength(1)
   })
 })

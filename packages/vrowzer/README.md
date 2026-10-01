@@ -149,6 +149,8 @@ Set this option to `0` for an immediate timeout. It does not apply to Service Wo
 const vrowzer = Vrowzer({ fileSyncTimeout: 30000 })
 ```
 
+The same timeout limits how long Vrowzer takes to restore the project in a restarted Service Worker. See [Service Worker restarts](#service-worker-restarts).
+
 **Options:**
 
 | Option                      | Type     | Default                           | Description                                                  |
@@ -158,7 +160,7 @@ const vrowzer = Vrowzer({ fileSyncTimeout: 30000 })
 | `serviceWorkerScope`        | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value            |
 | `serviceWorkerReadyTimeout` | `number` | `60000`                           | Milliseconds to wait for the Service Worker page controller   |
 | `webWorkerSetupTimeout`     | `number` | `90000`                           | Milliseconds from Web Worker creation through setup completion |
-| `fileSyncTimeout`           | `number` | `10000`                           | Milliseconds to wait for the Workers to apply a file change    |
+| `fileSyncTimeout`           | `number` | `10000`                           | Milliseconds to wait for the Workers to apply a file change, or to restore a restarted Service Worker |
 
 ### Instance Methods
 
@@ -260,6 +262,7 @@ vrowzer.reloadPreview()
 - `ArrayBuffer` content is copied for each Worker, so the caller's buffer stays usable.
 - The promise rejects without sending the change before `ready()` resolves to `true`, after it fails, and after `dispose()`. It also rejects when a Worker fails to apply the change (for example, a plugin's `watchChange` hook throws), when the Web Worker reports an error, when the Workers do not reply within `fileSyncTimeout`, or when the instance is disposed first. The error message names the operation, the path and the Worker.
 - After a rejection, the change may be partly applied. Write the file again, or delete it, to resynchronize.
+- While Vrowzer restores the project in a restarted Service Worker, the change is held and sent afterwards, and `fileSyncTimeout` counts from then. The promise rejects if the restoration fails. See [Service Worker restarts](#service-worker-restarts).
 
 > [!NOTE]
 > Up to vrowzer 0.4.x, these methods returned `void` without waiting for the Workers, and calls made before `ready()` completed were dropped or reached only the Web Worker.
@@ -290,6 +293,7 @@ With `await using`, the instance is disposed at the end of the scope.
 ```
 
 - If `ready()` is still in progress, it is aborted and resolves to `false`.
+- If Vrowzer is restoring the project in a restarted Service Worker, the restoration stops.
 - File operations still waiting for the Workers reject. After disposal, `ready()`, `addFile()`, `updateFile()` and `deleteFile()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
 - Calling `dispose()` again returns the same promise. If some resources cannot be released, the remaining ones are still released, and the promise rejects with an `AggregateError`.
 
@@ -320,6 +324,44 @@ vrowzer.on('previewLoadError', info => {
 | `error`   | `{ name, message } \| undefined` | The original exception, when one was thrown                      |
 
 The session stays mounted and its rendering does not change: an error response body is still shown, and the remaining scripts still run. After fixing the files, reload the session with `reloadPreview(info.id)`; `ready()` does not need to run again. Errors thrown by the application at runtime are not reported by this event.
+
+#### `serviceWorkerRecovered`
+
+Emitted when Vrowzer has restored the project in a restarted Service Worker. See [Service Worker restarts](#service-worker-restarts).
+
+```ts
+vrowzer.on('serviceWorkerRecovered', () => {
+  console.info('The Service Worker restarted, and the preview is available again')
+})
+```
+
+#### `serviceWorkerRecoveryError`
+
+Emitted with an `Error` when Vrowzer could not restore the project in a restarted Service Worker: the Service Worker failed to apply the files, or the restoration did not finish within `fileSyncTimeout`. See [Service Worker restarts](#service-worker-restarts).
+
+### Service Worker restarts
+
+Browsers stop an idle Service Worker and start it again for the next request or message. The registration and the page controller stay the same, but the restarted Service Worker has lost the project files and its channel to the Web Worker. Vrowzer restores them without reloading the host page:
+
+1. When the Service Worker starts again, it notifies the pages it controls.
+2. Vrowzer sends it the latest files, as given to `ready()` and changed with `addFile()`, `updateFile()` and `deleteFile()`, and connects the Web Worker channel again. To do this, Vrowzer keeps a copy of the files in the page.
+3. Vrowzer emits `serviceWorkerRecovered`.
+
+While the project is being restored:
+
+- Preview requests wait until the Service Worker has the project again, for up to 10 seconds. After that, they get a `503` response, which a loading preview reports with `previewLoadError`.
+- `addFile()`, `updateFile()` and `deleteFile()` are held, and sent once the project is restored.
+- Mounted previews keep their HMR connection, which does not go through the Service Worker.
+
+If the restoration does not finish within `fileSyncTimeout`, or the Service Worker fails to apply the files, Vrowzer emits `serviceWorkerRecoveryError`, and the file operations that wait for the Service Worker reject. Later file operations are sent as usual, and Vrowzer tries again when the Service Worker restarts the next time. To start over right away, dispose the instance and create a new one:
+
+```ts
+vrowzer.on('serviceWorkerRecoveryError', async error => {
+  console.error(error)
+  await vrowzer.dispose()
+  // Create a new instance, and call ready() with the files again
+})
+```
 
 ## 🏗️ Architecture
 

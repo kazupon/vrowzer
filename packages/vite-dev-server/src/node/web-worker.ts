@@ -40,6 +40,17 @@ const debug = createDebugger('vrowzer:web-worker')
 type InternalWorkerMessage = SetupWorkerMessage | ConnectServiceWorkerPortMessage
 
 /**
+ * A channel with the Service Worker, over a port received with `V_SW_CONNECT_PORT`.
+ */
+interface ServiceWorkerChannel {
+  port: MessagePort
+  /**
+   * The RPC over the port, set once the handshake completes.
+   */
+  rpc: { $close: (error?: Error) => void } | null
+}
+
+/**
  * This module defines the Web Worker server for @vrowzer/vite-dev-server.
  * It handles the Web Worker side of the protocol for setup and Service Worker communication,
  */
@@ -123,6 +134,21 @@ export function createServer(
   let server: ViteDevServerForWorker | null = null
   let ws: import('./server/ws').MessageChannelServer | null = null
   let fileChanges: FileChangeTracker | null = null
+
+  // The current channel with the Service Worker. A new port replaces it, e.g. after the browser
+  // restarted the Service Worker process.
+  let serviceWorkerChannel: ServiceWorkerChannel | null = null
+
+  function closeServiceWorkerChannel(): void {
+    const channel = serviceWorkerChannel
+    if (!channel) {
+      return
+    }
+    serviceWorkerChannel = null
+    // Reject the calls still waiting for the previous Service Worker, whose replies never come
+    channel.rpc?.$close(new Error('[vrowzer:web-worker] The Service Worker channel was replaced'))
+    channel.port.close()
+  }
 
   // Register onmessage immediately (lightweight, no WASM)
   workerScope.onmessage = async (event: MessageEvent<InternalWorkerMessage>) => {
@@ -236,6 +262,11 @@ export function createServer(
           break
         }
 
+        // The new port replaces the current channel, so close the previous one
+        closeServiceWorkerChannel()
+        const channel: ServiceWorkerChannel = { port, rpc: null }
+        serviceWorkerChannel = channel
+
         const { connectServiceWorkerPort } = await import('./transformer')
         const serviceWorkerRpc = await connectServiceWorkerPort(port, {
           transformRequest: (url, opts) => server!.transformRequest(url, opts),
@@ -245,12 +276,30 @@ export function createServer(
           debug?.('HMR port received from SW, connecting to MessageChannelServer')
           ws!.handlePort(hmrPort, clientId)
         })
+        if (serviceWorkerChannel !== channel) {
+          // A newer port replaced this one during the handshake
+          serviceWorkerRpc.$close()
+          break
+        }
+        channel.rpc = serviceWorkerRpc
 
-        await connectSafeModulePathSync(
-          Object.values(server.environments),
-          server.config.safeModulePaths,
-          paths => serviceWorkerRpc.registerSafeModulePaths(paths),
-        )
+        try {
+          await connectSafeModulePathSync(
+            Object.values(server.environments),
+            server.config.safeModulePaths,
+            paths => serviceWorkerRpc.registerSafeModulePaths(paths),
+          )
+        } catch (error) {
+          // Replacing the channel rejects the pending registration
+          if (serviceWorkerChannel !== channel) {
+            break
+          }
+          throw error
+        }
+        // The acknowledgement does not name the port, so do not send one for a replaced port
+        if (serviceWorkerChannel !== channel) {
+          break
+        }
 
         workerScope.postMessage({ type: V_SW_CONNECT_PORT_ACK })
         debug?.('SW<->WW birpc channel established')

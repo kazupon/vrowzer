@@ -320,5 +320,29 @@ describe('FileSystemPublisher', () => {
       expect([...new Uint8Array(message.binaryFiles['/a.bin'])]).toEqual([1, 2, 3])
       expect([...new Uint8Array(message.binaryFiles['/b.bin'])]).toEqual([1, 2, 3])
     })
+
+    test('sets the operation id on the message for every target', () => {
+      const target1 = createMockTarget()
+      const target2 = createMockTarget()
+      const publisher = createFileSystemPublisher([target1, target2])
+
+      publisher.initFiles(
+        { '/main.js': 'code' },
+        { '/app.wasm': new ArrayBuffer(4) },
+        { id: 'op-4' }
+      )
+
+      expect(target1.calls[0]!.message.id).toBe('op-4')
+      expect(target2.calls[0]!.message.id).toBe('op-4')
+    })
+
+    test('omits the operation id without the option', () => {
+      const target = createMockTarget()
+      const publisher = createFileSystemPublisher([target])
+
+      publisher.initFiles({ '/main.js': 'code' })
+
+      expect(target.calls[0]!.message).not.toHaveProperty('id')
+    })
   })
 })

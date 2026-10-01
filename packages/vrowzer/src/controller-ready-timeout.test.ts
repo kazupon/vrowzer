@@ -12,7 +12,7 @@ vi.mock('@vrowzer/service-worker/controller', () => ({
   createSvcWorkerController: createSvcWorkerControllerMock
 }))
 
-import { initServiceWorker } from './controller.ts'
+import { getServiceWorkerInstanceId, initServiceWorker } from './controller.ts'
 
 const options = {
   scriptURL: new URL('https://example.com/service-worker.js'),
@@ -25,6 +25,25 @@ function mockReady(): ReturnType<typeof vi.fn<SvcWorkerController['ready']>> {
   const ready = vi.fn<SvcWorkerController['ready']>()
   createSvcWorkerControllerMock.mockReturnValue({ ready } as unknown as SvcWorkerController)
   return ready
+}
+
+function mockListeningController() {
+  const postMessage = vi.fn<(message: unknown) => void>()
+  const listeners = new Set<(event: MessageEvent) => void>()
+  const container = {
+    addEventListener(_type: string, listener: (event: MessageEvent) => void) {
+      listeners.add(listener)
+    },
+    removeEventListener(_type: string, listener: (event: MessageEvent) => void) {
+      listeners.delete(listener)
+    }
+  }
+  createSvcWorkerControllerMock.mockReturnValue({
+    ready: vi.fn<SvcWorkerController['ready']>(async () => true),
+    serviceWorker: { postMessage },
+    container
+  } as unknown as SvcWorkerController)
+  return { postMessage, listeners }
 }
 
 describe('initServiceWorker ready timeout', () => {
@@ -56,25 +75,6 @@ describe('initServiceWorker ready timeout', () => {
 
 describe('initServiceWorker abort', () => {
   const reason = new Error('disposed')
-
-  function mockListeningController() {
-    const postMessage = vi.fn<(message: unknown) => void>()
-    const listeners = new Set<(event: MessageEvent) => void>()
-    const container = {
-      addEventListener(_type: string, listener: (event: MessageEvent) => void) {
-        listeners.add(listener)
-      },
-      removeEventListener(_type: string, listener: (event: MessageEvent) => void) {
-        listeners.delete(listener)
-      }
-    }
-    createSvcWorkerControllerMock.mockReturnValue({
-      ready: vi.fn<SvcWorkerController['ready']>(async () => true),
-      serviceWorker: { postMessage },
-      container
-    } as unknown as SvcWorkerController)
-    return { postMessage, listeners }
-  }
 
   beforeEach(() => {
     createSvcWorkerControllerMock.mockReset()
@@ -138,5 +138,39 @@ describe('initServiceWorker abort', () => {
     expect(vi.getTimerCount()).toBe(0)
     abortController.abort(reason)
     await expect(initialization).resolves.toBeDefined()
+  })
+})
+
+describe('initServiceWorker instance id', () => {
+  beforeEach(() => {
+    createSvcWorkerControllerMock.mockReset()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  async function initializeWithReply(reply: Record<string, unknown>): Promise<void> {
+    const { listeners } = mockListeningController()
+    const initialization = initServiceWorker(options)
+    await vi.advanceTimersByTimeAsync(0)
+    for (const listener of listeners) {
+      listener({ data: { type: V_SW_LISTEN_READY, ...reply } } as MessageEvent)
+    }
+    await initialization
+  }
+
+  test('remembers the id of the Service Worker instance that answered', async () => {
+    await initializeWithReply({ instanceId: 'sw-1' })
+
+    expect(getServiceWorkerInstanceId()).toBe('sw-1')
+  })
+
+  test('has no id when the answer does not carry one', async () => {
+    await initializeWithReply({ instanceId: 'sw-1' })
+    await initializeWithReply({})
+
+    expect(getServiceWorkerInstanceId()).toBeNull()
   })
 })

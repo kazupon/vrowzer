@@ -76,8 +76,13 @@ export interface FileSystemPublisher {
    * @param files - Text files: path -> UTF-8 string content
    * @param binaryFiles - Binary files: path -> ArrayBuffer content. Each target receives its own copy
    *   via postMessage's transfer list, so the caller's ArrayBuffers stay usable.
+   * @param options - Options for this operation, such as its ID
    */
-  initFiles(files?: Record<string, string>, binaryFiles?: Record<string, ArrayBuffer>): void
+  initFiles(
+    files?: Record<string, string>,
+    binaryFiles?: Record<string, ArrayBuffer>,
+    options?: FileSystemPublishOptions
+  ): void
   /**
    * Add a postMessage target.
    *
@@ -143,11 +148,11 @@ export function createFileSystemPublisher(
       broadcast({ type: 'V_FS_MKDIR', path })
     },
 
-    initFiles(files, binaryFiles) {
+    initFiles(files, binaryFiles, options) {
       // Each target gets its own copies of the binary files in the transfer list.
       // The caller's buffers are never transferred, so they stay usable.
       for (const target of _targets) {
-        const msg: FSInitMessage = { type: 'V_FS_INIT' }
+        const msg: FSInitMessage = { type: 'V_FS_INIT', ...idOf(options) }
         if (files) {
           msg.files = files
         }

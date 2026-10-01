@@ -33,6 +33,7 @@ const controllerMocks = vi.hoisted(() => ({
 vi.mock('./controller.ts', () => ({
   getController: () => controllerMocks,
   getServiceWorker: () => ({ postMessage: controllerMocks.postMessage }),
+  getServiceWorkerInstanceId: () => 'sw-1',
   initServiceWorker: controllerMocks.initServiceWorker
 }))
 vi.mock('@vrowzer/vite-dev-server/dist/client/client.mjs?raw', () => ({ default: 'client code' }))
@@ -184,7 +185,7 @@ describe('Vrowzer file synchronization', () => {
     ])
     expect(controllerMocks.postMessage.mock.calls.map(([message]) => message)).toEqual([
       { type: 'V_FS_INIT', files: initialFiles },
-      { type: V_WW_CONNECT_PORT }
+      { type: V_WW_CONNECT_PORT, runtimeId: expect.any(String) }
     ])
   })
 

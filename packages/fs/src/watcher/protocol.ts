@@ -100,6 +100,10 @@ export interface FSInitMessage {
    * Binary files: path -> ArrayBuffer content (a copy transferred via postMessage's transfer list)
    */
   binaryFiles?: Record<string, ArrayBuffer>
+  /**
+   * Operation ID. A Worker that applies the message can acknowledge it with {@link FSAckMessage}.
+   */
+  id?: string
 }
 
 export type FileSystemSyncMessage =
