@@ -336,6 +336,11 @@ export function createServer(
   const workerOrigin = new URL(serviceWorkerScope.location.href).origin
 
   let middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
+  // NOTE(kazupon): Apply the base path before `handle()`. `basePath()` returns a clone with its own
+  // error handler, so `onError()` must be registered on the same app that handles requests.
+  if (basePath !== '/') {
+    middlewares = middlewares.basePath(basePath)
+  }
   const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage>(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: true,
@@ -377,11 +382,6 @@ export function createServer(
     const initPublicFilesPromise = initPublicFiles(config)
 
     const { root, server: serverConfig } = config
-
-    // Setup base path for hono middlewares
-    if (basePath !== '/') {
-      middlewares = middlewares.basePath(basePath)
-    }
 
     const resolvedOutDirs = getResolvedOutDirs(
       config.root,
