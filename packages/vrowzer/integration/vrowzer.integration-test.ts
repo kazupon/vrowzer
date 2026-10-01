@@ -924,6 +924,26 @@ if (import.meta.hot) {
     })
   })
 
+  describe('error responses', () => {
+    test("returns Vite's error page when a module fails to transform", async () => {
+      const filePath = '/sw-error-handler-broken.ts'
+      await addPreviewFiles({ [filePath]: 'export const = 1\n' })
+
+      try {
+        // 404 until the file reaches the Workers, then 500 from the failed transform
+        const response = await waitForPreviewResponse(filePath, 500)
+
+        expect(response.body).toContain('<!DOCTYPE html>')
+        expect(response.body).toContain('<title>Error</title>')
+        expect(response.body).toContain(filePath)
+      } finally {
+        await page.evaluate(path => {
+          ;(window as any).__vrowzer__.deleteFile(path)
+        }, filePath)
+      }
+    })
+  })
+
   describe('filesystem security', () => {
     const deniedFiles = {
       '/.env': 'ENV_SECRET_CANARY',
