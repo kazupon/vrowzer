@@ -45,6 +45,7 @@ vrowzer.updateFile(
 | Interface | Description |
 | ------ | ------ |
 | [PreviewContext](/packages/vrowzer/docs/default/interfaces/PreviewContext.md) | Context exposed to the mounted preview document. |
+| [PreviewLoadErrorInfo](/packages/vrowzer/docs/default/interfaces/PreviewLoadErrorInfo.md) | Information about a preview document that failed to load before its application code started. |
 | [PreviewMountOptions](/packages/vrowzer/docs/default/interfaces/PreviewMountOptions.md) | Options for mounting a preview session. |
 | [PreviewSession](/packages/vrowzer/docs/default/interfaces/PreviewSession.md) | A mounted preview iframe managed by a [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) instance. |
 | [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) | The main interface for the Vrowzer preview environment. |

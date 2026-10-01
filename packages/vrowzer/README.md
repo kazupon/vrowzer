@@ -236,6 +236,31 @@ Adds a new file to the virtual filesystem.
 
 Deletes a file from the virtual filesystem.
 
+### Events
+
+A Vrowzer instance is an event emitter: `on()` subscribes to an event and returns a function that stops the subscription. Besides the events below, the instance forwards the Service Worker controller events (`progress`, `reloadSuggested`, `changeState`, `suspended`, `terminated` and `resumed`).
+
+#### `previewLoadError`
+
+Emitted when a preview document fails to load before its application code starts: the preview HTML cannot be fetched or returns an error status, or one of its initial scripts fails to load. Subscribe before `mount()` to receive failures that happen right after mounting.
+
+```ts
+vrowzer.on('previewLoadError', info => {
+  console.error(`Preview "${info.id}" failed to load (${info.stage}): ${info.message}`)
+})
+```
+
+| Property  | Type                             | Description                                                      |
+| --------- | -------------------------------- | ---------------------------------------------------------------- |
+| `id`      | `string`                         | ID of the preview session that failed to load                    |
+| `stage`   | `'html' \| 'script'`             | Fetching the preview HTML, or loading one of its initial scripts |
+| `message` | `string`                         | Summary of the failure, present even without browser details     |
+| `url`     | `string \| undefined`            | Requested URL, when known                                        |
+| `status`  | `number \| undefined`            | HTTP status, when a response was received                        |
+| `error`   | `{ name, message } \| undefined` | The original exception, when one was thrown                      |
+
+The session stays mounted and its rendering does not change: an error response body is still shown, and the remaining scripts still run. After fixing the files, reload the session with `reloadPreview(info.id)`; `ready()` does not need to run again. Errors thrown by the application at runtime are not reported by this event.
+
 ## 🏗️ Architecture
 
 ![Architecture](./assets/architecture.svg)
