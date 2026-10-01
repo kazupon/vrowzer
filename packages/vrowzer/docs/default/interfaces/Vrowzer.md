@@ -32,9 +32,6 @@ when the Web Worker reports an error, when the Workers do not reply within
 [VrowzerOptions.fileSyncTimeout](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-filesynctimeout), or when the instance is disposed first. The change may
 be partly applied then; write the file again to resynchronize.
 
-Public files (under `/public/`) are currently not served by the Service Worker, so they do not
-become visible to preview requests.
-
 #### Parameters
 
 | Name | Type | Description |

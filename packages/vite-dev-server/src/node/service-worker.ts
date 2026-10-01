@@ -25,6 +25,7 @@ import {
 import { shouldHandleViteFetch } from '../shared/serviceWorkerFetch'
 import { assertBundledDevUnsupported } from './bundled-dev-guard'
 import { isResolvedConfig, resolveConfig } from './config'
+import { syncPublicFiles } from './public-files-sync'
 import { initPublicFiles } from './publicDir'
 import { baseMiddleware } from './server/middlewares/base'
 import { crossOriginMiddleware } from './server/middlewares/crossOrigin'
@@ -420,6 +421,14 @@ export function createServer(
         ...(publicDir && publicFiles ? [publicDir] : []),
       ], resolvedWatchOptions)
       : createNoopWatcher(resolvedWatchOptions)
+
+    // NOTE(kazupon): upstream updates the public file list in the watcher handlers of
+    // `_createServer()`, which the Service Worker does not register. The Service Worker receives the
+    // project files through V_FS_* messages after it has started, so keep the list in sync here. It
+    // is updated synchronously, before the Service Worker acknowledges the message (V_FS_ACK).
+    if (publicDir && publicFiles) {
+      syncPublicFiles(watcher, publicDir, publicFiles)
+    }
 
     const closeHttpServer = createServerCloseFn(httpServer)
 

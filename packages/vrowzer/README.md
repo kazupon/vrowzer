@@ -256,7 +256,6 @@ vrowzer.reloadPreview()
 - `ArrayBuffer` content is copied for each Worker, so the caller's buffer stays usable.
 - The promise rejects without sending the change before `ready()` resolves to `true`, after it fails, and after `dispose()`. It also rejects when a Worker fails to apply the change (for example, a plugin's `watchChange` hook throws), when the Web Worker reports an error, when the Workers do not reply within `fileSyncTimeout`, or when the instance is disposed first. The error message names the operation, the path and the Worker.
 - After a rejection, the change may be partly applied. Write the file again, or delete it, to resynchronize.
-- Public files (under `/public/`) are currently not served by the Service Worker, whether they are passed to `ready()` or added later: the Service Worker builds its list of public files when it starts, before it receives any file. The promises above therefore do not make them visible.
 
 > [!NOTE]
 > Up to vrowzer 0.4.x, these methods returned `void` without waiting for the Workers, and calls made before `ready()` completed were dropped or reached only the Web Worker.
