@@ -9,6 +9,7 @@ import {
 const controllerMocks = vi.hoisted(() => ({
   getController: vi.fn<() => null>(() => null),
   getServiceWorker: vi.fn<() => null>(() => null),
+  getServiceWorkerInstanceId: vi.fn<() => null>(() => null),
   initServiceWorker: vi.fn<() => Promise<undefined>>(async () => undefined)
 }))
 

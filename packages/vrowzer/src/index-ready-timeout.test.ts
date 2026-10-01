@@ -4,6 +4,7 @@ import { V_WW_READY, V_WW_SETUP, V_WW_SETUP_ACK } from '@vrowzer/vite-dev-server
 const controllerMocks = vi.hoisted(() => ({
   getController: vi.fn<() => null>(() => null),
   getServiceWorker: vi.fn<() => null>(() => null),
+  getServiceWorkerInstanceId: vi.fn<() => null>(() => null),
   initServiceWorker: vi.fn<() => Promise<undefined>>(async () => undefined)
 }))
 

@@ -50,10 +50,16 @@ import {
   V_WW_CONNECT_PORT,
   V_SW_CONNECT_PORT,
   V_WW_CONNECT_PORT_ACK,
-  V_SW_CONNECT_PORT_ACK
+  V_SW_CONNECT_PORT_ACK,
+  V_SW_INSTANCE_STARTED
 } from '@vrowzer/vite-dev-server/messages'
 import { abortable } from './abort.ts'
-import { getServiceWorker, getController, initServiceWorker } from './controller.ts'
+import {
+  getServiceWorker,
+  getController,
+  getServiceWorkerInstanceId,
+  initServiceWorker
+} from './controller.ts'
 import { resolvePreviewBasePath } from './preview-base.ts'
 import { resolveServiceWorkerScope } from './service-worker-scope.ts'
 import { resolveServiceWorkerVersion, withServiceWorkerVersion } from './service-worker-version.ts'
@@ -101,6 +107,11 @@ type ReadyState = 'idle' | 'initializing' | 'ready' | 'failed' | 'disposed'
 type FileOperation = 'addFile' | 'updateFile' | 'deleteFile'
 
 type FileSyncTarget = 'Web Worker' | 'Service Worker'
+
+/**
+ * Sends a file operation to the Workers, with its operation id.
+ */
+type SendFileOperation = (options: { id: string }) => void
 
 /**
  * VrowzerOptions defines the configuration options for {@link Vrowzer}.
@@ -292,6 +303,28 @@ export type VrowzerEventMap = SvcWorkerControllerEventMap & {
    * Payload is {@link PreviewLoadErrorInfo}
    */
   previewLoadError: PreviewLoadErrorInfo
+  /**
+   * Emitted when Vrowzer has restored the project in a restarted Service Worker.
+   *
+   * The browser stops an idle Service Worker and starts it again for the next request or message.
+   * The restarted Service Worker has lost the files and the Web Worker channel, so Vrowzer sends the
+   * latest files and connects the channel again, without reloading the host page. File operations
+   * called in the meantime are sent after the project is restored.
+   */
+  serviceWorkerRecovered: void
+  /**
+   * Emitted when Vrowzer could not restore the project in a restarted Service Worker: the Service
+   * Worker failed to apply the files, or the recovery did not finish within
+   * {@link VrowzerOptions.fileSyncTimeout}.
+   *
+   * File operations waiting for the Service Worker reject. Preview requests that the Service Worker
+   * cannot serve yet wait for up to 10 seconds, and then get a 503 response. Vrowzer tries again when
+   * the Service Worker restarts the next time. To start over, dispose the instance and create a new
+   * one.
+   *
+   * Payload is the `Error` that describes the failure.
+   */
+  serviceWorkerRecoveryError: Error
 }
 
 /**
@@ -427,7 +460,15 @@ interface PendingFileOperation {
   waitingFor: Set<FileSyncTarget>
   resolve: () => void
   reject: (error: Error) => void
-  timer: ReturnType<typeof setTimeout>
+  /**
+   * Whether the operation has been sent. An operation called while a restarted Service Worker is
+   * being restored is sent after the recovery.
+   */
+  sent: boolean
+  /**
+   * Started when the operation is sent.
+   */
+  timer?: ReturnType<typeof setTimeout>
 }
 
 interface PreviewSessionRecord {
@@ -635,6 +676,20 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   // File operations waiting for acknowledgements, by operation id
   const pendingFileOperations = new Map<string, PendingFileOperation>()
   let stopListeningServiceWorkerAcks: (() => void) | null = null
+  // Marks this instance as the owner of the Web Worker channel, for when several instances share
+  // one Service Worker. The Service Worker does not use it yet. Created when ready() starts.
+  let runtimeId: string | null = null
+  // The latest files given to the Workers, to restore a restarted Service Worker
+  const projectFiles = new Map<string, string | ArrayBuffer>()
+  // The Service Worker instance that has the project of this instance
+  let serviceWorkerInstanceId: string | null = null
+  // A Service Worker instance that started while ready() was in progress
+  let instanceStartedDuringInit: string | null = null
+  let stopListeningServiceWorkerStarts: (() => void) | null = null
+  // The recovery of a restarted Service Worker in progress
+  let recovery: AbortController | null = null
+  // File operations called during a recovery, sent in order after it
+  const heldFileOperations: { id: string; send: SendFileOperation }[] = []
 
   function cleanupWebWorker(): void {
     const worker = webWorker
@@ -658,6 +713,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   function releaseRuntime(errors: unknown[]): void {
     for (const stop of controllerSubscriptions.splice(0)) {
       attempt(errors, stop)
+    }
+    const stopListeningStarts = stopListeningServiceWorkerStarts
+    stopListeningServiceWorkerStarts = null
+    if (stopListeningStarts) {
+      attempt(errors, stopListeningStarts)
     }
     const stopListeningAcks = stopListeningServiceWorkerAcks
     stopListeningServiceWorkerAcks = null
@@ -758,13 +818,23 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     }
   }
 
+  function couldNotSend(operation: FileOperation, path: string, error: unknown): Error {
+    return new Error(
+      `${describeFileOperation(operation, path)} could not be sent: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    )
+  }
+
   /**
    * Sends a file operation to the Workers and waits until both have applied it.
+   *
+   * `prepare` runs right away and returns the step that sends the operation. While a restarted
+   * Service Worker is being restored, that step runs after the recovery.
    */
   function syncFile(
     operation: FileOperation,
     path: string,
-    send: (options: { id: string }) => void
+    prepare: () => SendFileOperation
   ): Promise<void> {
     if (readyState === 'disposed') {
       return Promise.reject(new Error(`[Vrowzer] ${operation}() cannot be called after dispose()`))
@@ -777,6 +847,13 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       )
     }
 
+    let send: SendFileOperation
+    try {
+      send = prepare()
+    } catch (error) {
+      return Promise.reject(couldNotSend(operation, path, error))
+    }
+
     const waitingFor = new Set<FileSyncTarget>()
     if (webWorker) {
       waitingFor.add('Web Worker')
@@ -785,35 +862,230 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       waitingFor.add('Service Worker')
     }
     const id = crypto.randomUUID()
-    const timeout = resolved.fileSyncTimeout
 
     return new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const pending = pendingFileOperations.get(id)
-        if (pending) {
-          const targets = [...pending.waitingFor].map(target => `the ${target}`).join(' and ')
-          settleFileOperation(
-            id,
-            new Error(
-              `${describeFileOperation(operation, path)} timed out after ${timeout}ms waiting for ${targets}`
-            )
-          )
-        }
-      }, timeout)
-      pendingFileOperations.set(id, { operation, path, waitingFor, resolve, reject, timer })
+      pendingFileOperations.set(id, { operation, path, waitingFor, resolve, reject, sent: false })
+      if (recovery) {
+        // Sent after the recovery, in the order the operations were called
+        heldFileOperations.push({ id, send })
+        return
+      }
+      sendFileOperation(id, send)
+    })
+  }
 
-      try {
-        send({ id })
-      } catch (error) {
+  /**
+   * Sends a pending file operation, and waits for the replies up to `fileSyncTimeout`.
+   */
+  function sendFileOperation(id: string, send: SendFileOperation): void {
+    const pending = pendingFileOperations.get(id)
+    // dispose() may have rejected an operation held during a recovery
+    if (!pending) {
+      return
+    }
+    const { operation, path } = pending
+    const timeout = resolved.fileSyncTimeout
+    pending.timer = setTimeout(() => {
+      const current = pendingFileOperations.get(id)
+      if (current) {
+        const targets = [...current.waitingFor].map(target => `the ${target}`).join(' and ')
         settleFileOperation(
           id,
           new Error(
-            `${describeFileOperation(operation, path)} could not be sent: ${error instanceof Error ? error.message : String(error)}`,
-            { cause: error }
+            `${describeFileOperation(operation, path)} timed out after ${timeout}ms waiting for ${targets}`
           )
         )
       }
+    }, timeout)
+    pending.sent = true
+
+    try {
+      send({ id })
+    } catch (error) {
+      settleFileOperation(id, couldNotSend(operation, path, error))
+    }
+  }
+
+  /**
+   * Copies the content of a write now, since a write called during a recovery is sent later. The
+   * returned step sends the copy and keeps it, to restore a restarted Service Worker.
+   */
+  function prepareWrite(path: string, content: string | ArrayBuffer): SendFileOperation {
+    const copied = typeof content === 'string' ? content : content.slice(0)
+    return options => {
+      publisher.writeFile(path, copied, options)
+      projectFiles.set(path, copied)
+    }
+  }
+
+  /**
+   * Listens for the Service Worker instances that start, to restore the project in a restarted one.
+   */
+  function listenServiceWorkerStarts(): void {
+    const container = getController()?.container
+    if (!container) {
+      return
+    }
+    const handler = (event: MessageEvent) => {
+      const data: unknown = event.data
+      if (
+        isRecord(data) &&
+        data.type === V_SW_INSTANCE_STARTED &&
+        typeof data.instanceId === 'string'
+      ) {
+        handleServiceWorkerStarted(data.instanceId)
+      }
+    }
+    container.addEventListener('message', handler)
+    stopListeningServiceWorkerStarts = () => container.removeEventListener('message', handler)
+  }
+
+  function handleServiceWorkerStarted(instanceId: string): void {
+    if (readyState === 'initializing') {
+      // initialize() restores the project once ready() completes
+      instanceStartedDuringInit = instanceId
+      return
+    }
+    if (readyState === 'ready' && instanceId !== serviceWorkerInstanceId) {
+      recoverServiceWorker(instanceId)
+    }
+  }
+
+  /**
+   * Restores the project of this instance in a restarted Service Worker, which has lost the files
+   * and the Web Worker channel. File operations called in the meantime are held and sent after the
+   * recovery. A recovery that does not finish within `fileSyncTimeout` fails, and is tried again
+   * when the Service Worker restarts the next time.
+   */
+  function recoverServiceWorker(instanceId: string): void {
+    serviceWorkerInstanceId = instanceId
+    // A newer Service Worker instance started, so stop restoring the previous one
+    recovery?.abort(new Error('[Vrowzer] A newer Service Worker instance started'))
+    const controller = new AbortController()
+    recovery = controller
+    const timeout = resolved.fileSyncTimeout
+    const timer = setTimeout(() => {
+      controller.abort(new Error(`timed out after ${timeout}ms`))
+    }, timeout)
+
+    void restoreServiceWorker(controller.signal)
+      .then(
+        () => {
+          if (recovery !== controller) {
+            return
+          }
+          recovery = null
+          for (const { id, send } of heldFileOperations.splice(0)) {
+            sendFileOperation(id, send)
+          }
+          _emitter.emit('serviceWorkerRecovered', undefined)
+        },
+        (error: unknown) => {
+          // A newer instance or dispose() stopped this recovery
+          if (recovery !== controller) {
+            return
+          }
+          recovery = null
+          heldFileOperations.length = 0
+          const reason = error instanceof Error ? error.message : String(error)
+          // The held operations wait for the Service Worker as well
+          rejectFileOperations(
+            pending =>
+              new Error(
+                `${describeFileOperation(pending.operation, pending.path)} failed because the restarted Service Worker could not be restored: ${reason}`,
+                { cause: error }
+              ),
+            'Service Worker'
+          )
+          _emitter.emit(
+            'serviceWorkerRecoveryError',
+            new Error(
+              `[Vrowzer] Could not restore the project in the restarted Service Worker: ${reason}`,
+              { cause: error }
+            )
+          )
+        }
+      )
+      .finally(() => clearTimeout(timer))
+  }
+
+  /**
+   * Sends the latest files to the restarted Service Worker with V_FS_INIT, and connects the Web
+   * Worker channel again once it has applied them.
+   */
+  async function restoreServiceWorker(signal: AbortSignal): Promise<void> {
+    const serviceWorker = getServiceWorker()
+    if (!serviceWorker) {
+      throw new Error('the Service Worker is not available')
+    }
+    // The operations sent so far are in the copy of the files, so the restarted Service Worker
+    // applies them with V_FS_INIT. The previous instance can no longer acknowledge them.
+    const coveredOperations = [...pendingFileOperations]
+      .filter(([, pending]) => pending.sent && pending.waitingFor.has('Service Worker'))
+      .map(([id]) => id)
+    const id = crypto.randomUUID()
+    serviceWorker.postMessage({ ...createFSInitMessage(Object.fromEntries(projectFiles)), id })
+    await waitForServiceWorkerAck(id, signal)
+    for (const operationId of coveredOperations) {
+      handleFileSyncAck('Service Worker', { type: V_FS_ACK, id: operationId })
+    }
+
+    await establishChannel(signal)
+    // The recovery may have been stopped while the last acknowledgement was being delivered
+    signal.throwIfAborted()
+  }
+
+  /**
+   * Waits for the Service Worker to acknowledge the message with `id`.
+   */
+  function waitForServiceWorkerAck(id: string, signal: AbortSignal): Promise<void> {
+    const container = getController()?.container
+    if (!container) {
+      return Promise.reject(new Error('the Service Worker is not available'))
+    }
+    if (signal.aborted) {
+      return Promise.reject(signal.reason)
+    }
+    return new Promise<void>((resolve, reject) => {
+      const stop = () => {
+        container.removeEventListener('message', handler)
+        signal.removeEventListener('abort', onAbort)
+      }
+      const onAbort = () => {
+        stop()
+        reject(signal.reason)
+      }
+      const handler = (event: MessageEvent) => {
+        const data: unknown = event.data
+        if (!isRecord(data) || data.type !== V_FS_ACK || data.id !== id) {
+          return
+        }
+        stop()
+        if (data.error === undefined) {
+          resolve()
+          return
+        }
+        const cause = toWorkerError(data.error)
+        reject(
+          new Error(`the Service Worker failed to apply the restored files: ${cause.message}`, {
+            cause
+          })
+        )
+      }
+      container.addEventListener('message', handler)
+      signal.addEventListener('abort', onAbort, { once: true })
     })
+  }
+
+  /**
+   * Stops the recovery in progress without reporting it. The held file operations are rejected by
+   * the caller.
+   */
+  function stopRecovery(reason: Error): void {
+    const current = recovery
+    recovery = null
+    heldFileOperations.length = 0
+    current?.abort(reason)
   }
 
   /**
@@ -867,7 +1139,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     })
 
     // Transfer ports
-    serviceWorker.postMessage({ type: V_WW_CONNECT_PORT }, [channel.port1])
+    serviceWorker.postMessage({ type: V_WW_CONNECT_PORT, runtimeId }, [channel.port1])
     worker.postMessage({ type: V_SW_CONNECT_PORT }, [channel.port2])
 
     try {
@@ -1108,6 +1380,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   }
 
   async function initialize(config: VrowzerConfig, signal: AbortSignal): Promise<boolean> {
+    runtimeId = crypto.randomUUID()
     try {
       // The files are sent later, so copy them as they are when ready() is called
       const initialFiles = copyInitialFiles(config.files)
@@ -1215,6 +1488,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
         signal
       )
 
+      // 5. Remember the Service Worker instance, and listen for the instances that start later.
+      // A restarted Service Worker has lost the project of this instance.
+      serviceWorkerInstanceId = getServiceWorkerInstanceId()
+      listenServiceWorkerStarts()
+
       // 6. Forward controller events to Vrowzer emitter
       const controller = getController()
       if (controller) {
@@ -1235,7 +1513,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
         }
       }
 
-      // 7. Initialize Service Worker files and subscribe it to later changes.
+      // 7. Initialize Service Worker files and subscribe it to later changes. Keep the files, to
+      // restore a restarted Service Worker.
+      for (const [path, content] of Object.entries(allFiles)) {
+        projectFiles.set(path, content)
+      }
       const serviceWorker = getServiceWorker()
       if (serviceWorker) {
         serviceWorkerTarget = {
@@ -1256,6 +1538,12 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       listenFileSyncAcks(currentWebWorker)
 
       readyState = 'ready'
+      // A Service Worker instance that started during ready() may not have the project
+      const startedDuringInit = instanceStartedDuringInit
+      instanceStartedDuringInit = null
+      if (startedDuringInit !== null && startedDuringInit !== serviceWorkerInstanceId) {
+        recoverServiceWorker(startedDuringInit)
+      }
       return true
     } catch (error) {
       const releaseErrors: unknown[] = []
@@ -1290,6 +1578,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
           `${describeFileOperation(pending.operation, pending.path)} was cancelled by dispose()`
         )
     )
+    stopRecovery(new Error('[Vrowzer] The instance was disposed'))
 
     disposePromise = (async () => {
       // An aborted ready() releases what it created and resolves to false
@@ -1422,19 +1711,18 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     },
 
     addFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
-      return syncFile('addFile', filePath, options =>
-        publisher.writeFile(filePath, content, options)
-      )
+      return syncFile('addFile', filePath, () => prepareWrite(filePath, content))
     },
 
     updateFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
-      return syncFile('updateFile', filePath, options =>
-        publisher.writeFile(filePath, content, options)
-      )
+      return syncFile('updateFile', filePath, () => prepareWrite(filePath, content))
     },
 
     deleteFile(filePath: string): Promise<void> {
-      return syncFile('deleteFile', filePath, options => publisher.unlink(filePath, options))
+      return syncFile('deleteFile', filePath, () => options => {
+        publisher.unlink(filePath, options)
+        projectFiles.delete(filePath)
+      })
     },
 
     dispose,

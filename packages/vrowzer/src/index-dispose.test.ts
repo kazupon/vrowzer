@@ -20,6 +20,7 @@ const runtime = vi.hoisted(() => ({
 vi.mock('./controller.ts', () => ({
   getController: () => runtime.controller,
   getServiceWorker: () => runtime.serviceWorker,
+  getServiceWorkerInstanceId: () => null,
   initServiceWorker: (options: { signal?: AbortSignal }) => runtime.initServiceWorker(options)
 }))
 vi.mock('@vrowzer/fs/watcher', () => ({
@@ -333,7 +334,8 @@ describe('Vrowzer dispose', () => {
     await waitForChannelHandshake(worker)
     expect(controller.subscriptionCount).toBe(6)
     expect(publisher.targets.size).toBe(2)
-    expect(controller.container.listeners.size).toBe(1)
+    // The handshake and the Service Worker instances that start
+    expect(controller.container.listeners.size).toBe(2)
 
     await vrowzer.dispose()
 
@@ -370,7 +372,8 @@ describe('Vrowzer dispose', () => {
   test('rejects the file operations that wait for the Workers', async () => {
     const vrowzer = Vrowzer()
     const worker = await readyFully(vrowzer)
-    expect(controller.container.listeners.size).toBe(1)
+    // The file sync acknowledgements and the Service Worker instances that start
+    expect(controller.container.listeners.size).toBe(2)
 
     const updating = vrowzer.updateFile('/a.js', 'updated')
     const deleting = vrowzer.deleteFile('/b.js')
