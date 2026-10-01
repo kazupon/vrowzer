@@ -87,7 +87,8 @@ export interface FSMkdirMessage {
  * Used during setup to populate the virtual filesystem.
  *
  * Text files are in `files`, binary files are in `binaryFiles`.
- * Binary ArrayBuffers are transferred via postMessage's transfer list.
+ * The publisher transfers a copy of each binary ArrayBuffer to each target via postMessage's
+ * transfer list, so the caller's ArrayBuffers stay usable.
  */
 export interface FSInitMessage {
   type: 'V_FS_INIT'
@@ -96,7 +97,7 @@ export interface FSInitMessage {
    */
   files?: Record<string, string>
   /**
-   * Binary files: path -> ArrayBuffer content (transferred)
+   * Binary files: path -> ArrayBuffer content (a copy transferred via postMessage's transfer list)
    */
   binaryFiles?: Record<string, ArrayBuffer>
 }
