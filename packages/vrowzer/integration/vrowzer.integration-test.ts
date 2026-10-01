@@ -590,6 +590,32 @@ describe('Vrowzer E2E', () => {
           dataset: 'preview'
         })
     })
+
+    test('shows the README usage example without /index.html', async () => {
+      // The playground gives ready() only the /main.js of the README usage example. A new browser
+      // context has a Service Worker of its own, so the shared playground is not affected.
+      const context = await browser.newContext()
+      const readmePage = await context.newPage()
+
+      try {
+        await readmePage.goto(`${serverUrl}?files=readme-example`)
+        await readmePage.waitForFunction(
+          () => document.getElementById('status')?.textContent === 'Ready',
+          undefined,
+          { timeout: 60_000 }
+        )
+        await readmePage.waitForFunction(
+          () =>
+            (
+              document.querySelector('#preview-container iframe') as HTMLIFrameElement | null
+            )?.contentDocument?.querySelector('#app h1')?.textContent === 'Hello!',
+          undefined,
+          { timeout: 30_000 }
+        )
+      } finally {
+        await context.close()
+      }
+    }, 120_000)
   })
 
   describe('file operations', () => {
