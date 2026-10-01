@@ -224,21 +224,31 @@ async function fetchFromPreview(requestPath: string): Promise<PreviewResponse> {
   }, requestPath)
 }
 
-async function fetchBytesFromPreview(
+/**
+ * Reads a preview file through the Service Worker from the host page. Unlike the preview iframe,
+ * the host page is not reloaded by HMR, so a read right after a file change is not interrupted.
+ */
+async function fetchFromServiceWorker(requestPath: string): Promise<PreviewResponse> {
+  return page.evaluate(async path => {
+    const response = await fetch(`/__preview__${path}`)
+    return { status: response.status, body: await response.text() }
+  }, requestPath)
+}
+
+async function fetchBytesFromServiceWorker(
   requestPath: string
 ): Promise<{ status: number; bytes: number[] }> {
   return page.evaluate(async path => {
-    const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement | null
-    if (!iframe?.contentWindow) {
-      throw new Error('Preview iframe is not available')
-    }
-
-    const response = await iframe.contentWindow.fetch(`/__preview__${path}`)
-    return {
-      status: response.status,
-      bytes: [...new Uint8Array(await response.arrayBuffer())]
-    }
+    const response = await fetch(`/__preview__${path}`)
+    return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] }
   }, requestPath)
+}
+
+/**
+ * Makes a test module accept its own updates, so that changing it does not reload the preview.
+ */
+function selfAccepting(code: string): string {
+  return `${code}\nif (import.meta.hot) { import.meta.hot.accept() }\n`
 }
 
 /**
@@ -580,31 +590,34 @@ if (import.meta.hot) {
 
     test('stays pending while the Web Worker applies a change, and later reads see it', async () => {
       const path = '/file-sync/held/module.js'
-      await addPreviewFiles({ [path]: `export const value = 'held-v1'` })
+      await addPreviewFiles({ [path]: selfAccepting(`export const value = 'held-v1'`) })
       // Cache the transform result of the first version
-      expect((await fetchFromPreview(path)).body).toContain('held-v1')
+      expect((await fetchFromServiceWorker(path)).body).toContain('held-v1')
 
       try {
-        await page.evaluate(path => {
-          const state = { settled: false }
-          ;(window as any).__fileSyncHeld__ = state
-          ;(window as any).__fileSyncHeldUpdate__ = (window as any).__vrowzer__
-            .updateFile(path, `export const value = 'held-v2'`)
-            .finally(() => {
-              state.settled = true
-            })
-        }, path)
+        await page.evaluate(
+          ({ path, content }) => {
+            const state = { settled: false }
+            ;(window as any).__fileSyncHeld__ = state
+            ;(window as any).__fileSyncHeldUpdate__ = (window as any).__vrowzer__
+              .updateFile(path, content)
+              .finally(() => {
+                state.settled = true
+              })
+          },
+          { path, content: selfAccepting(`export const value = 'held-v2'`) }
+        )
 
         await page.waitForTimeout(500)
         expect(await page.evaluate(() => (window as any).__fileSyncHeld__.settled)).toBe(false)
         // The Web Worker has not invalidated the module yet, so reads still get the cached result
-        expect((await fetchFromPreview(path)).body).toContain('held-v1')
+        expect((await fetchFromServiceWorker(path)).body).toContain('held-v1')
 
         // Releasing writes another path, so it resolves without waiting for the held change
         await releaseHeldFileChanges()
         await page.evaluate(() => (window as any).__fileSyncHeldUpdate__)
 
-        const response = await fetchFromPreview(path)
+        const response = await fetchFromServiceWorker(path)
         expect(response.body).toContain('held-v2')
         expect(response.body).not.toContain('held-v1')
       } finally {
@@ -620,35 +633,35 @@ if (import.meta.hot) {
           args
         })
 
-      await run('addFile', [path, `export const value = 'kinds-v1'`])
-      expect((await fetchFromPreview(path)).body).toContain('kinds-v1')
+      await run('addFile', [path, selfAccepting(`export const value = 'kinds-v1'`)])
+      expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v1')
 
-      await run('updateFile', [path, `export const value = 'kinds-v2'`])
-      expect((await fetchFromPreview(path)).body).toContain('kinds-v2')
+      await run('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
+      expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v2')
 
       // Writing the same content, and adding a file that nothing imports, settle as well
-      await run('updateFile', [path, `export const value = 'kinds-v2'`])
+      await run('updateFile', [path, selfAccepting(`export const value = 'kinds-v2'`)])
       await run('addFile', ['/file-sync/kinds/unused.js', 'export {}'])
 
       await run('deleteFile', [path])
-      expect((await fetchFromPreview(path)).body).not.toContain('kinds-v2')
+      expect((await fetchFromServiceWorker(path)).body).not.toContain('kinds-v2')
       // Deleting a file that no longer exists settles too
       await run('deleteFile', [path])
 
-      await run('addFile', [path, `export const value = 'kinds-v3'`])
-      expect((await fetchFromPreview(path)).body).toContain('kinds-v3')
+      await run('addFile', [path, selfAccepting(`export const value = 'kinds-v3'`)])
+      expect((await fetchFromServiceWorker(path)).body).toContain('kinds-v3')
     }, 30000)
 
     test('makes a deletion visible before its HMR update finishes', async () => {
       const path = '/file-sync/held-hmr/module.js'
-      await addPreviewFiles({ [path]: `export const value = 'held-hmr-v1'` })
+      await addPreviewFiles({ [path]: selfAccepting(`export const value = 'held-hmr-v1'`) })
       // Cache the transform result of the file
-      expect((await fetchFromPreview(path)).body).toContain('held-hmr-v1')
+      expect((await fetchFromServiceWorker(path)).body).toContain('held-hmr-v1')
 
       try {
         // The plugin holds the HMR update of this deletion, which does not delay the promise
         await page.evaluate(path => (window as any).__vrowzer__.deleteFile(path), path)
-        expect((await fetchFromPreview(path)).body).not.toContain('held-hmr-v1')
+        expect((await fetchFromServiceWorker(path)).body).not.toContain('held-hmr-v1')
       } finally {
         await releaseHeldFileChanges()
       }
@@ -669,9 +682,9 @@ if (import.meta.hot) {
       expect(caller).toEqual({ byteLength: bytes.length, bytes })
 
       // The Service Worker serves the file from its virtual filesystem
-      expect(await fetchBytesFromPreview(path)).toEqual({ status: 200, bytes })
+      expect(await fetchBytesFromServiceWorker(path)).toEqual({ status: 200, bytes })
       // The Web Worker inlines the file from its own virtual filesystem
-      const inlined = await fetchFromPreview(`${path}?import&inline`)
+      const inlined = await fetchFromServiceWorker(`${path}?import&inline`)
       const base64 = inlined.body.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)/)?.[1]
       expect(base64).toBeDefined()
       expect([...Buffer.from(base64!, 'base64')]).toEqual(bytes)
@@ -695,7 +708,7 @@ if (import.meta.hot) {
         path => (window as any).__vrowzer__.updateFile(path, `export const value = 'fail-v2'`),
         path
       )
-      const response = await fetchFromPreview(path)
+      const response = await fetchFromServiceWorker(path)
       expect(response.body).toContain('fail-v2')
       expect(response.body).not.toContain('fail-v1')
     }, 30000)
