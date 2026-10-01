@@ -24,7 +24,11 @@ import { V_FS_ACK, createFileSystemSubscriber } from '@vrowzer/fs/watcher'
 import client from '@vrowzer/vite-dev-server/dist/client/client.mjs?raw' // oxlint-disable-line import/default -- ignore for raw import
 import env from '@vrowzer/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer } from '@vrowzer/vite-dev-server/service-worker'
-import { V_SW_LISTEN_READY, V_SW_LISTEN_READY_PING } from '@vrowzer/vite-dev-server/messages'
+import {
+  V_SW_INSTANCE_STARTED,
+  V_SW_LISTEN_READY,
+  V_SW_LISTEN_READY_PING
+} from '@vrowzer/vite-dev-server/messages'
 import { resolvePreviewBasePath } from './preview-base.ts'
 import { resolveServiceWorkerVersionForWorker } from './service-worker-version.ts'
 
@@ -34,6 +38,13 @@ import type { Plugin } from '@vrowzer/vite-dev-server/vite'
 
 declare const self: ServiceWorkerGlobalScope
 
+/**
+ * How long a request within the base path waits for the project files and the Web Worker channel.
+ * Same as the default `fileSyncTimeout` of the runtime, which also bounds its recovery after a
+ * Service Worker restart.
+ */
+const PROJECT_WAIT_TIMEOUT = 10_000
+
 function toAckError(error: unknown): NonNullable<FSAckMessage['error']> {
   return error instanceof Error
     ? { name: error.name, message: error.message }
@@ -41,6 +52,11 @@ function toAckError(error: unknown): NonNullable<FSAckMessage['error']> {
 }
 
 export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
+  // A new ID each time this script is evaluated. When the browser restarts the Service Worker
+  // process, the registration and the controller stay the same, so the runtime tells the instances
+  // apart by this ID.
+  const instanceId = crypto.randomUUID()
+
   // Initial volume setup: client files + public dir
   vol.fromJSON({
     '/dist/client/client.mjs': client,
@@ -52,11 +68,67 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
   const subscriber = createFileSystemSubscriber(fs)
   const previewBase = resolvePreviewBasePath()
   const serviceWorkerVersion = resolveServiceWorkerVersionForWorker(self.location.href)
+
+  // This instance serves the project only after it has received the project files (V_FS_INIT) and
+  // the Web Worker channel. ready() sends both before the preview opens. After a restart, the
+  // runtime sends them again, and requests made in the meantime wait for them.
+  let filesReceived = false
+  let channelReady = false
+  let projectReady = false
+  let resolveProjectReady!: () => void
+  const projectReadyPromise = new Promise<void>(resolve => {
+    resolveProjectReady = resolve
+  })
+
+  function updateProjectReady(): void {
+    if (filesReceived && channelReady && !projectReady) {
+      projectReady = true
+      resolveProjectReady()
+    }
+  }
+
+  async function waitForProject(): Promise<Response | undefined> {
+    if (projectReady) {
+      return undefined
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timedOut = await Promise.race([
+      projectReadyPromise.then(() => false),
+      new Promise<boolean>(resolve => {
+        timer = setTimeout(() => resolve(true), PROJECT_WAIT_TIMEOUT)
+      })
+    ])
+    clearTimeout(timer)
+    if (!timedOut) {
+      return undefined
+    }
+    return new Response(
+      `[Vrowzer] The preview is not ready: the Service Worker did not receive the project within ${PROJECT_WAIT_TIMEOUT}ms.`,
+      { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+    )
+  }
+
+  /**
+   * Applies a file sync message. V_FS_INIT gives this instance the project files.
+   */
+  function applyFileSyncMessage(message: FileSystemSyncMessage): void {
+    subscriber.handleMessage(message)
+    if (message.type === 'V_FS_INIT') {
+      filesReceived = true
+      updateProjectReady()
+    }
+  }
+
   const serverOptions = {
     version: serviceWorkerVersion,
     basePath: previewBase,
     ...(options?.plugins ? { plugins: options.plugins } : {}),
-    watcherFactory: () => subscriber.watcher as any
+    watcherFactory: () => subscriber.watcher as any,
+    beforeRequest: waitForProject,
+    onWorkerChannelReady: () => {
+      channelReady = true
+      updateProjectReady()
+    }
   } as unknown as CreateServerOptions
 
   const listen = createServer(
@@ -85,8 +157,14 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
   const listenPromise = listen()
   let listenReady = false
   // oxlint-disable-next-line typescript/no-floating-promises -- ignore for service worker timing
-  listenPromise.then(() => {
+  listenPromise.then(async () => {
     listenReady = true
+    // Tell the pages that this instance started. A runtime that knows another instance has lost
+    // its project here, and sends the files and the Web Worker channel again.
+    const clients = await self.clients.matchAll({ type: 'window' })
+    for (const client of clients) {
+      client.postMessage({ type: V_SW_INSTANCE_STARTED, instanceId })
+    }
   })
 
   // Message Handling from Main Thread
@@ -99,7 +177,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
       if (clientId) {
         // oxlint-disable-next-line typescript/no-floating-promises -- ignore for vrowzer preview system negotiation timing
         self.clients.get(clientId).then(client => {
-          client?.postMessage({ type: V_SW_LISTEN_READY })
+          client?.postMessage({ type: V_SW_LISTEN_READY, instanceId })
         })
       }
       return
@@ -113,12 +191,9 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
     // V_FS_* messages: update virtual FS via subscriber
     if (typeof message?.type === 'string' && message.type.startsWith('V_FS_')) {
       const syncMessage = message as FileSystemSyncMessage
-      const id =
-        syncMessage.type === 'V_FS_WRITE' || syncMessage.type === 'V_FS_UNLINK'
-          ? syncMessage.id
-          : undefined
+      const id = syncMessage.type === 'V_FS_MKDIR' ? undefined : syncMessage.id
       if (id === undefined) {
-        subscriber.handleMessage(syncMessage)
+        applyFileSyncMessage(syncMessage)
         return
       }
 
@@ -126,7 +201,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
       // as soon as handleMessage() returns. Acknowledge it to the client that sent it.
       let ack: FSAckMessage = { type: V_FS_ACK, id }
       try {
-        subscriber.handleMessage(syncMessage)
+        applyFileSyncMessage(syncMessage)
       } catch (error) {
         ack = { type: V_FS_ACK, id, error: toAckError(error) }
       }
@@ -145,7 +220,7 @@ export async function initServiceWorker(options?: { plugins?: Plugin[] }) {
         // Signal main thread that the server is ready
         const clients = await self.clients.matchAll({ includeUncontrolled: true })
         for (const client of clients) {
-          client.postMessage({ type: V_SW_LISTEN_READY })
+          client.postMessage({ type: V_SW_LISTEN_READY, instanceId })
         }
       })
     )
