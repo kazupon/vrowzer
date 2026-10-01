@@ -64,6 +64,14 @@ import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/contro
 const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
 const DEFAULT_WEB_WORKER_SETUP_TIMEOUT = 90_000
 
+/**
+ * `postMessage()` type used by the preview bootstrap to report load failures to the host.
+ */
+const PREVIEW_LOAD_ERROR_MESSAGE_TYPE = 'vrowzer:preview-load-error'
+const PREVIEW_LOAD_ERROR_MESSAGE_MAX_LENGTH = 1000
+const PREVIEW_LOAD_ERROR_URL_MAX_LENGTH = 2048
+const PREVIEW_LOAD_ERROR_NAME_MAX_LENGTH = 100
+
 type ReadyState = 'idle' | 'initializing' | 'ready' | 'failed'
 
 /**
@@ -183,6 +191,39 @@ export interface PreviewSession {
  */
 export type PreviewSessionRef = string | PreviewSession
 
+/**
+ * Information about a preview document that failed to load before its application code started.
+ */
+export interface PreviewLoadErrorInfo {
+  /**
+   * Host-defined identity of the preview session that failed to load.
+   */
+  readonly id: string
+  /**
+   * Where loading failed: fetching the preview HTML, or loading one of its initial scripts.
+   */
+  readonly stage: 'html' | 'script'
+  /**
+   * Human-readable summary of the failure. It is present even when the browser reports no details.
+   */
+  readonly message: string
+  /**
+   * Requested URL, when known. Inline module scripts have no URL.
+   */
+  readonly url?: string
+  /**
+   * HTTP status, when a response was received.
+   */
+  readonly status?: number
+  /**
+   * The original exception, when one was thrown.
+   */
+  readonly error?: {
+    readonly name: string
+    readonly message: string
+  }
+}
+
 declare global {
   interface Window {
     /**
@@ -195,9 +236,20 @@ declare global {
 /**
  * Event map for {@link Vrowzer}.
  *
- * Forwards all {@link SvcWorkerControllerEventMap} events from the underlying Service Worker controller.
+ * Forwards all {@link SvcWorkerControllerEventMap} events from the underlying Service Worker controller,
+ * and adds events for preview sessions.
  */
-export type VrowzerEventMap = SvcWorkerControllerEventMap
+export type VrowzerEventMap = SvcWorkerControllerEventMap & {
+  /**
+   * Emitted when a preview document fails to load before its application code starts:
+   * the preview HTML cannot be fetched or returns an error status, or one of its initial scripts fails to load.
+   *
+   * Runtime errors thrown by the application are not reported by this event.
+   *
+   * Payload is {@link PreviewLoadErrorInfo}
+   */
+  previewLoadError: PreviewLoadErrorInfo
+}
 
 /**
  * The main interface for the Vrowzer preview environment.
@@ -281,6 +333,10 @@ interface ResolvedVrowzerOptions {
 interface PreviewSessionRecord {
   context: Readonly<PreviewContext>
   session: PreviewSession
+  /**
+   * Identifies the current bootstrap document, so that reports from replaced documents are ignored.
+   */
+  loadToken: string
 }
 
 function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions {
@@ -321,6 +377,60 @@ function serializeInlineScriptValue(value: unknown): string {
     .replaceAll('\u2029', '\\u2029')
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function truncate(value: string, maxLength: number): string {
+  return value.length > maxLength ? value.slice(0, maxLength) : value
+}
+
+/**
+ * Builds the event payload from a bootstrap report, keeping only known and bounded fields.
+ * The session id comes from the host's record, never from the report.
+ */
+function toPreviewLoadErrorInfo(
+  id: string,
+  report: Record<string, unknown>
+): PreviewLoadErrorInfo | undefined {
+  const { stage, message, url, status, error } = report
+  if (stage !== 'html' && stage !== 'script') {
+    return undefined
+  }
+
+  const fallbackMessage =
+    stage === 'html' ? 'Failed to load the preview HTML' : 'Failed to load a preview script'
+  const safeMessage =
+    typeof message === 'string' && message.length > 0
+      ? truncate(message, PREVIEW_LOAD_ERROR_MESSAGE_MAX_LENGTH)
+      : fallbackMessage
+  // A `blob:` URL of an inline module script means nothing to the host
+  const safeUrl =
+    typeof url === 'string' && url.length > 0 && !url.startsWith('blob:')
+      ? truncate(url, PREVIEW_LOAD_ERROR_URL_MAX_LENGTH)
+      : undefined
+  const safeStatus =
+    typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599
+      ? status
+      : undefined
+  const safeError =
+    isRecord(error) && typeof error.name === 'string' && typeof error.message === 'string'
+      ? Object.freeze({
+          name: truncate(error.name, PREVIEW_LOAD_ERROR_NAME_MAX_LENGTH),
+          message: truncate(error.message, PREVIEW_LOAD_ERROR_MESSAGE_MAX_LENGTH)
+        })
+      : undefined
+
+  return Object.freeze({
+    id,
+    stage,
+    message: safeMessage,
+    ...(safeUrl === undefined ? {} : { url: safeUrl }),
+    ...(safeStatus === undefined ? {} : { status: safeStatus }),
+    ...(safeError === undefined ? {} : { error: safeError })
+  })
+}
+
 /**
  * Factory function to create a {@link Vrowzer} instance.
  * @param options - Configuration options for the Vrowzer instance.
@@ -334,6 +444,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   const previewSessions = new Map<string, PreviewSessionRecord>()
   let webWorker: Worker | null = null
   let readyState: ReadyState = 'idle'
+  let listeningPreviewMessages = false
 
   function cleanupWebWorker(): void {
     if (!webWorker) {
@@ -397,9 +508,57 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     )
   }
 
-  function createBootstrapHtml(previewUrl: string, context: Readonly<PreviewContext>): string {
+  function handlePreviewMessage(event: MessageEvent): void {
+    const report: unknown = event.data
+    if (
+      !isRecord(report) ||
+      report.type !== PREVIEW_LOAD_ERROR_MESSAGE_TYPE ||
+      typeof report.token !== 'string' ||
+      event.origin !== window.location.origin
+    ) {
+      return
+    }
+
+    for (const record of previewSessions.values()) {
+      if (record.loadToken !== report.token) {
+        continue
+      }
+      // The token alone is not enough: the report must come from this session's iframe
+      if (event.source === record.session.iframe.contentWindow) {
+        const info = toPreviewLoadErrorInfo(record.session.id, report)
+        if (info) {
+          _emitter.emit('previewLoadError', info)
+        }
+      }
+      return
+    }
+  }
+
+  function listenPreviewMessages(): void {
+    if (listeningPreviewMessages) {
+      return
+    }
+    window.addEventListener('message', handlePreviewMessage)
+    listeningPreviewMessages = true
+  }
+
+  function stopListeningPreviewMessagesIfIdle(): void {
+    if (!listeningPreviewMessages || previewSessions.size > 0) {
+      return
+    }
+    window.removeEventListener('message', handlePreviewMessage)
+    listeningPreviewMessages = false
+  }
+
+  function createBootstrapHtml(
+    previewUrl: string,
+    context: Readonly<PreviewContext>,
+    loadToken: string
+  ): string {
     const serializedPreviewUrl = serializeInlineScriptValue(previewUrl)
     const serializedContext = serializeInlineScriptValue(context)
+    const serializedLoadToken = serializeInlineScriptValue(loadToken)
+    const serializedHostOrigin = serializeInlineScriptValue(window.location.origin)
 
     // Fetch preview HTML via SW, then inject DOM and execute scripts manually.
     // We avoid document.write() (deprecated) because it doesn't guarantee
@@ -408,6 +567,9 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
 <html><head><meta charset="utf-8"></head><body>
 <script>
 (async () => {
+  // Used to report load failures to the host
+  const token = ${serializedLoadToken};
+  const hostOrigin = ${serializedHostOrigin};
   try {
     const res = await fetch(${serializedPreviewUrl});
     const html = await res.text();
@@ -496,7 +658,12 @@ function execScript(orig, origin) {
     if (previewSessions.get(record.session.id) !== record) {
       return
     }
-    record.session.iframe.srcdoc = createBootstrapHtml(resolved.basePath, record.context)
+    record.loadToken = crypto.randomUUID()
+    record.session.iframe.srcdoc = createBootstrapHtml(
+      resolved.basePath,
+      record.context,
+      record.loadToken
+    )
   }
 
   function unmountSession(record: PreviewSessionRecord): void {
@@ -505,6 +672,7 @@ function execScript(orig, origin) {
     }
     previewSessions.delete(record.session.id)
     record.session.iframe.remove()
+    stopListeningPreviewMessagesIfIdle()
   }
 
   const instance: Vrowzer = {
@@ -703,11 +871,13 @@ function execScript(orig, origin) {
           }
         }
       })
-      const record = { context, session }
+      const record: PreviewSessionRecord = { context, session, loadToken: crypto.randomUUID() }
       previewSessions.set(id, record)
+      // Listen before the bootstrap document can report a failure
+      listenPreviewMessages()
 
       // srcdoc bootstrap: fetch preview HTML via Service Worker
-      iframe.srcdoc = createBootstrapHtml(resolved.basePath, context)
+      iframe.srcdoc = createBootstrapHtml(resolved.basePath, context, record.loadToken)
       return session
     },
 

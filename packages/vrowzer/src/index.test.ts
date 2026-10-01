@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, test, vi } from 'vite-plus/test'
 import { Vrowzer } from './index.ts'
 
+import type { PreviewLoadErrorInfo } from './index.ts'
+
+const HOST_ORIGIN = 'https://host.test'
+const TOKEN_1 = '00000000-0000-4000-8000-000000000001'
+const TOKEN_2 = '00000000-0000-4000-8000-000000000002'
+const TOKEN_3 = '00000000-0000-4000-8000-000000000003'
+
 class TestContainer {
   readonly children: TestIframe[] = []
 
@@ -16,6 +23,8 @@ class TestIframe {
   readonly srcdocWrites: string[] = []
   readonly style = { cssText: '' }
   parent: TestContainer | null = null
+  // Like a WindowProxy, this stays the same object across srcdoc navigations
+  contentWindow: object | null = {}
 
   setAttribute(name: string, value: string): void {
     this.attributes.set(name, value)
@@ -38,15 +47,55 @@ class TestIframe {
       this.parent.children.splice(index, 1)
     }
     this.parent = null
+    this.contentWindow = null
   }
 }
 
-function setupDocument(): void {
+function assertMessageEventType(type: string): void {
+  if (type !== 'message') {
+    throw new Error(`Unexpected window event listener: ${type}`)
+  }
+}
+
+class TestWindow {
+  readonly location = { origin: HOST_ORIGIN }
+  readonly messageListeners = new Set<(event: MessageEvent) => void>()
+
+  addEventListener(type: string, listener: (event: MessageEvent) => void): void {
+    assertMessageEventType(type)
+    this.messageListeners.add(listener)
+  }
+
+  removeEventListener(type: string, listener: (event: MessageEvent) => void): void {
+    assertMessageEventType(type)
+    this.messageListeners.delete(listener)
+  }
+
+  dispatchMessage(event: { data: unknown; source: unknown; origin?: string }): void {
+    const messageEvent = { origin: HOST_ORIGIN, ...event } as unknown as MessageEvent
+    for (const listener of this.messageListeners) {
+      listener(messageEvent)
+    }
+  }
+}
+
+function setupDocument(): TestWindow {
   vi.stubGlobal('document', {
     createElement(tag: string) {
       expect(tag).toBe('iframe')
       return new TestIframe()
     }
+  })
+  const testWindow = new TestWindow()
+  vi.stubGlobal('window', testWindow)
+  return testWindow
+}
+
+function stubLoadTokens(): void {
+  let count = 0
+  vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
+    count++
+    return `00000000-0000-4000-8000-${String(count).padStart(12, '0')}`
   })
 }
 
@@ -64,6 +113,7 @@ function getTestIframe(iframe: HTMLIFrameElement): TestIframe {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('Vrowzer factory', () => {
@@ -310,5 +360,206 @@ describe('Vrowzer events', () => {
     vrowzer.emit('progress', 'after-dispose')
     vrowzer.emit('suspended')
     expect(count).toBe(1)
+  })
+})
+
+describe('Vrowzer preview load errors', () => {
+  const MAIN_URL = `${HOST_ORIGIN}/__preview__/main.js`
+
+  function createReport(token: string, fields: Record<string, unknown> = {}) {
+    return {
+      type: 'vrowzer:preview-load-error',
+      token,
+      stage: 'script',
+      message: `Failed to load the module script: ${MAIN_URL}`,
+      url: MAIN_URL,
+      ...fields
+    }
+  }
+
+  function collectLoadErrors(vrowzer: ReturnType<typeof Vrowzer>): PreviewLoadErrorInfo[] {
+    const received: PreviewLoadErrorInfo[] = []
+    vrowzer.on('previewLoadError', info => {
+      received.push(info)
+    })
+    return received
+  }
+
+  test('embeds a load token and the host origin in the bootstrap document', () => {
+    setupDocument()
+    stubLoadTokens()
+    const vrowzer = Vrowzer()
+
+    const session = vrowzer.mount(createContainer(), { id: 'desktop' })
+
+    const srcdoc = getTestIframe(session.iframe).srcdoc
+    expect(srcdoc).toContain(`"${TOKEN_1}"`)
+    expect(srcdoc).toContain(`"${HOST_ORIGIN}"`)
+  })
+
+  test('renews the load token whenever a session reloads', () => {
+    setupDocument()
+    stubLoadTokens()
+    const vrowzer = Vrowzer()
+    const session = vrowzer.mount(createContainer(), { id: 'desktop' })
+
+    session.reload()
+
+    const [first, second] = getTestIframe(session.iframe).srcdocWrites
+    expect(first).toContain(`"${TOKEN_1}"`)
+    expect(second).toContain(`"${TOKEN_2}"`)
+    expect(second).not.toContain(`"${TOKEN_1}"`)
+  })
+
+  test('emits previewLoadError for a report from the current document', () => {
+    const testWindow = setupDocument()
+    stubLoadTokens()
+    const vrowzer = Vrowzer()
+    const received = collectLoadErrors(vrowzer)
+    const session = vrowzer.mount(createContainer(), { id: 'desktop' })
+
+    testWindow.dispatchMessage({
+      // The session id comes from the host's record, not from the report
+      data: createReport(TOKEN_1, { id: 'spoofed' }),
+      source: getTestIframe(session.iframe).contentWindow
+    })
+
+    expect(received).toEqual([
+      {
+        id: 'desktop',
+        stage: 'script',
+        message: `Failed to load the module script: ${MAIN_URL}`,
+        url: MAIN_URL
+      }
+    ])
+    expect(Object.isFrozen(received[0])).toBe(true)
+  })
+
+  test('identifies the reporting session when several are mounted', () => {
+    const testWindow = setupDocument()
+    stubLoadTokens()
+    const vrowzer = Vrowzer()
+    const received = collectLoadErrors(vrowzer)
+    vrowzer.mount(createContainer(), { id: 'desktop' })
+    const mobile = vrowzer.mount(createContainer(), { id: 'mobile' })
+
+    testWindow.dispatchMessage({
+      data: createReport(TOKEN_2),
+      source: getTestIframe(mobile.iframe).contentWindow
+    })
+
+    expect(received.map(info => info.id)).toEqual(['mobile'])
+  })
+
+  test('ignores reports that do not match the current document', () => {
+    const testWindow = setupDocument()
+    stubLoadTokens()
+    const vrowzer = Vrowzer()
+    const received = collectLoadErrors(vrowzer)
+    const desktop = vrowzer.mount(createContainer(), { id: 'desktop' })
+    const mobile = vrowzer.mount(createContainer(), { id: 'mobile' })
+    const desktopWindow = getTestIframe(desktop.iframe).contentWindow
+    const mobileWindow = getTestIframe(mobile.iframe).contentWindow
+    // TOKEN_3 replaces TOKEN_1
+    desktop.reload()
+
+    // A document replaced by reload()
+    testWindow.dispatchMessage({ data: createReport(TOKEN_1), source: desktopWindow })
+    // A token of another session
+    testWindow.dispatchMessage({ data: createReport(TOKEN_2), source: desktopWindow })
+    // An unknown token
+    testWindow.dispatchMessage({ data: createReport('unknown'), source: desktopWindow })
+    // Another source window
+    testWindow.dispatchMessage({ data: createReport(TOKEN_3), source: mobileWindow })
+    // Another origin
+    testWindow.dispatchMessage({
+      data: createReport(TOKEN_3),
+      source: desktopWindow,
+      origin: 'https://other.test'
+    })
+    // Other message types and malformed reports
+    testWindow.dispatchMessage({
+      data: createReport(TOKEN_3, { type: 'other' }),
+      source: desktopWindow
+    })
+    testWindow.dispatchMessage({ data: 'vrowzer:preview-load-error', source: desktopWindow })
+    testWindow.dispatchMessage({
+      data: createReport(TOKEN_3, { stage: 'runtime' }),
+      source: desktopWindow
+    })
+    // A document of a removed session
+    mobile.unmount()
+    testWindow.dispatchMessage({ data: createReport(TOKEN_2), source: mobileWindow })
+
+    expect(received).toEqual([])
+
+    testWindow.dispatchMessage({ data: createReport(TOKEN_3), source: desktopWindow })
+
+    expect(received.map(info => info.id)).toEqual(['desktop'])
+  })
+
+  test('keeps only known and bounded fields from a report', () => {
+    const testWindow = setupDocument()
+    stubLoadTokens()
+    const vrowzer = Vrowzer()
+    const received = collectLoadErrors(vrowzer)
+    const session = vrowzer.mount(createContainer(), { id: 'desktop' })
+    const source = getTestIframe(session.iframe).contentWindow
+    const longUrl = `${HOST_ORIGIN}/${'p'.repeat(3000)}`
+
+    testWindow.dispatchMessage({
+      data: createReport(TOKEN_1, {
+        message: 'x'.repeat(5000),
+        url: `blob:${HOST_ORIGIN}/0000`,
+        status: 42,
+        error: { name: 1, message: 'boom' },
+        stack: 'at bootstrap',
+        extra: true
+      }),
+      source
+    })
+    testWindow.dispatchMessage({
+      data: createReport(TOKEN_1, {
+        stage: 'html',
+        message: '',
+        url: longUrl,
+        status: 404,
+        error: { name: 'TypeError', message: 'Failed to fetch' }
+      }),
+      source
+    })
+
+    expect(received).toEqual([
+      { id: 'desktop', stage: 'script', message: 'x'.repeat(1000) },
+      {
+        id: 'desktop',
+        stage: 'html',
+        message: 'Failed to load the preview HTML',
+        url: longUrl.slice(0, 2048),
+        status: 404,
+        error: { name: 'TypeError', message: 'Failed to fetch' }
+      }
+    ])
+    expect(Object.isFrozen(received[1]?.error)).toBe(true)
+  })
+
+  test('listens for messages only while sessions are mounted', () => {
+    const testWindow = setupDocument()
+    const vrowzer = Vrowzer()
+
+    expect(testWindow.messageListeners.size).toBe(0)
+
+    const desktop = vrowzer.mount(createContainer(), { id: 'desktop' })
+    vrowzer.mount(createContainer(), { id: 'mobile' })
+    expect(testWindow.messageListeners.size).toBe(1)
+
+    desktop.unmount()
+    expect(testWindow.messageListeners.size).toBe(1)
+
+    vrowzer.unmount()
+    expect(testWindow.messageListeners.size).toBe(0)
+
+    vrowzer.mount(createContainer(), { id: 'desktop' })
+    expect(testWindow.messageListeners.size).toBe(1)
   })
 })
