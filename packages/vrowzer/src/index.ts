@@ -338,9 +338,6 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * {@link VrowzerOptions.fileSyncTimeout}, or when the instance is disposed first. The change may
    * be partly applied then; write the file again to resynchronize.
    *
-   * Public files (under `/public/`) are currently not served by the Service Worker, so they do not
-   * become visible to preview requests.
-   *
    * @param filePath - The path of the file to be added.
    * @param content - The content of the file, which can be a string or an ArrayBuffer. An
    * ArrayBuffer is copied for the Workers and stays usable.
