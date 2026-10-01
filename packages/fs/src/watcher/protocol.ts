@@ -17,9 +17,9 @@
  * - 'text': UTF-8 string content (JS, TS, JSON, CSS, HTML, etc.)
  * - 'binary': ArrayBuffer content (images, WASM, fonts, etc.)
  *
- * When encoding is 'binary', the content is an ArrayBuffer
- * and MUST be transferred via postMessage's transfer list
- * for zero-copy performance.
+ * When encoding is 'binary', the content is an ArrayBuffer.
+ * The publisher transfers a copy of it to each target via postMessage's transfer list,
+ * so the caller's ArrayBuffer stays usable.
  */
 export type FSContentEncoding = 'text' | 'binary'
 
@@ -32,7 +32,7 @@ export type FSContentEncoding = 'text' | 'binary'
  *
  * For binary files:
  *   { type: 'V_FS_WRITE', path: '/image.png', encoding: 'binary', content: ArrayBuffer }
- *   -> postMessage(message, [message.content])  // transfer list
+ *   -> postMessage(message, [message.content])  // transfer list, a copy for each target
  */
 export interface FSWriteMessage {
   type: 'V_FS_WRITE'
@@ -47,9 +47,13 @@ export interface FSWriteMessage {
   /**
    * Content of the file. Type depends on encoding:
    * - 'text': UTF-8 string content
-   * - 'binary': ArrayBuffer content (transferred via postMessage's transfer list)
+   * - 'binary': ArrayBuffer content (a copy transferred via postMessage's transfer list)
    */
   content: string | ArrayBuffer
+  /**
+   * Operation ID. A Worker that applies the message can acknowledge it with {@link FSAckMessage}.
+   */
+  id?: string
 }
 
 /**
@@ -61,6 +65,10 @@ export interface FSUnlinkMessage {
    * Path of the file to delete. Must not end with '/' (directories use FS_MKDIR with path ending in '/').
    */
   path: string
+  /**
+   * Operation ID. A Worker that applies the message can acknowledge it with {@link FSAckMessage}.
+   */
+  id?: string
 }
 
 /**
@@ -99,8 +107,30 @@ export type FileSystemSyncMessage =
   | FSMkdirMessage
   | FSInitMessage
 
+/**
+ * Worker -> Main Thread: Acknowledge a message that has an `id`.
+ *
+ * `@vrowzer/fs` does not send it by itself. A Worker sends it after applying the message,
+ * with `error` when applying failed.
+ */
+export interface FSAckMessage {
+  type: 'V_FS_ACK'
+  /**
+   * The `id` of the acknowledged message.
+   */
+  id: string
+  /**
+   * Why applying the message failed. Absent when it succeeded.
+   */
+  error?: {
+    name: string
+    message: string
+  }
+}
+
 // Constants
 export const V_FS_WRITE = 'V_FS_WRITE' as const
 export const V_FS_UNLINK = 'V_FS_UNLINK' as const
 export const V_FS_MKDIR = 'V_FS_MKDIR' as const
 export const V_FS_INIT = 'V_FS_INIT' as const
+export const V_FS_ACK = 'V_FS_ACK' as const
