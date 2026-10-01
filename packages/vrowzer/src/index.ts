@@ -150,6 +150,7 @@ export interface VrowzerOptions {
 export interface VrowzerConfig {
   /**
    * A record of file paths and their corresponding content, which can be either a string or an ArrayBuffer.
+   * An ArrayBuffer is copied for the Workers when {@linkcode Vrowzer.ready} is called, and stays usable.
    */
   files: Record<string, string | ArrayBuffer>
 }
@@ -488,6 +489,38 @@ function truncate(value: string, maxLength: number): string {
 
 function describeFileOperation(operation: FileOperation, path: string): string {
   return `[Vrowzer] ${operation}(${JSON.stringify(path)})`
+}
+
+/**
+ * Copies the files given to `ready()`, so that later changes by the caller do not reach the
+ * Workers. ArrayBuffers are copied as well, and the caller's buffers are never transferred.
+ */
+function copyInitialFiles(files: VrowzerConfig['files']): Record<string, string | ArrayBuffer> {
+  const copied: Record<string, string | ArrayBuffer> = { ...files }
+  for (const [path, content] of Object.entries(copied)) {
+    if (typeof content !== 'string') {
+      copied[path] = content.slice(0)
+    }
+  }
+  return copied
+}
+
+/**
+ * Builds the `V_FS_INIT` message, with text files in `files` and binary files in `binaryFiles`.
+ */
+function createFSInitMessage(allFiles: Record<string, string | ArrayBuffer>): FSInitMessage {
+  const files: Record<string, string> = {}
+  const binaryFiles: Record<string, ArrayBuffer> = {}
+  for (const [path, content] of Object.entries(allFiles)) {
+    if (typeof content === 'string') {
+      files[path] = content
+    } else {
+      binaryFiles[path] = content
+    }
+  }
+  return Object.keys(binaryFiles).length > 0
+    ? { type: 'V_FS_INIT', files, binaryFiles }
+    : { type: 'V_FS_INIT', files }
 }
 
 /**
@@ -1056,6 +1089,9 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
 
   async function initialize(config: VrowzerConfig, signal: AbortSignal): Promise<boolean> {
     try {
+      // The files are sent later, so copy them as they are when ready() is called
+      const initialFiles = copyInitialFiles(config.files)
+
       // 1. Create Web Worker + add as publisher target
       webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
       const currentWebWorker = webWorker
@@ -1063,13 +1099,13 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
 
       // 2. Start loading dist client files immediately. This work is included
       // in the single Worker setup deadline below.
-      let allFiles!: Record<string, string>
+      let allFiles!: Record<string, string | ArrayBuffer>
       const allFilesReady = Promise.all([
         import('@vrowzer/vite-dev-server/dist/client/client.mjs?raw'),
         import('@vrowzer/vite-dev-server/dist/client/env.mjs?raw')
       ]).then(([{ default: clientCode }, { default: envCode }]) => {
         allFiles = {
-          ...(config.files as Record<string, string>),
+          ...initialFiles,
           '/dist/client/client.mjs': clientCode,
           '/dist/client/env.mjs': envCode
         }
@@ -1184,7 +1220,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
         publisher.addTarget(serviceWorkerTarget)
         // The Web Worker already loaded these files during V_WW_SETUP.
         // Broadcasting them again emits add events and an initial HMR reload.
-        serviceWorker.postMessage({ type: 'V_FS_INIT', files: allFiles } satisfies FSInitMessage)
+        serviceWorker.postMessage(createFSInitMessage(allFiles))
       }
 
       // 8. Establish MessageChannel (Service Worker ↔ Web Worker)
