@@ -79,7 +79,7 @@ await vrowzer.updateFile(
 
 Creates a new Vrowzer instance.
 
-When `@vrowzer/vite-plugin` is used, configure the preview URL with the plugin's `basePath`. The value is shared with the application, Web Worker, and Service Worker, so the runtime option can be omitted:
+When `@vrowzer/vite-plugin` is used, configure the start of the preview URLs with the plugin's `basePath`. The value is shared with the application, Web Worker, and Service Worker, so the runtime option can be omitted:
 
 ```ts
 // vite.config.ts
@@ -99,7 +99,12 @@ import { Vrowzer } from 'vrowzer'
 const vrowzer = Vrowzer()
 ```
 
-The runtime `basePath` remains available for compatibility and for usage without the plugin. If both the plugin and runtime values are provided, their canonical paths must match or `Vrowzer()` throws. Without either value, the preview path is `/__preview__/`.
+The runtime `basePath` remains available for compatibility and for usage without the plugin. If both the plugin and runtime values are provided, their canonical paths must match or `Vrowzer()` throws. Without either value, the preview URLs start with `/__preview__/`.
+
+Each instance loads its previews from its own path under `basePath`, which [`previewBasePath`](#previewbasepath-string) returns, e.g. `/__preview__/0123456789ab/`. The path is also the Vite base of the project, so `import.meta.env.BASE_URL` in the preview returns it. This lets several instances share one Service Worker, e.g. in two tabs of the application: each tab gets only its own files, transforms and HMR updates.
+
+> [!NOTE]
+> Up to vrowzer 0.4.x, the previews loaded from `basePath` itself, e.g. `/__preview__/`, and `import.meta.env.BASE_URL` was `basePath`. Use `previewBasePath` instead where the host builds preview URLs from `basePath`. Two instances that shared a Service Worker got each other's files and HMR updates.
 
 `serviceWorkerScope` controls which pages the browser allows the Service Worker to control. When `@vrowzer/vite-plugin` is used, configure the scope on the plugin so the registration and `Service-Worker-Allowed` response header use the same value. The runtime option can then be omitted:
 
@@ -113,7 +118,7 @@ const vrowzer = Vrowzer()
 
 The runtime `serviceWorkerScope` remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the scope defaults to `/`. The scope does not set the preview URL; that is the role of `basePath`.
 
-The scope selects which pages the Service Worker controls, not which request URLs it receives from those pages. Vrowzer only responds to same-origin HTTP(S) requests within `basePath`. Cross-origin requests and same-origin requests outside `basePath` are left to the browser's native network path. The Service Worker forwards the requests within `basePath` to the Web Worker, which answers them. Those that the virtual project cannot serve get a 404 response; they are not sent to the host server.
+The scope selects which pages the Service Worker controls, not which request URLs it receives from those pages. Vrowzer only responds to same-origin HTTP(S) requests within `basePath`. Cross-origin requests and same-origin requests outside `basePath` are left to the browser's native network path. The Service Worker forwards each request within `basePath` to the Web Worker of the instance whose `previewBasePath` it is under, which answers it. Those that the virtual project cannot serve get a 404 response, as do the requests under no instance's path or under a disposed instance's path; they are not sent to the host server.
 
 `serviceWorkerVersion` identifies the Service Worker version expected by the controller and reported by the worker. When `@vrowzer/vite-plugin` is used, configure the version on the plugin and omit the runtime option:
 
@@ -155,12 +160,26 @@ The same timeout limits how long Vrowzer takes to connect a restarted Service Wo
 
 | Option                      | Type     | Default                           | Description                                                  |
 | --------------------------- | -------- | --------------------------------- | ------------------------------------------------------------ |
-| `basePath`                  | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value             |
+| `basePath`                  | `string` | Plugin value or `'/__preview__/'` | Start of the preview URLs; must match the plugin value        |
 | `serviceWorkerVersion`      | `string` | Plugin value or `'vrowzer-v1'`    | SW version; must match the plugin value                       |
 | `serviceWorkerScope`        | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value            |
 | `serviceWorkerReadyTimeout` | `number` | `60000`                           | Milliseconds to wait for the Service Worker page controller   |
 | `webWorkerSetupTimeout`     | `number` | `90000`                           | Milliseconds from Web Worker creation through setup completion |
 | `fileSyncTimeout`           | `number` | `10000`                           | Milliseconds to wait for the Web Worker to apply a file change, or to reconnect a restarted Service Worker |
+
+### Instance Properties
+
+#### `previewBasePath: string`
+
+The base path of the instance's previews: `basePath` followed by an ID of the instance, e.g. `/__preview__/0123456789ab/`. It is set when `Vrowzer()` is called, and stays the same after `dispose()`. The previews load from it, and it is the Vite base of the project, which `import.meta.env.BASE_URL` returns in the preview.
+
+```ts
+const vrowzer = Vrowzer()
+await vrowzer.ready({ files })
+
+// Read a preview file through the Service Worker
+const response = await fetch(`${vrowzer.previewBasePath}main.js`)
+```
 
 ### Instance Methods
 
@@ -273,10 +292,11 @@ Disposes the instance when the host application stops using it. The promise reso
 
 - every preview session, as with `unmount()`
 - the instance's Web Worker, with the project files
+- the instance's previews in the Service Worker, which answers the requests under `previewBasePath` with 404 from then on
 - the forwarding of Service Worker controller events
 - all event handlers, which are removed as soon as `dispose()` is called
 
-The Service Worker registration is shared with other clients and is kept, so a new instance can start right away.
+The Service Worker registration is shared with other clients and is kept, so a new instance can start right away. A closed page cannot release its previews, so the Service Worker releases them when another instance connects.
 
 ```ts
 await vrowzer.dispose()
@@ -367,7 +387,7 @@ vrowzer.on('serviceWorkerRecoveryError', async error => {
 
 ![Architecture](./assets/architecture.svg)
 
-The Web Worker runs the Vite dev server: it has the project files, the module graph and the plugins, and answers the preview requests with the Vite middlewares, including the ones that plugins add in `configureServer`. The Service Worker has no project files. It forwards the requests within `basePath` to the Web Worker over a MessageChannel, and the HMR ports of the previews as well.
+The Web Worker runs the Vite dev server: it has the project files, the module graph and the plugins, and answers the preview requests with the Vite middlewares, including the ones that plugins add in `configureServer`. The Service Worker has no project files. It forwards each request within `basePath` to the Web Worker of the instance whose `previewBasePath` it is under, over a MessageChannel, and the HMR ports of the previews as well. Several instances, e.g. in two tabs, can share the Service Worker this way.
 
 Give Vite plugins to the Web Worker, as `@vrowzer/vite-plugin` does with the plugins of `vite.config.ts`. The Service Worker runs no plugins.
 

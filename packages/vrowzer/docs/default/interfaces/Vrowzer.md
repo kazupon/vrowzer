@@ -12,6 +12,12 @@ The main interface for the Vrowzer preview environment.
 export interface Vrowzer extends Emittable<VrowzerEventMap>
 ```
 
+## Properties
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `previewBasePath` _(readonly)_ | `string` | The base path of the previews of this instance: [VrowzerOptions.basePath](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-basepath) followed by an ID of the instance, e.g. `/__preview__/0123456789ab/`. The previews load from it, and it is the Vite `base` of the project, which `import.meta.env.BASE_URL` returns in the preview. The Service Worker forwards the requests under it to the Web Worker of this instance, so several instances can share one Service Worker, e.g. in two tabs. It is set when [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) is called, and stays the same after [Vrowzer.dispose](#method-dispose). |
+
 ## Methods
 
 ### addFile()
@@ -80,7 +86,7 @@ An in-progress [Vrowzer.ready](#method-ready) is aborted and resolves to `false`
 a restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
 terminated with the project files, Service Worker controller events are no longer forwarded, and
 all event handlers are removed right away. The Service Worker registration is kept for other
-clients.
+clients, and answers the requests under [Vrowzer.previewBasePath](#property-previewbasepath) with 404 from then on.
 
 File operations still waiting for the Web Worker reject. After disposal, `ready()` and the file
 methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a

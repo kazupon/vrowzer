@@ -109,7 +109,11 @@ type FileOperation = 'addFile' | 'updateFile' | 'deleteFile'
  */
 export interface VrowzerOptions {
   /**
-   * Preview URL pathname.
+   * The pathname that the preview URLs start with.
+   *
+   * The previews of each instance load from its own path under it, e.g.
+   * `/__preview__/0123456789ab/`, which {@link Vrowzer.previewBasePath} returns. The Service Worker
+   * answers the requests within it.
    *
    * When `@vrowzer/vite-plugin` is used, its `basePath` is injected and this option can be
    * omitted. If both are provided, their canonical values must match. Without the plugin,
@@ -427,7 +431,7 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * a restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
    * terminated with the project files, Service Worker controller events are no longer forwarded, and
    * all event handlers are removed right away. The Service Worker registration is kept for other
-   * clients.
+   * clients, and answers the requests under {@link Vrowzer.previewBasePath} with 404 from then on.
    *
    * File operations still waiting for the Web Worker reject. After disposal, `ready()` and the file
    * methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
