@@ -255,8 +255,8 @@ describe('Vrowzer Service Worker restart', () => {
       const main = await fetchUntilServed(page, '/main.js')
       await waitForRecoveries(page, 1)
 
-      // The restarted Service Worker holds requests until it has the project again, so none of them
-      // gets a 404 or a 500
+      // The restarted Service Worker holds requests until the Web Worker channel is connected again,
+      // so none of them gets a 404 or a 500
       expect(main.statuses.filter(status => status !== 200 && status !== 503)).toEqual([])
       expect(main.body).toContain('main v2')
       const html = await fetchFromHost(page, '/', 'text/html')
@@ -386,7 +386,8 @@ describe('Vrowzer Service Worker restart', () => {
       await page.evaluate(() => (window as any).__terminateWebWorkers__())
       await stopServiceWorker(page)
 
-      // Start the Service Worker, and change a file while it is being restored
+      // Start the Service Worker, and change a file while it is being restored. The change goes to
+      // the Web Worker right away, which no longer answers.
       void fetchFromHost(page, '/main.js').catch(() => {})
       const update = page.evaluate(() =>
         (window as any).__vrowzer__.updateFile('/main.js', 'export {}').then(
@@ -401,7 +402,7 @@ describe('Vrowzer Service Worker restart', () => {
         .toBe(1)
       const [error] = await recordedEvents(page, 'serviceWorkerRecoveryError')
       expect(error!.message).toContain('timed out after 2000ms')
-      expect(await update).not.toBe('resolved')
+      expect(await update).toContain('timed out after 2000ms waiting for the Web Worker')
       expect(await recordedEvents(page, 'serviceWorkerRecovered')).toEqual([])
 
       // A request waits for the Web Worker for 10 seconds at most
@@ -463,7 +464,6 @@ describe('Vrowzer Service Worker restart', () => {
         const fixture = window as any
         return (fixture.__serviceWorkerMessages__ as string[]).slice(fixture.__disposeMark__)
       })
-      expect(sentAfterDispose).not.toContain('V_FS_INIT')
       expect(sentAfterDispose).not.toContain('V_WW_CONNECT_PORT')
       expect(await recordedEvents(page, 'serviceWorkerRecovered')).toEqual([])
     } finally {

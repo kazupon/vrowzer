@@ -333,7 +333,8 @@ describe('Vrowzer dispose', () => {
     await completeWebWorkerSetup(worker)
     await waitForChannelHandshake(worker)
     expect(controller.subscriptionCount).toBe(6)
-    expect(publisher.targets.size).toBe(2)
+    // Only the Web Worker gets the file changes
+    expect(publisher.targets.size).toBe(1)
     // The handshake and the Service Worker instances that start
     expect(controller.container.listeners.size).toBe(2)
 
@@ -372,8 +373,8 @@ describe('Vrowzer dispose', () => {
   test('rejects the file operations that wait for the Workers', async () => {
     const vrowzer = Vrowzer()
     const worker = await readyFully(vrowzer)
-    // The file sync acknowledgements and the Service Worker instances that start
-    expect(controller.container.listeners.size).toBe(2)
+    // The Service Worker instances that start. The Web Worker acknowledges the file changes.
+    expect(controller.container.listeners.size).toBe(1)
 
     const updating = vrowzer.updateFile('/a.js', 'updated')
     const deleting = vrowzer.deleteFile('/b.js')

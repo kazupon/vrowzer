@@ -19,10 +19,6 @@
 
 /// <reference lib="webworker" />
 
-import { fs, vol } from '@vrowzer/fs'
-import { V_FS_ACK, createFileSystemSubscriber } from '@vrowzer/fs/watcher'
-import client from '@vrowzer/vite-dev-server/dist/client/client.mjs?raw' // oxlint-disable-line import/default -- ignore for raw import
-import env from '@vrowzer/vite-dev-server/dist/client/env.mjs?raw'
 import { createServer } from '@vrowzer/vite-dev-server/service-worker'
 import {
   V_SW_INSTANCE_STARTED,
@@ -32,8 +28,6 @@ import {
 import { resolvePreviewBasePath } from './preview-base.ts'
 import { resolveServiceWorkerVersionForWorker } from './service-worker-version.ts'
 
-import type { FSAckMessage, FileSystemSyncMessage } from '@vrowzer/fs/watcher'
-
 declare const self: ServiceWorkerGlobalScope
 
 /**
@@ -42,27 +36,12 @@ declare const self: ServiceWorkerGlobalScope
  */
 const OWNER_WAIT_TIMEOUT = 10_000
 
-function toAckError(error: unknown): NonNullable<FSAckMessage['error']> {
-  return error instanceof Error
-    ? { name: error.name, message: error.message }
-    : { name: 'Error', message: String(error) }
-}
-
 export async function initServiceWorker() {
   // A new ID each time this script is evaluated. When the browser restarts the Service Worker
   // process, the registration and the controller stay the same, so the runtime tells the instances
   // apart by this ID.
   const instanceId = crypto.randomUUID()
 
-  // Initial volume setup: client files + public dir
-  vol.fromJSON({
-    '/dist/client/client.mjs': client,
-    '/dist/client/env.mjs': env
-  })
-  fs.mkdirSync('/public', { recursive: true })
-  fs.writeFileSync('/public/.gitkeep', '', { encoding: 'utf8' })
-
-  const subscriber = createFileSystemSubscriber(fs)
   const previewBase = resolvePreviewBasePath()
   const serviceWorkerVersion = resolveServiceWorkerVersionForWorker(self.location.href)
 
@@ -85,7 +64,7 @@ export async function initServiceWorker() {
   listenPromise.then(async () => {
     listenReady = true
     // Tell the pages that this instance started. A runtime that knows another instance has lost
-    // its project here, and sends the files and the Web Worker channel again.
+    // its Web Worker channel here, and connects it again.
     const clients = await self.clients.matchAll({ type: 'window' })
     for (const client of clients) {
       client.postMessage({ type: V_SW_INSTANCE_STARTED, instanceId })
@@ -105,33 +84,6 @@ export async function initServiceWorker() {
           client?.postMessage({ type: V_SW_LISTEN_READY, instanceId })
         })
       }
-      return
-    }
-
-    // Skip protocol messages handled by @vrowzer/service-worker
-    if (typeof message?.type === 'string' && message.type.startsWith('V_SW_')) {
-      return
-    }
-
-    // V_FS_* messages: update virtual FS via subscriber
-    if (typeof message?.type === 'string' && message.type.startsWith('V_FS_')) {
-      const syncMessage = message as FileSystemSyncMessage
-      const id = syncMessage.type === 'V_FS_MKDIR' ? undefined : syncMessage.id
-      if (id === undefined) {
-        subscriber.handleMessage(syncMessage)
-        return
-      }
-
-      // The virtual filesystem is written synchronously, so later requests see the change
-      // as soon as handleMessage() returns. Acknowledge it to the client that sent it.
-      let ack: FSAckMessage = { type: V_FS_ACK, id }
-      try {
-        subscriber.handleMessage(syncMessage)
-      } catch (error) {
-        ack = { type: V_FS_ACK, id, error: toAckError(error) }
-      }
-      event.source?.postMessage(ack)
-      return
     }
   })
 

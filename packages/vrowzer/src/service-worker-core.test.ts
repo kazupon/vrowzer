@@ -9,26 +9,10 @@ interface ServerOptions {
 }
 
 const mocks = vi.hoisted(() => ({
-  handleMessage: vi.fn<(message: unknown) => void>(),
   listen: vi.fn<() => Promise<void>>(),
   serverOptions: undefined as ServerOptions | undefined
 }))
 
-vi.mock('@vrowzer/fs', () => ({
-  fs: {
-    mkdirSync: vi.fn<() => void>(),
-    writeFileSync: vi.fn<() => void>()
-  },
-  vol: {
-    fromJSON: vi.fn<() => void>()
-  }
-}))
-vi.mock('@vrowzer/fs/watcher', () => ({
-  V_FS_ACK: 'V_FS_ACK',
-  createFileSystemSubscriber: () => ({ watcher: {}, handleMessage: mocks.handleMessage })
-}))
-vi.mock('@vrowzer/vite-dev-server/dist/client/client.mjs?raw', () => ({ default: 'client code' }))
-vi.mock('@vrowzer/vite-dev-server/dist/client/env.mjs?raw', () => ({ default: 'env code' }))
 vi.mock('@vrowzer/vite-dev-server/service-worker', () => ({
   createServer: (_scope: unknown, options: ServerOptions) => {
     mocks.serverOptions = options
@@ -86,7 +70,6 @@ function messagesOfType(client: TestClient, type: string): { type: string; insta
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.handleMessage.mockReset()
   mocks.serverOptions = undefined
   windowClients = []
 })
@@ -95,55 +78,6 @@ afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
-})
-
-describe('initServiceWorker file synchronization', () => {
-  beforeEach(async () => {
-    // Keep the server starting, so that only message handling runs
-    mocks.listen.mockReturnValue(new Promise<void>(() => {}))
-    stubServiceWorkerScope()
-    await initServiceWorker()
-  })
-
-  test.each([
-    { type: 'V_FS_WRITE', id: 'op-1', path: '/main.ts', encoding: 'text', content: 'test' },
-    { type: 'V_FS_UNLINK', id: 'op-1', path: '/main.ts' },
-    { type: 'V_FS_INIT', id: 'op-1', files: { '/main.ts': 'test' } }
-  ])('acknowledges $type to the sending client after applying it', message => {
-    const client = createClient()
-    mocks.handleMessage.mockImplementation(() => {
-      expect(client.postMessage).not.toHaveBeenCalled()
-    })
-
-    receive(message, client)
-
-    expect(mocks.handleMessage).toHaveBeenCalledExactlyOnceWith(message)
-    expect(client.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'V_FS_ACK', id: 'op-1' })
-  })
-
-  test('acknowledges with the error when writing the file fails', () => {
-    const client = createClient()
-    mocks.handleMessage.mockImplementation(() => {
-      throw new TypeError('invalid content')
-    })
-
-    receive({ type: 'V_FS_WRITE', id: 'op-2', path: '/main.ts', content: 'x' }, client)
-
-    expect(client.postMessage).toHaveBeenCalledExactlyOnceWith({
-      type: 'V_FS_ACK',
-      id: 'op-2',
-      error: { name: 'TypeError', message: 'invalid content' }
-    })
-  })
-
-  test('does not acknowledge messages without an id', () => {
-    const client = createClient()
-
-    receive({ type: 'V_FS_WRITE', path: '/main.ts', content: 'x' }, client)
-
-    expect(mocks.handleMessage).toHaveBeenCalledOnce()
-    expect(client.postMessage).not.toHaveBeenCalled()
-  })
 })
 
 describe('initServiceWorker instance', () => {
@@ -233,5 +167,17 @@ describe('initServiceWorker server', () => {
       basePath: '/__preview__/',
       ownerWaitTimeout: 10_000
     })
+  })
+
+  test('does not take the project files, which only the Web Worker has', async () => {
+    mocks.listen.mockResolvedValue()
+    stubServiceWorkerScope()
+    await initServiceWorker()
+    const client = createClient()
+
+    receive({ type: 'V_FS_WRITE', id: 'op-1', path: '/main.ts', content: 'x' }, client)
+    receive({ type: 'V_FS_INIT', id: 'op-2', files: { '/main.ts': 'x' } }, client)
+
+    expect(client.postMessage).not.toHaveBeenCalled()
   })
 })

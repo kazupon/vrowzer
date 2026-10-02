@@ -15,7 +15,6 @@ interface TestMessage {
   path?: string
   content?: unknown
   files?: Record<string, string | ArrayBuffer>
-  binaryFiles?: Record<string, ArrayBuffer>
 }
 
 interface AckError {
@@ -95,10 +94,8 @@ function webWorkerFileMessages(worker: TestWorker): TestMessage[] {
   return worker.messages.filter(isFileChange)
 }
 
-function serviceWorkerFileMessages(): TestMessage[] {
-  return controllerMocks.postMessage.mock.calls
-    .map(([message]) => message as TestMessage)
-    .filter(isFileChange)
+function serviceWorkerMessages(): TestMessage[] {
+  return controllerMocks.postMessage.mock.calls.map(([message]) => message as TestMessage)
 }
 
 function lastId(worker: TestWorker): string {
@@ -152,11 +149,6 @@ beforeEach(() => {
           new MessageEvent('message', { data: { type: V_WW_CONNECT_PORT_ACK } })
         )
       })
-      return
-    }
-    const id = (message as TestMessage).id
-    if (autoAck && id !== undefined) {
-      queueMicrotask(() => ackFromServiceWorker(id))
     }
   })
 })
@@ -168,7 +160,7 @@ afterEach(() => {
 })
 
 describe('Vrowzer file synchronization', () => {
-  test('initializes each Worker once without broadcasting initial files to the ready Web Worker', async () => {
+  test('gives the files of ready() to the Web Worker only', async () => {
     const files = { '/index.html': '<html></html>', '/main.js': 'export const value = 1' }
     const initialFiles = {
       ...files,
@@ -183,26 +175,24 @@ describe('Vrowzer file synchronization', () => {
       expect.objectContaining({ type: V_WW_SETUP, files: initialFiles }),
       { type: V_SW_CONNECT_PORT }
     ])
-    expect(controllerMocks.postMessage.mock.calls.map(([message]) => message)).toEqual([
-      { type: 'V_FS_INIT', files: initialFiles },
+    // The Service Worker forwards the requests to the Web Worker, so it gets no files
+    expect(serviceWorkerMessages()).toEqual([
       { type: V_WW_CONNECT_PORT, runtimeId: expect.any(String) }
     ])
   })
 
-  test('gives both Workers the same default /index.html when ready() gets none', async () => {
+  test('gives the Web Worker a default /index.html when ready() gets none', async () => {
     const vrowzer = Vrowzer()
 
     await expect(vrowzer.ready({ files: { '/main.js': 'export {}' } })).resolves.toBe(true)
 
     const webWorkerIndex = workers[0]!.messages[0]!.files!['/index.html']
-    const init = controllerMocks.postMessage.mock.calls[0]![0] as TestMessage
     expect(webWorkerIndex).toBeTypeOf('string')
-    expect(init.files!['/index.html']).toBe(webWorkerIndex)
     expect(webWorkerIndex).toContain('<div id="app"></div>')
     expect(webWorkerIndex).toContain('<script type="module" src="/main.js"></script>')
   })
 
-  test('sends binary files to both Workers as copies, without transferring them', async () => {
+  test('sends binary files to the Web Worker as copies, without transferring them', async () => {
     const bytes = [0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]
     const buffer = new Uint8Array(bytes).buffer
     const vrowzer = Vrowzer()
@@ -218,23 +208,6 @@ describe('Vrowzer file synchronization', () => {
     expect(setupFiles['/public/logo.png']).not.toBe(buffer)
     expect([...new Uint8Array(setupFiles['/public/logo.png'] as ArrayBuffer)]).toEqual(bytes)
     expect(workers[0]!.transfers[0]).toBeUndefined()
-
-    // The Service Worker gets the binary files in binaryFiles
-    const [init, transfer] = controllerMocks.postMessage.mock.calls[0]!
-    expect(init).toEqual({
-      type: 'V_FS_INIT',
-      files: {
-        '/main.js': 'export {}',
-        '/index.html': expect.stringContaining('<div id="app"></div>'),
-        '/dist/client/client.mjs': 'client code',
-        '/dist/client/env.mjs': 'env code'
-      },
-      binaryFiles: { '/public/logo.png': expect.any(ArrayBuffer) }
-    })
-    const serviceWorkerCopy = (init as TestMessage).binaryFiles!['/public/logo.png']!
-    expect(serviceWorkerCopy).not.toBe(buffer)
-    expect([...new Uint8Array(serviceWorkerCopy)]).toEqual(bytes)
-    expect(transfer).toBeUndefined()
 
     // The caller's buffer is not detached
     expect(buffer.byteLength).toBe(bytes.length)
@@ -254,12 +227,9 @@ describe('Vrowzer file synchronization', () => {
     const setupFiles = workers[0]!.messages[0]!.files!
     expect(Object.keys(setupFiles)).not.toContain('/late.js')
     expect([...new Uint8Array(setupFiles['/data.bin'] as ArrayBuffer)]).toEqual([1, 2, 3])
-    const init = controllerMocks.postMessage.mock.calls[0]![0] as TestMessage
-    expect(Object.keys(init.files!)).not.toContain('/late.js')
-    expect([...new Uint8Array(init.binaryFiles!['/data.bin']!)]).toEqual([1, 2, 3])
   })
 
-  test('continues sending file additions, updates, and deletions to both Workers', async () => {
+  test('continues sending file additions, updates, and deletions to the Web Worker only', async () => {
     autoAck = true
     const { vrowzer, worker } = await readyInstance()
     worker.messages.length = 0
@@ -269,7 +239,7 @@ describe('Vrowzer file synchronization', () => {
     await vrowzer.updateFile('/main.js', 'updated')
     await vrowzer.deleteFile('/main.js')
 
-    const expected = [
+    expect(worker.messages).toEqual([
       {
         type: 'V_FS_WRITE',
         path: '/main.js',
@@ -285,73 +255,45 @@ describe('Vrowzer file synchronization', () => {
         id: expect.any(String)
       },
       { type: 'V_FS_UNLINK', path: '/main.js', id: expect.any(String) }
-    ]
-    expect(worker.messages).toEqual(expected)
-    expect(controllerMocks.postMessage.mock.calls.map(([message]) => message)).toEqual(expected)
-    // Each operation has its own id, shared by both Workers
+    ])
+    // Each operation has its own id
     expect(new Set(worker.messages.map(message => message.id)).size).toBe(3)
-    expect(serviceWorkerFileMessages().map(message => message.id)).toEqual(
-      worker.messages.map(message => message.id)
-    )
+    expect(serviceWorkerMessages()).toEqual([])
   })
 })
 
 describe('Vrowzer file operation results', () => {
-  test.each(['Web Worker', 'Service Worker'] as const)(
-    'resolves only after both Workers acknowledge, the %s first',
-    async first => {
-      const { vrowzer, worker } = await readyInstance()
+  test('resolves once the Web Worker acknowledges', async () => {
+    const { vrowzer, worker } = await readyInstance()
 
-      const updating = vrowzer.updateFile('/main.js', 'updated')
-      const id = lastId(worker)
-      expect(serviceWorkerFileMessages().at(-1)?.id).toBe(id)
+    const updating = vrowzer.updateFile('/main.js', 'updated')
+    expect(await isPending(updating)).toBe(true)
 
-      if (first === 'Web Worker') {
-        worker.ack(id)
-      } else {
-        ackFromServiceWorker(id)
-      }
-      expect(await isPending(updating)).toBe(true)
+    worker.ack(lastId(worker))
+    await expect(updating).resolves.toBeUndefined()
+  })
 
-      if (first === 'Web Worker') {
-        ackFromServiceWorker(id)
-      } else {
-        worker.ack(id)
-      }
-      await expect(updating).resolves.toBeUndefined()
-    }
-  )
+  test('rejects with the operation, the path and the cause when the Web Worker fails to apply it', async () => {
+    const { vrowzer, worker } = await readyInstance()
+    const error = { name: 'TypeError', message: 'watchChange failed' }
 
-  test.each(['Web Worker', 'Service Worker'] as const)(
-    'rejects with the operation, the path and the cause when the %s fails to apply it',
-    async target => {
-      const { vrowzer, worker } = await readyInstance()
-      const error = { name: 'TypeError', message: 'watchChange failed' }
+    const updating = vrowzer.updateFile('/main.js', 'updated')
+    const id = lastId(worker)
+    worker.ack(id, error)
 
-      const updating = vrowzer.updateFile('/main.js', 'updated')
-      const id = lastId(worker)
-      if (target === 'Web Worker') {
-        worker.ack(id, error)
-      } else {
-        ackFromServiceWorker(id, error)
-      }
+    await expect(updating).rejects.toThrow(
+      '[Vrowzer] updateFile("/main.js") failed in the Web Worker: watchChange failed'
+    )
+    await expect(updating).rejects.toMatchObject({ cause: error })
+    // A late reply does nothing
+    worker.ack(id)
+  })
 
-      await expect(updating).rejects.toThrow(
-        `[Vrowzer] updateFile("/main.js") failed in the ${target}: watchChange failed`
-      )
-      await expect(updating).rejects.toMatchObject({ cause: error })
-      // A late reply from the other Worker does nothing
-      worker.ack(id)
-      ackFromServiceWorker(id)
-    }
-  )
-
-  test('rejects after fileSyncTimeout and names the Workers that did not reply', async () => {
+  test('rejects after fileSyncTimeout', async () => {
     vi.useFakeTimers()
-    const { vrowzer, worker } = await readyInstance({ fileSyncTimeout: 1000 })
+    const { vrowzer } = await readyInstance({ fileSyncTimeout: 1000 })
 
     const deleting = vrowzer.deleteFile('/main.js')
-    ackFromServiceWorker(lastId(worker))
     const failure = deleting.catch((error: unknown) => error)
     await vi.advanceTimersByTimeAsync(1000)
 
@@ -361,7 +303,7 @@ describe('Vrowzer file operation results', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
-  test('waits 10 seconds for the replies by default', async () => {
+  test('waits 10 seconds for the reply by default', async () => {
     vi.useFakeTimers()
     const { vrowzer } = await readyInstance()
 
@@ -380,20 +322,19 @@ describe('Vrowzer file operation results', () => {
     await vi.advanceTimersByTimeAsync(1)
 
     await expect(adding).rejects.toThrow(
-      '[Vrowzer] addFile("/main.js") timed out after 10000ms waiting for the Web Worker and the Service Worker'
+      '[Vrowzer] addFile("/main.js") timed out after 10000ms waiting for the Web Worker'
     )
   })
 
-  test('rejects the operations waiting for the Web Worker when it reports an error', async () => {
+  test('rejects the pending operations when the Web Worker reports an error', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { vrowzer, worker } = await readyInstance()
 
     const updating = vrowzer.updateFile('/main.js', 'updated')
     const updateId = lastId(worker)
     const adding = vrowzer.addFile('/other.js', 'other')
-    const addId = lastId(worker)
-    // This one only waits for the Service Worker
-    worker.ack(addId)
+    worker.ack(lastId(worker))
+    await expect(adding).resolves.toBeUndefined()
 
     worker.onerror?.({ message: 'Uncaught ReferenceError: x is not defined' } as ErrorEvent)
 
@@ -401,37 +342,30 @@ describe('Vrowzer file operation results', () => {
       '[Vrowzer] updateFile("/main.js") failed because the Web Worker reported an error: Uncaught ReferenceError: x is not defined'
     )
     expect(consoleError).toHaveBeenCalled()
-    expect(await isPending(adding)).toBe(true)
-    ackFromServiceWorker(addId)
-    await expect(adding).resolves.toBeUndefined()
     // A late reply for the rejected operation does nothing
-    ackFromServiceWorker(updateId)
+    worker.ack(updateId)
   })
 
-  test('ignores unknown, repeated and late replies', async () => {
+  test('ignores unknown and late replies, and replies through the Service Worker', async () => {
     const { vrowzer, worker } = await readyInstance()
 
     const updating = vrowzer.updateFile('/main.js', 'updated')
     const id = lastId(worker)
     worker.ack('unknown')
-    ackFromServiceWorker('unknown')
     worker.onmessage?.({ data: { type: 'V_FS_OTHER', id } } as MessageEvent)
-    worker.ack(id)
-    // A second reply from the Web Worker does not stand in for the Service Worker
-    worker.ack(id)
+    // Only the Web Worker applies file operations
+    ackFromServiceWorker(id)
     expect(await isPending(updating)).toBe(true)
 
-    ackFromServiceWorker(id)
+    worker.ack(id)
     await expect(updating).resolves.toBeUndefined()
 
     // Replies after the operation settled do nothing
     worker.ack(id, { name: 'Error', message: 'late' })
-    ackFromServiceWorker(id, { name: 'Error', message: 'late' })
     const deleting = vrowzer.deleteFile('/main.js')
     const nextId = lastId(worker)
     expect(nextId).not.toBe(id)
     worker.ack(nextId)
-    ackFromServiceWorker(nextId)
     await expect(deleting).resolves.toBeUndefined()
   })
 
@@ -441,17 +375,14 @@ describe('Vrowzer file operation results', () => {
 
     const firstUpdate = first.vrowzer.updateFile('/a.js', 'a')
     const secondUpdate = second.vrowzer.updateFile('/b.js', 'b')
-    const firstId = lastId(first.worker)
     const secondId = lastId(second.worker)
 
-    // Both instances receive the Service Worker's replies through the same container
-    first.worker.ack(firstId)
-    ackFromServiceWorker(firstId)
+    first.worker.ack(secondId)
+    first.worker.ack(lastId(first.worker))
 
     await expect(firstUpdate).resolves.toBeUndefined()
     expect(await isPending(secondUpdate)).toBe(true)
     second.worker.ack(secondId)
-    ackFromServiceWorker(secondId)
     await expect(secondUpdate).resolves.toBeUndefined()
   })
 
@@ -473,7 +404,6 @@ describe('Vrowzer file operation results', () => {
     )
     await expect(ready).resolves.toBe(true)
     expect(webWorkerFileMessages(workers[0]!)).toEqual([])
-    expect(serviceWorkerFileMessages()).toEqual([])
   })
 
   test('rejects after ready() failed without sending anything', async () => {
@@ -486,27 +416,23 @@ describe('Vrowzer file operation results', () => {
       '[Vrowzer] deleteFile() can only be called after ready() resolves to true (current state: failed)'
     )
     expect(webWorkerFileMessages(workers[0]!)).toEqual([])
-    expect(serviceWorkerFileMessages()).toEqual([])
   })
 
-  test('sends each Worker its own copy of binary content', async () => {
+  test('sends a copy of binary content and keeps the caller buffer usable', async () => {
     const { vrowzer, worker } = await readyInstance()
     const buffer = new Uint8Array([1, 2, 3]).buffer
 
     const adding = vrowzer.addFile('/data.bin', buffer)
+    new Uint8Array(buffer).fill(9)
 
-    const webWorkerMessage = webWorkerFileMessages(worker).at(-1)!
-    const serviceWorkerMessage = serviceWorkerFileMessages().at(-1)!
+    const message = webWorkerFileMessages(worker).at(-1)!
     expect(buffer.byteLength).toBe(3)
-    expect(webWorkerMessage.content).not.toBe(buffer)
-    expect(serviceWorkerMessage.content).not.toBe(buffer)
-    expect(webWorkerMessage.content).not.toBe(serviceWorkerMessage.content)
-    expect([...new Uint8Array(webWorkerMessage.content as ArrayBuffer)]).toEqual([1, 2, 3])
-    expect([...new Uint8Array(serviceWorkerMessage.content as ArrayBuffer)]).toEqual([1, 2, 3])
-    expect(worker.transfers.at(-1)?.[0]).toBe(webWorkerMessage.content)
+    expect(message.content).not.toBe(buffer)
+    expect([...new Uint8Array(message.content as ArrayBuffer)]).toEqual([1, 2, 3])
+    // The copy is transferred, not copied again
+    expect(worker.transfers.at(-1)?.[0]).toBe(message.content)
 
-    worker.ack(webWorkerMessage.id!)
-    ackFromServiceWorker(webWorkerMessage.id!)
+    worker.ack(message.id!)
     await expect(adding).resolves.toBeUndefined()
   })
 
@@ -521,6 +447,5 @@ describe('Vrowzer file operation results', () => {
     await expect(adding).rejects.toThrow('[Vrowzer] addFile("/data.bin") could not be sent:')
     await expect(adding).rejects.toMatchObject({ cause: expect.any(TypeError) })
     expect(vi.getTimerCount()).toBe(0)
-    expect(serviceWorkerFileMessages()).toEqual([])
   })
 })

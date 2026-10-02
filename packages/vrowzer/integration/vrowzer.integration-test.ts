@@ -727,7 +727,7 @@ if (import.meta.hot) {
       }
     }, 30000)
 
-    test('copies binary content for both Workers and keeps the caller buffer usable', async () => {
+    test('copies binary content for the Web Worker and keeps the caller buffer usable', async () => {
       const path = '/file-sync/binary/pixel.png'
       const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]
 
@@ -741,9 +741,9 @@ if (import.meta.hot) {
       )
       expect(caller).toEqual({ byteLength: bytes.length, bytes })
 
-      // The Service Worker serves the file from its virtual filesystem
+      // The Web Worker serves the file from its virtual filesystem
       expect(await fetchBytesFromServiceWorker(path)).toEqual({ status: 200, bytes })
-      // The Web Worker inlines the file from its own virtual filesystem
+      // And inlines it as an asset
       const inlined = await fetchFromServiceWorker(`${path}?import&inline`)
       const base64 = inlined.body.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)/)?.[1]
       expect(base64).toBeDefined()
@@ -787,7 +787,7 @@ if (import.meta.hot) {
       const path = '/public/public-files/added.txt'
       const url = '/public-files/added.txt'
 
-      // No polling: the promise resolves after the Service Worker has updated its public file list
+      // No polling: the promise resolves after the Web Worker has updated its public file list
       await runFileOperation('addFile', [path, 'public v1'])
       expect(await fetchFromServiceWorker(url)).toEqual({
         status: 200,
@@ -837,7 +837,7 @@ if (import.meta.hot) {
     // The bytes of the playground's initialBinaryFiles
     const bytes = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]
 
-    test('serves them from the Service Worker with the same bytes', async () => {
+    test('serves them through the Service Worker with the same bytes', async () => {
       // A public file, served by servePublicMiddleware
       expect(await fetchBytesFromServiceWorker('/initial-public.png')).toEqual({
         status: 200,
@@ -1540,13 +1540,16 @@ if (import.meta.hot) {
       await addPreviewFiles({ [filePath]: 'export const = 1\n' })
 
       try {
-        // index.html (200, via the SPA fallback) until the file reaches the Workers,
+        // index.html (200, via the SPA fallback) until the file reaches the Web Worker,
         // then 500 from the failed transform
         const response = await waitForPreviewResponse(filePath, 500)
 
         expect(response.body).toContain('<!DOCTYPE html>')
         expect(response.body).toContain('<title>Error</title>')
         expect(response.body).toContain(filePath)
+        // The Web Worker builds the page from the error itself, so it names the failed plugin
+        const error = JSON.parse(response.body.match(/const error = (\{.*\})\n/)?.[1] ?? '{}')
+        expect(error).toMatchObject({ plugin: 'vite:oxc' })
       } finally {
         await page.evaluate(path => {
           return (window as any).__vrowzer__.deleteFile(path)
