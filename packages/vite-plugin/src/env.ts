@@ -22,6 +22,7 @@ const debug = createDebug('vite-plugin-vrowzer:env')
 export const VROWZER_PREVIEW_BASE_PATH_DEFINE = '__VROWZER_INTERNAL_PREVIEW_BASE_PATH__'
 export const VROWZER_SERVICE_WORKER_SCOPE_DEFINE = '__VROWZER_INTERNAL_SERVICE_WORKER_SCOPE__'
 export const VROWZER_SERVICE_WORKER_VERSION_DEFINE = '__VROWZER_INTERNAL_SERVICE_WORKER_VERSION__'
+export const VROWZER_BUILD_DEFINE = '__VROWZER_INTERNAL_BUILD__'
 
 // Resolve picocolors browser version path.
 // picocolors doesn't export the browser file via package.json exports,
@@ -35,6 +36,7 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
   const serializedBasePath = JSON.stringify(options.basePath)
   const serializedServiceWorkerScope = JSON.stringify(options.serviceWorkerScope)
   const serializedServiceWorkerVersion = JSON.stringify(options.serviceWorkerVersion)
+  const serializedBuild = JSON.stringify(options.build)
   return {
     name: 'vrowzer:env',
     // Rolldown native inject: inject `process` global for browser/Worker environments.
@@ -56,7 +58,8 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
           'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG || ''),
           [VROWZER_PREVIEW_BASE_PATH_DEFINE]: serializedBasePath,
           [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: serializedServiceWorkerScope,
-          [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: serializedServiceWorkerVersion
+          [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: serializedServiceWorkerVersion,
+          [VROWZER_BUILD_DEFINE]: serializedBuild
         },
         resolve: {
           alias: resolveAliases({
@@ -107,6 +110,13 @@ export function envPlugin(options: ResolvedVrowzerOptions): Plugin {
       if (resolvedServiceWorkerVersion !== serializedServiceWorkerVersion) {
         throw new Error(
           `Vrowzer reserved define ${VROWZER_SERVICE_WORKER_VERSION_DEFINE} must be ${serializedServiceWorkerVersion}, received ${JSON.stringify(resolvedServiceWorkerVersion)}`
+        )
+      }
+
+      const resolvedBuild = config.define?.[VROWZER_BUILD_DEFINE]
+      if (resolvedBuild !== serializedBuild) {
+        throw new Error(
+          `Vrowzer reserved define ${VROWZER_BUILD_DEFINE} must be ${serializedBuild}, received ${JSON.stringify(resolvedBuild)}`
         )
       }
     }

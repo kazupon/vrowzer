@@ -30,6 +30,13 @@ export type PrebundleOptions = {
   configDir: string
   /** Reports dependencies even if a later load or validation fails. */
   onDependency?: (filename: string) => void
+  /**
+   * `build` writes the Worker config of `vrowzer.build()`, bundled with `process.env.NODE_ENV` set
+   * to `"production"`, next to the config of the dev Web Worker.
+   *
+   * @default 'dev'
+   */
+  variant?: 'dev' | 'build'
 } & (
   | { workerSource: string; sourcePath?: string; workerConfig?: never }
   | { workerConfig: string; workerSource?: never }
@@ -41,6 +48,7 @@ export interface PrebundleResult {
 }
 
 const BUNDLED_FILENAME = 'config.bundled.mjs'
+const BUILD_BUNDLED_FILENAME = 'config.build.bundled.mjs'
 
 export function resolveOutputDir(root: string): string {
   return resolve(root, 'node_modules', '.vrowzer')
@@ -58,6 +66,8 @@ function forbiddenConfigImport(id: string): boolean {
 
 export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<PrebundleResult> {
   const { root, configDir } = options
+  const isBuildVariant = options.variant === 'build'
+  const bundledFilename = isBuildVariant ? BUILD_BUNDLED_FILENAME : BUNDLED_FILENAME
   const outputDir = resolveOutputDir(root)
   const realOutputDir = existsSync(root) ? resolveOutputDir(realpathSync(root)) : outputDir
   const strict = options.workerConfig !== undefined
@@ -80,7 +90,7 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
     validateWorkerConfigFile(entryPath)
   } else {
     mkdirSync(outputDir, { recursive: true })
-    entryPath = resolve(outputDir, '_entry.mts')
+    entryPath = resolve(outputDir, isBuildVariant ? '_entry.build.mts' : '_entry.mts')
     writeFileSync(entryPath, options.workerSource)
   }
 
@@ -170,7 +180,10 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
       return id.startsWith('@vrowzer/') || id === 'assert' || id === 'v8'
     },
     transform: {
-      define: { 'process.env.NODE_ENV': JSON.stringify('development'), global: 'globalThis' },
+      define: {
+        'process.env.NODE_ENV': JSON.stringify(isBuildVariant ? 'production' : 'development'),
+        global: 'globalThis'
+      },
       inject: { process: '@vrowzer/node-polyfill/process' }
     },
     resolve: {
@@ -186,7 +199,7 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
     try {
       return await bundle.generate({
         format: 'esm',
-        entryFileNames: BUNDLED_FILENAME,
+        entryFileNames: bundledFilename,
         chunkFileNames: 'chunks/[name]-[hash].mjs',
         assetFileNames: 'assets/[name]-[hash][extname]',
         minify: false
@@ -206,19 +219,19 @@ export async function prebundleWorkerConfig(options: PrebundleOptions): Promise<
     }
     // Immutable chunk names keep existing Workers valid until the new entry is published.
     const files = output.output.map(file => file.fileName)
-    for (const filename of files.filter(filename => filename !== BUNDLED_FILENAME)) {
+    for (const filename of files.filter(filename => filename !== bundledFilename)) {
       const destination = resolve(outputDir, filename)
       mkdirSync(dirname(destination), { recursive: true })
       if (!existsSync(destination)) {
         renameSync(resolve(temporary, filename), destination)
       }
     }
-    renameSync(resolve(temporary, BUNDLED_FILENAME), resolve(outputDir, BUNDLED_FILENAME))
+    renameSync(resolve(temporary, bundledFilename), resolve(outputDir, bundledFilename))
   } finally {
     rmSync(temporary, { recursive: true, force: true })
   }
 
-  const path = resolve(outputDir, BUNDLED_FILENAME)
+  const path = resolve(outputDir, bundledFilename)
   debug('prebundle complete:', path)
   return { path, dependencies: [...dependencies].sort() }
 }

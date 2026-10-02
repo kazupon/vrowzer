@@ -3,7 +3,8 @@ import {
   envPlugin,
   VROWZER_PREVIEW_BASE_PATH_DEFINE,
   VROWZER_SERVICE_WORKER_SCOPE_DEFINE,
-  VROWZER_SERVICE_WORKER_VERSION_DEFINE
+  VROWZER_SERVICE_WORKER_VERSION_DEFINE,
+  VROWZER_BUILD_DEFINE
 } from './env.ts'
 import { resolveOptions } from './options.ts'
 
@@ -147,8 +148,19 @@ describe('envPlugin', () => {
       'import.meta.env.DEBUG': expect.any(String),
       [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/app/__preview__/'),
       [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/app/'),
-      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('app-v2')
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('app-v2'),
+      [VROWZER_BUILD_DEFINE]: 'false'
     })
+  })
+
+  test.each([
+    [{}, 'false'],
+    [{ build: true }, 'true']
+  ])('config hook defines whether build() is enabled (%j)', (options, expected) => {
+    const plugin = createPlugin(options)
+    const result = (plugin as any).config({}, { command: 'serve' })
+
+    expect(result.define[VROWZER_BUILD_DEFINE]).toBe(expected)
   })
 
   test('configResolved accepts all injected reserved values', () => {
@@ -156,11 +168,29 @@ describe('envPlugin', () => {
     const define = {
       [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
       [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/'),
-      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('vrowzer-v1')
+      [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('vrowzer-v1'),
+      [VROWZER_BUILD_DEFINE]: 'false'
     }
 
     expect(() => (plugin as any).configResolved({ define })).not.toThrow()
   })
+
+  test.each([['true'], [undefined]])(
+    'configResolved rejects an overridden or missing build flag (%j)',
+    value => {
+      const plugin = createPlugin()
+      const define = {
+        [VROWZER_PREVIEW_BASE_PATH_DEFINE]: JSON.stringify('/__preview__/'),
+        [VROWZER_SERVICE_WORKER_SCOPE_DEFINE]: JSON.stringify('/'),
+        [VROWZER_SERVICE_WORKER_VERSION_DEFINE]: JSON.stringify('vrowzer-v1'),
+        ...(value === undefined ? {} : { [VROWZER_BUILD_DEFINE]: value })
+      }
+
+      expect(() => (plugin as any).configResolved({ define })).toThrow(
+        `Vrowzer reserved define ${VROWZER_BUILD_DEFINE} must be false`
+      )
+    }
+  )
 
   test('configResolved rejects an overridden preview base path', () => {
     const plugin = createPlugin()
