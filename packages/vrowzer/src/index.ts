@@ -55,6 +55,7 @@ import {
   V_WW_DISCONNECT_PORT
 } from '@vrowzer/vite-dev-server/messages'
 import { abortable } from './abort.ts'
+import { V_BW_BUILD, V_BW_READY, V_BW_RESULT } from './build-messages.ts'
 import {
   getServiceWorker,
   getController,
@@ -68,11 +69,22 @@ import { resolveServiceWorkerVersion, withServiceWorkerVersion } from './service
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { FileSystemPublisher } from '@vrowzer/fs/watcher'
 import type { DisconnectWebWorkerPortMessage } from '@vrowzer/vite-dev-server/messages'
+import type { BuildWorkerBuildMessage, BuildWorkerResultMessage } from './build-messages.ts'
 import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/controller'
 
 const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
 const DEFAULT_WEB_WORKER_SETUP_TIMEOUT = 90_000
 const DEFAULT_FILE_SYNC_TIMEOUT = 10_000
+const DEFAULT_BUILD_TIMEOUT = 120_000
+
+/**
+ * `true` when `@vrowzer/vite-plugin` enables {@link Vrowzer.build} with its `build` option.
+ */
+declare const __VROWZER_INTERNAL_BUILD__: boolean
+
+function isBuildEnabled(): boolean {
+  return typeof __VROWZER_INTERNAL_BUILD__ === 'boolean' && __VROWZER_INTERNAL_BUILD__
+}
 
 /**
  * The `/index.html` used when the files given to `ready()` have none. It loads `/main.js` as a
@@ -169,6 +181,207 @@ export interface VrowzerOptions {
    * @default 10000
    */
   fileSyncTimeout?: number
+  /**
+   * Timeout in milliseconds for {@link Vrowzer.build}, measured from the creation of the build
+   * Worker until the result is received.
+   *
+   * It includes loading the builder in the build Worker. Set to `0` for an immediate timeout.
+   *
+   * @default 120000
+   */
+  buildTimeout?: number
+}
+
+/**
+ * The library options of {@link VrowzerBuildOptions.build}, a subset of Vite's `build.lib`.
+ */
+export interface VrowzerBuildLibraryOptions {
+  /**
+   * The entry of the library, e.g. `/src/index.ts`. Its exports are the API of the library.
+   */
+  entry: string
+  /**
+   * The name of the output file. Without it, the `name` of `/package.json` is used, and the
+   * build fails when there is none.
+   */
+  fileName?: string
+  /**
+   * The name of the CSS file. Defaults to `fileName`.
+   */
+  cssFileName?: string
+  /**
+   * The output formats. Only `es` is supported for now.
+   *
+   * @default ['es']
+   */
+  formats?: ['es']
+}
+
+/**
+ * Options for {@link Vrowzer.build}: a subset of the Vite config.
+ *
+ * They are merged over the Worker config, and sent to the build Worker, so they must be values that
+ * `postMessage()` can copy, e.g. no functions.
+ */
+export interface VrowzerBuildOptions {
+  /**
+   * The public base path of the outputs (Vite's `base`).
+   *
+   * @default '/'
+   */
+  base?: string
+  /**
+   * The mode (Vite's `mode`), which `import.meta.env.MODE` returns.
+   *
+   * @default 'production'
+   */
+  mode?: string
+  /**
+   * Global constants to replace (Vite's `define`), merged over the `define` of the Worker config.
+   */
+  define?: Record<string, unknown>
+  /**
+   * Build options: a subset of Vite's `build`.
+   */
+  build?: {
+    /**
+     * Builds a library. Required for now, because HTML app builds are not supported yet.
+     */
+    lib?: VrowzerBuildLibraryOptions | false
+    /**
+     * Minifies the JavaScript with Oxc. The CSS is not minified.
+     *
+     * @default true
+     */
+    minify?: boolean
+    /**
+     * Generates source maps of the JavaScript.
+     *
+     * @default false
+     */
+    sourcemap?: boolean | 'inline' | 'hidden'
+    /**
+     * The directory of the assets, relative to the output root.
+     *
+     * @default 'assets'
+     */
+    assetsDir?: string
+    /**
+     * Assets smaller than this many bytes are inlined as data URLs.
+     *
+     * @default 4096
+     */
+    assetsInlineLimit?: number
+    /**
+     * Splits the CSS of async chunks into their own files. Without it, the CSS goes into one file.
+     *
+     * @default false for a library, true otherwise
+     */
+    cssCodeSplit?: boolean
+    /**
+     * The compatibility target of the JavaScript, e.g. `'es2022'`.
+     *
+     * @default 'baseline-widely-available'
+     */
+    target?: string | string[]
+    /**
+     * The module preload of the outputs.
+     */
+    modulePreload?: boolean | { polyfill?: boolean }
+    /**
+     * Options for rolldown.
+     */
+    rolldownOptions?: {
+      /**
+       * The entry of the build, e.g. an HTML file.
+       */
+      input?: string
+      /**
+       * Modules to keep as imports instead of bundling them.
+       */
+      external?: (string | RegExp)[]
+      output?: {
+        /**
+         * Set to `false` to put all the code into one file, including dynamically imported modules.
+         */
+        codeSplitting?: boolean
+      }
+    }
+  }
+  /**
+   * Cancels the build. The build Worker is terminated, and the promise rejects with the reason.
+   */
+  signal?: AbortSignal
+}
+
+/**
+ * A log of {@link Vrowzer.build}: an error or a warning.
+ */
+export interface VrowzerBuildLog {
+  /**
+   * The message, without colors.
+   */
+  message: string
+  /**
+   * The code of the log, e.g. `PARSE_ERROR` from rolldown, or `VROWZER_UNSUPPORTED_OPTION` for an
+   * option that the browser build does not support.
+   */
+  code?: string
+  /**
+   * The plugin that reported it.
+   */
+  plugin?: string
+  /**
+   * The module that it is about.
+   */
+  id?: string
+  /**
+   * The location in the module. The column starts at 0.
+   */
+  loc?: { line: number; column: number; file?: string }
+  /**
+   * The code around the location.
+   */
+  frame?: string
+}
+
+/**
+ * The result of {@link Vrowzer.build}.
+ */
+export interface VrowzerBuildResult {
+  /**
+   * The outputs, keyed by the path from the output root, e.g. `my-lib.js`.
+   *
+   * JavaScript, CSS, source maps and text assets are strings. Binary assets are ArrayBuffers.
+   */
+  files: Record<string, string | ArrayBuffer>
+  /**
+   * The warnings of the build.
+   */
+  warnings: VrowzerBuildLog[]
+}
+
+function summarizeBuildErrors(errors: readonly VrowzerBuildLog[]): string {
+  const first = errors[0]?.message.split('\n')[0]?.trim() || 'unknown error'
+  const more = errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''
+  return `[Vrowzer] build() failed: ${first}${more}`
+}
+
+/**
+ * The error of a {@link Vrowzer.build} that failed: an error in the project, or an option that the
+ * browser build does not support.
+ */
+export class VrowzerBuildError extends Error {
+  /**
+   * The errors of the build. The message summarizes the first one.
+   */
+  readonly errors: readonly VrowzerBuildLog[]
+
+  constructor(errors: readonly VrowzerBuildLog[], options?: ErrorOptions) {
+    super(summarizeBuildErrors(errors), options)
+    this.name = 'VrowzerBuildError'
+    this.errors = errors
+  }
 }
 
 /**
@@ -425,6 +638,30 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    */
   deleteFile(filePath: string): Promise<void>
   /**
+   * Builds the project for production in a build Worker, e.g. as a library.
+   *
+   * The build uses the project files as they are when this method is called: the files of
+   * {@link Vrowzer.ready}, with the default `/index.html` when they have none, and the changes of
+   * the file methods called before. Changes made later are not included, even before the build
+   * ends.
+   *
+   * Each build runs in a new build Worker, with the Worker config bundled for production, and the
+   * build Worker is terminated when the build ends. The previews are not affected. Only library
+   * builds (`build.lib`) in the `es` format are supported for now, and one build at a time.
+   *
+   * It needs the `build` option of `@vrowzer/vite-plugin`.
+   *
+   * @param options - The options of the build, merged over the Worker config.
+   * @returns The outputs and the warnings.
+   * @throws Rejects before {@link Vrowzer.ready} resolves to `true`, after {@link Vrowzer.dispose},
+   * when the `build` option of the plugin is not enabled, and while another build is running.
+   * Rejects with a {@link VrowzerBuildError} when the build fails, e.g. with an error in the
+   * project or an unsupported option. Rejects with an `Error` when the build does not finish within
+   * {@link VrowzerOptions.buildTimeout}, when the build Worker fails, or when {@link Vrowzer.dispose}
+   * is called first, and with the reason of `signal` when it is aborted.
+   */
+  build(options?: VrowzerBuildOptions): Promise<VrowzerBuildResult>
+  /**
    * Disposes this instance.
    *
    * An in-progress {@link Vrowzer.ready} is aborted and resolves to `false`, and the reconnection of
@@ -433,8 +670,9 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * all event handlers are removed right away. The Service Worker registration is kept for other
    * clients, and answers the requests under {@link Vrowzer.previewBasePath} with 404 from then on.
    *
-   * File operations still waiting for the Web Worker reject. After disposal, `ready()` and the file
-   * methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
+   * File operations still waiting for the Web Worker reject, and a running {@link Vrowzer.build}
+   * rejects with its build Worker terminated. After disposal, `ready()`, the file methods and
+   * `build()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
    * new instance to start again.
    *
    * @returns A promise that resolves when every resource is released. Calling this method again
@@ -455,6 +693,7 @@ interface ResolvedVrowzerOptions {
   serviceWorkerReadyTimeout: number
   webWorkerSetupTimeout: number
   fileSyncTimeout: number
+  buildTimeout: number
 }
 
 /**
@@ -485,7 +724,8 @@ function resolveVrowzerOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
     serviceWorkerReadyTimeout:
       options.serviceWorkerReadyTimeout ?? DEFAULT_SERVICE_WORKER_READY_TIMEOUT,
     webWorkerSetupTimeout: options.webWorkerSetupTimeout ?? DEFAULT_WEB_WORKER_SETUP_TIMEOUT,
-    fileSyncTimeout: options.fileSyncTimeout ?? DEFAULT_FILE_SYNC_TIMEOUT
+    fileSyncTimeout: options.fileSyncTimeout ?? DEFAULT_FILE_SYNC_TIMEOUT,
+    buildTimeout: options.buildTimeout ?? DEFAULT_BUILD_TIMEOUT
   }
 }
 
@@ -675,6 +915,93 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   let stopListeningServiceWorkerStarts: (() => void) | null = null
   // The recovery of a restarted Service Worker in progress
   let recovery: AbortController | null = null
+  // The project files as the caller gave them, for build(). The Web Worker has its own copy.
+  const projectFiles = new Map<string, string | ArrayBuffer>()
+  // The running build, which dispose() cancels
+  let runningBuild: { cancel: (error: Error) => void } | null = null
+  // Identifies the builds, so that the results of other builds are ignored
+  let buildSequence = 0
+
+  /**
+   * Runs a build in a new build Worker, and terminates the Worker when the build ends.
+   */
+  function runBuild(
+    files: Record<string, string | ArrayBuffer>,
+    options: Omit<VrowzerBuildOptions, 'signal'>,
+    signal: AbortSignal | undefined
+  ): Promise<VrowzerBuildResult> {
+    const id = ++buildSequence
+    const worker = new Worker(new URL('./build-worker.ts', import.meta.url), { type: 'module' })
+    const close = () => {
+      worker.onmessage = null
+      worker.onerror = null
+      worker.onmessageerror = null
+      worker.terminate()
+    }
+
+    const result = new Promise<VrowzerBuildResult>((resolve, reject) => {
+      const build = {
+        cancel: (error: Error) => {
+          reject(error)
+          close()
+        }
+      }
+      runningBuild = build
+      worker.onerror = event => {
+        reject(new Error(`[Vrowzer] The build Worker failed: ${event.message || 'unknown error'}`))
+      }
+      worker.onmessageerror = () => {
+        reject(new Error('[Vrowzer] The build Worker sent a message that could not be read'))
+      }
+      worker.onmessage = (event: MessageEvent<unknown>) => {
+        const data = event.data
+        if (!isRecord(data)) {
+          return
+        }
+        if (data.type === V_BW_READY) {
+          if (typeof data.error === 'string') {
+            reject(
+              new Error(`[Vrowzer] The build Worker could not load the builder: ${data.error}`)
+            )
+            return
+          }
+          try {
+            worker.postMessage({
+              type: V_BW_BUILD,
+              id,
+              files,
+              options
+            } satisfies BuildWorkerBuildMessage)
+          } catch (error) {
+            reject(
+              new Error(
+                `[Vrowzer] build() could not send the options to the build Worker: ${error instanceof Error ? error.message : String(error)}`,
+                { cause: error }
+              )
+            )
+          }
+          return
+        }
+        if (data.type !== V_BW_RESULT || data.id !== id) {
+          return
+        }
+        const message = data as BuildWorkerResultMessage
+        if (message.ok) {
+          resolve({ files: message.files, warnings: message.warnings })
+        } else {
+          reject(new VrowzerBuildError(message.errors))
+        }
+      }
+    })
+
+    const current = runningBuild
+    return withTimeout(result, resolved.buildTimeout, '[Vrowzer] build()', signal).finally(() => {
+      if (runningBuild === current) {
+        runningBuild = null
+      }
+      close()
+    })
+  }
 
   function cleanupWebWorker(): void {
     const worker = webWorker
@@ -1223,6 +1550,10 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       if (!Object.hasOwn(initialFiles, '/index.html')) {
         initialFiles['/index.html'] = DEFAULT_INDEX_HTML
       }
+      // Keep the files for build(). The Web Worker gets copies of them, so they can be shared.
+      for (const [path, content] of Object.entries(initialFiles)) {
+        projectFiles.set(path, content)
+      }
 
       // 1. Create Web Worker + add as publisher target
       webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
@@ -1412,6 +1743,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
         )
     )
     stopRecovery(new Error('[Vrowzer] The instance was disposed'))
+    const build = runningBuild
+    if (build) {
+      attempt(errors, () => build.cancel(new Error('[Vrowzer] build() was cancelled by dispose()')))
+    }
+    projectFiles.clear()
 
     disposePromise = (async () => {
       // An aborted ready() releases what it created and resolves to false
@@ -1546,19 +1882,56 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     },
 
     addFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
-      return syncFile('addFile', filePath, options =>
+      return syncFile('addFile', filePath, options => {
+        projectFiles.set(filePath, typeof content === 'string' ? content : content.slice(0))
         publisher.writeFile(filePath, content, options)
-      )
+      })
     },
 
     updateFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
-      return syncFile('updateFile', filePath, options =>
+      return syncFile('updateFile', filePath, options => {
+        projectFiles.set(filePath, typeof content === 'string' ? content : content.slice(0))
         publisher.writeFile(filePath, content, options)
-      )
+      })
     },
 
     deleteFile(filePath: string): Promise<void> {
-      return syncFile('deleteFile', filePath, options => publisher.unlink(filePath, options))
+      return syncFile('deleteFile', filePath, options => {
+        projectFiles.delete(filePath)
+        publisher.unlink(filePath, options)
+      })
+    },
+
+    build(options: VrowzerBuildOptions = {}): Promise<VrowzerBuildResult> {
+      if (readyState === 'disposed') {
+        return Promise.reject(new Error('[Vrowzer] build() cannot be called after dispose()'))
+      }
+      if (readyState !== 'ready') {
+        return Promise.reject(
+          new Error(
+            `[Vrowzer] build() can only be called after ready() resolves to true (current state: ${readyState})`
+          )
+        )
+      }
+      if (!isBuildEnabled()) {
+        return Promise.reject(
+          new Error(
+            '[Vrowzer] build() is not enabled. Set `build: true` in the options of Vrowzer() from @vrowzer/vite-plugin.'
+          )
+        )
+      }
+      if (runningBuild) {
+        return Promise.reject(
+          new Error('[Vrowzer] build() is already running. Call it again after the build ends.')
+        )
+      }
+      const { signal, ...buildOptions } = options
+      if (signal?.aborted) {
+        return Promise.reject(signal.reason)
+      }
+      // The snapshot: later file operations do not change the build
+      const files = Object.fromEntries(projectFiles)
+      return runBuild(files, buildOptions, signal)
     },
 
     dispose,
