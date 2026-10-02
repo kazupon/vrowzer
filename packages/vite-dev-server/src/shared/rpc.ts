@@ -128,6 +128,40 @@ export interface WorkerFunctions {
    * Best-effort: never throws, handles and reports errors internally.
    */
   warmupRequest: (url: string) => Promise<void>
+
+  /**
+   * Answer a request within the base path with the Vite middlewares.
+   * Delegates to the request pipeline in the Web Worker, which has the project files.
+   * Errors are answered with the error page, as Vite's dev server does.
+   */
+  handleRequest: (request: SerializedRequest) => Promise<SerializedResponse>
+}
+
+/**
+ * A request that the Service Worker forwards to the Web Worker, as data that a `MessagePort` can
+ * carry.
+ */
+export interface SerializedRequest {
+  url: string
+  method: string
+  headers: [string, string][]
+  /**
+   * The body, or `null` for a `GET` or `HEAD` request.
+   */
+  body: ArrayBuffer | null
+}
+
+/**
+ * The response of the Web Worker to a {@link SerializedRequest}.
+ */
+export interface SerializedResponse {
+  status: number
+  statusText: string
+  headers: [string, string][]
+  /**
+   * The body, or `null` for a response without one, e.g. a `304` response.
+   */
+  body: ArrayBuffer | null
 }
 
 /**

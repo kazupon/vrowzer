@@ -28,7 +28,7 @@ import { V_WW_READY, V_WW_SETUP_ACK, V_WW_SETUP_ERROR, V_SW_CONNECT_PORT_ACK } f
 import type { ConnectServiceWorkerPortMessage, SetupWorkerMessage, WorkerReadyMessage } from '../shared/messages'
 import type { ViteDevServer } from './server/index'
 import type { Plugin } from './plugin'
-import type { FileChangeTracker, ViteDevServerForWorker } from './transformer'
+import type { FileChangeTracker, RequestPipeline, ViteDevServerForWorker } from './transformer'
 
 const debug = createDebugger('vrowzer:web-worker')
 
@@ -134,6 +134,8 @@ export function createServer(
   let server: ViteDevServerForWorker | null = null
   let ws: import('./server/ws').MessageChannelServer | null = null
   let fileChanges: FileChangeTracker | null = null
+  // The Vite middlewares, which answer the requests that the Service Worker forwards
+  let requestPipeline: RequestPipeline | null = null
 
   // The current channel with the Service Worker. A new port replaces it, e.g. after the browser
   // restarted the Service Worker process.
@@ -182,12 +184,18 @@ export function createServer(
           ws = result.ws
           const clientEnv = environments.client
           const devHtmlTransformFn = transformer.createDevHtmlTransformFn(config)
+          const basePath = typeof setupMsg.options?.basePath === 'string'
+            ? setupMsg.options.basePath
+            : undefined
+          const pipeline = transformer.createRequestPipeline(basePath)
+          requestPipeline = pipeline
 
           // Build ViteDevServerForWorker with DevEnvironment
           server = {
             config,
             environments,
             fileSystem: transformer.fs,
+            middlewares: pipeline.middlewares,
             moduleGraph,
             watcher,
             ws,
@@ -220,12 +228,20 @@ export function createServer(
           // Plugins like @vitejs/plugin-vue store the server reference in configureServer
           // to enable HMR code injection in SFC transforms. Without this, Vue SFCs won't
           // have import.meta.hot.accept() and all changes trigger full page reloads.
+          // Plugins also add their middlewares to `server.middlewares`, before the internal ones.
+          const postHooks: ((() => void) | void)[] = []
           for (const hook of config.getSortedPluginHooks('configureServer')) {
-            await hook.call(
+            postHooks.push(await hook.call(
               clientEnv!.pluginContainer.minimalContext,
               server as unknown as ViteDevServer,
-            )
+            ))
           }
+          // The functions that the hooks returned add their middlewares after the internal ones
+          pipeline.applyInternalMiddlewares(
+            server as unknown as ViteDevServer,
+            fileChanges.publicFiles,
+            postHooks,
+          )
 
           // Match Vite's dev-server initialization order: configureServer
           // completes before the client buildStart lifecycle begins.
@@ -269,6 +285,7 @@ export function createServer(
 
         const { connectServiceWorkerPort } = await import('./transformer')
         const serviceWorkerRpc = await connectServiceWorkerPort(port, {
+          handleRequest: (request) => requestPipeline!.handleRequest(request),
           transformRequest: (url, opts) => server!.transformRequest(url, opts),
           transformIndexHtml: (url, html, originalUrl) => server!.transformIndexHtml(url, html, originalUrl),
           warmupRequest: (url) => server!.warmupRequest(url),

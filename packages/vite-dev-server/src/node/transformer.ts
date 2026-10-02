@@ -17,6 +17,7 @@ import { fs, vol } from '@vrowzer/fs'
 import { rolldown } from '@vrowzer/rolldown'
 import { memfs } from '@vrowzer/rolldown/experimental'
 import { createBirpc } from 'birpc'
+import { getRpcTransferList } from '../shared/requestTransport'
 import { deserializeRpcMessage, serializeRpcMessage } from '../shared/rpc'
 import { isResolvedConfig, resolveConfig } from './config'
 import { reloadOnTsconfigChange } from './plugins/esbuild'
@@ -50,13 +51,15 @@ const debug = createDebugger('vrowzer:transformer')
 /**
  * Subset of ViteDevServer for Web Worker environment.
  *
- * The full ViteDevServer includes SW-specific properties (middlewares, httpServer, etc.)
- * that are not available in the Web Worker. This type picks only the properties
- * needed by Environment APIs (warmupFiles, createDevHtmlTransformFn, etc.).
+ * The full ViteDevServer includes properties (httpServer, etc.) that are not available in the
+ * Web Worker. This type picks only the properties needed by Environment APIs (warmupFiles,
+ * createDevHtmlTransformFn, etc.) and by the Vite middlewares, which answer the requests that
+ * the Service Worker forwards.
  */
 export type ViteDevServerForWorker = Pick<ViteDevServer,
   | 'config'
   | 'environments'
+  | 'middlewares'
   | 'moduleGraph'
   | 'watcher'
   | 'ws'
@@ -260,6 +263,12 @@ function clientBasePlugin() {
  */
 export interface FileChangeTracker {
   /**
+   * The files in the public directory, relative to it, as Vite's dev server lists them for
+   * `servePublicMiddleware`. The watcher events keep the list up to date. `undefined` when the
+   * public directory could not be read.
+   */
+  readonly publicFiles: Set<string> | undefined
+  /**
    * Takes the processing of the latest watcher event for `file`, up to module graph invalidation.
    *
    * The processing starts synchronously in the watcher listener, so call this right after the
@@ -400,6 +409,7 @@ export async function setupHMR(server: ViteDevServer): Promise<FileChangeTracker
   })
 
   return {
+    publicFiles,
     waitForFileChange(file) {
       const invalidated = fileChanges.get(file)
       if (!invalidated) {
@@ -426,13 +436,13 @@ function setupVirtualFiles(files?: Record<string, string | ArrayBuffer>): void {
  * Connect a MessagePort from the Service Worker and establish birpc RPC.
  *
  * Performs the V_WW_SW_CHANNEL_READY handshake on the port, then
- * creates a birpc RPC server that handles transform requests from the SW.
+ * creates a birpc RPC server that handles the requests from the SW.
  *
  * After birpc is established, the same port is also used to receive
  * V_WW_HMR_PORT messages (iframe HMR ports forwarded from SW).
  *
  * @param port - MessagePort received via V_SW_CONNECT_PORT message
- * @param handlers - WorkerFunctions handlers (transformRequest, transformIndexHtml)
+ * @param handlers - WorkerFunctions handlers (handleRequest, transformRequest, transformIndexHtml)
  * @param onHmrPort - Callback when an iframe HMR port is received via V_WW_HMR_PORT
  * @returns Promise that resolves with the birpc instance after handshake completes
  */
@@ -451,7 +461,8 @@ export function connectServiceWorkerPort(
         const rpc = createBirpc<ServiceWorkerFunctions, WorkerFunctions>(
           handlers,
           {
-            post: data => port.postMessage(data),
+            // Transfer the response bodies of handleRequest instead of copying them
+            post: data => port.postMessage(data, getRpcTransferList(data)),
             on: fn => {
               port.onmessage = (ev: MessageEvent<WebWorkerHmrPortMessage>) => {
                 // Intercept: HMR port forwarded from SW
@@ -585,6 +596,10 @@ export type {
 
 // === HTML transform ===
 export { createDevHtmlTransformFn } from './server/middlewares/indexHtml'
+
+// === Vite middlewares ===
+export { createRequestPipeline } from './server/requestPipeline'
+export type { RequestPipeline } from './server/requestPipeline'
 
 // === Optimizer ===
 export {

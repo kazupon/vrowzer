@@ -17,8 +17,9 @@ function trailingSlashWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:trailing-slash-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
@@ -90,8 +91,9 @@ function fsHtmlProxyWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:fs-html-proxy-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
@@ -176,8 +178,9 @@ function hmrClientTrackingWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:hmr-client-tracking-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
@@ -237,8 +240,9 @@ function fileSyncWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:file-sync-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
