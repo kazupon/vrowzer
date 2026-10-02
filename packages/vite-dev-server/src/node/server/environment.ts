@@ -88,13 +88,6 @@ export class DevEnvironment extends BaseEnvironment {
   _pluginContainer: EnvironmentPluginContainer<DevEnvironment> | undefined
 
   /**
-   * @internal Vrowzer synchronizes safe paths to the Service Worker.
-   */
-  _syncSafeModulePaths:
-    | ((paths: string[]) => Promise<void>)
-    | undefined
-
-  /**
    * @internal
    */
   _closing: boolean = false
@@ -245,7 +238,6 @@ export class DevEnvironment extends BaseEnvironment {
       (id, importer, options) =>
         this.pluginContainer.resolveId(id, importer, options),
       this.getTopLevelConfig().safeModulePaths,
-      this._syncSafeModulePaths,
     )
   }
 

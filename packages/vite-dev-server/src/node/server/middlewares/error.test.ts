@@ -178,30 +178,4 @@ describe('errorMiddleware', () => {
       }),
     )
   })
-
-  test('should return 500 status with HTML when the server has no environments', async () => {
-    // The Service Worker-side server object (`ViteDevServerForServiceWorker`) has no `environments`
-    const server = {
-      config: {
-        base: '/',
-        logger: {
-          error: vi.fn<() => void>(),
-        },
-      },
-    } as unknown as ViteDevServer
-    const app = new Hono<ViteEnv>()
-
-    app.get('/test', () => {
-      throw new Error('test error')
-    })
-    app.onError(errorMiddleware(server, false))
-
-    const res = await app.request('/test')
-
-    expect(res.status).toBe(500)
-    const body = await res.text()
-    expect(body).toContain('<!DOCTYPE html>')
-    expect(body).toContain('test error')
-    expect(server.config.logger.error).toHaveBeenCalled()
-  })
 })

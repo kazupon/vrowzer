@@ -19,7 +19,6 @@
  */
 
 import { createDebugger } from './utils'
-import { connectSafeModulePathSync } from '../shared/rpc'
 import { mergeWorkerRuntimeConfig, snapshotWorkerRuntimeConfig } from './worker-runtime-config'
 
 // NOTE(kazupon): Only type-only imports from heavy modules.
@@ -294,29 +293,12 @@ export function createServer(
           ws!.handlePort(hmrPort, clientId)
         })
         if (serviceWorkerChannel !== channel) {
-          // A newer port replaced this one during the handshake
+          // A newer port replaced this one during the handshake. The acknowledgement does not name
+          // the port, so do not send one for the replaced port.
           serviceWorkerRpc.$close()
           break
         }
         channel.rpc = serviceWorkerRpc
-
-        try {
-          await connectSafeModulePathSync(
-            Object.values(server.environments),
-            server.config.safeModulePaths,
-            paths => serviceWorkerRpc.registerSafeModulePaths(paths),
-          )
-        } catch (error) {
-          // Replacing the channel rejects the pending registration
-          if (serviceWorkerChannel !== channel) {
-            break
-          }
-          throw error
-        }
-        // The acknowledgement does not name the port, so do not send one for a replaced port
-        if (serviceWorkerChannel !== channel) {
-          break
-        }
 
         workerScope.postMessage({ type: V_SW_CONNECT_PORT_ACK })
         debug?.('SW<->WW birpc channel established')

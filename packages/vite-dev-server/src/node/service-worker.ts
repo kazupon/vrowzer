@@ -1,9 +1,11 @@
 /**
  * Service Worker entry point for @vrowzer/vite-dev-server
  *
- * This module exports everything needed to run the Vite dev server
- * as a proxy inside a Service Worker: server creation, middleware,
- * MessageChannel HMR server, and configuration.
+ * The Service Worker forwards each request within the base path to the Web Worker, which has the
+ * project files, the module graph and the plugins, and answers the request with the Vite
+ * middlewares. It also forwards the HMR ports of the previews to the Web Worker.
+ *
+ * The Service Worker does not resolve the Vite config, and has neither plugins nor files.
  *
  * @module node/service-worker
  */
@@ -17,337 +19,139 @@ import { createSvcWorkerServer } from '@vrowzer/service-worker-server'
 import { createBirpc } from 'birpc'
 import { Hono } from 'hono'
 import { handle } from 'hono/service-worker'
-import {
-  createServiceWorkerFunctions,
-  deserializeRpcMessage,
-  serializeRpcMessage,
-} from '../shared/rpc'
+import { getRpcTransferList, serializeRequest } from '../shared/requestTransport'
+import { deserializeRpcMessage, serializeRpcMessage } from '../shared/rpc'
 import { shouldHandleViteFetch } from '../shared/serviceWorkerFetch'
-import { assertBundledDevUnsupported } from './bundled-dev-guard'
-import { isResolvedConfig, resolveConfig } from './config'
-import { syncPublicFiles } from './public-files-sync'
-import { initPublicFiles } from './publicDir'
-import { baseMiddleware } from './server/middlewares/base'
-import { beforeRequestMiddleware } from './server/middlewares/beforeRequest'
 import { crossOriginMiddleware } from './server/middlewares/crossOrigin'
-import { errorMiddleware } from './server/middlewares/error'
-import { htmlFallbackMiddleware } from './server/middlewares/htmlFallback'
-import {
-  indexHtmlMiddleware
-} from './server/middlewares/indexHtml'
-import { notFoundMiddleware } from './server/middlewares/notFound'
-import { servePublicMiddleware, serveRawFsMiddleware, serveStaticMiddleware } from './server/middlewares/static'
 import { timeMiddleware } from './server/middlewares/time'
-import { transformMiddleware } from './server/middlewares/transform'
-import {
-  BasicMinimalPluginContext,
-  basePluginContextMeta
-} from './server/pluginContainer'
-import {
-  createDebugger
-} from './utils'
-import {
-  createNoopWatcher,
-  getResolvedOutDirs,
-  resolveChokidarOptions,
-  resolveEmptyOutDir,
-} from './watch'
+import { createDebugger } from './utils'
 
 const debug = createDebugger('vrowzer:service-worker')
 
-import type { FSWatcher, WatchOptions } from '#dep-types/chokidar'
-import type { ListenOptions, SvcWorkerServer } from '@vrowzer/service-worker-server'
-import type { BlankSchema, Env } from 'hono/types'
-import type { ConnectWebWorkerPortMessage, ViteMessageChannelInitMessage, WebWorkerServiceWorkerChannelReadyMessage } from '../shared/messages'
-import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
+import type { ConnectionEvent, SvcWorkerServer } from '@vrowzer/service-worker-server'
+import type { BirpcReturn } from 'birpc'
+import type { BlankSchema } from 'hono/types'
+import type { StatusCode } from 'hono/utils/http-status'
 import type {
-  ForwardConsoleOptions,
-  ResolvedForwardConsoleOptions,
-} from '../shared/forwardConsole'
-import type { InlineConfig, ResolvedConfig } from './config'
-import type { CommonServerOptions } from './http'
-import type { MinimalPluginContextWithoutEnvironment, Plugin } from './plugin'
-import type { DevEnvironment } from './server/environment'
-import type { HmrOptions, WsOptions } from './server/hmr'
-import type { ViteDevServer } from './server/index'
-import type { ShortcutsState } from './shortcuts'
-import type { RequiredExceptFor } from './typeUtils'
-
-export * from './server/middlewares/utils'
-
-export interface ServerOptions extends CommonServerOptions {
-  /**
-   * Configure HMR-specific options (port, host, path & protocol)
-   */
-  hmr?: HmrOptions | boolean
-  /**
-   * Configure MessageChannel connection options.
-   * Set to `false` to disable the MessageChannel server and connection.
-   *
-   * WebSocket-specific address options are retained for Vite config compatibility.
-   */
-  ws?: WsOptions | false
-  /**
-   * Warm-up files to transform and cache the results in advance. This improves the
-   * initial page load during server starts and prevents transform waterfalls.
-   */
-  warmup?: {
-    /**
-     * The files to be transformed and used on the client-side. Supports glob patterns.
-     */
-    clientFiles?: string[]
-    /**
-     * The files to be transformed and used in SSR. Supports glob patterns.
-     */
-    ssrFiles?: string[]
-  }
-  /**
-   * chokidar watch options or null to disable FS watching
-   * https://github.com/paulmillr/chokidar/tree/3.6.0#api
-   */
-  watch?: WatchOptions | null
-  /**
-   * Create Vite dev server to be used as a middleware in an existing server
-   * @default false
-   */
-  middlewareMode?:
-  | boolean
-  | {
-    /**
-     * Parent server instance to attach to
-     *
-     * This is needed to proxy MessageChannel connections
-     */
-    server: HttpServer
-  }
-  /**
-   * Options for files served via '/\@fs/'.
-   */
-  fs?: FileSystemServeOptions
-  /**
-   * Origin for the generated asset URLs.
-   *
-   * @example `http://127.0.0.1:8080`
-   */
-  origin?: string
-  /**
-   * Pre-transform known direct imports
-   * @default true
-   */
-  preTransformRequests?: boolean
-  /**
-   * Whether or not to ignore-list source files in the dev server sourcemap, used to populate
-   * the [`x_google_ignoreList` source map extension](https://developer.chrome.com/blog/devtools-better-angular-debugging/#the-x_google_ignorelist-source-map-extension).
-   *
-   * By default, it excludes all paths containing `node_modules`. You can pass `false` to
-   * disable this behavior, or, for full control, a function that takes the source path and
-   * sourcemap path and returns whether to ignore the source path.
-   */
-  sourcemapIgnoreList?:
-  | false
-  | ((sourcePath: string, sourcemapPath: string) => boolean)
-  /**
-   * Backward compatibility. The buildStart and buildEnd hooks were called only once for
-   * the client environment. This option enables per-environment buildStart and buildEnd hooks.
-   * @default false
-   * @experimental
-   */
-  perEnvironmentStartEndDuringDev?: boolean
-  /**
-   * Backward compatibility. The watchChange hook was called only once for the client environment.
-   * This option enables per-environment watchChange hooks.
-   * @default false
-   * @experimental
-   */
-  perEnvironmentWatchChangeDuringDev?: boolean
-  /**
-   * Run HMR tasks, by default the HMR propagation is done in parallel for all environments
-   * @experimental
-   */
-  hotUpdateEnvironments?: (
-    server: ViteDevServer,
-    hmr: (environment: DevEnvironment) => Promise<void>,
-  ) => Promise<void>
-  /**
-   * Forward browser console logs and unhandled errors to the Vrowzer
-   * Web Worker dev server console.
-   */
-  forwardConsole?: boolean | ForwardConsoleOptions
-}
-
-export interface ResolvedServerOptions extends Omit<
-  RequiredExceptFor<
-    ServerOptions,
-    | 'host'
-    | 'https'
-    | 'proxy'
-    | 'hmr'
-    | 'ws'
-    | 'watch'
-    | 'origin'
-    | 'hotUpdateEnvironments'
-  >,
-  'fs' | 'middlewareMode' | 'sourcemapIgnoreList' | 'forwardConsole'
-> {
-  fs: Required<FileSystemServeOptions>
-  middlewareMode: NonNullable<ServerOptions['middlewareMode']>
-  sourcemapIgnoreList: Exclude<
-    ServerOptions['sourcemapIgnoreList'],
-    false | undefined
-  >
-  forwardConsole: ResolvedForwardConsoleOptions
-}
-
-export interface FileSystemServeOptions {
-  /**
-   * Strictly restrict file accessing outside of allowing paths.
-   *
-   * Set to `false` to disable the warning
-   *
-   * @default true
-   */
-  strict?: boolean
-
-  /**
-   * Restrict accessing files outside the allowed directories.
-   *
-   * Accepts absolute path or a path relative to project root.
-   * Will try to search up for workspace root by default.
-   */
-  allow?: string[]
-
-  /**
-   * Restrict accessing files that matches the patterns.
-   *
-   * This will have higher priority than `allow`.
-   * picomatch patterns are supported.
-   *
-   * @default ['.env', '.env.*', '*.{crt,pem,key,p12,pfx,cer,der}', '.npmrc', '.yarnrc.yml', '**\/.git/**']
-   */
-  deny?: string[]
-}
+  ConnectWebWorkerPortMessage,
+  ViteMessageChannelInitMessage,
+  WebWorkerServiceWorkerChannelReadyMessage,
+} from '../shared/messages'
+import type { ServiceWorkerFunctions, WorkerFunctions } from '../shared/rpc'
+import type { ViteEnv } from './server/index'
 
 /**
- * Environment type for Vite Dev Server running in Service Worker
+ * The server that receives the fetch events and the MessageChannel connections of the Service Worker.
  */
-export interface ViteEnv extends Env {
-  // Bindings available throughout the request lifecycle
-  Bindings: {}
-  // Variables set during request processing
-  Variables: {
-    /** Rewritten URL after base stripping (set by baseMiddleware) */
-    rewrittenUrl?: string
-  }
-}
-
-export type ServerHook = (
-  this: MinimalPluginContextWithoutEnvironment,
-  server: ViteDevServer,
-) => (() => void) | void | Promise<(() => void) | void>
-
 export type HttpServer = SvcWorkerServer<
   ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage
 >
-
-/**
- * Subset of ViteDevServer for Service Worker environment.
- *
- * The full ViteDevServer (defined in server/index.ts) is the single source of truth.
- * This type picks the properties needed by the SW proxy: fetch handling, middleware,
- * and birpc-delegated transform methods.
- */
-export type ViteDevServerForServiceWorker = Pick<ViteDevServer,
-  | 'config'
-  | 'watcher'
-  | 'middlewares'
-  | 'resolvedUrls'
-  | 'transformRequest'
-  | 'warmupRequest'
-  | 'transformIndexHtml'
-  | 'close'
-  | 'openBrowser'
-  | '_setInternalServer'
-  | '_restartPromise'
-  | '_forceOptimizeOnRestart'
-  | '_shortcutsState'
-  | '_currentServerPort'
-  | '_configServerPort'
-  | '_ssrCompatModuleRunner'
-> & {
-  httpServer: HttpServer
-}
 
 /**
  * Options for {@link createServer} function.
  */
 export interface CreateServerOptions {
   /**
-   * Whether to start listening for fetch events immediately.
-   * When true, the fetch event handler is registered synchronously.
-   */
-  listen?: boolean
-  /**
    * Version string for the service worker.
    */
   version?: string
   /**
    * Base path for the Vite Dev Server routes.
-   * All routes will be prefixed with this path.
+   * The Service Worker forwards the requests within it to the Web Worker.
    *
    * @example '/__preview__' - Server handles /__preview__/* requests
    * @default '/'
    */
   basePath?: string
   /**
-   * User plugins to inject into the Vite dev server.
-   * These are merged with the inline config plugins before resolving.
+   * How long a request waits for a Web Worker to connect, in milliseconds. A request that no Web
+   * Worker can answer by then gets a `503` response.
+   *
+   * A restarted Service Worker has no Web Worker channel until the runtime connects one again, so
+   * the requests made in the meantime wait for it.
+   *
+   * @default 10_000
    */
-  plugins?: Plugin[]
-  /**
-   * FSWawtcher factory function to create a custom FSWatcher instance.
-   */
-  watcherFactory?: (targets: string[], options: WatchOptions) => FSWatcher
-  /**
-   * Called before a request within the base path is handled. The request waits until the returned
-   * promise resolves. When it resolves to a `Response`, that response is returned instead, with the
-   * headers that the earlier middlewares set.
-   */
-  beforeRequest?: (request: Request) => Promise<Response | undefined>
-  /**
-   * Called each time the channel handshake with a Web Worker (`V_WW_CONNECT_PORT`) completes,
-   * before the client is told that the connection is established. A later connection replaces
-   * the previous channel.
-   */
-  onWorkerChannelReady?: () => void
-  /**
-   * @internal
-   */
-  previousEnvironments?: Record<string, DevEnvironment>
-  /**
-   * @internal
-   */
-  previousShortcutsState?: ShortcutsState<ViteDevServer>
+  ownerWaitTimeout?: number
 }
 
+/**
+ * The Service Worker side of the dev server, which forwards the requests to the Web Worker.
+ */
+export interface ServiceWorkerServer {
+  /**
+   * The server that receives the fetch events and the MessageChannel connections.
+   */
+  readonly httpServer: HttpServer
+  /**
+   * Stop answering requests.
+   */
+  close(): Promise<void>
+}
+
+/**
+ * A channel with a Web Worker, after the handshake.
+ */
+interface WorkerChannel {
+  port: MessagePort
+  rpc: BirpcReturn<WorkerFunctions, ServiceWorkerFunctions>
+}
+
+const DEFAULT_OWNER_WAIT_TIMEOUT = 10_000
+
+/**
+ * Create the Service Worker side of the dev server.
+ *
+ * The fetch event handler is registered synchronously, as Service Workers require. The returned
+ * `listen()` starts answering requests and accepting the Web Worker channels.
+ *
+ * @param serviceWorkerScope - The Service Worker's global scope (`self`)
+ * @param options - Server options
+ * @returns A function that starts the server
+ */
 export function createServer(
   serviceWorkerScope: ServiceWorkerGlobalScope,
-  inlineConfig: InlineConfig | ResolvedConfig = {
-    // TODO(kazupon): resolve in ../config.ts
-    base: '/',
-    publicDir: 'public',
-    experimental: {
-      importGlobRestoreExtension: false,
-      renderBuiltUrl: () => undefined,
-      hmrPartialAccept: false,
-      bundledDev: false,
-    }
-  },
   options: CreateServerOptions = {},
-): () => Promise<ViteDevServerForServiceWorker> {
-  const { server: serverConfig } = inlineConfig as InlineConfig | ResolvedConfig
-  const middlewareMode = !!serverConfig?.middlewareMode
+): () => Promise<ServiceWorkerServer> {
   const basePath = options.basePath || '/'
+  const ownerWaitTimeout = options.ownerWaitTimeout ?? DEFAULT_OWNER_WAIT_TIMEOUT
   const workerOrigin = new URL(serviceWorkerScope.location.href).origin
+
+  // The channel with the Web Worker that answers the requests. A later connection replaces it.
+  let workerChannel: WorkerChannel | null = null
+  // Requests and HMR ports waiting for a Web Worker to connect
+  const workerWaiters = new Set<(channel: WorkerChannel) => void>()
+
+  /**
+   * Wait for a Web Worker to connect, for `ownerWaitTimeout` at most.
+   *
+   * @returns The channel, or `null` when no Web Worker connected in time
+   */
+  function waitForWorker(): Promise<WorkerChannel | null> {
+    if (workerChannel) {
+      return Promise.resolve(workerChannel)
+    }
+    return new Promise((resolve) => {
+      const onConnect = (channel: WorkerChannel) => {
+        clearTimeout(timer)
+        resolve(channel)
+      }
+      const timer = setTimeout(() => {
+        workerWaiters.delete(onConnect)
+        resolve(null)
+      }, ownerWaitTimeout)
+      workerWaiters.add(onConnect)
+    })
+  }
+
+  function connectWorker(channel: WorkerChannel): void {
+    workerChannel = channel
+    const waiters = [...workerWaiters]
+    workerWaiters.clear()
+    for (const waiter of waiters) {
+      waiter(channel)
+    }
+  }
 
   let middlewares = new Hono<ViteEnv, BlankSchema, '/'>()
   // NOTE(kazupon): Apply the base path before `handle()`. `basePath()` returns a clone with its own
@@ -355,7 +159,45 @@ export function createServer(
   if (basePath !== '/') {
     middlewares = middlewares.basePath(basePath)
   }
-  const httpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage>(serviceWorkerScope, {
+
+  // request timer
+  if (import.meta.env.DEBUG) {
+    middlewares.use(timeMiddleware('/'))
+  }
+
+  // Cross-origin isolation headers (CORP/COEP/COOP) for credentialless iframe + SW
+  middlewares.use(crossOriginMiddleware())
+
+  // The Web Worker answers the request with the Vite middlewares
+  middlewares.use(async (c) => {
+    const channel = await waitForWorker()
+    if (!channel) {
+      return c.text(
+        `[@vrowzer/vite-dev-server] The preview is not ready: no Web Worker connected within ${ownerWaitTimeout}ms.`,
+        503,
+      )
+    }
+    const response = await channel.rpc.handleRequest(await serializeRequest(c.req.raw))
+    // `newResponse()` adds the headers that the earlier middlewares set, but drops the status text
+    const answered = c.newResponse(response.body, {
+      status: response.status as StatusCode,
+      headers: new Headers(response.headers),
+    })
+    return new Response(answered.body, {
+      status: answered.status,
+      statusText: response.statusText,
+      headers: answered.headers,
+    })
+  })
+
+  // The Web Worker answers the errors of the project with Vite's error page. An error here means
+  // that the request could not reach the Web Worker, or its response could not come back.
+  middlewares.onError((error, c) => {
+    console.error('[@vrowzer/vite-dev-server] The Web Worker did not answer a request:', error)
+    return c.text(`[@vrowzer/vite-dev-server] Internal Server Error: ${error.message}`, 500)
+  })
+
+  const httpServer: HttpServer = createSvcWorkerServer<ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage>(serviceWorkerScope, {
     version: options.version ?? '0.0.0',
     claimOnActivate: true,
     debug: createDebugger('vrowzer:svc-worker-server')!,
@@ -377,423 +219,88 @@ export function createServer(
   // This is critical for Service Workers which require fetch listeners during script evaluation
   httpServer.setFetchHandler(fetchHandler)
 
-  /**
-   * Start the Vite Dev Server
-   */
-  async function listen(): Promise<ViteDevServerForServiceWorker> {
-    // Merge user plugins from CreateServerOptions into the inline config
-    if (options.plugins?.length && !isResolvedConfig(inlineConfig)) {
-      ;(inlineConfig as InlineConfig).plugins = [
-        ...((inlineConfig as InlineConfig).plugins as any[] ?? []),
-        ...options.plugins,
-      ]
+  // Listen for connections from Main Thread.
+  // Handles two types:
+  // 1. V_WW_CONNECT_PORT: MessagePort for Web Worker birpc communication
+  // 2. vite:mc:init: iframe HMR port, forwarded to WW via the birpc port
+  function onConnection(event: ConnectionEvent<ConnectWebWorkerPortMessage | ViteMessageChannelInitMessage>): void {
+    // V_WW_CONNECT_PORT: birpc handshake with Web Worker
+    if (event.data.type === 'V_WW_CONNECT_PORT' && event.ports[0]) {
+      const port = event.ports[0]
+      const clientId = event.clientId
+      debug?.('Worker port received via connection event')
+
+      // Phase 1: Handshake — wait for WW's channel-ready before creating birpc
+      port.onmessage = async (e: MessageEvent<WebWorkerServiceWorkerChannelReadyMessage>) => {
+        if (e.data.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'ww') {
+          // Reply with SW's channel-ready
+          port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'sw' })
+
+          const rpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
+            {},
+            {
+              // Transfer the request bodies of handleRequest instead of copying them
+              post: rpcData => port.postMessage(rpcData, getRpcTransferList(rpcData)),
+              on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
+              serialize: serializeRpcMessage,
+              deserialize: deserializeRpcMessage,
+              timeout: 30_000,
+            },
+          )
+
+          // Requests can be forwarded again. The waiting ones go on before the client hears that
+          // the connection is established.
+          connectWorker({ port, rpc })
+
+          // Notify the originating client that the connection is established
+          if (clientId) {
+            const client = await serviceWorkerScope.clients.get(clientId)
+            client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
+          }
+
+          debug?.('Worker RPC established via birpc')
+        }
+      }
+      return
     }
 
-    const config = isResolvedConfig(inlineConfig)
-      ? inlineConfig
-      : await resolveConfig(inlineConfig, 'serve')
-    // NOTE(kazupon): the Service Worker does not create `DevEnvironment`, so it checks bundled dev mode here.
-    assertBundledDevUnsupported(config)
-    debug?.('config:', config)
-
-    const initPublicFilesPromise = initPublicFiles(config)
-
-    const { root, server: serverConfig } = config
-
-    const resolvedOutDirs = getResolvedOutDirs(
-      config.root,
-      config.build.outDir,
-      config.build.rollupOptions.output,
-    )
-    const emptyOutDir = resolveEmptyOutDir(
-      config.build.emptyOutDir,
-      config.root,
-      resolvedOutDirs,
-    )
-    const resolvedWatchOptions = resolveChokidarOptions(
-      {
-        disableGlobbing: true,
-        ...serverConfig.watch,
-      },
-      resolvedOutDirs,
-      emptyOutDir,
-      config.cacheDir,
-    )
-
-    const publicFiles = await initPublicFilesPromise
-    const { publicDir } = config
-
-    const watchEnabled = serverConfig.watch !== null
-    // NOTE(kazupon): upstream wraps the chokidar watcher with makeWatcherCloseFinal(), because
-    // chokidar's add() reopens a closed watcher. The virtual watcher is frozen and its add()
-    // never opens file system handles, so it is not wrapped here.
-    const watcher = watchEnabled && options.watcherFactory
-      ? options.watcherFactory([
-        ...(config.experimental.bundledDev ? [] : [root]),
-        ...config.configFileDependencies,
-        // ...getEnvFilesForMode(config.mode, config.envDir),
-        // Watch the public directory explicitly because it might be outside
-        // of the root directory.
-        ...(publicDir && publicFiles ? [publicDir] : []),
-      ], resolvedWatchOptions)
-      : createNoopWatcher(resolvedWatchOptions)
-
-    // NOTE(kazupon): upstream updates the public file list in the watcher handlers of
-    // `_createServer()`, which the Service Worker does not register. The Service Worker receives the
-    // project files through V_FS_* messages after it has started, so keep the list in sync here. It
-    // is updated synchronously, before the Service Worker acknowledges the message (V_FS_ACK).
-    if (publicDir && publicFiles) {
-      syncPublicFiles(watcher, publicDir, publicFiles)
-    }
-
-    const closeHttpServer = createServerCloseFn(httpServer)
-
-    // birpc RPC client for delegating transform to Web Worker.
-    // Initialized dynamically when a V_WW_CONNECT_PORT connection arrives
-    // via the httpServer's connection event (after startServer enables listenConnections).
-    let workerRpc: ReturnType<typeof createBirpc<WorkerFunctions, ServiceWorkerFunctions>> | null = null
-
-    // const devHtmlTransformFn = createDevHtmlTransformFn(config)
-
-    // Promise used by `server.close()` to ensure `closeServer()` is only called once
-    let closeServerPromise: Promise<void> | undefined
-    const closeServer = async () => {
-      // if (!middlewareMode) {
-      //   teardownSIGTERMListener(closeServerAndExit)
-      // }
-
-      await Promise.allSettled([
-        // watcher.close(),
-        closeHttpServer(),
-        server._ssrCompatModuleRunner?.close(),
-      ])
-      server.resolvedUrls = null
-      server._ssrCompatModuleRunner = undefined
-    }
-
-    let server: ViteDevServerForServiceWorker = {
-      config,
-      middlewares,
-      httpServer,
-      watcher,
-
-      resolvedUrls: null, // will be set on listen
-
-      transformRequest(url, options) {
-        debug?.('transformRequest:', url)
-        if (!workerRpc) {
-          throw new Error('[@vrowzer/vite-dev-server/service-worker] transformRequest requires workerPort to be set in CreateServerOptions')
+    // vite:mc:init: iframe HMR port — forward to WW via the birpc MessagePort
+    if (event.data.type === 'vite:mc:init' && event.ports[0]) {
+      const hmrPort = event.ports[0]
+      const hmrClientId = event.data.clientId
+      debug?.('HMR port received from iframe, forwarding to WW', hmrClientId)
+      void waitForWorker().then((channel) => {
+        if (!channel) {
+          hmrPort.close()
+          return
         }
-        // delegate to Web Worker via birpc
-        return workerRpc.transformRequest(url, options)
-      },
-
-      warmupRequest(url) {
-        if (!workerRpc) {
-          return Promise.resolve()
-        }
-        // delegate to Web Worker via birpc (best-effort, never throws)
-        return workerRpc.warmupRequest(url).catch(() => { })
-      },
-
-      transformIndexHtml(url, html, originalUrl) {
-        debug?.('transformIndexHtml:', url, originalUrl)
-        if (!workerRpc) {
-          throw new Error('[@vrowzer/vite-dev-server/service-worker] transformIndexHtml requires workerPort to be set in CreateServerOptions')
-        }
-        // delegate to Web Worker via birpc
-        return workerRpc.transformIndexHtml(url, html, originalUrl)
-      },
-
-      openBrowser() {
-        debug?.('not supported: server.openBrowser()')
-      },
-
-      async close() {
-        if (!closeServerPromise) {
-          closeServerPromise = closeServer()
-        }
-        return closeServerPromise
-      },
-
-      _setInternalServer(_server: ViteDevServer) {
-        // Rebind internal the server variable so functions reference the user
-        // server instance after a restart
-        server = _server as unknown as ViteDevServerForServiceWorker
-      },
-
-      _restartPromise: null,
-      _forceOptimizeOnRestart: false,
-      _shortcutsState: options.previousShortcutsState,
-    }
-
-    // maintain consistency with the server instance after restarting.
-    const reflexServer = new Proxy(server, {
-      get: (_, property: keyof ViteDevServerForServiceWorker) => {
-        return server[property]
-      },
-      set: (_, property: keyof ViteDevServerForServiceWorker, value: never) => {
-        server[property] = value
-        return true
-      },
-    })
-
-    // TODO: setup for HMR, watchers ...
-    // ...
-
-    if (!middlewareMode) {
-      httpServer.once('listening', () => {
-        // NOTE(kazupon): commented out, because Service Worker server don't need port
-        serverConfig.port = 0
-        // update actual port since this may be different from initial value
-        // serverConfig.port = (httpServer.address() as net.AddressInfo).port
+        channel.port.postMessage({ type: 'V_WW_HMR_PORT', clientId: hmrClientId }, [hmrPort])
       })
     }
+  }
 
-    // Pre applied internal middlewares ------------------------------------------
-
-    // request timer
-    if (import.meta.env.DEBUG) {
-      middlewares.use(timeMiddleware(root))
-    }
-
-    // Cross-origin isolation headers (CORP/COEP/COOP) for credentialless iframe + SW
-    middlewares.use(crossOriginMiddleware())
-
-    // Let the owner hold requests until they can be served, e.g. until a restarted Service Worker
-    // has the project files and the Web Worker channel again. This is registered before the
-    // configureServer hooks, so that the middlewares of plugins wait as well.
-    if (options.beforeRequest) {
-      middlewares.use(beforeRequestMiddleware(options.beforeRequest))
-    }
-
-    // TODO(kazupon): disable middlewares, after implementing them
-    // middlewares.use(rejectInvalidRequestMiddleware())
-    // middlewares.use(rejectNoCorsRequestMiddleware())
-
-    // // cors
-    // const { cors } = serverConfig
-    // if (cors !== false) {
-    //   middlewares.use(corsMiddleware(typeof cors === 'boolean' ? {} : cors))
-    // }
-
-    // // host check (to prevent DNS rebinding attacks)
-    // const { allowedHosts } = serverConfig
-    // // no need to check for HTTPS as HTTPS is not vulnerable to DNS rebinding attacks
-    // if (allowedHosts !== true && !serverConfig.https) {
-    //   middlewares.use(hostValidationMiddleware(allowedHosts, false))
-    // }
-
-    // apply configureServer hooks ------------------------------------------------
-
-    const configureServerContext = new BasicMinimalPluginContext(
-      { ...basePluginContextMeta, watchMode: true },
-      config.logger,
-    )
-    const postHooks: ((() => void) | void)[] = []
-    for (const hook of config.getSortedPluginHooks('configureServer')) {
-      postHooks.push(await hook.call(configureServerContext, reflexServer as ViteDevServer))
-    }
-
-    // Internal middlewares ------------------------------------------------------
-
-    // NOTE(kazupon): commented out, until implementing transform middleware
-    // if (!config.experimental.bundledDev) {
-    //   middlewares.use(cachedTransformMiddleware(server))
-    // }
-    //
-    // // proxy
-    // const { proxy } = serverConfig
-    // if (proxy) {
-    //   const middlewareServer =
-    //     (isObject(middlewareMode) ? middlewareMode.server : null) || httpServer
-    //   middlewares.use(proxyMiddleware(middlewareServer, proxy, config))
-    // }
-
-    // base
-    if (config.base !== '/') {
-      middlewares.use(baseMiddleware(config.rawBase, !!middlewareMode))
-    }
-
-    // NOTE(kazupon): commented out, until implementing other middlewares
-    // // open in editor support
-    // middlewares.use('/__open-in-editor', launchEditorMiddleware())
-    //
-    // // ping request handler
-    // // Keep the named function. The name is visible in debug logs via `DEBUG=connect:dispatcher ...`
-    // middlewares.use(function viteHMRPingMiddleware(req, res, next) {
-    //   if (req.headers['accept'] === 'text/x-vite-ping') {
-    //     res.writeHead(204).end()
-    //   } else {
-    //     next()
-    //   }
-    // })
-
-    // serve static files under /public
-    // this applies before the transform middleware so that these files are served
-    // as-is without transforms.
-    if (publicDir) {
-      middlewares.use(servePublicMiddleware(server as ViteDevServer, publicFiles))
-    }
-
-    if (config.experimental.bundledDev) {
-      // NOTE(kazupon): unreachable, `assertBundledDevUnsupported` rejects bundled dev mode above.
-      // Vite registers `triggerLazyBundlingMiddleware` and `memoryFilesMiddleware` here.
-    } else {
-      // main transform middleware
-      middlewares.use('*', transformMiddleware(server as ViteDevServer))
-      // console.log('[SW] transformMiddleware applied', transformMiddleware)
-
-      // serve static files
-      middlewares.use(serveRawFsMiddleware(server as ViteDevServer))
-      middlewares.use(serveStaticMiddleware(server as ViteDevServer))
-    }
-
-    // html fallback
-    if (config.appType === 'spa' || config.appType === 'mpa') {
-      middlewares.use(
-        htmlFallbackMiddleware(
-          root,
-          config.appType === 'spa',
-        ),
-      )
-    }
-
-    // apply configureServer post hooks ------------------------------------------
-
-    // This is applied before the html middleware so that user middleware can
-    // serve custom content instead of index.html.
-    postHooks.forEach((fn) => fn && fn())
-
-    if (config.appType === 'spa' || config.appType === 'mpa') {
-      // transform index.html
-      middlewares.use(indexHtmlMiddleware(root, server as ViteDevServer, { isDev: true }))
-
-      // handle 404s
-      middlewares.use(notFoundMiddleware())
-    }
-
-    // error handler
-    middlewares.onError(errorMiddleware(server as ViteDevServer, false))
-
-    // httpServer.listen can be called multiple times
-    // when port when using next port number
-    // this code is to avoid calling buildStart multiple times
-    let initingServer: Promise<void> | undefined
-    let serverInited = false
-    const initServer = async (onListen: boolean) => {
-      if (serverInited) {
-        return
+  const closeHttpServer = createServerCloseFn(httpServer)
+  let closeServerPromise: Promise<void> | undefined
+  const server: ServiceWorkerServer = {
+    httpServer,
+    close() {
+      if (!closeServerPromise) {
+        closeServerPromise = closeHttpServer()
       }
-      if (initingServer) {
-        return initingServer
-      }
+      return closeServerPromise
+    },
+  }
 
-      initingServer = (async function () {
-        await startServer(
-          server,
-          {
-            enableListenConnections: true,
-            port: onListen ? serverConfig.port : -1
-          }
-        )
-        initingServer = undefined
-        serverInited = true
-      })()
-      return initingServer
-    }
-
-    try {
-      await initServer(!middlewareMode)
-    } catch (err) {
-      httpServer.emit('error', err as Error)
-    }
-
-    // Listen for connections from Main Thread.
-    // Handles two types:
-    // 1. V_WW_CONNECT_PORT: MessagePort for Web Worker birpc communication
-    // 2. vite:mc:init: iframe HMR port, forwarded to WW via the birpc port
-    let swWwPort: MessagePort | null = null // swWw: Service Worker Web Worker
-
-    httpServer.on('connection', (event) => {
-      // V_WW_CONNECT_PORT: birpc handshake with Web Worker
-      if (event.data.type === 'V_WW_CONNECT_PORT' && event.ports[0]) {
-        const port = event.ports[0]
-        swWwPort = port
-        const clientId = event.clientId
-        debug?.('Worker port received via connection event')
-
-        // Phase 1: Handshake — wait for WW's channel-ready before creating birpc
-        port.onmessage = async (e: MessageEvent<WebWorkerServiceWorkerChannelReadyMessage>) => {
-          if (e.data.type === 'V_WW_SW_CHANNEL_READY' && e.data.source === 'ww') {
-            // Reply with SW's channel-ready
-            port.postMessage({ type: 'V_WW_SW_CHANNEL_READY', source: 'sw' })
-
-            // Install birpc before the first await. The Web Worker may send its
-            // initial safe-path snapshot as soon as it receives channel-ready.
-            workerRpc = createBirpc<WorkerFunctions, ServiceWorkerFunctions>(
-              createServiceWorkerFunctions(config.safeModulePaths),
-              {
-                post: rpcData => port.postMessage(rpcData),
-                on: fn => { port.onmessage = (ev: MessageEvent) => fn(ev.data) },
-                serialize: serializeRpcMessage,
-                deserialize: deserializeRpcMessage,
-                timeout: 30_000,
-              }
-            )
-
-            // Requests can be transformed again. Tell the owner before the client hears that the
-            // connection is established, so that requests held by `beforeRequest` can go on by then.
-            options.onWorkerChannelReady?.()
-
-            // Notify the originating client that the connection is established
-            if (clientId) {
-              const client = await serviceWorkerScope.clients.get(clientId)
-              client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
-            }
-
-            debug?.('Worker RPC established via birpc')
-          }
-        }
-        return
-      }
-
-      // vite:mc:init: iframe HMR port — forward to WW via the birpc MessagePort
-      if (event.data.type === 'vite:mc:init' && event.ports[0] && swWwPort) {
-        debug?.('HMR port received from iframe, forwarding to WW', event.data.clientId)
-        swWwPort.postMessage({ type: 'V_WW_HMR_PORT', clientId: event.data.clientId }, [event.ports[0]])
-        return
-      }
-    })
-
+  /**
+   * Start answering requests and accepting the Web Worker channels.
+   */
+  async function listen(): Promise<ServiceWorkerServer> {
+    httpServer.on('connection', onConnection)
+    httpServer.listen({ enableListenConnections: true })
     return server
   }
 
   return listen
-}
-
-async function startServer(
-  server: ViteDevServerForServiceWorker,
-  options?: ListenOptions & { port?: number },
-): Promise<void> {
-  const httpServer = server.httpServer
-  server._configServerPort = options?.port
-
-  const startHttp = new Promise<number>((resolve, reject) => {
-    const onError = (e: Error & { code?: string }) => {
-      httpServer.off('error', onError)
-      reject(e)
-    }
-    httpServer.on('error', onError)
-
-    httpServer.listen(options)
-    httpServer.off('error', onError)
-    resolve(0)
-  })
-
-  const serverPort = await startHttp
-  server._currentServerPort = serverPort
-  server._currentServerPort = serverPort
 }
 
 export function createServerCloseFn(
@@ -823,117 +330,6 @@ export function createServerCloseFn(
       }
     })
 }
-
-
-// === Middleware utils ===
-export { getRequestPath } from './server/middlewares/utils'
-
-// === Config ===
-export { defineConfig, resolveConfig, sortUserPlugins } from './config'
-export type { HtmlAssetSource } from './assetSource'
-export type {
-  AppType,
-  ConfigEnv,
-  DevEnvironmentOptions,
-  EnvironmentOptions,
-  ExperimentalOptions,
-  HTMLOptions,
-  InlineConfig,
-  LegacyOptions,
-  PluginHookUtils, ResolveFn, ResolvedConfig,
-  ResolvedDevEnvironmentOptions,
-  ResolvedEnvironmentOptions,
-  ResolvedWorkerOptions, UserConfig,
-  UserConfigExport,
-  UserConfigFn,
-  UserConfigFnObject,
-  UserConfigFnPromise
-} from './config'
-
-// === HMR types & relay ===
-export {
-  createServerHotChannel,
-  getShortName,
-  normalizeHotChannel
-} from './server/hmr'
-export type {
-  HmrContext,
-  HmrOptions,
-  HotChannel,
-  HotChannelClient,
-  HotChannelListener,
-  HotUpdateOptions,
-  NormalizedHotChannel,
-  NormalizedHotChannelClient,
-  NormalizedServerHotChannel,
-  ServerHotChannel,
-  ServerHotChannelApi,
-  WsOptions
-} from './server/hmr'
-
-// === MessageChannel HMR server ===
-export {
-  createMessageChannelServer,
-  isMessageChannelServer
-} from './server/ws'
-export type {
-  MessageChannelClient,
-  MessageChannelCustomListener,
-  MessageChannelServer
-} from './server/ws'
-
-// === HMR payload types ===
-export type {
-  CustomEventMap,
-  InferCustomEventPayload,
-  InvalidatePayload
-} from '#types/customEvent'
-export type {
-  ConnectedPayload,
-  CustomPayload,
-  ErrorPayload,
-  FullReloadPayload,
-  HMRPayload,
-  HotPayload,
-  PrunePayload,
-  Update,
-  UpdatePayload
-} from '#types/hmrPayload'
-
-// === Types only (interop with Worker) ===
-export type { Environment } from './environment'
-export type {
-  DepOptimizationConfig,
-  DepOptimizationMetadata,
-  DepOptimizationOptions,
-  ExportsData,
-  OptimizedDepInfo
-} from './optimizer'
-export type { DevEnvironment, DevEnvironmentContext } from './server/environment'
-export type {
-  EnvironmentModuleGraph,
-  EnvironmentModuleNode,
-  ResolvedUrl
-} from './server/moduleGraph'
-export type { TransformOptions, TransformResult } from './server/transformRequest'
-
-// === Backward compatibility ===
-export { ModuleGraph } from './server/mixedModuleGraph'
-export type { ModuleNode } from './server/mixedModuleGraph'
-
-// === Logger ===
-export { createLogger } from './logger'
-export type { LogLevel, LogType, Logger } from './logger'
-
-// === Dep types ===
-export type {
-  Alias,
-  AliasOptions,
-  MapToFunction,
-  ResolverFunction,
-  ResolverObject
-} from '#dep-types/alias'
-export type { Hono } from 'hono'
 
 // === Protocol message types & constants ===
 export {

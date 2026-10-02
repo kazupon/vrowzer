@@ -404,12 +404,12 @@ describe('Vrowzer Service Worker restart', () => {
       expect(await update).not.toBe('resolved')
       expect(await recordedEvents(page, 'serviceWorkerRecovered')).toEqual([])
 
-      // A request waits for the project for 10 seconds at most
+      // A request waits for the Web Worker for 10 seconds at most
       const startedAt = Date.now()
       const response = await fetchFromHost(page, '/main.js', 'text/javascript')
       expect(Date.now() - startedAt).toBeLessThan(15_000)
       expect(response.status).toBe(503)
-      expect(response.body).toContain('did not receive the project within 10000ms')
+      expect(response.body).toContain('no Web Worker connected within 10000ms')
 
       // The preview reports the failure when it loads again
       await page.evaluate(() => (window as any).__vrowzer__.reloadPreview('preview'))

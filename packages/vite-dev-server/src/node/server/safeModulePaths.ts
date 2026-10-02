@@ -20,7 +20,6 @@ export async function registerInputsAsSafeModules(
   input: InputOption | undefined,
   resolveId: ResolveInput,
   safeModulePaths: Set<string>,
-  syncSafeModulePaths?: (paths: string[]) => Promise<void>,
 ): Promise<void> {
   const entries =
     input == null
@@ -30,7 +29,6 @@ export async function registerInputsAsSafeModules(
         : Array.isArray(input)
           ? input
           : Object.values(input)
-  const registeredPaths = new Set<string>()
 
   const resolveEntries = async () => {
     const resolvedEntries = await Promise.all(
@@ -48,7 +46,6 @@ export async function registerInputsAsSafeModules(
         const resolvedId = cleanUrl(resolved.id)
         if (path.isAbsolute(resolvedId)) {
           safeModulePaths.add(resolvedId)
-          registeredPaths.add(resolvedId)
         }
       }
     }
@@ -58,9 +55,5 @@ export async function registerInputsAsSafeModules(
     await resolveEntries().catch(() => {})
   } else {
     await resolveEntries()
-  }
-
-  if (registeredPaths.size > 0) {
-    await syncSafeModulePaths?.([...registeredPaths])
   }
 }

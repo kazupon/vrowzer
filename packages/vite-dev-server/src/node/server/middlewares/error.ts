@@ -74,13 +74,7 @@ export function logError(server: ViteDevServer, err: RollupError): void {
     error: err,
   })
 
-  // NOTE(kazupon): The Service Worker-side server object (`ViteDevServerForServiceWorker`) has no
-  // `environments`, so skip the HMR error payload there instead of throwing from the error handler.
-  // server.environments.client.hot.send({
-  //   type: 'error',
-  //   err: prepareError(err),
-  // })
-  server.environments?.client.hot.send({
+  server.environments.client.hot.send({
     type: 'error',
     err: prepareError(err),
   })

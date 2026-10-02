@@ -225,12 +225,9 @@ function createRegistrationContext(
   } | null | undefined>,
 ) {
   const safeModulePaths = new Set<string>()
-  const syncSafeModulePaths = vi.fn<(paths: string[]) => Promise<void>>(
-    async () => undefined,
-  )
   const resolver = vi.fn(resolveId)
 
-  return { input, resolver, safeModulePaths, syncSafeModulePaths }
+  return { input, resolver, safeModulePaths }
 }
 
 function createLifecycleEnvironment(plugins: Plugin[]) {
@@ -274,7 +271,7 @@ describe('DevEnvironment input registration', () => {
       external: 'virtual:external',
       relative: 'virtual:relative',
     }
-    const { resolver, safeModulePaths, syncSafeModulePaths } =
+    const { resolver, safeModulePaths } =
       createRegistrationContext(input, async (id) => {
         if (id === 'virtual:external') {
           return { id: '/outside/external.ts', external: true }
@@ -289,7 +286,6 @@ describe('DevEnvironment input registration', () => {
       input,
       resolver,
       safeModulePaths,
-      syncSafeModulePaths,
     )
 
     expect(resolver).toHaveBeenCalledTimes(4)
@@ -301,12 +297,10 @@ describe('DevEnvironment input registration', () => {
       )
     }
     expect(safeModulePaths).toEqual(new Set(['/outside/main.ts']))
-    expect(syncSafeModulePaths).toHaveBeenCalledOnce()
-    expect(syncSafeModulePaths).toHaveBeenCalledWith(['/outside/main.ts'])
   })
 
   test('silently ignores fallback index resolution errors', async () => {
-    const { resolver, safeModulePaths, syncSafeModulePaths } =
+    const { resolver, safeModulePaths } =
       createRegistrationContext(undefined, async () => {
         throw new Error('index.html is not available')
       })
@@ -316,7 +310,6 @@ describe('DevEnvironment input registration', () => {
         undefined,
         resolver,
         safeModulePaths,
-        syncSafeModulePaths,
       ),
     ).resolves.toBeUndefined()
     expect(resolver).toHaveBeenCalledWith(
@@ -325,30 +318,10 @@ describe('DevEnvironment input registration', () => {
       { isEntry: true, scan: true },
     )
     expect(safeModulePaths).toEqual(new Set())
-    expect(syncSafeModulePaths).not.toHaveBeenCalled()
-  })
-
-  test('syncs an input path that is already registered locally', async () => {
-    const resolvedInput = '/outside/main.ts'
-    const { resolver, safeModulePaths, syncSafeModulePaths } =
-      createRegistrationContext('virtual:entry', async () => ({
-        id: resolvedInput,
-      }))
-    safeModulePaths.add(resolvedInput)
-
-    await registerInputsAsSafeModules(
-      'virtual:entry',
-      resolver,
-      safeModulePaths,
-      syncSafeModulePaths,
-    )
-
-    expect(safeModulePaths).toEqual(new Set([resolvedInput]))
-    expect(syncSafeModulePaths).toHaveBeenCalledWith([resolvedInput])
   })
 
   test('propagates explicit input resolution errors', async () => {
-    const { resolver, safeModulePaths, syncSafeModulePaths } =
+    const { resolver, safeModulePaths } =
       createRegistrationContext(
         'virtual:entry',
         async () => {
@@ -361,7 +334,6 @@ describe('DevEnvironment input registration', () => {
         'virtual:entry',
         resolver,
         safeModulePaths,
-        syncSafeModulePaths,
       ),
     ).rejects.toThrow('explicit input failed')
   })
