@@ -638,6 +638,7 @@ describe('definePlugin JavaScript pre-check', () => {
         'vite:define',
         'vite:modulepreload-polyfill',
         'vite:build-html',
+        'vite:asset-import-meta-url',
         'vite:prepare-out-dir',
         'vite:rollup-options-plugins',
         'vite:build-import-analysis',
@@ -648,12 +649,13 @@ describe('definePlugin JavaScript pre-check', () => {
     )
   })
 
-  test('keeps the build HTML and the module preload polyfill plugins out of the dev pipeline', async () => {
+  test('keeps the build-only plugins out of the dev pipeline', async () => {
     const config = await resolveConfig(createInlineConfig(), 'serve')
 
     const names = config.plugins.map(plugin => plugin.name)
     expect(names).not.toContain('vite:build-html')
     expect(names).not.toContain('vite:modulepreload-polyfill')
+    expect(names).not.toContain('vite:asset-import-meta-url')
   })
 
   test('does not register the module preload polyfill when it is disabled', async () => {

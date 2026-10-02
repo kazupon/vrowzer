@@ -1229,6 +1229,61 @@ describe('package resolution in library builds', () => {
   })
 })
 
+describe('new URL(..., import.meta.url) in builds', () => {
+  let root: string
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  test('emits the files that the URLs point to', async () => {
+    // NOTE(kazupon): the temporary directory of macOS is behind a symbolic link (`/var` to
+    // `/private/var`). Resolve it, so that the HTML entry is inside the root.
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-url-')))
+    const image = new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4])
+    const files: Record<string, string | Uint8Array> = {
+      'index.html': `<script type="module" src="./main.js"></script>`,
+      'main.js': [
+        `export const image = new URL('./image.png', import.meta.url).href`,
+        `export const publicFile = new URL('/robots.txt', import.meta.url).href`,
+        `export const missing = new URL('./missing.png', import.meta.url).href`,
+      ].join('\n'),
+      'image.png': image,
+      'public/robots.txt': 'User-agent: *',
+    }
+    for (const [file, content] of Object.entries(files)) {
+      const filePath = join(root, file)
+      fs.mkdirSync(resolve(filePath, '..'), { recursive: true })
+      fs.writeFileSync(filePath, content)
+    }
+
+    const { output } = (await build({
+      root,
+      logLevel: 'silent',
+      build: {
+        write: false,
+        minify: false,
+        assetsInlineLimit: 0,
+      },
+    })) as RolldownOutput
+
+    const entry = output.find(
+      (o): o is OutputChunk => o.type === 'chunk' && o.isEntry,
+    )!
+    const asset = output.find(
+      (o): o is OutputAsset => o.type === 'asset' && o.fileName.endsWith('.png'),
+    )!
+    expect(asset.fileName).toMatch(/^assets\/image-[\w-]+\.png$/)
+    expect([...(asset.source as Uint8Array)]).toEqual([...image])
+    expect(entry.code).toContain(
+      `new URL("/${asset.fileName}", "" + import.meta.url)`,
+    )
+    expect(entry.code).toContain(`new URL("/robots.txt", "" + import.meta.url)`)
+    // a file that does not exist is left for the runtime
+    expect(entry.code).toContain(`new URL("./missing.png", "" + import.meta.url)`)
+  })
+})
+
 describe('HTML entries', () => {
   const buildHtmlProject = async (
     modulePreload?: BuildEnvironmentOptions['modulePreload'],
