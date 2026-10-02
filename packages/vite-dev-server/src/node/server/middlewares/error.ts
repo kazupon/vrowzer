@@ -74,7 +74,9 @@ export function logError(server: ViteDevServer, err: RollupError): void {
     error: err,
   })
 
-  server.environments.client.hot.send({
+  // NOTE(kazupon): In Service Worker environment, `server.environments` is undefined.
+  // Skip HMR error payload when client environment or hot channel is absent.
+  server.environments?.client?.hot?.send({
     type: 'error',
     err: prepareError(err),
   })
