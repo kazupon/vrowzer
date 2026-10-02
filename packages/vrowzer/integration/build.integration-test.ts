@@ -411,6 +411,27 @@ describe('vrowzer.build()', () => {
     }
   })
 
+  test('runs short builds one after another, pacing the build Workers', async () => {
+    // Each closed build Worker takes about 2 seconds to stop. Without the pacing, the WebAssembly of
+    // a new build Worker stopped starting at about the twelfth short build in a row.
+    const { context, page } = await openFixture({ buildTimeout: 30_000 })
+    try {
+      const outcomes = await page.evaluate(async options => {
+        const run = (window as any).__runBuild__
+        const results: boolean[] = []
+        for (let index = 0; index < 12; index++) {
+          results.push((await run(options)).ok)
+        }
+        return results
+      }, LIBRARY_OPTIONS)
+
+      expect(outcomes).toEqual(Array.from({ length: 12 }, () => true))
+      await expectPreviewUpdates(page, 'preview after many builds')
+    } finally {
+      await context.close()
+    }
+  }, 120_000)
+
   test('releases the Workers that a build Worker starts', async () => {
     const { context, page } = await openFixture()
     try {

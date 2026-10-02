@@ -437,14 +437,16 @@ describe('Vrowzer.build() timeout, abort and dispose', () => {
     vi.useFakeTimers()
     buildBehavior.result = null
     const vrowzer = await readyInstance()
-    const result = vrowzer.build()
-    const assertion = expect(result).rejects.toThrow('[Vrowzer] build() timed out after 120000ms')
+    const error = vrowzer.build().then(
+      () => undefined,
+      (error: unknown) => error
+    )
 
     await vi.advanceTimersByTimeAsync(119_999)
     expect(buildWorkers[0]!.terminate).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1)
 
-    await assertion
+    expect(await error).toMatchObject({ message: '[Vrowzer] build() timed out after 120000ms' })
     expect(buildWorkers[0]!.terminate).toHaveBeenCalledOnce()
   })
 
@@ -452,11 +454,13 @@ describe('Vrowzer.build() timeout, abort and dispose', () => {
     vi.useFakeTimers()
     buildBehavior.result = null
     const vrowzer = await readyInstance({ buildTimeout: 5000 })
-    const result = vrowzer.build()
-    const assertion = expect(result).rejects.toThrow('[Vrowzer] build() timed out after 5000ms')
+    const error = vrowzer.build().then(
+      () => undefined,
+      (error: unknown) => error
+    )
 
     await vi.advanceTimersByTimeAsync(5000)
-    await assertion
+    expect(await error).toMatchObject({ message: '[Vrowzer] build() timed out after 5000ms' })
 
     buildBehavior.result = okResult
     await expect(vrowzer.build()).resolves.toEqual({ files: okResult.files, warnings: [] })
@@ -489,5 +493,75 @@ describe('Vrowzer.build() timeout, abort and dispose', () => {
     await expect(result).rejects.toThrow('[Vrowzer] build() was cancelled by dispose()')
     expect(buildWorkers[0]!.terminate).toHaveBeenCalled()
     await expect(vrowzer.build()).rejects.toThrow('cannot be called after dispose()')
+  })
+})
+
+describe('Vrowzer.build() pacing', () => {
+  async function buildFourTimes(vrowzer: Awaited<ReturnType<typeof readyInstance>>) {
+    for (let index = 0; index < 4; index++) {
+      await expect(vrowzer.build()).resolves.toEqual({ files: okResult.files, warnings: [] })
+    }
+    expect(buildWorkers).toHaveLength(4)
+  }
+
+  test('waits before creating a build Worker when 4 closed within 2.5 seconds', async () => {
+    vi.useFakeTimers()
+    const vrowzer = await readyInstance({ buildTimeout: 1000 })
+    await buildFourTimes(vrowzer)
+
+    const fifth = vrowzer.build()
+    await vi.advanceTimersByTimeAsync(2499)
+    expect(buildWorkers).toHaveLength(4)
+    await vi.advanceTimersByTimeAsync(1)
+
+    // The wait does not count toward buildTimeout
+    await expect(fifth).resolves.toEqual({ files: okResult.files, warnings: [] })
+    expect(buildWorkers).toHaveLength(5)
+  })
+
+  test('does not wait when the closed build Workers had time to stop', async () => {
+    vi.useFakeTimers()
+    const vrowzer = await readyInstance()
+    await buildFourTimes(vrowzer)
+    await vi.advanceTimersByTimeAsync(2500)
+
+    const fifth = vrowzer.build()
+    await settle()
+
+    expect(buildWorkers).toHaveLength(5)
+    await expect(fifth).resolves.toEqual({ files: okResult.files, warnings: [] })
+  })
+
+  test('rejects a build while another one waits', async () => {
+    vi.useFakeTimers()
+    const vrowzer = await readyInstance()
+    await buildFourTimes(vrowzer)
+    const waiting = vrowzer.build()
+
+    await expect(vrowzer.build()).rejects.toThrow('[Vrowzer] build() is already running.')
+    await vi.advanceTimersByTimeAsync(2500)
+    await expect(waiting).resolves.toEqual({ files: okResult.files, warnings: [] })
+  })
+
+  test('cancels a waiting build with the signal or dispose(), without a build Worker', async () => {
+    vi.useFakeTimers()
+    const vrowzer = await readyInstance()
+    await buildFourTimes(vrowzer)
+    const controller = new AbortController()
+    const reason = new Error('cancelled while waiting')
+
+    const aborted = vrowzer.build({ signal: controller.signal })
+    await settle()
+    controller.abort(reason)
+    await expect(aborted).rejects.toBe(reason)
+
+    const disposed = vrowzer.build()
+    await settle()
+    const disposal = vrowzer.dispose()
+    await expect(disposed).rejects.toThrow('[Vrowzer] build() was cancelled by dispose()')
+    await disposal
+
+    await vi.advanceTimersByTimeAsync(2500)
+    expect(buildWorkers).toHaveLength(4)
   })
 })

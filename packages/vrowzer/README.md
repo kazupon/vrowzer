@@ -318,6 +318,7 @@ const { files, warnings } = await vrowzer.build({
 - The options are a subset of the Vite config (`base`, `mode`, `define` and `build`), merged over the Worker config. They are sent to the build Worker, so they must be values that `postMessage()` can copy, e.g. no functions. The builder sets `root` to `/`, and `build.write` and `build.emptyOutDir` to `false`.
 - `files` is keyed by the path from the output root. JavaScript, CSS, source maps and text assets are strings, and binary assets are `ArrayBuffer`s. The files of `/public` are added unless `build.copyPublicDir` is `false`.
 - One build at a time: a call while another build is running rejects.
+- A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within the last 2.5 seconds, e.g. after short builds one after another, the next build waits before it creates its build Worker. The wait does not count toward `buildTimeout`.
 - A failed build rejects with `VrowzerBuildError`. Its `errors` have the message, code, plugin, module (`id`), location and code frame of each error, without colors, and its message summarizes the first one. A build that does not finish within `buildTimeout`, an aborted `signal` and `dispose()` reject it with an `Error`, and terminate the build Worker.
 
 Not supported yet:

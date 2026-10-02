@@ -76,6 +76,16 @@ const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
 const DEFAULT_WEB_WORKER_SETUP_TIMEOUT = 90_000
 const DEFAULT_FILE_SYNC_TIMEOUT = 10_000
 const DEFAULT_BUILD_TIMEOUT = 120_000
+/**
+ * How long a closed build Worker may take to stop. Chromium stops a Worker thread that does not
+ * answer `terminate()` after 2 seconds, and a build Worker keeps a thread of rolldown that long.
+ */
+const BUILD_WORKER_STOP_TIME = 2500
+/**
+ * How many closed build Workers may be stopping at once. When too many of them stay, the
+ * WebAssembly of a new build Worker cannot start, and the build never ends.
+ */
+const MAX_STOPPING_BUILD_WORKERS = 4
 
 /**
  * `true` when `@vrowzer/vite-plugin` enables {@link Vrowzer.build} with its `build` option.
@@ -653,6 +663,10 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * build Worker is terminated when the build ends. The previews are not affected. Only library
    * builds (`build.lib`) in the `es` format are supported for now, and one build at a time.
    *
+   * A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within
+   * the last 2.5 seconds, e.g. after short builds one after another, a build waits before it
+   * creates its build Worker. The wait does not count toward {@link VrowzerOptions.buildTimeout}.
+   *
    * It needs the `build` option of `@vrowzer/vite-plugin`.
    *
    * @param options - The options of the build, merged over the Worker config.
@@ -767,6 +781,27 @@ function withTimeout<T>(
         reject(error)
       }
     )
+  })
+}
+
+/**
+ * Resolves after `ms` milliseconds, or rejects with the reason of `signal` when it is aborted first.
+ */
+function wait(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason)
+      return
+    }
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(signal.reason)
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal.addEventListener('abort', onAbort, { once: true })
   })
 }
 
@@ -925,14 +960,67 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   let runningBuild: { cancel: (error: Error) => void } | null = null
   // Identifies the builds, so that the results of other builds are ignored
   let buildSequence = 0
+  // When the recent build Workers were closed, oldest first
+  const closedBuildWorkers: number[] = []
+
+  /**
+   * How long to wait before creating a build Worker, so that at most
+   * {@link MAX_STOPPING_BUILD_WORKERS} closed ones are stopping when it starts.
+   */
+  function buildWorkerDelay(): number {
+    const now = Date.now()
+    while (
+      closedBuildWorkers.length > 0 &&
+      now - closedBuildWorkers[0]! >= BUILD_WORKER_STOP_TIME
+    ) {
+      closedBuildWorkers.shift()
+    }
+    if (closedBuildWorkers.length < MAX_STOPPING_BUILD_WORKERS) {
+      return 0
+    }
+    const closedAt = closedBuildWorkers[closedBuildWorkers.length - MAX_STOPPING_BUILD_WORKERS]!
+    return closedAt + BUILD_WORKER_STOP_TIME - now
+  }
+
+  /**
+   * Runs a build: waits until a build Worker can start when the recent builds were short, then
+   * runs the build in a new build Worker.
+   */
+  async function runBuild(
+    files: Record<string, string | ArrayBuffer>,
+    options: Omit<VrowzerBuildOptions, 'signal'>,
+    signal: AbortSignal | undefined
+  ): Promise<VrowzerBuildResult> {
+    // dispose() aborts it
+    const cancellation = new AbortController()
+    const build = { cancel: (error: Error) => cancellation.abort(error) }
+    runningBuild = build
+    try {
+      const delay = buildWorkerDelay()
+      if (delay > 0) {
+        await wait(
+          delay,
+          signal ? AbortSignal.any([cancellation.signal, signal]) : cancellation.signal
+        )
+      }
+      cancellation.signal.throwIfAborted()
+      signal?.throwIfAborted()
+      return await runBuildWorker(files, options, signal, cancellation.signal)
+    } finally {
+      if (runningBuild === build) {
+        runningBuild = null
+      }
+    }
+  }
 
   /**
    * Runs a build in a new build Worker, and terminates the Worker when the build ends.
    */
-  function runBuild(
+  function runBuildWorker(
     files: Record<string, string | ArrayBuffer>,
     options: Omit<VrowzerBuildOptions, 'signal'>,
-    signal: AbortSignal | undefined
+    signal: AbortSignal | undefined,
+    cancellation: AbortSignal
   ): Promise<VrowzerBuildResult> {
     const id = ++buildSequence
     const worker = new Worker(new URL('./build-worker.ts', import.meta.url), { type: 'module' })
@@ -941,16 +1029,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       worker.onerror = null
       worker.onmessageerror = null
       worker.terminate()
+      closedBuildWorkers.push(Date.now())
     }
 
     const result = new Promise<VrowzerBuildResult>((resolve, reject) => {
-      const build = {
-        cancel: (error: Error) => {
-          reject(error)
-          close()
-        }
-      }
-      runningBuild = build
+      cancellation.addEventListener('abort', () => reject(cancellation.reason), { once: true })
       worker.onerror = event => {
         reject(new Error(`[Vrowzer] The build Worker failed: ${event.message || 'unknown error'}`))
       }
@@ -998,13 +1081,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       }
     })
 
-    const current = runningBuild
-    return withTimeout(result, resolved.buildTimeout, '[Vrowzer] build()', signal).finally(() => {
-      if (runningBuild === current) {
-        runningBuild = null
-      }
-      close()
-    })
+    return withTimeout(result, resolved.buildTimeout, '[Vrowzer] build()', signal).finally(close)
   }
 
   function cleanupWebWorker(): void {

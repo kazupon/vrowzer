@@ -68,6 +68,10 @@ Each build runs in a new build Worker, with the Worker config bundled for produc
 build Worker is terminated when the build ends. The previews are not affected. Only library
 builds (`build.lib`) in the `es` format are supported for now, and one build at a time.
 
+A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within
+the last 2.5 seconds, e.g. after short builds one after another, a build waits before it
+creates its build Worker. The wait does not count toward [VrowzerOptions.buildTimeout](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-buildtimeout).
+
 It needs the `build` option of `@vrowzer/vite-plugin`.
 
 #### Parameters
