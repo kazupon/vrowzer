@@ -14,7 +14,7 @@ import type {
   RolldownOutput,
   RollupLog,
 } from 'rolldown'
-import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, assert, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 
 // NOTE(kazupon): vite-dev-server loads rolldown from the browser build (`@vrowzer/rolldown`).
 // The unit tests run in Node, so they build with the Node build of the same rolldown version.
@@ -978,6 +978,22 @@ describe('resolveBuildOutputs', () => {
   })
 
   // NOTE(kazupon): not ported yet: `ssrEmitAssets`, `emitAssets`, `ssr builtin` and `ssr custom` (SSR builds)
+})
+
+test('resolving lib entry from the top-level input does not mutate the user config', async () => {
+  const userLib: LibraryOptions = { formats: ['es'] }
+  const config = await resolveConfig(
+    {
+      configFile: false,
+      input: 'src/main.ts',
+      build: { lib: userLib },
+    },
+    'build',
+  )
+  const resolvedLib = config.environments.client.build.lib
+  assert(resolvedLib !== false)
+  expect(resolvedLib.entry).toBe('src/main.ts')
+  expect(userLib.entry).toBeUndefined()
 })
 
 describe('onRollupLog', () => {
