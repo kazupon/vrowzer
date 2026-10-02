@@ -53,30 +53,35 @@ const LIBRARY_OPTIONS = {
  * Opens the fixture in a new browser context, which has a Service Worker of its own, and mounts a
  * preview of a ready Vrowzer instance with the files of the library or of the HTML app.
  */
+const PROJECTS = {
+  library: { files: '__projectFiles__', previewText: 'preview v1' },
+  app: { files: '__appFiles__', previewText: 'app ok' },
+  config: { files: '__configFiles__', previewText: 'config ok' }
+} as const
+
 async function openFixture(
   options: Record<string, unknown> = {},
-  project: 'library' | 'app' = 'library'
+  project: keyof typeof PROJECTS = 'library'
 ): Promise<Fixture> {
   const context = await browser.newContext()
   const page = await context.newPage()
   await page.goto(`${origin}/`)
   await page.waitForFunction(() => document.body.dataset.fixtureReady === 'true')
   const ready = await page.evaluate(
-    async ([vrowzerOptions, projectName]) => {
+    async ([vrowzerOptions, filesName]) => {
       const fixture = window as any
       const vrowzer = fixture.__createVrowzer__(vrowzerOptions)
       fixture.__vrowzer__ = vrowzer
-      const files = projectName === 'app' ? fixture.__appFiles__ : fixture.__projectFiles__
-      const result = await vrowzer.ready({ files })
+      const result = await vrowzer.ready({ files: fixture[filesName] })
       if (result) {
         vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
       }
       return result
     },
-    [options, project] as const
+    [options, PROJECTS[project].files] as const
   )
   expect(ready).toBe(true)
-  await expectPreviewText(page, project === 'app' ? 'app ok' : 'preview v1')
+  await expectPreviewText(page, PROJECTS[project].previewText)
   return { context, page }
 }
 
@@ -145,6 +150,27 @@ async function expectPreviewUpdates(page: Page, text: string): Promise<void> {
     await fixture.__vrowzer__.updateFile('/main.js', fixture.__mainSource__(content))
   }, text)
   await expectPreviewText(page, text)
+}
+
+/**
+ * Reads the dataset of the body of the preview, and the computed styles of its elements.
+ */
+async function previewState(page: Page) {
+  return page.evaluate(() => {
+    const document = (
+      window.document.querySelector('#preview-container iframe') as HTMLIFrameElement
+    ).contentDocument!
+    const styleOf = (selector: string) => {
+      const element = document.querySelector(selector)
+      return element ? getComputedStyle(element) : undefined
+    }
+    return {
+      dataset: { ...document.body.dataset },
+      appColor: styleOf('#app')?.color,
+      composedWeight: styleOf('#composed')?.fontWeight,
+      composedClass: document.querySelector('#composed')?.className
+    }
+  })
 }
 
 async function liveWorkerCount(page: Page): Promise<number> {
@@ -726,6 +752,139 @@ describe('vrowzer.build() of HTML apps', () => {
         await app.context.close()
       }
       await expectPreviewUpdates(page, 'preview after an app build')
+    } finally {
+      await context.close()
+    }
+  })
+})
+
+describe('vrowzer.build() with the config of the project', () => {
+  test('reads the .env files with the client prefix, in the build and in the preview', async () => {
+    const { context, page } = await openFixture({}, 'config')
+    try {
+      // The preview reads the files of ready(), in the development mode
+      await expect
+        .poll(async () => (await previewState(page)).dataset, { timeout: 15_000 })
+        .toMatchObject({
+          title: 'env ok',
+          greeting: 'hello env ok',
+          modeValue: 'development value',
+          local: 'local value',
+          secret: 'undefined'
+        })
+
+      const { files } = await expectBuilt(page, {})
+      // The env files are not copied to the outputs, and the variables without the prefix are not
+      // exposed
+      expect(Object.keys(files).filter(file => file.includes('.env'))).toEqual([])
+      const code = Object.values(files)
+        .filter(content => typeof content === 'string')
+        .join('\n')
+      expect(code).not.toContain('do-not-expose')
+
+      const app = await openBuiltApp(files, '/')
+      try {
+        await expect
+          .poll(() => app.page.evaluate(() => document.body.dataset.title ?? ''), {
+            timeout: 15_000
+          })
+          .toBe('env ok')
+        expect(await app.page.evaluate(() => ({ ...document.body.dataset }))).toMatchObject({
+          greeting: 'hello env ok',
+          modeValue: 'production value',
+          local: 'local value',
+          secret: 'undefined'
+        })
+        expect(app.pageErrors).toEqual([])
+      } finally {
+        await app.context.close()
+      }
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('applies tsconfig, bundles the production branch of CommonJS dependencies, and CSS Modules', async () => {
+    const { context, page } = await openFixture({}, 'config')
+    try {
+      const preview = await previewState(page)
+      // The preview takes the ES module of the CommonJS dependency for development
+      expect(preview.dataset.cjs).toBe('esm development')
+      expect(preview.appColor).toBe('rgb(0, 0, 255)')
+      expect(preview.composedWeight).toBe('700')
+
+      const { files } = await expectBuilt(page, { build: { minify: false } })
+      const code = Object.values(files)
+        .filter(content => typeof content === 'string')
+        .join('\n')
+      expect(code).toContain('cjs production')
+      expect(code).not.toContain('cjs development')
+      expect(code).not.toContain('esm development')
+
+      const app = await openBuiltApp(files, '/')
+      try {
+        await expect
+          .poll(() => app.page.evaluate(() => document.body.dataset.cjs ?? ''), {
+            timeout: 15_000
+          })
+          .toBe('cjs production')
+        const state = await app.page.evaluate(() => ({
+          dataset: { ...document.body.dataset },
+          appColor: getComputedStyle(document.querySelector('#app')!).color,
+          composedWeight: getComputedStyle(document.querySelector('#composed')!).fontWeight,
+          composedClass: document.querySelector('#composed')!.className
+        }))
+        // tsconfig (`verbatimModuleSyntax`) keeps the type-only import of ./types
+        expect(state.dataset.typesSideEffect).toBe('ran')
+        expect(state.dataset.shape).toBe('square')
+        // CSS Modules: a scoped class, and `composes`
+        expect(state.dataset.titleClass).toMatch(/title/)
+        expect(state.dataset.titleClass).not.toBe('title')
+        expect(state.appColor).toBe('rgb(0, 0, 255)')
+        expect(state.composedClass.split(' ')).toHaveLength(2)
+        expect(state.composedWeight).toBe('700')
+        expect(app.pageErrors).toEqual([])
+        expect(app.missingFiles).toEqual([])
+      } finally {
+        await app.context.close()
+      }
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('reports warnings with their details, and what builds do not support', async () => {
+    const { context, page } = await openFixture({}, 'config')
+    try {
+      await page.evaluate(async () => {
+        await (window as any).__vrowzer__.addFile(
+          '/src/warnings.ts',
+          [
+            "export const value: number = eval('1')",
+            "export const modules = import.meta.glob('./pages/*.ts')",
+            ''
+          ].join('\n')
+        )
+      })
+      const { warnings } = await expectBuilt(page, {
+        build: { lib: { entry: '/src/warnings.ts', fileName: 'warnings' } }
+      })
+
+      expect(warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'EVAL',
+            id: '/src/warnings.ts',
+            loc: expect.objectContaining({ line: 1 })
+          }),
+          expect.objectContaining({
+            plugin: 'vrowzer:unsupported-features',
+            id: '/src/warnings.ts',
+            loc: expect.objectContaining({ line: 2 }),
+            message: expect.stringContaining('import.meta.glob()')
+          })
+        ])
+      )
     } finally {
       await context.close()
     }

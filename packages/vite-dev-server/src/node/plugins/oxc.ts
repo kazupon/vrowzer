@@ -417,6 +417,7 @@ export function oxcPlugin(config: ResolvedConfig): Plugin {
 
         return nativeTransformPlugin({
           root: environment.config.root,
+          tsconfig: environment.config.tsconfig,
           include,
           exclude,
           jsxRefreshInclude,

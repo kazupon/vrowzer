@@ -1,9 +1,13 @@
-
-import { parse } from 'dotenv'
-import type { DotenvPopulateInput } from 'dotenv-expand'
-import { expand } from 'dotenv-expand'
 import fs from 'node:fs'
 import path from 'node:path'
+// NOTE(kazupon): the browser has no `parseEnv()` of `node:util`, so parse the files with dotenv, as Vite did
+// before 8.3
+import { parse as parseEnv } from 'dotenv'
+// // eslint-disable-next-line n/no-unsupported-features/node-builtins -- our supported nodejs range supports `parseEnv` but in experimental state, which is fine
+// import { parseEnv } from 'node:util'
+// NOTE(kazupon): vrowzer does not run in Vite Task
+// import { getEnvs } from '@voidzero-dev/vite-task-client'
+import { type DotenvPopulateInput, expand } from 'dotenv-expand'
 import colors from 'picocolors'
 import type { UserConfig } from './config'
 import { arraify, createDebugger, normalizePath, tryStatSync } from './utils'
@@ -26,6 +30,10 @@ export function getEnvFilesForMode(
   return []
 }
 
+/**
+ * Load `.env` files within the `envDir` and merge them with the matching
+ * variables already present in `process.env`.
+ */
 export function loadEnv(
   mode: string,
   envDir: string | false,
@@ -37,7 +45,7 @@ export function loadEnv(
   if (mode === 'local') {
     throw new Error(
       `"local" cannot be used as a mode name because it conflicts with ` +
-      `the .local postfix for .env files.`,
+        `the .local postfix for .env files.`,
     )
   }
   prefixes = arraify(prefixes)
@@ -52,7 +60,8 @@ export function loadEnv(
       // Support FIFOs (named pipes) for apps like 1Password
       if (!stat || (!stat.isFile() && !stat.isFIFO())) {return []}
 
-      return Object.entries(parse(fs.readFileSync(filePath)))
+      const parsedEnv = parseEnv(fs.readFileSync(filePath, 'utf-8'))
+      return Object.entries(parsedEnv as Record<string, string>)
     }),
   )
 
@@ -82,11 +91,18 @@ export function loadEnv(
     }
   }
 
+  // NOTE(kazupon): vrowzer does not run in Vite Task
+  // // Vite Task may know prefixed envs not present here; fetch them and let
+  // // the runner record each prefix in the build's cache key.
+  // for (const prefix of prefixes) {
+  //   Object.assign(env, getEnvs({ prefix }))
+  // }
+
   // check if there are actual env variables starting with VITE_*
   // these are typically provided inline and should be prioritized
   for (const key in process.env) {
     if (prefixes.some((prefix) => key.startsWith(prefix))) {
-      env[key] = process.env[key] as string
+      env[key] = process.env[key]!
     }
   }
 
@@ -94,7 +110,6 @@ export function loadEnv(
 
   return env
 }
-
 
 export function resolveEnvPrefix({
   envPrefix = 'VITE_',
@@ -106,7 +121,7 @@ export function resolveEnvPrefix({
     )
   }
   if (envPrefix.some((prefix) => /\s/.test(prefix))) {
-    // oxlint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.warn(
       colors.yellow(
         `[vite] Warning: envPrefix option contains values with whitespace, which does not work in practice.`,

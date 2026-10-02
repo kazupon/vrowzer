@@ -50,6 +50,7 @@ import {
   ENV_ENTRY,
   FS_PREFIX
 } from './constants'
+import { loadEnv, resolveEnvPrefix } from './env'
 import { createIdResolver } from './idResolver'
 import type { LogLevel, Logger } from './logger'
 import { createLogger } from './logger'
@@ -355,6 +356,11 @@ export interface UserConfig extends DefaultEnvironmentOptions {
    * @default process.cwd()
    */
   root?: string
+  /**
+   * Path to the TypeScript configuration file. Relative paths are resolved
+   * from the project root.
+   */
+  tsconfig?: string
   /**
    * Base public path when served in development or production.
    * @default '/'
@@ -1671,6 +1677,13 @@ export async function resolveConfig(
 
   // load .env files
   // Backward compatibility: set envDir to false when envFile is false
+  if (config.envFile === false) {
+    logger.warn(
+      colors.yellow(
+        'The `envFile` option is deprecated, please use `envDir: false` instead.',
+      ),
+    )
+  }
   let envDir = config.envFile === false ? false : config.envDir
   if (envDir !== false) {
     envDir = config.envDir
@@ -1678,9 +1691,7 @@ export async function resolveConfig(
       : resolvedRoot
   }
 
-  const userEnv = {} as Record<string, string>
-  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
-  // const userEnv = loadEnv(mode, envDir, resolveEnvPrefix(config))
+  const userEnv = loadEnv(mode, envDir, resolveEnvPrefix(config))
 
   // Note it is possible for user to have a custom mode, e.g. `staging` where
   // development-like behavior is expected. This is indicated by NODE_ENV=development
@@ -1906,6 +1917,9 @@ export async function resolveConfig(
     ),
     inlineConfig,
     root: resolvedRoot,
+    tsconfig: config.tsconfig
+      ? normalizePath(path.resolve(resolvedRoot, config.tsconfig))
+      : undefined,
     base,
     decodedBase: decodeBase(base),
     rawBase: resolvedBase,
@@ -2171,12 +2185,12 @@ assetFileNames isn't equal for every build.rollupOptions.output. A single patter
     )
   }
 
-  // NOTE(kazupon): Vite resolves tsconfig paths with the native resolver.
-  // Vrowzer always uses the JavaScript resolver, which does not support this option.
-  if (resolved.resolve.tsconfigPaths) {
+  // NOTE(kazupon): Vite resolves tsconfig paths with the native resolver, which builds use. The
+  // previews use the JavaScript resolver, which does not support this option.
+  if (resolved.resolve.tsconfigPaths && resolved.command === 'serve') {
     resolved.logger.warn(
       colors.yellow(`
-(!) resolve.tsconfigPaths is not supported by the JavaScript resolver used in Vrowzer. The option has no effect.
+(!) resolve.tsconfigPaths is not supported by the JavaScript resolver of Vrowzer's previews. The option has no effect on them.
 `),
     )
   }

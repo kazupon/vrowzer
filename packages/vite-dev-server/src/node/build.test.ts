@@ -14,7 +14,7 @@ import type {
   RolldownOutput,
   RollupLog,
 } from 'rolldown'
-import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, assert, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 // NOTE(kazupon): vite-dev-server loads rolldown from the browser build (`@vrowzer/rolldown`).
 // The unit tests run in Node, so they build with the Node build of the same rolldown version.
@@ -43,12 +43,17 @@ import {
 import { resolveConfig } from './config'
 import type { Logger } from './logger'
 import { createLogger } from './logger'
-import { injectQuery } from './utils'
+import { injectQuery, normalizePath } from './utils'
+import type { BuildProjectLog } from './builderUtils'
+import {
+  createBuildLogPlugin,
+  createCollectingLogger,
+  createUnsupportedFeaturesPlugin,
+} from './builderUtils'
 
 // Ported from upstream Vite (`packages/vite/src/node/__tests__/build.spec.ts`).
 // NOTE(kazupon): not ported yet:
 // - the SSR builds, `sharedConfigBuild`, `chunkImportMap`, the watch mode and the manifest
-// - `config.tsconfig` (Vite 8.3), which the resolved config does not have yet
 
 // NOTE(kazupon): the fixtures are in `__tests__`, as upstream has them next to its spec
 const dirname = fileURLToPath(new URL('./__tests__', import.meta.url))
@@ -523,28 +528,27 @@ describe('resolveBuildOutputs', () => {
       expect(options.input).toBe('explicit-entry.js')
     })
 
-    // NOTE(kazupon): the resolved config does not have `tsconfig` (Vite 8.3) yet
-    // test('top-level tsconfig applies to Rolldown options', async () => {
-    //   const builder = await createBuilder({
-    //     root: buildProjectRoot,
-    //     logLevel: 'silent',
-    //     tsconfig: './custom.tsconfig.json',
-    //     build: {
-    //       rolldownOptions: {
-    //         tsconfig: './other.tsconfig.json',
-    //         resolve: { tsconfigFilename: './legacy.tsconfig.json' },
-    //       },
-    //     },
-    //   })
-    //   const options = resolveRolldownOptions(
-    //     builder.environments.client,
-    //     new ChunkMetadataMap(),
-    //   )
-    //   expect(options.tsconfig).toBe(
-    //     normalizePath(resolve(buildProjectRoot, 'custom.tsconfig.json')),
-    //   )
-    //   expect(options.resolve?.tsconfigFilename).toBeUndefined()
-    // })
+    test('top-level tsconfig applies to Rolldown options', async () => {
+      const builder = await createBuilder({
+        root: buildProjectRoot,
+        logLevel: 'silent',
+        tsconfig: './custom.tsconfig.json',
+        build: {
+          rolldownOptions: {
+            tsconfig: './other.tsconfig.json',
+            resolve: { tsconfigFilename: './legacy.tsconfig.json' },
+          },
+        },
+      })
+      const options = resolveRolldownOptions(
+        builder.environments.client,
+        new ChunkMetadataMap(),
+      )
+      expect(options.tsconfig).toBe(
+        normalizePath(resolve(buildProjectRoot, 'custom.tsconfig.json')),
+      )
+      expect(options.resolve?.tsconfigFilename).toBeUndefined()
+    })
 
     test('falls back to index.html when no input is set', async () => {
       const builder = await createBuilder({
@@ -980,6 +984,22 @@ describe('resolveBuildOutputs', () => {
   // NOTE(kazupon): not ported yet: `ssrEmitAssets`, `emitAssets`, `ssr builtin` and `ssr custom` (SSR builds)
 })
 
+test('resolving lib entry from the top-level input does not mutate the user config', async () => {
+  const userLib: LibraryOptions = { formats: ['es'] }
+  const config = await resolveConfig(
+    {
+      configFile: false,
+      input: 'src/main.ts',
+      build: { lib: userLib },
+    },
+    'build',
+  )
+  const resolvedLib = config.environments.client.build.lib
+  assert(resolvedLib !== false)
+  expect(resolvedLib.entry).toBe('src/main.ts')
+  expect(userLib.entry).toBeUndefined()
+})
+
 describe('onRollupLog', () => {
   const pluginName = 'rollup-plugin-test'
   const msgInfo = 'This is the INFO message.'
@@ -1226,6 +1246,246 @@ describe('package resolution in library builds', () => {
     expect(chunk.code).toContain('browser-field')
     expect(chunk.code).toContain('module-field')
     expect(chunk.code).not.toMatch(/exports-node|exports-default|browser-main|module-main/)
+  })
+})
+
+describe('warnings of the builder', () => {
+  let root: string
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  test('keep the code, the module and the location of the warnings of rolldown', async () => {
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-warnings-')))
+    fs.writeFileSync(join(root, 'main.js'), `export const value = eval('1')\n`)
+    const warnings: BuildProjectLog[] = []
+
+    // The same logger and plugin as the builder
+    await build({
+      root,
+      logLevel: 'warn',
+      customLogger: createCollectingLogger(warnings),
+      plugins: [createBuildLogPlugin(warnings)],
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry: 'main.js', formats: ['es'], fileName: 'lib' },
+      },
+    })
+
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        code: 'EVAL',
+        id: join(root, 'main.js'),
+        loc: expect.objectContaining({ line: 1 }),
+        message: expect.stringContaining('eval'),
+      }),
+    ])
+  })
+
+  test('report what builds do not support yet, where it is', async () => {
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-warnings-')))
+    const files: Record<string, string> = {
+      'index.html': `<script type="module" src="./main.js"></script>`,
+      'main.js': [
+        `const modules = import.meta.glob('./pages/*.js')`,
+        'const lang = navigator.language',
+        'const messages = import(`./locales/${lang}.js`)',
+        `const worker = new Worker(new URL('./worker.js', import.meta.url))`,
+        `console.log(modules, messages, worker)`,
+      ].join('\n'),
+      'worker.js': `self.postMessage('ready')`,
+    }
+    for (const [file, content] of Object.entries(files)) {
+      fs.writeFileSync(join(root, file), content)
+    }
+    const warnings: BuildProjectLog[] = []
+
+    await build({
+      root,
+      logLevel: 'warn',
+      customLogger: createCollectingLogger(warnings),
+      plugins: [createBuildLogPlugin(warnings), createUnsupportedFeaturesPlugin()],
+      build: { write: false, minify: false, assetsInlineLimit: 0 },
+    })
+
+    const warningAt = (line: number, message: string) =>
+      expect.objectContaining({
+        plugin: 'vrowzer:unsupported-features',
+        id: join(root, 'main.js'),
+        loc: expect.objectContaining({ line }),
+        message: expect.stringContaining(message),
+      })
+    expect(warnings).toEqual([
+      warningAt(1, 'import.meta.glob()'),
+      warningAt(4, 'new Worker'),
+      warningAt(3, 'Dynamic imports with variables'),
+    ])
+  })
+
+  test('fail with a clear error on the ?worker imports', async () => {
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-warnings-')))
+    fs.writeFileSync(join(root, 'index.html'), `<script type="module" src="./main.js"></script>`)
+    fs.writeFileSync(join(root, 'main.js'), `import MyWorker from './worker.js?worker'\nnew MyWorker()`)
+    fs.writeFileSync(join(root, 'worker.js'), `self.postMessage('ready')`)
+
+    await expect(
+      build({
+        root,
+        logLevel: 'silent',
+        plugins: [createUnsupportedFeaturesPlugin()],
+        build: { write: false },
+      }),
+    ).rejects.toThrow('The Workers of the project ("./worker.js?worker") are not supported in builds yet.')
+  })
+})
+
+describe('CommonJS dependencies in builds', () => {
+  let root: string
+  let nodeEnv: string | undefined
+
+  beforeEach(() => {
+    // A build sets NODE_ENV to production when it is not set yet
+    nodeEnv = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-cjs-')))
+    // The layout of a manifest of `@vrowzer/vite-plugin` with the build option: the previews take
+    // the ES module bundled for development, and builds the original CommonJS files
+    const files: Record<string, string> = {
+      'index.html': `<script type="module" src="./main.js"></script>`,
+      'main.js': `import fixture from 'cjs-fixture'\nconsole.log(fixture.mode)`,
+      'node_modules/cjs-fixture/package.json': JSON.stringify({
+        name: 'cjs-fixture',
+        type: 'module',
+        exports: {
+          '.': {
+            development: '../.vrowzer-esm/cjs-fixture.js',
+            default: './.vrowzer-cjs/index.js',
+          },
+        },
+      }),
+      'node_modules/cjs-fixture/.vrowzer-cjs/package.json': JSON.stringify({
+        name: 'cjs-fixture',
+        exports: { '.': './index.js' },
+      }),
+      'node_modules/cjs-fixture/.vrowzer-cjs/index.js': [
+        `if (process.env.NODE_ENV === 'production') {`,
+        `  module.exports = require('./production.js')`,
+        `} else {`,
+        `  module.exports = require('./development.js')`,
+        `}`,
+      ].join('\n'),
+      'node_modules/cjs-fixture/.vrowzer-cjs/production.js': `exports.mode = 'cjs-production'`,
+      'node_modules/cjs-fixture/.vrowzer-cjs/development.js': `exports.mode = 'cjs-development'`,
+      'node_modules/.vrowzer-esm/cjs-fixture.js': `export default { mode: 'esm-development' }`,
+    }
+    for (const [file, content] of Object.entries(files)) {
+      const filePath = join(root, file)
+      fs.mkdirSync(resolve(filePath, '..'), { recursive: true })
+      fs.writeFileSync(filePath, content)
+    }
+  })
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+    if (nodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = nodeEnv
+    }
+  })
+
+  test('bundles the production branch of the original files', async () => {
+    const { output } = (await build({
+      root,
+      logLevel: 'silent',
+      build: { write: false, minify: false },
+    })) as RolldownOutput
+
+    const code = output
+      .filter((o): o is OutputChunk => o.type === 'chunk')
+      .map((chunk) => chunk.code)
+      .join('\n')
+    expect(code).toContain('cjs-production')
+    expect(code).not.toContain('cjs-development')
+    expect(code).not.toContain('esm-development')
+  })
+})
+
+describe('tsconfig in builds', () => {
+  let root: string
+
+  beforeAll(() => {
+    // NOTE(kazupon): the temporary directory of macOS is behind a symbolic link (`/var` to
+    // `/private/var`). Resolve it, so that the modules are inside the root.
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-tsconfig-')))
+    const files: Record<string, string> = {
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          jsx: 'react',
+          jsxFactory: 'h',
+          experimentalDecorators: true,
+          baseUrl: '.',
+          paths: { '@lib/*': ['src/lib/*'] },
+        },
+      }),
+      'tsconfig.app.json': JSON.stringify({
+        extends: './tsconfig.json',
+        compilerOptions: { jsxFactory: 'createElement' },
+      }),
+      'src/main.tsx': [
+        `import { value } from '@lib/value'`,
+        `declare function h(...args: unknown[]): unknown`,
+        `declare function createElement(...args: unknown[]): unknown`,
+        `export const element = <div>{value}</div>`,
+        `function decorator<T>(target: T): T { return target }`,
+        `@decorator`,
+        `export class Decorated {}`,
+      ].join('\n'),
+      'src/lib/value.ts': `export const value = 'from-paths'`,
+    }
+    for (const [file, content] of Object.entries(files)) {
+      const filePath = join(root, file)
+      fs.mkdirSync(resolve(filePath, '..'), { recursive: true })
+      fs.writeFileSync(filePath, content)
+    }
+  })
+
+  afterAll(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  const buildEntry = async (tsconfig?: string) => {
+    const [output] = (await build({
+      root,
+      logLevel: 'silent',
+      tsconfig,
+      resolve: { tsconfigPaths: true },
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry: 'src/main.tsx', formats: ['es'], fileName: 'lib' },
+      },
+    })) as RolldownOutput[]
+    return (output.output.find((o) => o.type === 'chunk') as OutputChunk).code
+  }
+
+  test('applies the tsconfig.json of the project', async () => {
+    const code = await buildEntry()
+
+    expect(code).toMatch(/\bh\("div"/)
+    expect(code).toContain('__decorate(')
+    expect(code).toContain('from-paths')
+  })
+
+  test('applies the file of the tsconfig option, with what it extends', async () => {
+    const code = await buildEntry('./tsconfig.app.json')
+
+    expect(code).toMatch(/\bcreateElement\("div"/)
+    expect(code).not.toMatch(/\bh\("div"/)
+    expect(code).toContain('__decorate(')
+    expect(code).toContain('from-paths')
   })
 })
 

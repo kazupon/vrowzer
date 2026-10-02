@@ -42,8 +42,7 @@ import {
 } from './asset'
 import { cssBundleNameCache } from './css'
 import { modulePreloadPolyfillId } from './modulePreloadPolyfill'
-// NOTE(kazupon): commented out, because env will not be supported in vrowzer yet
-// import { resolveEnvPrefix } from '../env'
+import { resolveEnvPrefix } from '../env'
 import type { Logger } from '../logger'
 import type { MinimalPluginContextWithoutEnvironment, Plugin } from '../plugin'
 import type { ViteDevServer } from '../server'
@@ -1289,9 +1288,7 @@ export function injectCspNonceMetaTagHook(
  */
 export function htmlEnvHook(config: ResolvedConfig): IndexHtmlTransformHook {
   const pattern = /%(\S+?)%/g
-  const envPrefix: string[] = []
-  // NOTE(kazupon): commented out, because env will not be supported in vrowzer yet
-  // const envPrefix = resolveEnvPrefix({ envPrefix: config.envPrefix })
+  const envPrefix = resolveEnvPrefix({ envPrefix: config.envPrefix })
   const env: Record<string, any> = { ...config.env }
 
   // account for user env defines

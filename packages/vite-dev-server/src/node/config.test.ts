@@ -313,6 +313,56 @@ describe('resolveConfig NODE_ENV', () => {
   })
 })
 
+describe('resolveConfig .env files', () => {
+  // The fixtures of the tests of loadEnv(), as upstream Vite has them
+  const root = fileURLToPath(new URL('./__tests__/env', import.meta.url))
+  let nodeEnv: string | undefined
+
+  beforeEach(() => {
+    nodeEnv = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+  })
+
+  afterEach(() => {
+    if (nodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = nodeEnv
+    }
+  })
+
+  test('exposes the variables of the .env files with the prefix', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({ root }),
+      'build',
+      'production',
+      'production',
+    )
+
+    expect(config.env).toMatchObject({
+      VITE_APP_BASE_ROUTE: '/app/',
+      VITE_APP_BASE_URL: '/app/',
+      MODE: 'production',
+    })
+    expect(config.env).not.toHaveProperty('VVITE_A')
+  })
+
+  test('takes envPrefix, and does not read the files with envDir: false', async () => {
+    const prefixed = await resolveConfig(createInlineConfig({ root, envPrefix: 'VVITE_' }), 'serve')
+    expect(prefixed.env).toMatchObject({ VVITE_A: 'A', VVITE_B: 'B' })
+    expect(prefixed.env).not.toHaveProperty('VITE_APP_BASE_ROUTE')
+
+    const disabled = await resolveConfig(createInlineConfig({ root, envDir: false }), 'serve')
+    expect(disabled.env).not.toHaveProperty('VITE_APP_BASE_ROUTE')
+  })
+
+  test('rejects an empty envPrefix', async () => {
+    await expect(
+      resolveConfig(createInlineConfig({ root, envPrefix: '' }), 'serve'),
+    ).rejects.toThrow(`envPrefix option contains value ''`)
+  })
+})
+
 describe('resolveConfig per-environment isBundled', () => {
   test('defaults serve environments to unbundled', async () => {
     const config = await resolveConfig(
@@ -874,7 +924,7 @@ describe('resolveConfig unsupported option warnings', () => {
     },
   )
 
-  test('warns that resolve.tsconfigPaths has no effect', async () => {
+  test('warns that resolve.tsconfigPaths has no effect on the previews', async () => {
     const { warn, logger } = createWarnLogger()
     await resolveConfig(
       createInlineConfig({
@@ -886,8 +936,21 @@ describe('resolveConfig unsupported option warnings', () => {
 
     expect(warn).toHaveBeenCalledExactlyOnceWith(
       expect.stringContaining(
-        '(!) resolve.tsconfigPaths is not supported by the JavaScript resolver used in Vrowzer. The option has no effect.',
+        "(!) resolve.tsconfigPaths is not supported by the JavaScript resolver of Vrowzer's previews. The option has no effect on them.",
       ),
     )
+  })
+
+  test('does not warn about resolve.tsconfigPaths in builds, which resolve with the native resolver', async () => {
+    const { warn, logger } = createWarnLogger()
+    await resolveConfig(
+      createInlineConfig({
+        customLogger: logger,
+        resolve: { tsconfigPaths: true },
+      }),
+      'build',
+    )
+
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('resolve.tsconfigPaths'))
   })
 })

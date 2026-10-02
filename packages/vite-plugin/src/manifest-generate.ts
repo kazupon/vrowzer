@@ -55,6 +55,13 @@ export interface GenerateManifestOptions {
    * Default file to open in editor
    */
   activeFile?: string
+  /**
+   * When true, also include the original files of the CommonJS packages that are bundled into
+   * ES modules, for `vrowzer.build()` (the `build` option of the plugin). The previews keep the ES
+   * modules, with the `development` condition, and builds bundle the original files for production,
+   * as Vite does (default: false).
+   */
+  build?: boolean
 }
 
 export interface ManifestResult {
@@ -384,6 +391,12 @@ export function detectActiveFile(files: Record<string, string>): string | undefi
 
 // --- CJS → ESM bundling ---
 
+/**
+ * The directory, in each CommonJS package bundled into ES modules, that has the original files of the
+ * package for builds. It also has the original `package.json`, so that its files are CommonJS.
+ */
+export const ORIGINAL_CJS_DIR = '.vrowzer-cjs'
+
 export function isCjsPackage(pkg: PackageJson): boolean {
   if (pkg.type === 'module') {
     return false
@@ -453,10 +466,51 @@ interface CjsBundleResult {
   nodeModulesEntries: Record<string, string>
 }
 
+/**
+ * The exports of a CommonJS package for builds: the `development` condition of the previews takes the
+ * ES module, and the other conditions take the original files in {@link ORIGINAL_CJS_DIR}.
+ *
+ * @param exportsField - The `exports` of the original `package.json`
+ * @param esmExports - The ES modules of the subpaths, relative to the package
+ * @returns The exports of the modified `package.json`
+ */
+export function toBuildExports(
+  exportsField: PackageJson['exports'],
+  esmExports: Record<string, string>
+): Record<string, unknown> {
+  // The targets stay inside the package (`./`), as the native resolver of builds requires
+  const rewrite = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      return value.startsWith('./') ? `./${ORIGINAL_CJS_DIR}/${value.slice(2)}` : value
+    }
+    if (Array.isArray(value)) {
+      return value.map(rewrite)
+    }
+    if (typeof value === 'object' && value !== null) {
+      return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, rewrite(item)]))
+    }
+    return value
+  }
+  const subpaths =
+    typeof exportsField === 'object' &&
+    exportsField !== null &&
+    Object.keys(exportsField).some(key => key.startsWith('.'))
+      ? exportsField
+      : { '.': exportsField }
+  const result: Record<string, unknown> = {}
+  for (const [subpath, value] of Object.entries(subpaths)) {
+    const original = rewrite(value)
+    result[subpath] =
+      subpath in esmExports ? { development: esmExports[subpath], default: original } : original
+  }
+  return result
+}
+
 export async function bundleCjsPackages(
   cjsPackages: { pkgName: string; pkg: PackageJson }[],
   sourceDir: string,
-  nodeModulesRoot: string
+  nodeModulesRoot: string,
+  options: { build?: boolean } = {}
 ): Promise<CjsBundleResult> {
   const entryToSubpath: Record<string, { pkgName: string; subpath: string }> = {}
 
@@ -579,7 +633,7 @@ export async function bundleCjsPackages(
     const modifiedPkg = {
       name: pkg.name,
       type: 'module',
-      exports: modifiedExports
+      exports: options.build ? toBuildExports(pkg.exports, modifiedExports) : modifiedExports
     }
     const modifiedPkgPath = resolve(
       esmDir,
@@ -611,7 +665,13 @@ export async function generateManifest(
   options: GenerateManifestOptions,
   log: GenerateManifestLog = console.log
 ): Promise<ManifestResult> {
-  const { pkgDir, targets = [], includeDevDependencies = false, activeFile } = options
+  const {
+    pkgDir,
+    targets = [],
+    includeDevDependencies = false,
+    activeFile,
+    build = false
+  } = options
   const sourceDir = options.sourceDir || pkgDir
 
   // Read package.json
@@ -667,6 +727,16 @@ export async function generateManifest(
 
     if (isCjsPackage(depPkg) && depPkg.exports) {
       cjsPackages.push({ pkgName, pkg: depPkg })
+      // Builds bundle the original files for production, as Vite does
+      if (build) {
+        const files = await walkPackageFiles(depDir)
+        for (const filePath of files) {
+          const fileRelToPkg = relative(depDir, filePath).replace(/\\/g, '/')
+          const virtualPath = `/node_modules/${pkgName}/${ORIGINAL_CJS_DIR}/${fileRelToPkg}`
+          const relPath = relative(sourceDir, filePath).replace(/\\/g, '/')
+          nodeModulesFiles[virtualPath] = './' + relPath
+        }
+      }
     } else {
       const files = await walkPackageFiles(depDir)
       for (const filePath of files) {
@@ -682,7 +752,14 @@ export async function generateManifest(
   if (cjsPackages.length > 0) {
     log(`  CJS packages: ${cjsPackages.map(p => p.pkgName).join(', ')}`)
     const nodeModulesRoot = join(pkgDir, 'node_modules')
-    const { nodeModulesEntries } = await bundleCjsPackages(cjsPackages, sourceDir, nodeModulesRoot)
+    const { nodeModulesEntries } = await bundleCjsPackages(
+      cjsPackages,
+      sourceDir,
+      nodeModulesRoot,
+      {
+        build
+      }
+    )
     Object.assign(nodeModulesFiles, nodeModulesEntries)
   }
 

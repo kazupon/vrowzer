@@ -167,7 +167,7 @@
     "buffer": "catalog:",
     "convert-source-map": "^2.0.0",
     "dotenv": "^17.2.3",
-    "dotenv-expand": "^12.0.3",
+    "dotenv-expand": "^13.0.0",
     "es-module-lexer": "^1.7.0",
     "esbuild": "catalog:",
     "escape-html": "^1.0.3",

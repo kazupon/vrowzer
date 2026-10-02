@@ -246,6 +246,27 @@ describe('virtual files', () => {
     // The runtime provides /index.html, so the Web Worker does not write a default one
     expect(vi.mocked(fs.writeFileSync).mock.calls.map(([path]) => path)).not.toContain('/index.html')
   })
+
+  test('setupWorker() writes the initial files before it resolves the config, which reads .env files', async () => {
+    let writtenBeforeConfig: unknown[] = []
+    vi.mocked(resolveConfig).mockImplementationOnce(async () => {
+      writtenBeforeConfig = vi.mocked(fs.writeFileSync).mock.calls.map(([path]) => path)
+      return {
+        root: '/',
+        base: '/',
+        publicDir: '/public',
+        build: { outDir: 'dist', rollupOptions: {} },
+        environments: {},
+      } as unknown as Awaited<ReturnType<typeof resolveConfig>>
+    })
+
+    await setupWorker({}, {}, {
+      '/.env': 'VITE_TITLE=preview',
+      '/main.js': 'export {}',
+    })
+
+    expect(writtenBeforeConfig).toEqual(expect.arrayContaining(['/.env', '/main.js']))
+  })
 })
 
 describe('setupHMR watcher error handling', () => {
