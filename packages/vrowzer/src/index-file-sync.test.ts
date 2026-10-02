@@ -144,9 +144,10 @@ beforeEach(() => {
   )
   controllerMocks.postMessage.mockImplementation(message => {
     if (message.type === V_WW_CONNECT_PORT) {
+      const { runtimeId } = message as { runtimeId?: string }
       queueMicrotask(() => {
         controllerMocks.container.dispatchEvent(
-          new MessageEvent('message', { data: { type: V_WW_CONNECT_PORT_ACK } })
+          new MessageEvent('message', { data: { type: V_WW_CONNECT_PORT_ACK, runtimeId } })
         )
       })
     }

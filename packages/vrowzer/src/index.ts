@@ -931,10 +931,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     let stopWaitingForServiceWorker = () => {}
     let stopWaitingForWebWorker = () => {}
 
-    // Wait for Service Worker's ACK
+    // Wait for Service Worker's ACK. Instances in the same page receive each other's ACKs, so take
+    // only the one of this instance.
     const serviceWorkerAck = new Promise<void>(resolve => {
       const handler = (event: MessageEvent) => {
-        if (event.data?.type === V_WW_CONNECT_PORT_ACK) {
+        if (event.data?.type === V_WW_CONNECT_PORT_ACK && event.data.runtimeId === runtimeId) {
           stopWaitingForServiceWorker()
           resolve()
         }

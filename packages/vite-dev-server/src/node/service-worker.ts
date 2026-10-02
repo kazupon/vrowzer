@@ -1,9 +1,13 @@
 /**
  * Service Worker entry point for @vrowzer/vite-dev-server
  *
- * The Service Worker forwards each request within the base path to the Web Worker, which has the
- * project files, the module graph and the plugins, and answers the request with the Vite
- * middlewares. It also forwards the HMR ports of the previews to the Web Worker.
+ * The Service Worker forwards each request within the base path to the Web Worker that owns it,
+ * which has the project files, the module graph and the plugins, and answers the request with the
+ * Vite middlewares. It also forwards the HMR ports of the previews to their Web Workers.
+ *
+ * Several runtimes, e.g. in two tabs, can share the Service Worker. Each runtime connects its Web
+ * Worker with its runtime ID, and its previews have the ID as the first path segment within the
+ * base path, e.g. `/__preview__/0123456789ab/src/main.ts`.
  *
  * The Service Worker does not resolve the Vite config, and has neither plugins nor files.
  *
@@ -64,11 +68,11 @@ export interface CreateServerOptions {
    */
   basePath?: string
   /**
-   * How long a request waits for a Web Worker to connect, in milliseconds. A request that no Web
-   * Worker can answer by then gets a `503` response.
+   * How long a request waits for the Web Worker of its owner to connect, in milliseconds. A request
+   * that no Web Worker can answer by then gets a `503` response.
    *
-   * A restarted Service Worker has no Web Worker channel until the runtime connects one again, so
-   * the requests made in the meantime wait for it.
+   * A restarted Service Worker has no Web Worker channels until the runtimes connect them again, so
+   * the requests made in the meantime wait for them.
    *
    * @default 10_000
    */
@@ -90,7 +94,7 @@ export interface ServiceWorkerServer {
 }
 
 /**
- * A channel with a Web Worker, after the handshake.
+ * A channel with the Web Worker of a runtime, after the handshake.
  */
 interface WorkerChannel {
   port: MessagePort
@@ -98,6 +102,37 @@ interface WorkerChannel {
 }
 
 const DEFAULT_OWNER_WAIT_TIMEOUT = 10_000
+
+/**
+ * The ID of a runtime, which owns a Web Worker channel and the previews under its path.
+ *
+ * @see {@link ConnectWebWorkerPortMessage.runtimeId}
+ */
+const RUNTIME_ID_PATTERN = /^[0-9a-f]{12}$/
+
+function isRuntimeId(value: unknown): value is string {
+  return typeof value === 'string' && RUNTIME_ID_PATTERN.test(value)
+}
+
+/**
+ * Returns the runtime that a path within the base path names as its first segment, e.g.
+ * `0123456789ab` for `/__preview__/0123456789ab/src/main.ts`, or `undefined` when it names none.
+ *
+ * @param pathname - A URL path, or the Vite base of a preview
+ * @param baseRoot - The base path, with a trailing slash
+ */
+function ownerOfPath(pathname: string, baseRoot: string): string | undefined {
+  if (!pathname.startsWith(baseRoot)) {
+    return undefined
+  }
+  const rest = pathname.slice(baseRoot.length)
+  const end = rest.indexOf('/')
+  if (end === -1) {
+    return undefined
+  }
+  const owner = rest.slice(0, end)
+  return isRuntimeId(owner) ? owner : undefined
+}
 
 /**
  * Create the Service Worker side of the dev server.
@@ -114,41 +149,63 @@ export function createServer(
   options: CreateServerOptions = {},
 ): () => Promise<ServiceWorkerServer> {
   const basePath = options.basePath || '/'
+  const baseRoot = basePath.endsWith('/') ? basePath : `${basePath}/`
   const ownerWaitTimeout = options.ownerWaitTimeout ?? DEFAULT_OWNER_WAIT_TIMEOUT
   const workerOrigin = new URL(serviceWorkerScope.location.href).origin
 
-  // The channel with the Web Worker that answers the requests. A later connection replaces it.
-  let workerChannel: WorkerChannel | null = null
-  // Requests and HMR ports waiting for a Web Worker to connect
-  const workerWaiters = new Set<(channel: WorkerChannel) => void>()
+  // The Web Worker channels, by the runtime that owns them
+  const owners = new Map<string, WorkerChannel>()
+  // Requests and HMR ports waiting for the Web Worker of a runtime to connect
+  const ownerWaiters = new Map<string, Set<(channel: WorkerChannel) => void>>()
 
   /**
-   * Wait for a Web Worker to connect, for `ownerWaitTimeout` at most.
+   * Wait for the Web Worker of `owner` to connect, for `ownerWaitTimeout` at most.
    *
-   * @returns The channel, or `null` when no Web Worker connected in time
+   * @returns The channel, or `null` when the Web Worker did not connect in time
    */
-  function waitForWorker(): Promise<WorkerChannel | null> {
-    if (workerChannel) {
-      return Promise.resolve(workerChannel)
+  function waitForOwner(owner: string): Promise<WorkerChannel | null> {
+    const connected = owners.get(owner)
+    if (connected) {
+      return Promise.resolve(connected)
     }
     return new Promise((resolve) => {
+      let waiters = ownerWaiters.get(owner)
+      if (!waiters) {
+        waiters = new Set()
+        ownerWaiters.set(owner, waiters)
+      }
       const onConnect = (channel: WorkerChannel) => {
         clearTimeout(timer)
         resolve(channel)
       }
       const timer = setTimeout(() => {
-        workerWaiters.delete(onConnect)
+        const current = ownerWaiters.get(owner)
+        current?.delete(onConnect)
+        if (current?.size === 0) {
+          ownerWaiters.delete(owner)
+        }
         resolve(null)
       }, ownerWaitTimeout)
-      workerWaiters.add(onConnect)
+      waiters.add(onConnect)
     })
   }
 
-  function connectWorker(channel: WorkerChannel): void {
-    workerChannel = channel
-    const waiters = [...workerWaiters]
-    workerWaiters.clear()
-    for (const waiter of waiters) {
+  function closeChannel(channel: WorkerChannel, reason: string): void {
+    // Reject the requests still waiting for this channel, whose replies never come
+    channel.rpc.$close(new Error(`[@vrowzer/vite-dev-server] ${reason}`))
+    channel.port.close()
+  }
+
+  function connectOwner(owner: string, channel: WorkerChannel): void {
+    const previous = owners.get(owner)
+    owners.set(owner, channel)
+    // The runtime connected its Web Worker again, which has closed the previous port
+    if (previous) {
+      closeChannel(previous, `The Web Worker channel of ${owner} was replaced`)
+    }
+    const waiters = ownerWaiters.get(owner)
+    ownerWaiters.delete(owner)
+    for (const waiter of waiters ?? []) {
       waiter(channel)
     }
   }
@@ -168,9 +225,14 @@ export function createServer(
   // Cross-origin isolation headers (CORP/COEP/COOP) for credentialless iframe + SW
   middlewares.use(crossOriginMiddleware())
 
-  // The Web Worker answers the request with the Vite middlewares
+  // The Web Worker of the runtime named in the URL answers the request with the Vite middlewares
   middlewares.use(async (c) => {
-    const channel = await waitForWorker()
+    const owner = ownerOfPath(c.req.path, baseRoot)
+    if (owner === undefined) {
+      // A preview URL names the runtime that owns it, so nothing answers this one
+      return c.body(null, 404)
+    }
+    const channel = await waitForOwner(owner)
     if (!channel) {
       return c.text(
         `[@vrowzer/vite-dev-server] The preview is not ready: no Web Worker connected within ${ownerWaitTimeout}ms.`,
@@ -227,8 +289,15 @@ export function createServer(
     // V_WW_CONNECT_PORT: birpc handshake with Web Worker
     if (event.data.type === 'V_WW_CONNECT_PORT' && event.ports[0]) {
       const port = event.ports[0]
+      const runtimeId = event.data.runtimeId
       const clientId = event.clientId
-      debug?.('Worker port received via connection event')
+      // Without its runtime ID, no request can be forwarded to the Web Worker
+      if (!isRuntimeId(runtimeId)) {
+        debug?.('Worker port without a valid runtime ID', runtimeId)
+        port.close()
+        return
+      }
+      debug?.('Worker port received via connection event', runtimeId)
 
       // Phase 1: Handshake — wait for WW's channel-ready before creating birpc
       port.onmessage = async (e: MessageEvent<WebWorkerServiceWorkerChannelReadyMessage>) => {
@@ -248,14 +317,15 @@ export function createServer(
             },
           )
 
-          // Requests can be forwarded again. The waiting ones go on before the client hears that
-          // the connection is established.
-          connectWorker({ port, rpc })
+          // The requests of the runtime can be forwarded now. The waiting ones go on before the
+          // client hears that the connection is established.
+          connectOwner(runtimeId, { port, rpc })
 
-          // Notify the originating client that the connection is established
+          // Notify the originating client that the connection is established. Runtimes in the same
+          // page receive each other's acknowledgements, so it names the runtime.
           if (clientId) {
             const client = await serviceWorkerScope.clients.get(clientId)
-            client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK' })
+            client?.postMessage({ type: 'V_WW_CONNECT_PORT_ACK', runtimeId })
           }
 
           debug?.('Worker RPC established via birpc')
@@ -264,12 +334,18 @@ export function createServer(
       return
     }
 
-    // vite:mc:init: iframe HMR port — forward to WW via the birpc MessagePort
+    // vite:mc:init: iframe HMR port — forward to the WW of the runtime named in the Vite base
     if (event.data.type === 'vite:mc:init' && event.ports[0]) {
       const hmrPort = event.ports[0]
-      const hmrClientId = event.data.clientId
-      debug?.('HMR port received from iframe, forwarding to WW', hmrClientId)
-      void waitForWorker().then((channel) => {
+      const { base, clientId: hmrClientId } = event.data
+      const owner = typeof base === 'string' ? ownerOfPath(base, baseRoot) : undefined
+      if (owner === undefined) {
+        debug?.('HMR port without the base of its runtime', hmrClientId, base)
+        hmrPort.close()
+        return
+      }
+      debug?.('HMR port received from iframe, forwarding to WW', owner, hmrClientId)
+      void waitForOwner(owner).then((channel) => {
         if (!channel) {
           hmrPort.close()
           return

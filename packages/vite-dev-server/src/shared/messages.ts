@@ -82,10 +82,14 @@ export interface SetupWorkerErrorMessage {
 export interface ConnectWebWorkerPortMessage {
   type: 'V_WW_CONNECT_PORT'
   /**
-   * ID of the runtime that owns the channel. The Service Worker does not use it yet. It marks the
-   * owner for when several runtimes share one Service Worker.
+   * ID of the runtime that owns the channel: 12 lowercase hexadecimal digits.
+   *
+   * The previews of the runtime have it as the first path segment within the base path, e.g.
+   * `/__preview__/0123456789ab/`. The Service Worker forwards their requests and HMR ports to this
+   * channel, so several runtimes can share one Service Worker. A later channel of the same runtime
+   * replaces this one.
    */
-  runtimeId?: string
+  runtimeId: string
 }
 
 /**
@@ -115,6 +119,11 @@ export interface WebWorkerServiceWorkerChannelReadyMessage {
  */
 export interface ConnectWebWorkerPortAckMessage {
   type: 'V_WW_CONNECT_PORT_ACK'
+  /**
+   * ID of the runtime whose channel is established. Runtimes in the same page receive each other's
+   * acknowledgements, so each one takes only its own.
+   */
+  runtimeId: string
 }
 
 /**
@@ -147,6 +156,11 @@ export interface ViteMessageChannelInitMessage {
    * Client ID of the iframe sending the HMR
    */
   clientId?: string
+  /**
+   * The Vite base of the preview, e.g. `/__preview__/0123456789ab/`. It names the runtime that owns
+   * the preview, and the Service Worker forwards the port to the Web Worker of that runtime.
+   */
+  base?: string
 }
 
 // ---- Service Worker listen readiness protocol ----

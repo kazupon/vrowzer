@@ -206,7 +206,10 @@ async function readyFully(vrowzer: ReturnType<typeof Vrowzer>): Promise<FakeWork
   await completeWebWorkerSetup(worker)
   await waitForChannelHandshake(worker)
   worker.send(V_SW_CONNECT_PORT_ACK)
-  controller.container.dispatch({ type: V_WW_CONNECT_PORT_ACK })
+  controller.container.dispatch({
+    type: V_WW_CONNECT_PORT_ACK,
+    runtimeId: vrowzer.previewBasePath.split('/').at(-2)
+  })
   await expect(ready).resolves.toBe(true)
   return worker
 }

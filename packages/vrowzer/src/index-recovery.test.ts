@@ -85,6 +85,15 @@ function startServiceWorkerInstance(instanceId: string): void {
   fromServiceWorker({ type: V_SW_INSTANCE_STARTED, instanceId })
 }
 
+/**
+ * Completes the Service Worker's side of the latest channel handshake, which it did not answer by
+ * itself. The acknowledgement names the runtime of the channel.
+ */
+function acceptChannelInServiceWorker(): void {
+  const [connection] = serviceWorkerMessages(V_WW_CONNECT_PORT).slice(-1)
+  fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId: connection!.runtimeId })
+}
+
 function serviceWorkerMessages(type?: string): TestMessage[] {
   return controllerMocks.postMessage.mock.calls
     .map(([message]) => message)
@@ -133,7 +142,9 @@ beforeEach(() => {
   )
   controllerMocks.postMessage.mockImplementation(message => {
     if (message.type === V_WW_CONNECT_PORT && replies.channel) {
-      queueMicrotask(() => fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK }))
+      queueMicrotask(() =>
+        fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId: message.runtimeId })
+      )
     }
   })
 })
@@ -142,6 +153,32 @@ afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+})
+
+describe('Vrowzer channel handshake', () => {
+  test('takes only the acknowledgement of its own runtime', async () => {
+    replies.channel = false
+    const vrowzer = Vrowzer()
+    let settled = false
+    const ready = vrowzer.ready({ files: {} }).finally(() => {
+      settled = true
+    })
+    await vi.waitFor(() => {
+      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(1)
+    })
+    workers.at(-1)!.acceptChannel()
+
+    // Another runtime in the same page
+    fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId: 'ba9876543210' })
+    fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK })
+    await flush()
+    expect(settled).toBe(false)
+
+    const runtimeId = vrowzer.previewBasePath.split('/').at(-2)
+    expect(serviceWorkerMessages(V_WW_CONNECT_PORT)[0]!.runtimeId).toBe(runtimeId)
+    fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId })
+    await expect(ready).resolves.toBe(true)
+  })
 })
 
 describe('Vrowzer Service Worker recovery', () => {
@@ -241,7 +278,7 @@ describe('Vrowzer Service Worker recovery', () => {
       expect(fileChanges(serviceWorkerMessages())).toEqual([])
       expect(recovered).not.toHaveBeenCalled()
 
-      fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK })
+      acceptChannelInServiceWorker()
       worker.acceptChannel()
       await vi.waitFor(() => {
         expect(recovered).toHaveBeenCalledOnce()
@@ -300,7 +337,7 @@ describe('Vrowzer Service Worker recovery', () => {
       expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(3)
       expect(webWorkerMessages(worker, V_SW_CONNECT_PORT)).toHaveLength(3)
 
-      fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK })
+      acceptChannelInServiceWorker()
       worker.acceptChannel()
 
       await vi.waitFor(() => {
@@ -320,7 +357,7 @@ describe('Vrowzer Service Worker recovery', () => {
       await flush()
 
       await vrowzer.dispose()
-      fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK })
+      acceptChannelInServiceWorker()
       worker.acceptChannel()
       await flush()
 
