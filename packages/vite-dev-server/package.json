@@ -59,6 +59,10 @@
       "types": "./dist/node/transformer.d.ts",
       "default": "./dist/node/transformer.js"
     },
+    "./builder": {
+      "types": "./dist/node/builder.d.ts",
+      "default": "./dist/node/web-worker-builder.js"
+    },
     "./service-worker": {
       "types": "./dist/node/service-worker.d.ts",
       "default": "./dist/node/service-worker.js"
