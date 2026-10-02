@@ -124,7 +124,7 @@ describe('standalone build (./browser)', () => {
     expect(testState.result).not.toBeNull()
     expect(testState.result.code).toContain('add')
     expect(testState.result.code).toContain('console.log')
-    expect(testState.result.version).toBe('1.2.5')
+    expect(testState.result.version).toBe('1.2.12')
     expect(testState.result.code).toContain(`/preview/${testState.result.assetFileName}`)
     expect(testState.result.code).toContain(`/preview/${testState.result.emittedFileName}`)
     expect(testState.result.code).not.toMatch(/ROLLDOWN_FILE_URL|!~|%7B|%7D/)

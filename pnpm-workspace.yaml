@@ -22,8 +22,8 @@ catalog:
   oxlint: 1.79.0
   '@oxlint/plugins': 1.79.0
   publint: ^0.3.18
-  rolldown: 1.2.5
-  '@rolldown/browser': 1.2.5
+  rolldown: 1.2.12
+  '@rolldown/browser': 1.2.12
   vite: npm:@voidzero-dev/vite-plus-core@0.3.0
   vite-plus: 0.3.0
   vitepress: ^2.0.0-alpha.17
