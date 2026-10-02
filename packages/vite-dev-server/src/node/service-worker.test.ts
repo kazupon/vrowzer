@@ -75,14 +75,30 @@ interface FetchResult {
 
 let clients: WindowClient[]
 let openPorts: MessagePort[]
+let scopeListeners: Map<string, Listener[]>
+let matchAllClients: ReturnType<typeof vi.fn<(options?: ClientQueryOptions) => Promise<WindowClient[]>>>
 
 function createScope(): ServiceWorkerGlobalScope {
   return {
     location: { href: `${ORIGIN}/service-worker.js` },
     clients: {
       get: async (id: string) => clients.find(client => client.id === id),
+      matchAll: matchAllClients,
+    },
+    addEventListener(type: string, listener: Listener) {
+      scopeListeners.set(type, [...(scopeListeners.get(type) ?? []), listener])
     },
   } as unknown as ServiceWorkerGlobalScope
+}
+
+/**
+ * Sends a message without ports to the Service Worker, as a page does with `postMessage()`.
+ */
+function postToServiceWorker(data: unknown, clientId = 'host-1'): void {
+  const source = clients.find(client => client.id === clientId)
+  for (const listener of scopeListeners.get('message') ?? []) {
+    listener({ data, source, ports: [] })
+  }
 }
 
 function fakeServer(): FakeServer {
@@ -123,6 +139,8 @@ function okResponse(body: string, headers: [string, string][] = []): SerializedR
 
 interface ConnectedWorker {
   port: MessagePort
+  /** The end of the channel that the Service Worker has */
+  serviceWorkerPort: MessagePort
   handleRequest: ReturnType<typeof vi.fn<(request: SerializedRequest) => Promise<SerializedResponse>>>
   hmrPorts: { clientId?: string, port: MessagePort }[]
 }
@@ -146,7 +164,12 @@ async function connectWorker({
 }: ConnectOptions = {}): Promise<ConnectedWorker> {
   const channel = new MessageChannel()
   openPorts.push(channel.port1, channel.port2)
-  const worker: ConnectedWorker = { port: channel.port2, handleRequest, hmrPorts: [] }
+  const worker: ConnectedWorker = {
+    port: channel.port2,
+    serviceWorkerPort: channel.port1,
+    handleRequest,
+    hmrPorts: [],
+  }
   const connected = new Promise<void>((resolve) => {
     channel.port2.onmessage = (event) => {
       if (event.data?.type !== 'V_WW_SW_CHANNEL_READY' || event.data.source !== 'sw') {
@@ -213,8 +236,13 @@ beforeEach(() => {
   clients = [
     { id: 'host-1', postMessage: vi.fn<(message: unknown) => void>() },
     { id: 'host-2', postMessage: vi.fn<(message: unknown) => void>() },
+    { id: 'host-3', postMessage: vi.fn<(message: unknown) => void>() },
   ]
   openPorts = []
+  scopeListeners = new Map()
+  matchAllClients = vi.fn<(options?: ClientQueryOptions) => Promise<WindowClient[]>>(
+    async () => clients,
+  )
 })
 
 afterEach(() => {
@@ -481,5 +509,91 @@ describe('Service Worker HMR ports', () => {
       expect(closeWithoutBase).toHaveBeenCalledOnce()
       expect(closeWithoutOwner).toHaveBeenCalledOnce()
     })
+  })
+})
+
+describe('Service Worker owner release', () => {
+  const OWNER_C = 'c0ffee000000'
+
+  test('answers the requests of a disposed runtime with 404, and keeps the other runtimes', async () => {
+    await startServer()
+    const workerA = await connectWorker({ runtimeId: OWNER_A, clientId: 'host-1' })
+    await connectWorker({ runtimeId: OWNER_B, clientId: 'host-2' })
+    const closeA = vi.spyOn(workerA.serviceWorkerPort, 'close')
+
+    postToServiceWorker({ type: 'V_WW_DISCONNECT_PORT', runtimeId: OWNER_A })
+
+    // The Service Worker closes its end of the channel
+    expect(closeA).toHaveBeenCalledOnce()
+    const answerA = await dispatchFetch(previewPath(OWNER_A, '/src/main.ts')).response!
+    expect(answerA.status).toBe(404)
+    expect(answerA.headers.get('Cross-Origin-Embedder-Policy')).toBe('require-corp')
+    expect(workerA.handleRequest).not.toHaveBeenCalled()
+    const answerB = await dispatchFetch(previewPath(OWNER_B, '/src/main.ts')).response!
+    expect(await answerB.text()).toBe(`answer of ${OWNER_B}`)
+  })
+
+  test('answers the waiting requests of a runtime that is disposed before it connects with 404', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await startServer({ basePath: '/__preview__/', ownerWaitTimeout: 1_000 })
+
+    const { response } = dispatchFetch(previewPath(OWNER_A, '/src/main.ts'))
+    await vi.advanceTimersByTimeAsync(100)
+    postToServiceWorker({ type: 'V_WW_DISCONNECT_PORT', runtimeId: OWNER_A })
+
+    expect((await response!).status).toBe(404)
+  })
+
+  test('closes the HMR ports of a disposed runtime', async () => {
+    await startServer()
+    await connectWorker()
+    postToServiceWorker({ type: 'V_WW_DISCONNECT_PORT', runtimeId: OWNER_A })
+
+    const close = sendHmrPort(`/__preview__/${OWNER_A}/`)
+
+    await vi.waitFor(() => {
+      expect(close).toHaveBeenCalledOnce()
+    })
+  })
+
+  test('ignores a release without a valid runtime id', async () => {
+    await startServer()
+    const worker = await connectWorker()
+
+    postToServiceWorker({ type: 'V_WW_DISCONNECT_PORT', runtimeId: 'not an id' })
+    postToServiceWorker({ type: 'V_WW_DISCONNECT_PORT' })
+
+    await dispatchFetch(previewPath(OWNER_A, '/src/main.ts')).response
+    expect(worker.handleRequest).toHaveBeenCalledOnce()
+  })
+
+  test('releases the runtimes whose pages are closed when a runtime connects', async () => {
+    await startServer()
+    const workerA = await connectWorker({ runtimeId: OWNER_A, clientId: 'host-1' })
+    await connectWorker({ runtimeId: OWNER_B, clientId: 'host-2' })
+    // The tab of runtime A is closed, which sends nothing
+    clients = clients.filter(client => client.id !== 'host-1')
+
+    await connectWorker({ runtimeId: OWNER_C, clientId: 'host-3' })
+
+    await vi.waitFor(async () => {
+      expect((await dispatchFetch(previewPath(OWNER_A, '/src/main.ts')).response!).status).toBe(404)
+    })
+    expect(matchAllClients).toHaveBeenCalledWith({ type: 'window', includeUncontrolled: true })
+    expect(workerA.handleRequest).not.toHaveBeenCalled()
+    const answerB = await dispatchFetch(previewPath(OWNER_B, '/src/main.ts')).response!
+    expect(await answerB.text()).toBe(`answer of ${OWNER_B}`)
+  })
+
+  test('accepts a runtime that connects again after its release', async () => {
+    await startServer()
+    await connectWorker()
+    postToServiceWorker({ type: 'V_WW_DISCONNECT_PORT', runtimeId: OWNER_A })
+
+    const worker = await connectWorker()
+
+    const answer = await dispatchFetch(previewPath(OWNER_A, '/src/main.ts')).response!
+    expect(answer.status).toBe(200)
+    expect(worker.handleRequest).toHaveBeenCalledOnce()
   })
 })

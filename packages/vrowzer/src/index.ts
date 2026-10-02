@@ -51,7 +51,8 @@ import {
   V_SW_CONNECT_PORT,
   V_WW_CONNECT_PORT_ACK,
   V_SW_CONNECT_PORT_ACK,
-  V_SW_INSTANCE_STARTED
+  V_SW_INSTANCE_STARTED,
+  V_WW_DISCONNECT_PORT
 } from '@vrowzer/vite-dev-server/messages'
 import { abortable } from './abort.ts'
 import {
@@ -66,6 +67,7 @@ import { resolveServiceWorkerVersion, withServiceWorkerVersion } from './service
 
 import type { Emittable } from '@kazupon/jts-utils/event/emitter'
 import type { FileSystemPublisher } from '@vrowzer/fs/watcher'
+import type { DisconnectWebWorkerPortMessage } from '@vrowzer/vite-dev-server/messages'
 import type { SvcWorkerControllerEventMap } from '@vrowzer/service-worker/controller'
 
 const DEFAULT_SERVICE_WORKER_READY_TIMEOUT = 60_000
@@ -660,6 +662,8 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   // its own base path, so that several instances can share one Service Worker.
   const runtimeId = createRuntimeId()
   const previewBasePath = `${resolved.basePath}${runtimeId}/`
+  // Whether the Web Worker channel was sent to the Service Worker, which then forwards the previews
+  let channelRequested = false
   // The Service Worker instance that has the Web Worker channel of this instance
   let serviceWorkerInstanceId: string | null = null
   // A Service Worker instance that started while ready() was in progress
@@ -966,6 +970,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     })
 
     // Transfer ports
+    channelRequested = true
     serviceWorker.postMessage({ type: V_WW_CONNECT_PORT, runtimeId }, [channel.port1])
     worker.postMessage({ type: V_SW_CONNECT_PORT }, [channel.port2])
 
@@ -1374,6 +1379,19 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     }
   }
 
+  /**
+   * Tells the Service Worker that this instance no longer answers its previews, which then get 404.
+   */
+  function releasePreviews(): void {
+    if (!channelRequested) {
+      return
+    }
+    getServiceWorker()?.postMessage({
+      type: V_WW_DISCONNECT_PORT,
+      runtimeId
+    } satisfies DisconnectWebWorkerPortMessage)
+  }
+
   function dispose(): Promise<void> {
     if (disposePromise) {
       return disposePromise
@@ -1395,6 +1413,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       // An aborted ready() releases what it created and resolves to false
       await readyPromise
       errors.push(...readyReleaseErrors.splice(0))
+      attempt(errors, releasePreviews)
       // Deleting entries while iterating a Map is safe, so no copy is needed
       for (const record of previewSessions.values()) {
         attempt(errors, () => unmountSession(record))

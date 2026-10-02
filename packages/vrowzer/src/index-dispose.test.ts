@@ -349,6 +349,11 @@ describe('Vrowzer dispose', () => {
     expect(publisher.targets.size).toBe(0)
     expect(worker.terminate).toHaveBeenCalledTimes(1)
     expect(vi.getTimerCount()).toBe(0)
+    // The Service Worker may have connected the channel, so it releases the previews as well
+    expect(serviceWorker.postMessage).toHaveBeenLastCalledWith({
+      type: 'V_WW_DISCONNECT_PORT',
+      runtimeId: vrowzer.previewBasePath.split('/').at(-2)
+    })
   })
 
   test('releases everything after a successful ready()', async () => {
@@ -371,6 +376,22 @@ describe('Vrowzer dispose', () => {
     controller.emit('progress', 'late')
     expect(progress).not.toHaveBeenCalled()
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('releases the previews of the instance in the Service Worker', async () => {
+    const vrowzer = Vrowzer()
+    await readyFully(vrowzer)
+    serviceWorker.postMessage.mockClear()
+
+    await vrowzer.dispose()
+
+    expect(serviceWorker.postMessage).toHaveBeenCalledExactlyOnceWith({
+      type: 'V_WW_DISCONNECT_PORT',
+      runtimeId: vrowzer.previewBasePath.split('/').at(-2)
+    })
+    // Disposing again sends nothing more
+    await vrowzer.dispose()
+    expect(serviceWorker.postMessage).toHaveBeenCalledOnce()
   })
 
   test('rejects the file operations that wait for the Workers', async () => {

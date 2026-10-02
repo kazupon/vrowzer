@@ -38,6 +38,7 @@ import type { BlankSchema } from 'hono/types'
 import type { StatusCode } from 'hono/utils/http-status'
 import type {
   ConnectWebWorkerPortMessage,
+  DisconnectWebWorkerPortMessage,
   ViteMessageChannelInitMessage,
   WebWorkerServiceWorkerChannelReadyMessage,
 } from '../shared/messages'
@@ -99,6 +100,10 @@ export interface ServiceWorkerServer {
 interface WorkerChannel {
   port: MessagePort
   rpc: BirpcReturn<WorkerFunctions, ServiceWorkerFunctions>
+  /**
+   * The page of the runtime, which sent the port
+   */
+  clientId: string | undefined
 }
 
 const DEFAULT_OWNER_WAIT_TIMEOUT = 10_000
@@ -155,13 +160,16 @@ export function createServer(
 
   // The Web Worker channels, by the runtime that owns them
   const owners = new Map<string, WorkerChannel>()
+  // Runtimes that were disposed or whose pages are closed. Their previews get 404.
+  const releasedOwners = new Set<string>()
   // Requests and HMR ports waiting for the Web Worker of a runtime to connect
-  const ownerWaiters = new Map<string, Set<(channel: WorkerChannel) => void>>()
+  const ownerWaiters = new Map<string, Set<(channel: WorkerChannel | null) => void>>()
 
   /**
    * Wait for the Web Worker of `owner` to connect, for `ownerWaitTimeout` at most.
    *
-   * @returns The channel, or `null` when the Web Worker did not connect in time
+   * @returns The channel, or `null` when the Web Worker did not connect in time or the runtime was
+   * released
    */
   function waitForOwner(owner: string): Promise<WorkerChannel | null> {
     const connected = owners.get(owner)
@@ -174,7 +182,7 @@ export function createServer(
         waiters = new Set()
         ownerWaiters.set(owner, waiters)
       }
-      const onConnect = (channel: WorkerChannel) => {
+      const onConnect = (channel: WorkerChannel | null) => {
         clearTimeout(timer)
         resolve(channel)
       }
@@ -196,17 +204,50 @@ export function createServer(
     channel.port.close()
   }
 
-  function connectOwner(owner: string, channel: WorkerChannel): void {
-    const previous = owners.get(owner)
-    owners.set(owner, channel)
-    // The runtime connected its Web Worker again, which has closed the previous port
-    if (previous) {
-      closeChannel(previous, `The Web Worker channel of ${owner} was replaced`)
-    }
+  function settleOwnerWaiters(owner: string, channel: WorkerChannel | null): void {
     const waiters = ownerWaiters.get(owner)
     ownerWaiters.delete(owner)
     for (const waiter of waiters ?? []) {
       waiter(channel)
+    }
+  }
+
+  function connectOwner(owner: string, channel: WorkerChannel): void {
+    const previous = owners.get(owner)
+    owners.set(owner, channel)
+    releasedOwners.delete(owner)
+    // The runtime connected its Web Worker again, which has closed the previous port
+    if (previous) {
+      closeChannel(previous, `The Web Worker channel of ${owner} was replaced`)
+    }
+    settleOwnerWaiters(owner, channel)
+  }
+
+  /**
+   * Release a runtime that was disposed or whose page is closed. Its previews get 404 from now on.
+   */
+  function releaseOwner(owner: string, reason: string): void {
+    releasedOwners.add(owner)
+    const channel = owners.get(owner)
+    owners.delete(owner)
+    if (channel) {
+      closeChannel(channel, reason)
+    }
+    settleOwnerWaiters(owner, null)
+  }
+
+  /**
+   * Release the runtimes whose pages are closed. A closed page cannot send
+   * `V_WW_DISCONNECT_PORT`, so this runs when another runtime connects.
+   */
+  async function releaseClosedOwners(): Promise<void> {
+    const pages = await serviceWorkerScope.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const openPages = new Set(pages.map((page) => page.id))
+    for (const [owner, channel] of owners) {
+      if (channel.clientId !== undefined && !openPages.has(channel.clientId)) {
+        debug?.('Releasing the runtime of a closed page', owner)
+        releaseOwner(owner, `The page of ${owner} is closed`)
+      }
     }
   }
 
@@ -228,11 +269,15 @@ export function createServer(
   // The Web Worker of the runtime named in the URL answers the request with the Vite middlewares
   middlewares.use(async (c) => {
     const owner = ownerOfPath(c.req.path, baseRoot)
-    if (owner === undefined) {
-      // A preview URL names the runtime that owns it, so nothing answers this one
+    // A preview URL names the runtime that owns it, so nothing answers a URL without one, or one
+    // of a released runtime
+    if (owner === undefined || releasedOwners.has(owner)) {
       return c.body(null, 404)
     }
     const channel = await waitForOwner(owner)
+    if (!channel && releasedOwners.has(owner)) {
+      return c.body(null, 404)
+    }
     if (!channel) {
       return c.text(
         `[@vrowzer/vite-dev-server] The preview is not ready: no Web Worker connected within ${ownerWaitTimeout}ms.`,
@@ -319,7 +364,10 @@ export function createServer(
 
           // The requests of the runtime can be forwarded now. The waiting ones go on before the
           // client hears that the connection is established.
-          connectOwner(runtimeId, { port, rpc })
+          connectOwner(runtimeId, { port, rpc, clientId })
+          void releaseClosedOwners().catch((error: unknown) => {
+            debug?.('Could not look for closed pages', error)
+          })
 
           // Notify the originating client that the connection is established. Runtimes in the same
           // page receive each other's acknowledgements, so it names the runtime.
@@ -339,8 +387,8 @@ export function createServer(
       const hmrPort = event.ports[0]
       const { base, clientId: hmrClientId } = event.data
       const owner = typeof base === 'string' ? ownerOfPath(base, baseRoot) : undefined
-      if (owner === undefined) {
-        debug?.('HMR port without the base of its runtime', hmrClientId, base)
+      if (owner === undefined || releasedOwners.has(owner)) {
+        debug?.('HMR port without the base of a connected runtime', hmrClientId, base)
         hmrPort.close()
         return
       }
@@ -367,11 +415,27 @@ export function createServer(
     },
   }
 
+  // V_WW_DISCONNECT_PORT: a disposed runtime releases its previews. It has no ports, so it is not a
+  // connection of the server.
+  function onMessage(event: ExtendableMessageEvent): void {
+    const message = event.data as Partial<DisconnectWebWorkerPortMessage> | null
+    if (message?.type !== 'V_WW_DISCONNECT_PORT') {
+      return
+    }
+    if (!isRuntimeId(message.runtimeId)) {
+      debug?.('V_WW_DISCONNECT_PORT without a valid runtime ID', message.runtimeId)
+      return
+    }
+    debug?.('Releasing a disposed runtime', message.runtimeId)
+    releaseOwner(message.runtimeId, `The runtime ${message.runtimeId} was disposed`)
+  }
+
   /**
    * Start answering requests and accepting the Web Worker channels.
    */
   async function listen(): Promise<ServiceWorkerServer> {
     httpServer.on('connection', onConnection)
+    serviceWorkerScope.addEventListener('message', onMessage)
     httpServer.listen({ enableListenConnections: true })
     return server
   }
@@ -411,8 +475,10 @@ export function createServerCloseFn(
 export {
   V_WW_CONNECT_PORT,
   V_WW_CONNECT_PORT_ACK,
+  V_WW_DISCONNECT_PORT,
   V_WW_SW_CHANNEL_READY
 } from '../shared/messages'
 export type {
-  ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage, WebWorkerServiceWorkerChannelReadyMessage
+  ConnectWebWorkerPortAckMessage, ConnectWebWorkerPortMessage, DisconnectWebWorkerPortMessage,
+  WebWorkerServiceWorkerChannelReadyMessage
 } from '../shared/messages'

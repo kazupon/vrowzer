@@ -93,6 +93,22 @@ export interface ConnectWebWorkerPortMessage {
 }
 
 /**
+ * Main Thread -> Service Worker: The runtime is disposed and releases its previews.
+ * Sent with `postMessage()`, without ports.
+ *
+ * The Service Worker closes the Web Worker channel of the runtime, and answers the requests of its
+ * previews with 404 from then on. A runtime whose page is closed sends nothing, so the Service
+ * Worker also releases the runtimes whose pages are gone when another runtime connects.
+ */
+export interface DisconnectWebWorkerPortMessage {
+  type: 'V_WW_DISCONNECT_PORT'
+  /**
+   * ID of the runtime that is disposed.
+   */
+  runtimeId: string
+}
+
+/**
  * Main Thread -> Web Worker: Accept a MessagePort for Service Worker communication.
  * The port is transferred via postMessage's transfer list.
  */
@@ -212,6 +228,7 @@ export const V_WW_SETUP = 'V_WW_SETUP' as const
 export const V_WW_SETUP_ACK = 'V_WW_SETUP_ACK' as const
 export const V_WW_SETUP_ERROR = 'V_WW_SETUP_ERROR' as const
 export const V_WW_CONNECT_PORT = 'V_WW_CONNECT_PORT' as const
+export const V_WW_DISCONNECT_PORT = 'V_WW_DISCONNECT_PORT' as const
 export const V_SW_CONNECT_PORT = 'V_SW_CONNECT_PORT' as const
 export const V_WW_SW_CHANNEL_READY = 'V_WW_SW_CHANNEL_READY' as const
 export const V_WW_CONNECT_PORT_ACK = 'V_WW_CONNECT_PORT_ACK' as const
