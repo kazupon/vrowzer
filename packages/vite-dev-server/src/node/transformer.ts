@@ -140,6 +140,10 @@ export async function setupWorker(
     ]
   }
 
+  // Write the files first, so that resolving the config reads the `.env*` files of the project, as
+  // upstream Vite does
+  setupVirtualFiles(files)
+
   const config = isResolvedConfig(inlineConfig)
     ? inlineConfig
     : await resolveConfig(inlineConfig, 'serve')
@@ -147,8 +151,6 @@ export async function setupWorker(
     assertWorkerRuntimeConfig(config as unknown as Record<string, unknown>, options.runtimeConfig, true)
   }
   debug?.('config:', config)
-
-  setupVirtualFiles(files)
 
   const { root } = config
   const basePath = options.basePath || '/'

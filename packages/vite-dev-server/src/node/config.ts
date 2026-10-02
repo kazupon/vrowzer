@@ -50,6 +50,7 @@ import {
   ENV_ENTRY,
   FS_PREFIX
 } from './constants'
+import { loadEnv, resolveEnvPrefix } from './env'
 import { createIdResolver } from './idResolver'
 import type { LogLevel, Logger } from './logger'
 import { createLogger } from './logger'
@@ -1671,6 +1672,13 @@ export async function resolveConfig(
 
   // load .env files
   // Backward compatibility: set envDir to false when envFile is false
+  if (config.envFile === false) {
+    logger.warn(
+      colors.yellow(
+        'The `envFile` option is deprecated, please use `envDir: false` instead.',
+      ),
+    )
+  }
   let envDir = config.envFile === false ? false : config.envDir
   if (envDir !== false) {
     envDir = config.envDir
@@ -1678,9 +1686,7 @@ export async function resolveConfig(
       : resolvedRoot
   }
 
-  const userEnv = {} as Record<string, string>
-  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
-  // const userEnv = loadEnv(mode, envDir, resolveEnvPrefix(config))
+  const userEnv = loadEnv(mode, envDir, resolveEnvPrefix(config))
 
   // Note it is possible for user to have a custom mode, e.g. `staging` where
   // development-like behavior is expected. This is indicated by NODE_ENV=development
