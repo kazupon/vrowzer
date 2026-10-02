@@ -79,7 +79,7 @@ await vrowzer.updateFile(
 
 Creates a new Vrowzer instance.
 
-When `@vrowzer/vite-plugin` is used, configure the preview URL with the plugin's `basePath`. The value is shared with the application, Web Worker, and Service Worker, so the runtime option can be omitted:
+When `@vrowzer/vite-plugin` is used, configure the start of the preview URLs with the plugin's `basePath`. The value is shared with the application, Web Worker, and Service Worker, so the runtime option can be omitted:
 
 ```ts
 // vite.config.ts
@@ -99,7 +99,12 @@ import { Vrowzer } from 'vrowzer'
 const vrowzer = Vrowzer()
 ```
 
-The runtime `basePath` remains available for compatibility and for usage without the plugin. If both the plugin and runtime values are provided, their canonical paths must match or `Vrowzer()` throws. Without either value, the preview path is `/__preview__/`.
+The runtime `basePath` remains available for compatibility and for usage without the plugin. If both the plugin and runtime values are provided, their canonical paths must match or `Vrowzer()` throws. Without either value, the preview URLs start with `/__preview__/`.
+
+Each instance loads its previews from its own path under `basePath`, which [`previewBasePath`](#previewbasepath-string) returns, e.g. `/__preview__/0123456789ab/`. The path is also the Vite base of the project, so `import.meta.env.BASE_URL` in the preview returns it. This lets several instances share one Service Worker, e.g. in two tabs of the application: each tab gets only its own files, transforms and HMR updates.
+
+> [!NOTE]
+> Up to vrowzer 0.4.x, the previews loaded from `basePath` itself, e.g. `/__preview__/`, and `import.meta.env.BASE_URL` was `basePath`. Use `previewBasePath` instead where the host builds preview URLs from `basePath`. Two instances that shared a Service Worker got each other's files and HMR updates.
 
 `serviceWorkerScope` controls which pages the browser allows the Service Worker to control. When `@vrowzer/vite-plugin` is used, configure the scope on the plugin so the registration and `Service-Worker-Allowed` response header use the same value. The runtime option can then be omitted:
 
@@ -113,7 +118,7 @@ const vrowzer = Vrowzer()
 
 The runtime `serviceWorkerScope` remains available for compatibility and for builds without the plugin. If both values are provided, they must match or `Vrowzer()` throws before registration. Without either value, the scope defaults to `/`. The scope does not set the preview URL; that is the role of `basePath`.
 
-The scope selects which pages the Service Worker controls, not which request URLs it receives from those pages. Vrowzer only responds to same-origin HTTP(S) requests within `basePath`. Cross-origin requests and same-origin requests outside `basePath` are left to the browser's native network path. Requests within `basePath` that the virtual project cannot serve get a 404 response from the Service Worker; they are not sent to the host server.
+The scope selects which pages the Service Worker controls, not which request URLs it receives from those pages. Vrowzer only responds to same-origin HTTP(S) requests within `basePath`. Cross-origin requests and same-origin requests outside `basePath` are left to the browser's native network path. The Service Worker forwards each request within `basePath` to the Web Worker of the instance whose `previewBasePath` it is under, which answers it. Those that the virtual project cannot serve get a 404 response, as do the requests under no instance's path or under a disposed instance's path; they are not sent to the host server.
 
 `serviceWorkerVersion` identifies the Service Worker version expected by the controller and reported by the worker. When `@vrowzer/vite-plugin` is used, configure the version on the plugin and omit the runtime option:
 
@@ -143,30 +148,44 @@ const vrowzer = Vrowzer({ webWorkerSetupTimeout: 120000 })
 
 Set this option to `0` for an immediate timeout. It does not apply to Service Worker readiness and does not need a corresponding Vite plugin option.
 
-`fileSyncTimeout` controls how long `addFile()`, `updateFile()` and `deleteFile()` wait for the Web Worker and the Service Worker to apply a change. It defaults to 10000 milliseconds. The Web Worker applies a change after the plugins' `watchChange` hooks finish, so slow plugins make it take longer. The default is shorter than the 30 seconds that the Service Worker waits for the Web Worker to transform a request, so in such environments an operation can reject although the change is applied later. Increase the timeout there:
+`fileSyncTimeout` controls how long `addFile()`, `updateFile()` and `deleteFile()` wait for the Web Worker to apply a change. It defaults to 10000 milliseconds. The Web Worker applies a change after the plugins' `watchChange` hooks finish, so slow plugins make it take longer. The default is shorter than the 30 seconds that the Service Worker waits for the Web Worker to answer a request, so in such environments an operation can reject although the change is applied later. Increase the timeout there:
 
 ```ts
 const vrowzer = Vrowzer({ fileSyncTimeout: 30000 })
 ```
 
-The same timeout limits how long Vrowzer takes to restore the project in a restarted Service Worker. See [Service Worker restarts](#service-worker-restarts).
+The same timeout limits how long Vrowzer takes to connect a restarted Service Worker to the Web Worker again. See [Service Worker restarts](#service-worker-restarts).
 
 **Options:**
 
 | Option                      | Type     | Default                           | Description                                                  |
 | --------------------------- | -------- | --------------------------------- | ------------------------------------------------------------ |
-| `basePath`                  | `string` | Plugin value or `'/__preview__/'` | Preview URL pathname; must match the plugin value             |
+| `basePath`                  | `string` | Plugin value or `'/__preview__/'` | Start of the preview URLs; must match the plugin value        |
 | `serviceWorkerVersion`      | `string` | Plugin value or `'vrowzer-v1'`    | SW version; must match the plugin value                       |
 | `serviceWorkerScope`        | `string` | Plugin value or `'/'`             | SW registration scope; must match the plugin value            |
 | `serviceWorkerReadyTimeout` | `number` | `60000`                           | Milliseconds to wait for the Service Worker page controller   |
 | `webWorkerSetupTimeout`     | `number` | `90000`                           | Milliseconds from Web Worker creation through setup completion |
-| `fileSyncTimeout`           | `number` | `10000`                           | Milliseconds to wait for the Workers to apply a file change, or to restore a restarted Service Worker |
+| `fileSyncTimeout`           | `number` | `10000`                           | Milliseconds to wait for the Web Worker to apply a file change, or to reconnect a restarted Service Worker |
+
+### Instance Properties
+
+#### `previewBasePath: string`
+
+The base path of the instance's previews: `basePath` followed by an ID of the instance, e.g. `/__preview__/0123456789ab/`. It is set when `Vrowzer()` is called, and stays the same after `dispose()`. The previews load from it, and it is the Vite base of the project, which `import.meta.env.BASE_URL` returns in the preview.
+
+```ts
+const vrowzer = Vrowzer()
+await vrowzer.ready({ files })
+
+// Read a preview file through the Service Worker
+const response = await fetch(`${vrowzer.previewBasePath}main.js`)
+```
 
 ### Instance Methods
 
 #### `ready(config): Promise<boolean>`
 
-Initializes the preview system: creates Web Worker and Service Worker, establishes a MessageChannel between them, and syncs initial files.
+Initializes the preview system: creates Web Worker and Service Worker, gives the initial files to the Web Worker, and establishes a MessageChannel between them.
 Call this method once per Vrowzer instance. Use one initialized Vrowzer instance per page and share it with every preview session.
 
 ```ts
@@ -178,7 +197,7 @@ const ready = await vrowzer.ready({
 })
 ```
 
-File contents can be strings or `ArrayBuffer`s. Each `ArrayBuffer` is copied for the Workers when `ready()` is called, so the caller's buffer stays usable.
+File contents can be strings or `ArrayBuffer`s. Each `ArrayBuffer` is copied for the Web Worker when `ready()` is called, so the caller's buffer stays usable.
 
 If `files` has no `/index.html`, Vrowzer uses a default one: an empty `<div id="app">` and a module script that loads `/main.js`.
 
@@ -251,7 +270,7 @@ Deletes a file from the virtual filesystem. Deleting a file that does not exist 
 
 #### Waiting for file changes
 
-The promise of `addFile()`, `updateFile()` and `deleteFile()` resolves when later preview requests see the change: the Web Worker and the Service Worker have written the file to their virtual filesystems, and the Web Worker has invalidated the modules that depend on it. It does not wait for HMR updates of mounted previews. To load the new contents in a fresh document, wait for the promise before reloading:
+The promise of `addFile()`, `updateFile()` and `deleteFile()` resolves when later preview requests see the change: the Web Worker has written the file to its virtual filesystem, and invalidated the modules that depend on it. It does not wait for HMR updates of mounted previews. To load the new contents in a fresh document, wait for the promise before reloading:
 
 ```ts
 await vrowzer.updateFile('/main.js', source)
@@ -259,10 +278,10 @@ vrowzer.reloadPreview()
 ```
 
 - Operations awaited one after another are applied in that order. Operations started together may resolve in any order, and several files are not applied as one transaction.
-- `ArrayBuffer` content is copied for each Worker, so the caller's buffer stays usable.
-- The promise rejects without sending the change before `ready()` resolves to `true`, after it fails, and after `dispose()`. It also rejects when a Worker fails to apply the change (for example, a plugin's `watchChange` hook throws), when the Web Worker reports an error, when the Workers do not reply within `fileSyncTimeout`, or when the instance is disposed first. The error message names the operation, the path and the Worker.
+- `ArrayBuffer` content is copied for the Web Worker, so the caller's buffer stays usable.
+- The promise rejects without sending the change before `ready()` resolves to `true`, after it fails, and after `dispose()`. It also rejects when the Web Worker fails to apply the change (for example, a plugin's `watchChange` hook throws), when it reports an error, when it does not reply within `fileSyncTimeout`, or when the instance is disposed first. The error message names the operation and the path.
 - After a rejection, the change may be partly applied. Write the file again, or delete it, to resynchronize.
-- While Vrowzer restores the project in a restarted Service Worker, the change is held and sent afterwards, and `fileSyncTimeout` counts from then. The promise rejects if the restoration fails. See [Service Worker restarts](#service-worker-restarts).
+- A Service Worker restart does not delay the change, since the Web Worker applies it. See [Service Worker restarts](#service-worker-restarts).
 
 > [!NOTE]
 > Up to vrowzer 0.4.x, these methods returned `void` without waiting for the Workers, and calls made before `ready()` completed were dropped or reached only the Web Worker.
@@ -272,11 +291,12 @@ vrowzer.reloadPreview()
 Disposes the instance when the host application stops using it. The promise resolves after these resources are released:
 
 - every preview session, as with `unmount()`
-- the instance's Web Worker
-- the forwarding of Service Worker controller events and the file synchronization to the Service Worker
+- the instance's Web Worker, with the project files
+- the instance's previews in the Service Worker, which answers the requests under `previewBasePath` with 404 from then on
+- the forwarding of Service Worker controller events
 - all event handlers, which are removed as soon as `dispose()` is called
 
-The Service Worker registration and its virtual filesystem are shared with other clients and are kept, so a new instance can start right away.
+The Service Worker registration is shared with other clients and is kept, so a new instance can start right away. A closed page cannot release its previews, so the Service Worker releases them when another instance connects.
 
 ```ts
 await vrowzer.dispose()
@@ -293,8 +313,8 @@ With `await using`, the instance is disposed at the end of the scope.
 ```
 
 - If `ready()` is still in progress, it is aborted and resolves to `false`.
-- If Vrowzer is restoring the project in a restarted Service Worker, the restoration stops.
-- File operations still waiting for the Workers reject. After disposal, `ready()`, `addFile()`, `updateFile()` and `deleteFile()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
+- If Vrowzer is connecting a restarted Service Worker to the Web Worker again, it stops.
+- File operations still waiting for the Web Worker reject. After disposal, `ready()`, `addFile()`, `updateFile()` and `deleteFile()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
 - Calling `dispose()` again returns the same promise. If some resources cannot be released, the remaining ones are still released, and the promise rejects with an `AggregateError`.
 
 > [!NOTE]
@@ -327,7 +347,7 @@ The session stays mounted and its rendering does not change: an error response b
 
 #### `serviceWorkerRecovered`
 
-Emitted when Vrowzer has restored the project in a restarted Service Worker. See [Service Worker restarts](#service-worker-restarts).
+Emitted when Vrowzer has connected a restarted Service Worker to the Web Worker again. See [Service Worker restarts](#service-worker-restarts).
 
 ```ts
 vrowzer.on('serviceWorkerRecovered', () => {
@@ -337,23 +357,23 @@ vrowzer.on('serviceWorkerRecovered', () => {
 
 #### `serviceWorkerRecoveryError`
 
-Emitted with an `Error` when Vrowzer could not restore the project in a restarted Service Worker: the Service Worker failed to apply the files, or the restoration did not finish within `fileSyncTimeout`. See [Service Worker restarts](#service-worker-restarts).
+Emitted with an `Error` when Vrowzer could not connect a restarted Service Worker to the Web Worker again within `fileSyncTimeout`. See [Service Worker restarts](#service-worker-restarts).
 
 ### Service Worker restarts
 
-Browsers stop an idle Service Worker and start it again for the next request or message. The registration and the page controller stay the same, but the restarted Service Worker has lost the project files and its channel to the Web Worker. Vrowzer restores them without reloading the host page:
+Browsers stop an idle Service Worker and start it again for the next request or message. The registration and the page controller stay the same, but the restarted Service Worker has lost its channel to the Web Worker. The project files are in the Web Worker, which keeps them. Vrowzer connects the channel again without reloading the host page:
 
 1. When the Service Worker starts again, it notifies the pages it controls.
-2. Vrowzer sends it the latest files, as given to `ready()` and changed with `addFile()`, `updateFile()` and `deleteFile()`, and connects the Web Worker channel again. To do this, Vrowzer keeps a copy of the files in the page.
+2. Vrowzer connects the Web Worker channel again.
 3. Vrowzer emits `serviceWorkerRecovered`.
 
-While the project is being restored:
+While the channel is being connected:
 
-- Preview requests wait until the Service Worker has the project again, for up to 10 seconds. After that, they get a `503` response, which a loading preview reports with `previewLoadError`.
-- `addFile()`, `updateFile()` and `deleteFile()` are held, and sent once the project is restored.
+- Preview requests wait for the Web Worker channel, for up to 10 seconds. After that, they get a `503` response, which a loading preview reports with `previewLoadError`.
+- `addFile()`, `updateFile()` and `deleteFile()` go on as usual, since the Web Worker applies them.
 - Mounted previews keep their HMR connection, which does not go through the Service Worker.
 
-If the restoration does not finish within `fileSyncTimeout`, or the Service Worker fails to apply the files, Vrowzer emits `serviceWorkerRecoveryError`, and the file operations that wait for the Service Worker reject. Later file operations are sent as usual, and Vrowzer tries again when the Service Worker restarts the next time. To start over right away, dispose the instance and create a new one:
+If the channel is not connected within `fileSyncTimeout`, Vrowzer emits `serviceWorkerRecoveryError`, and tries again when the Service Worker restarts the next time. To start over right away, dispose the instance and create a new one:
 
 ```ts
 vrowzer.on('serviceWorkerRecoveryError', async error => {
@@ -366,6 +386,13 @@ vrowzer.on('serviceWorkerRecoveryError', async error => {
 ## 🏗️ Architecture
 
 ![Architecture](./assets/architecture.svg)
+
+The Web Worker runs the Vite dev server: it has the project files, the module graph and the plugins, and answers the preview requests with the Vite middlewares, including the ones that plugins add in `configureServer`. The Service Worker has no project files. It forwards each request within `basePath` to the Web Worker of the instance whose `previewBasePath` it is under, over a MessageChannel, and the HMR ports of the previews as well. Several instances, e.g. in two tabs, can share the Service Worker this way.
+
+Give Vite plugins to the Web Worker, as `@vrowzer/vite-plugin` does with the plugins of `vite.config.ts`. The Service Worker runs no plugins.
+
+> [!NOTE]
+> Up to vrowzer 0.4.x, the Service Worker ran the Vite middlewares on its own copy of the project files, and `initServiceWorker()` of `vrowzer/service-worker-core` took `plugins` for its dev server. The Web Worker's dev server had no `middlewares`, so the middlewares that plugins add in `configureServer` ran only in the Service Worker, for the plugins given to it.
 
 ## 📚 API References
 

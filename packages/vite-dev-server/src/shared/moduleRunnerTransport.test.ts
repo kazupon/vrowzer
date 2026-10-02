@@ -102,6 +102,32 @@ describe('createMessageChannelModuleRunnerTransport', () => {
         expect.objectContaining({ type: 'vite:mc:init' }),
         [mockPort2]
       )
+      expect(mockPostMessage.mock.calls[0]![0]).not.toHaveProperty('base')
+    })
+
+    it('names the Vite base of the preview, which tells the Service Worker its Web Worker', async () => {
+      const mockPostMessage = vi.fn<(message: unknown, transfer: Transferable[]) => void>()
+      const transport = createMessageChannelModuleRunnerTransport(mockPostMessage, {
+        timeout: 100,
+        pingInterval: 0,
+        base: '/__preview__/0123456789ab/',
+      })
+
+      const connectPromise = transport.connect({
+        onMessage: vi.fn<(payload: unknown) => void>(),
+        onDisconnection: vi.fn<() => void>(),
+      })
+      simulateInitEcho(mockPostMessage)
+      await connectPromise
+
+      expect(mockPostMessage).toHaveBeenCalledWith(
+        {
+          type: 'vite:mc:init',
+          clientId: expect.any(String),
+          base: '/__preview__/0123456789ab/',
+        },
+        [mockPort2]
+      )
     })
 
     it('waits for connect confirmation message and resolves', async () => {

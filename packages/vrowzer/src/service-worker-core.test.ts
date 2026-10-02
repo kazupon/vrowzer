@@ -3,33 +3,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/tes
 type Listener = (event: any) => void
 
 interface ServerOptions {
-  beforeRequest: (request: Request) => Promise<Response | undefined>
-  onWorkerChannelReady: () => void
+  version?: string
+  basePath?: string
+  ownerWaitTimeout?: number
 }
 
 const mocks = vi.hoisted(() => ({
-  handleMessage: vi.fn<(message: unknown) => void>(),
   listen: vi.fn<() => Promise<void>>(),
   serverOptions: undefined as ServerOptions | undefined
 }))
 
-vi.mock('@vrowzer/fs', () => ({
-  fs: {
-    mkdirSync: vi.fn<() => void>(),
-    writeFileSync: vi.fn<() => void>()
-  },
-  vol: {
-    fromJSON: vi.fn<() => void>()
-  }
-}))
-vi.mock('@vrowzer/fs/watcher', () => ({
-  V_FS_ACK: 'V_FS_ACK',
-  createFileSystemSubscriber: () => ({ watcher: {}, handleMessage: mocks.handleMessage })
-}))
-vi.mock('@vrowzer/vite-dev-server/dist/client/client.mjs?raw', () => ({ default: 'client code' }))
-vi.mock('@vrowzer/vite-dev-server/dist/client/env.mjs?raw', () => ({ default: 'env code' }))
 vi.mock('@vrowzer/vite-dev-server/service-worker', () => ({
-  createServer: (_scope: unknown, _config: unknown, options: ServerOptions) => {
+  createServer: (_scope: unknown, options: ServerOptions) => {
     mocks.serverOptions = options
     return mocks.listen
   }
@@ -77,26 +62,6 @@ function serverOptions(): ServerOptions {
   return mocks.serverOptions
 }
 
-function previewRequest(): Request {
-  return new Request('https://vrowzer.test/__preview__/main.js')
-}
-
-async function isPending(promise: Promise<unknown>): Promise<boolean> {
-  let settled = false
-  promise.then(
-    () => {
-      settled = true
-    },
-    () => {
-      settled = true
-    }
-  )
-  for (let index = 0; index < 10; index++) {
-    await Promise.resolve()
-  }
-  return !settled
-}
-
 function messagesOfType(client: TestClient, type: string): { type: string; instanceId?: string }[] {
   return client.postMessage.mock.calls
     .map(([message]) => message as { type: string; instanceId?: string })
@@ -105,7 +70,6 @@ function messagesOfType(client: TestClient, type: string): { type: string; insta
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.handleMessage.mockReset()
   mocks.serverOptions = undefined
   windowClients = []
 })
@@ -114,55 +78,6 @@ afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
-})
-
-describe('initServiceWorker file synchronization', () => {
-  beforeEach(async () => {
-    // Keep the server starting, so that only message handling runs
-    mocks.listen.mockReturnValue(new Promise<void>(() => {}))
-    stubServiceWorkerScope()
-    await initServiceWorker()
-  })
-
-  test.each([
-    { type: 'V_FS_WRITE', id: 'op-1', path: '/main.ts', encoding: 'text', content: 'test' },
-    { type: 'V_FS_UNLINK', id: 'op-1', path: '/main.ts' },
-    { type: 'V_FS_INIT', id: 'op-1', files: { '/main.ts': 'test' } }
-  ])('acknowledges $type to the sending client after applying it', message => {
-    const client = createClient()
-    mocks.handleMessage.mockImplementation(() => {
-      expect(client.postMessage).not.toHaveBeenCalled()
-    })
-
-    receive(message, client)
-
-    expect(mocks.handleMessage).toHaveBeenCalledExactlyOnceWith(message)
-    expect(client.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'V_FS_ACK', id: 'op-1' })
-  })
-
-  test('acknowledges with the error when writing the file fails', () => {
-    const client = createClient()
-    mocks.handleMessage.mockImplementation(() => {
-      throw new TypeError('invalid content')
-    })
-
-    receive({ type: 'V_FS_WRITE', id: 'op-2', path: '/main.ts', content: 'x' }, client)
-
-    expect(client.postMessage).toHaveBeenCalledExactlyOnceWith({
-      type: 'V_FS_ACK',
-      id: 'op-2',
-      error: { name: 'TypeError', message: 'invalid content' }
-    })
-  })
-
-  test('does not acknowledge messages without an id', () => {
-    const client = createClient()
-
-    receive({ type: 'V_FS_WRITE', path: '/main.ts', content: 'x' }, client)
-
-    expect(mocks.handleMessage).toHaveBeenCalledOnce()
-    expect(client.postMessage).not.toHaveBeenCalled()
-  })
 })
 
 describe('initServiceWorker instance', () => {
@@ -239,84 +154,30 @@ describe('initServiceWorker instance', () => {
   })
 })
 
-describe('initServiceWorker project readiness', () => {
-  beforeEach(async () => {
+describe('initServiceWorker server', () => {
+  test('forwards the requests within the preview base path to the Web Workers', async () => {
+    mocks.listen.mockResolvedValue()
+    stubServiceWorkerScope()
+
+    await initServiceWorker()
+
+    // A request waits for a Web Worker as long as the runtime waits for its recovery
+    expect(serverOptions()).toEqual({
+      version: expect.any(String),
+      basePath: '/__preview__/',
+      ownerWaitTimeout: 10_000
+    })
+  })
+
+  test('does not take the project files, which only the Web Worker has', async () => {
     mocks.listen.mockResolvedValue()
     stubServiceWorkerScope()
     await initServiceWorker()
-  })
-
-  test.each([
-    { order: 'the files first', steps: ['files', 'channel'] },
-    { order: 'the channel first', steps: ['channel', 'files'] }
-  ])(
-    'holds requests until it has the project files and the Web Worker channel ($order)',
-    async ({ steps }) => {
-      const response = serverOptions().beforeRequest(previewRequest())
-
-      for (const step of steps) {
-        expect(await isPending(response)).toBe(true)
-        if (step === 'files') {
-          receive({ type: 'V_FS_INIT', files: { '/main.js': 'code' } }, createClient())
-        } else {
-          serverOptions().onWorkerChannelReady()
-        }
-      }
-
-      await expect(response).resolves.toBeUndefined()
-    }
-  )
-
-  test('lets requests go on right away once the project is ready', async () => {
-    receive({ type: 'V_FS_INIT', id: 'init-1', files: {} }, createClient())
-    serverOptions().onWorkerChannelReady()
-
-    expect(await isPending(serverOptions().beforeRequest(previewRequest()))).toBe(false)
-    await expect(serverOptions().beforeRequest(previewRequest())).resolves.toBeUndefined()
-  })
-
-  test.each([
-    { received: 'nothing', steps: [] },
-    { received: 'only the files', steps: ['files'] },
-    { received: 'only the channel', steps: ['channel'] }
-  ])('answers with 503 after 10 seconds when it has received $received', async ({ steps }) => {
-    vi.useFakeTimers()
-    for (const step of steps) {
-      if (step === 'files') {
-        receive({ type: 'V_FS_INIT', files: {} }, createClient())
-      } else {
-        serverOptions().onWorkerChannelReady()
-      }
-    }
-
-    const response = serverOptions().beforeRequest(previewRequest())
-    await vi.advanceTimersByTimeAsync(9_999)
-    expect(await isPending(response)).toBe(true)
-    await vi.advanceTimersByTimeAsync(1)
-
-    const answer = await response
-    expect(answer?.status).toBe(503)
-    expect(answer?.headers.get('Content-Type')).toBe('text/plain; charset=utf-8')
-    expect(await answer?.text()).toContain('within 10000ms')
-  })
-
-  test('does not count project files that fail to apply', async () => {
-    vi.useFakeTimers()
     const client = createClient()
-    mocks.handleMessage.mockImplementation(() => {
-      throw new Error('broken file')
-    })
-    receive({ type: 'V_FS_INIT', id: 'init-2', files: {} }, client)
-    serverOptions().onWorkerChannelReady()
 
-    const response = serverOptions().beforeRequest(previewRequest())
-    await vi.advanceTimersByTimeAsync(10_000)
+    receive({ type: 'V_FS_WRITE', id: 'op-1', path: '/main.ts', content: 'x' }, client)
+    receive({ type: 'V_FS_INIT', id: 'op-2', files: { '/main.ts': 'x' } }, client)
 
-    expect(client.postMessage).toHaveBeenCalledExactlyOnceWith({
-      type: 'V_FS_ACK',
-      id: 'init-2',
-      error: { name: 'Error', message: 'broken file' }
-    })
-    expect((await response)?.status).toBe(503)
+    expect(client.postMessage).not.toHaveBeenCalled()
   })
 })

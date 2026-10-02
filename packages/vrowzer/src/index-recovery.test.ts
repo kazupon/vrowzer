@@ -15,14 +15,7 @@ interface TestMessage {
   id?: string
   path?: string
   content?: unknown
-  files?: Record<string, string>
-  binaryFiles?: Record<string, ArrayBuffer>
   runtimeId?: string
-}
-
-interface AckError {
-  name: string
-  message: string
 }
 
 const controllerMocks = vi.hoisted(() => ({
@@ -45,7 +38,7 @@ import { Vrowzer, type VrowzerOptions } from './index.ts'
 
 let workers: TestWorker[]
 // What the fake Workers answer by themselves
-let replies: { webWorkerAcks: boolean; serviceWorkerAcks: boolean; channel: boolean }
+let replies: { webWorkerAcks: boolean; channel: boolean }
 
 class TestWorker {
   onmessage: ((event: MessageEvent) => void) | null = null
@@ -70,6 +63,13 @@ class TestWorker {
     }
   }
 
+  /**
+   * Completes a channel handshake that it did not answer by itself.
+   */
+  acceptChannel(): void {
+    this.onmessage?.({ data: { type: V_SW_CONNECT_PORT_ACK } } as MessageEvent)
+  }
+
   private reply(data: object): void {
     queueMicrotask(() => this.onmessage?.({ data } as MessageEvent))
   }
@@ -81,12 +81,17 @@ function fromServiceWorker(data: object): void {
   controllerMocks.container.dispatchEvent(new MessageEvent('message', { data }))
 }
 
-function ackFromServiceWorker(id: string, error?: AckError): void {
-  fromServiceWorker({ type: 'V_FS_ACK', id, ...(error ? { error } : {}) })
-}
-
 function startServiceWorkerInstance(instanceId: string): void {
   fromServiceWorker({ type: V_SW_INSTANCE_STARTED, instanceId })
+}
+
+/**
+ * Completes the Service Worker's side of the latest channel handshake, which it did not answer by
+ * itself. The acknowledgement names the runtime of the channel.
+ */
+function acceptChannelInServiceWorker(): void {
+  const [connection] = serviceWorkerMessages(V_WW_CONNECT_PORT).slice(-1)
+  fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId: connection!.runtimeId })
 }
 
 function serviceWorkerMessages(type?: string): TestMessage[] {
@@ -103,33 +108,10 @@ function fileChanges(messages: TestMessage[]): TestMessage[] {
   return messages.filter(message => message.type === 'V_FS_WRITE' || message.type === 'V_FS_UNLINK')
 }
 
-/**
- * The V_FS_INIT messages that restore the Service Worker. The one of ready() has no id.
- */
-function recoveryInits(): (TestMessage & { id: string })[] {
-  return serviceWorkerMessages('V_FS_INIT').filter(
-    (message): message is TestMessage & { id: string } => message.id !== undefined
-  )
-}
-
 async function flush(): Promise<void> {
   for (let index = 0; index < 20; index++) {
     await Promise.resolve()
   }
-}
-
-async function isPending(promise: Promise<unknown>): Promise<boolean> {
-  let settled = false
-  promise.then(
-    () => {
-      settled = true
-    },
-    () => {
-      settled = true
-    }
-  )
-  await flush()
-  return !settled
 }
 
 async function readyInstance(
@@ -148,7 +130,7 @@ async function readyInstance(
 beforeEach(() => {
   vi.clearAllMocks()
   workers = []
-  replies = { webWorkerAcks: true, serviceWorkerAcks: true, channel: true }
+  replies = { webWorkerAcks: true, channel: true }
   controllerMocks.container = new EventTarget()
   vi.stubGlobal('Worker', TestWorker)
   vi.stubGlobal(
@@ -159,15 +141,10 @@ beforeEach(() => {
     }
   )
   controllerMocks.postMessage.mockImplementation(message => {
-    if (message.type === V_WW_CONNECT_PORT) {
-      if (replies.channel) {
-        queueMicrotask(() => fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK }))
-      }
-      return
-    }
-    const id = message.id
-    if (replies.serviceWorkerAcks && id !== undefined) {
-      queueMicrotask(() => ackFromServiceWorker(id))
+    if (message.type === V_WW_CONNECT_PORT && replies.channel) {
+      queueMicrotask(() =>
+        fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId: message.runtimeId })
+      )
     }
   })
 })
@@ -178,10 +155,37 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('Vrowzer channel handshake', () => {
+  test('takes only the acknowledgement of its own runtime', async () => {
+    replies.channel = false
+    const vrowzer = Vrowzer()
+    let settled = false
+    const ready = vrowzer.ready({ files: {} }).finally(() => {
+      settled = true
+    })
+    await vi.waitFor(() => {
+      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(1)
+    })
+    workers.at(-1)!.acceptChannel()
+
+    // Another runtime in the same page
+    fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId: 'ba9876543210' })
+    fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK })
+    await flush()
+    expect(settled).toBe(false)
+
+    const runtimeId = vrowzer.previewBasePath.split('/').at(-2)
+    expect(serviceWorkerMessages(V_WW_CONNECT_PORT)[0]!.runtimeId).toBe(runtimeId)
+    fromServiceWorker({ type: V_WW_CONNECT_PORT_ACK, runtimeId })
+    await expect(ready).resolves.toBe(true)
+  })
+})
+
 describe('Vrowzer Service Worker recovery', () => {
   describe('detection', () => {
-    test('restores the project when a Service Worker instance with another id starts', async () => {
+    test('connects the Web Worker channel again when a Service Worker instance with another id starts', async () => {
       const { worker, recovered, recoveryErrors } = await readyInstance({ '/main.js': 'export {}' })
+      const [firstConnection] = serviceWorkerMessages(V_WW_CONNECT_PORT)
       controllerMocks.postMessage.mockClear()
       worker.messages.length = 0
 
@@ -191,9 +195,9 @@ describe('Vrowzer Service Worker recovery', () => {
         expect(recovered).toHaveBeenCalledOnce()
       })
       expect(recoveryErrors).not.toHaveBeenCalled()
-      expect(serviceWorkerMessages().map(message => message.type)).toEqual([
-        'V_FS_INIT',
-        V_WW_CONNECT_PORT
+      // The Web Worker still has the files, so only the channel is connected again
+      expect(serviceWorkerMessages()).toEqual([
+        { type: V_WW_CONNECT_PORT, runtimeId: firstConnection!.runtimeId }
       ])
       expect(worker.messages.map(message => message.type)).toEqual([V_SW_CONNECT_PORT])
     })
@@ -235,11 +239,14 @@ describe('Vrowzer Service Worker recovery', () => {
       expect(serviceWorkerMessages()).toEqual([])
     })
 
-    test('restores the project after ready() when an instance started during ready()', async () => {
+    test('connects the channel again after ready() when an instance started during ready()', async () => {
       const postMessage = controllerMocks.postMessage.getMockImplementation()!
       controllerMocks.postMessage.mockImplementation((message, transfer) => {
-        // The Service Worker restarts right after it got the files of ready()
-        if (message.type === 'V_FS_INIT' && message.id === undefined) {
+        // The Service Worker restarts right after it got the channel of ready()
+        if (
+          message.type === V_WW_CONNECT_PORT &&
+          serviceWorkerMessages(V_WW_CONNECT_PORT).length === 1
+        ) {
           startServiceWorkerInstance('sw-2')
         }
         postMessage(message, transfer)
@@ -250,161 +257,32 @@ describe('Vrowzer Service Worker recovery', () => {
       await vi.waitFor(() => {
         expect(recovered).toHaveBeenCalledOnce()
       })
-      expect(recoveryInits()).toHaveLength(1)
-    })
-  })
-
-  describe('restored contents', () => {
-    test('sends the latest files to the Service Worker only, with an id', async () => {
-      const { vrowzer, worker, recovered } = await readyInstance({
-        '/a.js': 'a',
-        '/b.bin': new Uint8Array([1, 2]).buffer,
-        '/c.js': 'c'
-      })
-      await vrowzer.addFile('/d.js', 'd')
-      await vrowzer.updateFile('/a.js', 'a2')
-      await vrowzer.deleteFile('/c.js')
-      await vrowzer.updateFile('/b.bin', new Uint8Array([3, 4]).buffer)
-
-      startServiceWorkerInstance('sw-2')
-
-      await vi.waitFor(() => {
-        expect(recovered).toHaveBeenCalledOnce()
-      })
-      const [init] = recoveryInits()
-      expect(init).toEqual({
-        type: 'V_FS_INIT',
-        id: expect.any(String),
-        files: {
-          '/a.js': 'a2',
-          '/d.js': 'd',
-          '/index.html': expect.stringContaining('<div id="app"></div>'),
-          '/dist/client/client.mjs': 'client code',
-          '/dist/client/env.mjs': 'env code'
-        },
-        binaryFiles: { '/b.bin': expect.any(ArrayBuffer) }
-      })
-      expect([...new Uint8Array(init!.binaryFiles!['/b.bin']!)]).toEqual([3, 4])
-      expect(webWorkerMessages(worker, 'V_FS_INIT')).toEqual([])
-    })
-
-    test('connects the Web Worker channel again after the Service Worker applied the files', async () => {
-      const { worker, recovered } = await readyInstance()
-      const [firstConnection] = serviceWorkerMessages(V_WW_CONNECT_PORT)
-      replies.serviceWorkerAcks = false
-
-      startServiceWorkerInstance('sw-2')
-      await flush()
-      expect(recoveryInits()).toHaveLength(1)
-      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(1)
-      expect(webWorkerMessages(worker, V_SW_CONNECT_PORT)).toHaveLength(1)
-
-      ackFromServiceWorker(recoveryInits()[0]!.id)
-
-      await vi.waitFor(() => {
-        expect(recovered).toHaveBeenCalledOnce()
-      })
-      const connections = serviceWorkerMessages(V_WW_CONNECT_PORT)
-      expect(connections).toHaveLength(2)
-      expect(firstConnection!.runtimeId).toEqual(expect.any(String))
-      expect(connections[1]!.runtimeId).toBe(firstConnection!.runtimeId)
-      expect(webWorkerMessages(worker, V_SW_CONNECT_PORT)).toHaveLength(2)
+      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(2)
     })
   })
 
   describe('file operations', () => {
-    test('settles an operation sent before the restart when the restored files are applied', async () => {
-      const { vrowzer, recovered } = await readyInstance()
-      replies.serviceWorkerAcks = false
-      const updating = vrowzer.updateFile('/a.js', 'v1')
-      expect(await isPending(updating)).toBe(true)
-
+    test('sends the operations called during a recovery to the Web Worker right away', async () => {
+      const { vrowzer, worker, recovered } = await readyInstance({ '/a.js': 'v1', '/b.js': 'b' })
+      replies.channel = false
       startServiceWorkerInstance('sw-2')
       await flush()
-      const [init] = recoveryInits()
-      expect(init!.files!['/a.js']).toBe('v1')
-      expect(await isPending(updating)).toBe(true)
 
-      ackFromServiceWorker(init!.id)
+      await expect(vrowzer.updateFile('/a.js', 'v2')).resolves.toBeUndefined()
+      await expect(vrowzer.deleteFile('/b.js')).resolves.toBeUndefined()
 
-      await expect(updating).resolves.toBeUndefined()
+      expect(fileChanges(worker.messages)).toEqual([
+        expect.objectContaining({ type: 'V_FS_WRITE', path: '/a.js', content: 'v2' }),
+        expect.objectContaining({ type: 'V_FS_UNLINK', path: '/b.js' })
+      ])
+      expect(fileChanges(serviceWorkerMessages())).toEqual([])
+      expect(recovered).not.toHaveBeenCalled()
+
+      acceptChannelInServiceWorker()
+      worker.acceptChannel()
       await vi.waitFor(() => {
         expect(recovered).toHaveBeenCalledOnce()
       })
-    })
-
-    test('sends the operations called during the recovery after it, in order', async () => {
-      const { vrowzer, worker, recovered } = await readyInstance({ '/a.js': 'v1', '/b.js': 'b' })
-      replies.serviceWorkerAcks = false
-      startServiceWorkerInstance('sw-2')
-      await flush()
-
-      const updating = vrowzer.updateFile('/a.js', 'v2')
-      const deleting = vrowzer.deleteFile('/b.js')
-      await flush()
-      expect(fileChanges(serviceWorkerMessages())).toEqual([])
-      expect(fileChanges(worker.messages)).toEqual([])
-      const [init] = recoveryInits()
-      expect(init!.files).toMatchObject({ '/a.js': 'v1', '/b.js': 'b' })
-
-      replies.serviceWorkerAcks = true
-      ackFromServiceWorker(init!.id)
-
-      await expect(updating).resolves.toBeUndefined()
-      await expect(deleting).resolves.toBeUndefined()
-      expect(recovered).toHaveBeenCalledOnce()
-      const expected = [
-        expect.objectContaining({ type: 'V_FS_WRITE', path: '/a.js', content: 'v2' }),
-        expect.objectContaining({ type: 'V_FS_UNLINK', path: '/b.js' })
-      ]
-      expect(fileChanges(serviceWorkerMessages())).toEqual(expected)
-      expect(fileChanges(worker.messages)).toEqual(expected)
-    })
-
-    test('counts the timeout of a held operation from when it is sent', async () => {
-      vi.useFakeTimers()
-      const { vrowzer } = await readyInstance({}, { fileSyncTimeout: 1000 })
-      replies.serviceWorkerAcks = false
-      replies.webWorkerAcks = false
-      startServiceWorkerInstance('sw-2')
-      await flush()
-      const updating = vrowzer.updateFile('/a.js', 'v2')
-      const result = updating.catch((error: unknown) => error)
-
-      await vi.advanceTimersByTimeAsync(900)
-      ackFromServiceWorker(recoveryInits()[0]!.id)
-      await flush()
-      expect(fileChanges(serviceWorkerMessages())).toHaveLength(1)
-      await vi.advanceTimersByTimeAsync(999)
-      expect(await isPending(updating)).toBe(true)
-      await vi.advanceTimersByTimeAsync(1)
-
-      expect(await result).toEqual(
-        expect.objectContaining({ message: expect.stringContaining('timed out after 1000ms') })
-      )
-    })
-
-    test('copies binary content when the operation is called', async () => {
-      const { vrowzer, recovered } = await readyInstance()
-      replies.serviceWorkerAcks = false
-      startServiceWorkerInstance('sw-2')
-      await flush()
-      const buffer = new Uint8Array([1, 2, 3]).buffer
-
-      const writing = vrowzer.updateFile('/data.bin', buffer)
-      new Uint8Array(buffer).fill(9)
-      replies.serviceWorkerAcks = true
-      ackFromServiceWorker(recoveryInits()[0]!.id)
-
-      await expect(writing).resolves.toBeUndefined()
-      const [message] = fileChanges(serviceWorkerMessages())
-      expect([...new Uint8Array(message!.content as ArrayBuffer)]).toEqual([1, 2, 3])
-      // The copy kept to restore the Service Worker has the same bytes
-      startServiceWorkerInstance('sw-3')
-      await vi.waitFor(() => {
-        expect(recovered).toHaveBeenCalledTimes(2)
-      })
-      expect([...new Uint8Array(recoveryInits()[1]!.binaryFiles!['/data.bin']!)]).toEqual([1, 2, 3])
     })
   })
 
@@ -415,10 +293,9 @@ describe('Vrowzer Service Worker recovery', () => {
         {},
         { fileSyncTimeout: 1000 }
       )
-      replies.serviceWorkerAcks = false
+      replies.channel = false
       startServiceWorkerInstance('sw-2')
       await flush()
-      const result = vrowzer.updateFile('/a.js', 'v2').catch((error: unknown) => error)
 
       await vi.advanceTimersByTimeAsync(1000)
 
@@ -427,98 +304,68 @@ describe('Vrowzer Service Worker recovery', () => {
       expect(error).toBeInstanceOf(Error)
       expect(error.message).toContain('timed out after 1000ms')
       expect(recovered).not.toHaveBeenCalled()
-      expect(await result).toEqual(
-        expect.objectContaining({
-          message: expect.stringMatching(/updateFile\("\/a\.js"\).*restarted Service Worker/)
-        })
-      )
-      expect(fileChanges(serviceWorkerMessages())).toEqual([])
+      // File operations do not wait for the Service Worker
+      await expect(vrowzer.updateFile('/a.js', 'v2')).resolves.toBeUndefined()
     })
 
-    test('reports a Service Worker that fails to apply the restored files', async () => {
-      const { vrowzer, recovered, recoveryErrors } = await readyInstance()
-      replies.serviceWorkerAcks = false
-      const sent = vrowzer.updateFile('/a.js', 'v1')
+    test('tries again on the next start after a failed recovery', async () => {
+      vi.useFakeTimers()
+      const { recovered, recoveryErrors } = await readyInstance({}, { fileSyncTimeout: 1000 })
+      replies.channel = false
       startServiceWorkerInstance('sw-2')
-      await flush()
-      const held = vrowzer.updateFile('/a.js', 'v2')
-
-      ackFromServiceWorker(recoveryInits()[0]!.id, { name: 'Error', message: 'disk full' })
-
-      await expect(sent).rejects.toThrow('disk full')
-      await expect(held).rejects.toThrow('disk full')
+      await vi.advanceTimersByTimeAsync(1000)
       expect(recoveryErrors).toHaveBeenCalledOnce()
-      expect(recoveryErrors.mock.calls[0]![0].message).toContain('disk full')
-      expect(recovered).not.toHaveBeenCalled()
-      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(1)
-    })
 
-    test('sends operations as usual after a failed recovery, and tries again on the next start', async () => {
-      const { vrowzer, recovered, recoveryErrors } = await readyInstance()
-      replies.serviceWorkerAcks = false
-      startServiceWorkerInstance('sw-2')
-      await flush()
-      ackFromServiceWorker(recoveryInits()[0]!.id, { name: 'Error', message: 'disk full' })
-      await vi.waitFor(() => {
-        expect(recoveryErrors).toHaveBeenCalledOnce()
-      })
-
-      replies.serviceWorkerAcks = true
-      await expect(vrowzer.updateFile('/a.js', 'after the failure')).resolves.toBeUndefined()
+      replies.channel = true
       startServiceWorkerInstance('sw-3')
 
       await vi.waitFor(() => {
         expect(recovered).toHaveBeenCalledOnce()
       })
-      expect(recoveryInits()[1]!.files!['/a.js']).toBe('after the failure')
+      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(3)
     })
   })
 
   describe('overlaps', () => {
-    test('restores the newest instance when another one starts during a recovery', async () => {
-      const { vrowzer, recovered, recoveryErrors } = await readyInstance()
-      replies.serviceWorkerAcks = false
+    test('connects the newest instance when another one starts during a recovery', async () => {
+      const { worker, recovered, recoveryErrors } = await readyInstance()
+      replies.channel = false
       startServiceWorkerInstance('sw-2')
       await flush()
       startServiceWorkerInstance('sw-3')
       await flush()
-      const [first, second] = recoveryInits()
-      expect(second).toBeDefined()
+      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(3)
+      expect(webWorkerMessages(worker, V_SW_CONNECT_PORT)).toHaveLength(3)
 
-      ackFromServiceWorker(first!.id)
-      await flush()
-      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(1)
-      ackFromServiceWorker(second!.id)
+      acceptChannelInServiceWorker()
+      worker.acceptChannel()
 
       await vi.waitFor(() => {
         expect(recovered).toHaveBeenCalledOnce()
       })
+      await flush()
+      expect(recovered).toHaveBeenCalledOnce()
       expect(recoveryErrors).not.toHaveBeenCalled()
-      // The acknowledgements of the Web Worker still arrive
-      replies.serviceWorkerAcks = true
-      await expect(vrowzer.updateFile('/a.js', 'v2')).resolves.toBeUndefined()
     })
   })
 
   describe('dispose()', () => {
-    test('stops the recovery and sends nothing more', async () => {
-      const { vrowzer } = await readyInstance()
-      replies.serviceWorkerAcks = false
+    test('stops the recovery and connects nothing more', async () => {
+      const { vrowzer, worker, recovered } = await readyInstance()
+      replies.channel = false
       startServiceWorkerInstance('sw-2')
       await flush()
-      const held = vrowzer.updateFile('/a.js', 'v2')
 
-      const disposing = vrowzer.dispose()
-      await expect(held).rejects.toThrow('cancelled by dispose()')
-      ackFromServiceWorker(recoveryInits()[0]!.id)
-      await disposing
+      await vrowzer.dispose()
+      acceptChannelInServiceWorker()
+      worker.acceptChannel()
       await flush()
 
-      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(1)
-      expect(fileChanges(serviceWorkerMessages())).toEqual([])
+      expect(recovered).not.toHaveBeenCalled()
+      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(2)
       startServiceWorkerInstance('sw-3')
       await flush()
-      expect(recoveryInits()).toHaveLength(1)
+      expect(serviceWorkerMessages(V_WW_CONNECT_PORT)).toHaveLength(2)
     })
   })
 })

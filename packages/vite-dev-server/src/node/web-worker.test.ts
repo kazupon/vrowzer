@@ -11,10 +11,18 @@ import {
 const transformerMocks = vi.hoisted(() => ({
   connectServiceWorkerPort: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   createDevHtmlTransformFn: vi.fn<() => () => void>(() => vi.fn<() => void>()),
+  createRequestPipeline: vi.fn<(basePath?: string) => unknown>(() => ({
+    middlewares: {},
+    applyInternalMiddlewares: vi.fn<(...args: unknown[]) => void>(),
+    handleRequest: vi.fn<(request: unknown) => Promise<unknown>>(),
+  })),
   fs: {},
   isServerAccessDeniedForTransform: vi.fn<() => boolean>(() => false),
-  setupHMR: vi.fn<() => Promise<{ waitForFileChange: (file: string) => Promise<void> }>>(
-    async () => ({ waitForFileChange: async () => undefined }),
+  setupHMR: vi.fn<() => Promise<{
+    publicFiles: Set<string> | undefined
+    waitForFileChange: (file: string) => Promise<void>
+  }>>(
+    async () => ({ publicFiles: undefined, waitForFileChange: async () => undefined }),
   ),
   setupWorker: vi.fn<() => Promise<unknown>>(),
 }))
@@ -43,7 +51,6 @@ function createSetupResult() {
   return {
     config: {
       getSortedPluginHooks: vi.fn<() => []>(() => []),
-      safeModulePaths: new Set<string>(),
     },
     environments: {
       client: {
@@ -68,12 +75,16 @@ function createWorkerScope() {
   } as unknown as DedicatedWorkerGlobalScope
 }
 
-function dispatchSetup(workerScope: DedicatedWorkerGlobalScope, config: Record<string, unknown> = {}): Promise<void> {
+function dispatchSetup(
+  workerScope: DedicatedWorkerGlobalScope,
+  config: Record<string, unknown> = {},
+  options: Record<string, unknown> = {},
+): Promise<void> {
   return Promise.resolve(workerScope.onmessage?.({
     data: {
       type: V_WW_SETUP,
       config,
-      options: {},
+      options,
       files: {},
     },
   } as MessageEvent) as unknown as Promise<void>)
@@ -282,6 +293,93 @@ describe('Web Worker transform requests', () => {
   })
 })
 
+describe('Web Worker request pipeline', () => {
+  interface Pipeline {
+    middlewares: object
+    applyInternalMiddlewares: ReturnType<typeof vi.fn<(...args: unknown[]) => void>>
+    handleRequest: ReturnType<typeof vi.fn<(request: unknown) => Promise<unknown>>>
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function createdPipeline(): Pipeline {
+    return transformerMocks.createRequestPipeline.mock.results[0]!.value as Pipeline
+  }
+
+  test('builds the Vite middlewares around the configureServer hooks', async () => {
+    const setupResult = createSetupResult()
+    const servers: unknown[] = []
+    const postHook = vi.fn<() => void>()
+    const hooks = [
+      vi.fn<(server: unknown) => () => void>((server) => {
+        servers.push(server)
+        return postHook
+      }),
+      vi.fn<(server: unknown) => void>((server) => {
+        servers.push(server)
+      }),
+    ]
+    setupResult.config.getSortedPluginHooks = vi.fn<() => []>(() => hooks as unknown as [])
+    transformerMocks.setupWorker.mockResolvedValue(setupResult)
+    const publicFiles = new Set(['/hello.txt'])
+    transformerMocks.setupHMR.mockResolvedValueOnce({
+      publicFiles,
+      waitForFileChange: async () => undefined,
+    })
+    const workerScope = createWorkerScope()
+    const server = createServer(workerScope)
+    const listening = server.listen(0)
+
+    await dispatchSetup(workerScope, {}, { basePath: '/__preview__' })
+    const readyServer = await listening
+
+    expect(transformerMocks.createRequestPipeline).toHaveBeenCalledExactlyOnceWith('/__preview__')
+    const pipeline = createdPipeline()
+    // Plugins add their middlewares to the pipeline in configureServer
+    expect(readyServer.middlewares).toBe(pipeline.middlewares)
+    expect(servers).toEqual([readyServer, readyServer])
+    // The functions that the hooks return come after the internal middlewares
+    expect(pipeline.applyInternalMiddlewares)
+      .toHaveBeenCalledExactlyOnceWith(readyServer, publicFiles, [postHook, undefined])
+    const applied = pipeline.applyInternalMiddlewares.mock.invocationCallOrder[0]!
+    expect(applied).toBeGreaterThan(hooks[1]!.mock.invocationCallOrder[0]!)
+    expect(applied)
+      .toBeLessThan(setupResult.environments.client.pluginContainer.buildStart.mock.invocationCallOrder[0]!)
+    expect(postHook).not.toHaveBeenCalled()
+  })
+
+  test('answers the requests that the Service Worker forwards with the Vite middlewares', async () => {
+    transformerMocks.setupWorker.mockResolvedValue(createSetupResult())
+    const workerScope = createWorkerScope()
+    const server = createServer(workerScope)
+    const listening = server.listen(0)
+    await dispatchSetup(workerScope)
+    await listening
+    const response = { status: 200, statusText: 'OK', headers: [], body: null }
+    createdPipeline().handleRequest.mockResolvedValueOnce(response)
+    transformerMocks.connectServiceWorkerPort.mockResolvedValueOnce({ $close: vi.fn<() => void>() })
+
+    await Promise.resolve(workerScope.onmessage?.({
+      data: { type: V_SW_CONNECT_PORT },
+      ports: [{ close: vi.fn<() => void>() }],
+    } as unknown as MessageEvent))
+    const [, handlers] = transformerMocks.connectServiceWorkerPort.mock.calls[0]! as [
+      unknown,
+      { handleRequest: (request: unknown) => Promise<unknown> },
+    ]
+    const request = { url: 'https://example.com/__preview__/', method: 'GET', headers: [], body: null }
+
+    await expect(handlers.handleRequest(request)).resolves.toBe(response)
+    expect(createdPipeline().handleRequest).toHaveBeenCalledExactlyOnceWith(request)
+  })
+})
+
 describe('Web Worker file changes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -293,7 +391,7 @@ describe('Web Worker file changes', () => {
 
   test('waits for file changes with the tracker from setupHMR', async () => {
     const waitForFileChange = vi.fn<(file: string) => Promise<void>>(async () => undefined)
-    transformerMocks.setupHMR.mockResolvedValueOnce({ waitForFileChange })
+    transformerMocks.setupHMR.mockResolvedValueOnce({ publicFiles: undefined, waitForFileChange })
     transformerMocks.setupWorker.mockResolvedValue(createSetupResult())
     const workerScope = createWorkerScope()
     const server = createServer(workerScope)
@@ -323,7 +421,6 @@ describe('Web Worker Service Worker channel', () => {
   function createRpc() {
     return {
       $close: vi.fn<(error?: Error) => void>(),
-      registerSafeModulePaths: vi.fn<(paths: string[]) => Promise<void>>(async () => undefined),
     }
   }
 
@@ -343,10 +440,8 @@ describe('Web Worker Service Worker channel', () => {
       .filter(message => (message as { type?: string }).type === V_SW_CONNECT_PORT_ACK)
   }
 
-  async function readyWorkerScope(safeModulePaths: string[] = []): Promise<DedicatedWorkerGlobalScope> {
-    const setupResult = createSetupResult()
-    setupResult.config.safeModulePaths = new Set(safeModulePaths)
-    transformerMocks.setupWorker.mockResolvedValue(setupResult)
+  async function readyWorkerScope(): Promise<DedicatedWorkerGlobalScope> {
+    transformerMocks.setupWorker.mockResolvedValue(createSetupResult())
     const workerScope = createWorkerScope()
     const server = createServer(workerScope)
     const listening = server.listen(0)
@@ -400,36 +495,7 @@ describe('Web Worker Service Worker channel', () => {
 
     expect(firstPort.close).toHaveBeenCalledOnce()
     expect(firstRpc.$close).toHaveBeenCalledOnce()
-    expect(firstRpc.registerSafeModulePaths).not.toHaveBeenCalled()
     expect(secondRpc.$close).not.toHaveBeenCalled()
-    expect(connectPortAcks(workerScope)).toHaveLength(1)
-  })
-
-  test('stops without an acknowledgement when a new port replaces one that is sending its safe paths', async () => {
-    let rejectRegistration!: (error: Error) => void
-    const firstRpc = createRpc()
-    firstRpc.registerSafeModulePaths.mockReturnValueOnce(new Promise((_, reject) => {
-      rejectRegistration = reject
-    }))
-    // Closing a birpc rejects its pending calls
-    firstRpc.$close.mockImplementation((error) => {
-      rejectRegistration(error ?? new Error('closed'))
-    })
-    const secondRpc = createRpc()
-    transformerMocks.connectServiceWorkerPort
-      .mockResolvedValueOnce(firstRpc)
-      .mockResolvedValueOnce(secondRpc)
-    const workerScope = await readyWorkerScope(['/src/main.ts'])
-
-    const firstConnection = dispatchConnectPort(workerScope, createPort())
-    await vi.waitFor(() => {
-      expect(firstRpc.registerSafeModulePaths).toHaveBeenCalledOnce()
-    })
-    await dispatchConnectPort(workerScope, createPort())
-
-    await expect(firstConnection).resolves.toBeUndefined()
-    expect(firstRpc.$close).toHaveBeenCalledOnce()
-    expect(secondRpc.registerSafeModulePaths).toHaveBeenCalledExactlyOnceWith(['/src/main.ts'])
     expect(connectPortAcks(workerScope)).toHaveLength(1)
   })
 })

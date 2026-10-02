@@ -54,8 +54,10 @@ const transport = normalizeModuleRunnerTransport(
       throw new Error('No active Service Worker controller found for HMR transport')
     }
 
+    // The base names the runtime that owns this preview, and its Web Worker gets the port
     let transport = createMessageChannelModuleRunnerTransport(navigator.serviceWorker.controller.postMessage.bind(navigator.serviceWorker.controller), {
       pingInterval: hmrTimeout,
+      base,
     })
 
     return {

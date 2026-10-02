@@ -295,6 +295,10 @@ export const createMessageChannelModuleRunnerTransport = (
   options: {
     pingInterval?: number
     timeout?: number
+    /**
+     * The Vite base of the preview, which tells the Service Worker the Web Worker to connect to
+     */
+    base?: string
   } = {}
 ): Required<
   Pick<ModuleRunnerTransport, 'connect' | 'disconnect' | 'send'>
@@ -317,7 +321,11 @@ export const createMessageChannelModuleRunnerTransport = (
       // Transfer `port2` to host via `postMessage`
       console.log(`[vrowzer] ${clientId} is connecting via MessageChannel...`)
       postMessage(
-        { type: MC_INIT_EVENT, clientId },
+        {
+          type: MC_INIT_EVENT,
+          clientId,
+          ...(options.base === undefined ? {} : { base: options.base }),
+        } satisfies ViteMessageChannelInitMessage,
         [channel.port2]
       )
 

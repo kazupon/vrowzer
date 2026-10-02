@@ -12,7 +12,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const FIXTURE_DIR = join(__dirname, 'custom-base')
 const HOST_BASE = '/app/'
 const PREVIEW_BASE = '/app/__preview__/'
-const PREVIEW_MODULE = `${PREVIEW_BASE}main.js`
 const PREVIEW_TEXT = 'Custom base preview works'
 const SERVICE_WORKER_SCOPE = '/app/'
 const SERVICE_WORKER_VERSION = 'app-v2'
@@ -73,10 +72,14 @@ async function expectPreviewContent(page: Page): Promise<void> {
     )
     .toContain(PREVIEW_TEXT)
 
+  // The previews of the instance load from its own path under the plugin's basePath
+  const previewBasePath = await page.evaluate(() => (window as any).__vrowzer__.previewBasePath)
+  expect(previewBasePath).toMatch(new RegExp(`^${PREVIEW_BASE}[0-9a-f]{12}/$`))
+
   const response = await page.evaluate(async previewBase => {
     const result = await fetch(previewBase)
     return { status: result.status, body: await result.text() }
-  }, PREVIEW_BASE)
+  }, previewBasePath)
   expect(response.status).toBe(200)
   expect(response.body).toContain('Custom base preview')
   expect(response.body).not.toContain('Waiting for Service Worker...')
@@ -84,7 +87,7 @@ async function expectPreviewContent(page: Page): Promise<void> {
   const moduleResponse = await page.evaluate(async previewModule => {
     const result = await fetch(previewModule)
     return { status: result.status, body: await result.text() }
-  }, PREVIEW_MODULE)
+  }, `${previewBasePath}main.js`)
   expect(moduleResponse.status).toBe(200)
   expect(moduleResponse.body).toContain(PREVIEW_TEXT)
 }

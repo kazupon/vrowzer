@@ -27,8 +27,9 @@ function heldModuleWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:held-module-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 

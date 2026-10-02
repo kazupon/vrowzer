@@ -145,6 +145,42 @@ describe('Vrowzer factory', () => {
   })
 })
 
+describe('Vrowzer preview base path', () => {
+  test('gives each instance its own preview base path under basePath', () => {
+    const first = Vrowzer()
+    const second = Vrowzer()
+    const custom = Vrowzer({ basePath: '/app/__preview__' })
+
+    expect(first.previewBasePath).toMatch(/^\/__preview__\/[0-9a-f]{12}\/$/)
+    expect(second.previewBasePath).toMatch(/^\/__preview__\/[0-9a-f]{12}\/$/)
+    expect(second.previewBasePath).not.toBe(first.previewBasePath)
+    expect(custom.previewBasePath).toMatch(/^\/app\/__preview__\/[0-9a-f]{12}\/$/)
+  })
+
+  test('keeps the preview base path, which cannot be changed, after dispose()', async () => {
+    const vrowzer = Vrowzer()
+    const previewBasePath = vrowzer.previewBasePath
+
+    expect(() => {
+      ;(vrowzer as { previewBasePath: string }).previewBasePath = '/__preview__/other/'
+    }).toThrow(TypeError)
+    await vrowzer.dispose()
+
+    expect(vrowzer.previewBasePath).toBe(previewBasePath)
+  })
+
+  test('loads the previews from the preview base path', () => {
+    setupDocument()
+    const vrowzer = Vrowzer()
+
+    const session = vrowzer.mount(createContainer(), { id: 'desktop' })
+
+    expect(getTestIframe(session.iframe).srcdoc).toContain(
+      `const previewUrl = ${JSON.stringify(vrowzer.previewBasePath)};`
+    )
+  })
+})
+
 describe('Vrowzer preview sessions', () => {
   test('mounts and returns a frozen preview session', () => {
     setupDocument()

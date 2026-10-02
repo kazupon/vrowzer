@@ -12,6 +12,12 @@ The main interface for the Vrowzer preview environment.
 export interface Vrowzer extends Emittable<VrowzerEventMap>
 ```
 
+## Properties
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `previewBasePath` _(readonly)_ | `string` | The base path of the previews of this instance: [VrowzerOptions.basePath](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-basepath) followed by an ID of the instance, e.g. `/__preview__/0123456789ab/`. The previews load from it, and it is the Vite `base` of the project, which `import.meta.env.BASE_URL` returns in the preview. The Service Worker forwards the requests under it to the Web Worker of this instance, so several instances can share one Service Worker, e.g. in two tabs. It is set when [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) is called, and stays the same after [Vrowzer.dispose](#method-dispose). |
+
 ## Methods
 
 ### addFile()
@@ -22,25 +28,22 @@ addFile(filePath: string, content: string | ArrayBuffer): Promise<void>;
 
 Adds a new file to the preview environment with the specified content.
 
-The promise resolves when later preview requests see the change: the Web Worker and the
-Service Worker have written the file to their virtual filesystems, and the Web Worker has
-invalidated the modules that depend on it. HMR updates of mounted previews are not awaited.
+The promise resolves when later preview requests see the change: the Web Worker has written the
+file to its virtual filesystem, and invalidated the modules that depend on it. HMR updates of
+mounted previews are not awaited.
 
 It rejects without sending the change before [Vrowzer.ready](#method-ready) resolves to `true`, after it
-fails, and after [Vrowzer.dispose](#method-dispose). It also rejects when a Worker fails to apply the change,
-when the Web Worker reports an error, when the Workers do not reply within
+fails, and after [Vrowzer.dispose](#method-dispose). It also rejects when the Web Worker fails to apply the
+change, when it reports an error, when it does not reply within
 [VrowzerOptions.fileSyncTimeout](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-filesynctimeout), or when the instance is disposed first. The change may
 be partly applied then; write the file again to resynchronize.
-
-While Vrowzer restores the project in a restarted Service Worker, the change is held and sent
-afterwards, and the timeout counts from then. It rejects when the restoration fails.
 
 #### Parameters
 
 | Name | Type | Description |
 | --- | --- | --- |
 | `filePath` | `string` | The path of the file to be added. |
-| `content` | `string \| ArrayBuffer` | The content of the file, which can be a string or an ArrayBuffer. An ArrayBuffer is copied for the Workers and stays usable. |
+| `content` | `string \| ArrayBuffer` | The content of the file, which can be a string or an ArrayBuffer. An ArrayBuffer is copied for the Web Worker and stays usable. |
 
 #### Returns
 
@@ -79,13 +82,13 @@ dispose(): Promise<void>;
 
 Disposes this instance.
 
-An in-progress [Vrowzer.ready](#method-ready) is aborted and resolves to `false`, and a restoration of a
-restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
-terminated, Service Worker controller events are no longer forwarded, and all event handlers are
-removed right away. The Service Worker registration and its virtual filesystem are kept for
-other clients.
+An in-progress [Vrowzer.ready](#method-ready) is aborted and resolves to `false`, and the reconnection of
+a restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
+terminated with the project files, Service Worker controller events are no longer forwarded, and
+all event handlers are removed right away. The Service Worker registration is kept for other
+clients, and answers the requests under [Vrowzer.previewBasePath](#property-previewbasepath) with 404 from then on.
 
-File operations still waiting for the Workers reject. After disposal, `ready()` and the file
+File operations still waiting for the Web Worker reject. After disposal, `ready()` and the file
 methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
 new instance to start again.
 
@@ -150,8 +153,8 @@ ready(config: VrowzerConfig): Promise<boolean>;
 
 Ready for preview system initialization.
 
-This method initializes the Web Worker, Service Worker, and MessageChannel,
-then syncs initial files to both workers.
+This method initializes the Web Worker with the initial files, the Service Worker, and the
+MessageChannel between them.
 It can only be called once per Vrowzer instance.
 
 #### Parameters
@@ -207,7 +210,7 @@ unmount(target?: PreviewSessionRef): void;
 ```
 
 Unmounts one preview session, or every session when no target is provided.
-The shared Service Worker, Web Worker, and virtual filesystem remain active.
+The Service Worker, the Web Worker, and its virtual filesystem remain active.
 Use [Vrowzer.dispose](#method-dispose) to release the whole instance.
 
 #### Parameters
@@ -237,7 +240,7 @@ The promise resolves and rejects as with [Vrowzer.addFile](#method-addfile).
 | Name | Type | Description |
 | --- | --- | --- |
 | `filePath` | `string` | The path of the file to be updated. |
-| `content` | `string \| ArrayBuffer` | The new content for the file, which can be a string or an ArrayBuffer. An ArrayBuffer is copied for the Workers and stays usable. |
+| `content` | `string \| ArrayBuffer` | The new content for the file, which can be a string or an ArrayBuffer. An ArrayBuffer is copied for the Web Worker and stays usable. |
 
 #### Returns
 

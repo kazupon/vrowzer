@@ -128,59 +128,46 @@ export interface WorkerFunctions {
    * Best-effort: never throws, handles and reports errors internally.
    */
   warmupRequest: (url: string) => Promise<void>
+
+  /**
+   * Answer a request within the base path with the Vite middlewares.
+   * Delegates to the request pipeline in the Web Worker, which has the project files.
+   * Errors are answered with the error page, as Vite's dev server does.
+   */
+  handleRequest: (request: SerializedRequest) => Promise<SerializedResponse>
+}
+
+/**
+ * A request that the Service Worker forwards to the Web Worker, as data that a `MessagePort` can
+ * carry.
+ */
+export interface SerializedRequest {
+  url: string
+  method: string
+  headers: [string, string][]
+  /**
+   * The body, or `null` for a `GET` or `HEAD` request.
+   */
+  body: ArrayBuffer | null
+}
+
+/**
+ * The response of the Web Worker to a {@link SerializedRequest}.
+ */
+export interface SerializedResponse {
+  status: number
+  statusText: string
+  headers: [string, string][]
+  /**
+   * The body, or `null` for a response without one, e.g. a `304` response.
+   */
+  body: ArrayBuffer | null
 }
 
 /**
  * Functions provided by the Service Worker (callable from Web Worker)
  *
- * These are the functions that run in the Service Worker
- * where the Hono server and fetch handler operate.
+ * The Service Worker only forwards requests and HMR ports to the Web Worker,
+ * so it provides no functions.
  */
-export interface ServiceWorkerFunctions {
-  /**
-   * Add plugin-resolved input paths to the Service Worker's filesystem
-   * allowlist. Deny patterns still take precedence.
-   */
-  registerSafeModulePaths: (paths: string[]) => Promise<void>
-}
-
-interface SafeModulePathSyncEnvironment {
-  _syncSafeModulePaths:
-    | ((paths: string[]) => Promise<void>)
-    | undefined
-}
-
-/**
- * Connect environment input registration to the current Service Worker RPC.
- * Calling this again replaces stale callbacks and sends a fresh snapshot.
- */
-export async function connectSafeModulePathSync(
-  environments: Iterable<SafeModulePathSyncEnvironment>,
-  safeModulePaths: Iterable<string>,
-  registerSafeModulePaths: ServiceWorkerFunctions['registerSafeModulePaths'],
-): Promise<void> {
-  const syncSafeModulePaths = async (paths: string[]) => {
-    if (paths.length > 0) {
-      await registerSafeModulePaths(paths)
-    }
-  }
-  for (const environment of environments) {
-    environment._syncSafeModulePaths = syncSafeModulePaths
-  }
-  await syncSafeModulePaths([...safeModulePaths])
-}
-
-/**
- * Create the RPC handlers backed by a Service Worker config's safe-path set.
- */
-export function createServiceWorkerFunctions(
-  safeModulePaths: Set<string>,
-): ServiceWorkerFunctions {
-  return {
-    async registerSafeModulePaths(paths) {
-      for (const path of paths) {
-        safeModulePaths.add(path)
-      }
-    },
-  }
-}
+export type ServiceWorkerFunctions = Record<string, never>

@@ -82,10 +82,30 @@ export interface SetupWorkerErrorMessage {
 export interface ConnectWebWorkerPortMessage {
   type: 'V_WW_CONNECT_PORT'
   /**
-   * ID of the runtime that owns the channel. The Service Worker does not use it yet. It marks the
-   * owner for when several runtimes share one Service Worker.
+   * ID of the runtime that owns the channel: 12 lowercase hexadecimal digits.
+   *
+   * The previews of the runtime have it as the first path segment within the base path, e.g.
+   * `/__preview__/0123456789ab/`. The Service Worker forwards their requests and HMR ports to this
+   * channel, so several runtimes can share one Service Worker. A later channel of the same runtime
+   * replaces this one.
    */
-  runtimeId?: string
+  runtimeId: string
+}
+
+/**
+ * Main Thread -> Service Worker: The runtime is disposed and releases its previews.
+ * Sent with `postMessage()`, without ports.
+ *
+ * The Service Worker closes the Web Worker channel of the runtime, and answers the requests of its
+ * previews with 404 from then on. A runtime whose page is closed sends nothing, so the Service
+ * Worker also releases the runtimes whose pages are gone when another runtime connects.
+ */
+export interface DisconnectWebWorkerPortMessage {
+  type: 'V_WW_DISCONNECT_PORT'
+  /**
+   * ID of the runtime that is disposed.
+   */
+  runtimeId: string
 }
 
 /**
@@ -115,6 +135,11 @@ export interface WebWorkerServiceWorkerChannelReadyMessage {
  */
 export interface ConnectWebWorkerPortAckMessage {
   type: 'V_WW_CONNECT_PORT_ACK'
+  /**
+   * ID of the runtime whose channel is established. Runtimes in the same page receive each other's
+   * acknowledgements, so each one takes only its own.
+   */
+  runtimeId: string
 }
 
 /**
@@ -147,6 +172,11 @@ export interface ViteMessageChannelInitMessage {
    * Client ID of the iframe sending the HMR
    */
   clientId?: string
+  /**
+   * The Vite base of the preview, e.g. `/__preview__/0123456789ab/`. It names the runtime that owns
+   * the preview, and the Service Worker forwards the port to the Web Worker of that runtime.
+   */
+  base?: string
 }
 
 // ---- Service Worker listen readiness protocol ----
@@ -198,6 +228,7 @@ export const V_WW_SETUP = 'V_WW_SETUP' as const
 export const V_WW_SETUP_ACK = 'V_WW_SETUP_ACK' as const
 export const V_WW_SETUP_ERROR = 'V_WW_SETUP_ERROR' as const
 export const V_WW_CONNECT_PORT = 'V_WW_CONNECT_PORT' as const
+export const V_WW_DISCONNECT_PORT = 'V_WW_DISCONNECT_PORT' as const
 export const V_SW_CONNECT_PORT = 'V_SW_CONNECT_PORT' as const
 export const V_WW_SW_CHANNEL_READY = 'V_WW_SW_CHANNEL_READY' as const
 export const V_WW_CONNECT_PORT_ACK = 'V_WW_CONNECT_PORT_ACK' as const

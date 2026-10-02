@@ -17,8 +17,9 @@ function trailingSlashWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:trailing-slash-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
@@ -90,8 +91,9 @@ function fsHtmlProxyWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:fs-html-proxy-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
@@ -176,8 +178,9 @@ function hmrClientTrackingWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:hmr-client-tracking-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
@@ -237,8 +240,9 @@ function fileSyncWebWorkerPlugin(): Plugin {
     name: 'vrowzer-test:file-sync-web-worker',
     apply: 'serve',
     configureServer(server) {
-      const middlewares = (server as { middlewares?: unknown }).middlewares
-      if (server.config.root !== '/' || middlewares) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
         return
       }
 
@@ -270,6 +274,36 @@ function fileSyncWebWorkerPlugin(): Plugin {
   }
 }
 
+/**
+ * Adds middlewares as Vite plugins do: one in `configureServer`, which runs before the internal
+ * middlewares of the dev server, and one in the function that the hook returns, which runs after
+ * them and before `index.html`.
+ */
+function middlewaresWebWorkerPlugin(): Plugin {
+  return {
+    name: 'vrowzer-test:middlewares-web-worker',
+    apply: 'serve',
+    configureServer(server) {
+      // Only the Web Worker's dev server has environments and the root of the virtual project
+      const environments = (server as { environments?: unknown }).environments
+      if (server.config.root !== '/' || !environments) {
+        return
+      }
+
+      // The Web Worker's middlewares are a Hono app under the preview base path
+      const middlewares = server.middlewares as unknown as {
+        use(path: string, handler: (c: { text(body: string): Response }) => Response): void
+      }
+      middlewares.use('/__middlewares__/pre', c => c.text('pre middleware'))
+      middlewares.use('/__middlewares__/pre-shadowing.txt', c => c.text('pre middleware'))
+      return () => {
+        middlewares.use('/__middlewares__/post', c => c.text('post middleware'))
+        middlewares.use('/__middlewares__/post-shadowed.txt', c => c.text('post middleware'))
+      }
+    }
+  }
+}
+
 export default defineConfig({
   server: {
     origin: 'https://assets.vrowzer.test'
@@ -280,6 +314,7 @@ export default defineConfig({
     postcssOnceExitWebWorkerPlugin(),
     hmrClientTrackingWebWorkerPlugin(),
     fileSyncWebWorkerPlugin(),
+    middlewaresWebWorkerPlugin(),
     Vrowzer({
       auto: false,
       basePath: '/__preview__/',

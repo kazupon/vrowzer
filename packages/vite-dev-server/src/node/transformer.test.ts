@@ -8,6 +8,10 @@ const hmrMocks = vi.hoisted(() => ({
   >(async () => undefined),
 }))
 
+const publicDirMocks = vi.hoisted(() => ({
+  initPublicFiles: vi.fn<() => Promise<Set<string> | undefined>>(async () => undefined),
+}))
+
 // transformer.ts is also a runtime barrel. Stub its re-export graph so this
 // test exercises setupWorker, setupHMR and updateFile without initializing browser WASM.
 vi.mock('@vrowzer/fs', () => ({
@@ -55,7 +59,7 @@ vi.mock('./plugins/esbuild', () => ({
 }))
 
 vi.mock('./publicDir', () => ({
-  initPublicFiles: async () => undefined,
+  initPublicFiles: publicDirMocks.initPublicFiles,
 }))
 
 vi.mock('./server/environment', () => ({
@@ -110,6 +114,10 @@ vi.mock('./server/ws', () => ({
 
 vi.mock('./server/middlewares/indexHtml', () => ({
   createDevHtmlTransformFn: () => undefined,
+}))
+
+vi.mock('./server/requestPipeline', () => ({
+  createRequestPipeline: () => undefined,
 }))
 
 vi.mock('./optimizer', () => ({
@@ -450,6 +458,23 @@ describe('setupHMR file change tracking', () => {
     expect(await isPending(taken)).toBe(true)
     held.resolve()
     await expect(taken).resolves.toBeUndefined()
+  })
+
+  test('keeps the public files that it returns up to date', async () => {
+    const { server, watcher } = createHMRServer()
+    const config = server.config as unknown as { publicDir: string }
+    config.publicDir = '/public'
+    const client = server.environments.client as unknown as { moduleGraph: Record<string, unknown> }
+    client.moduleGraph.getModuleByUrl = vi.fn<(url: string) => Promise<undefined>>(async () => undefined)
+    publicDirMocks.initPublicFiles.mockResolvedValueOnce(new Set(['/old.txt']))
+    const { publicFiles, waitForFileChange } = await setupHMR(server)
+
+    watcher.notify('add', '/public/new.txt')
+    await waitForFileChange('/public/new.txt')
+    watcher.notify('unlink', '/public/old.txt')
+    await waitForFileChange('/public/old.txt')
+
+    expect(publicFiles).toEqual(new Set(['/new.txt']))
   })
 
   test('forgets an event that settled without being taken', async () => {

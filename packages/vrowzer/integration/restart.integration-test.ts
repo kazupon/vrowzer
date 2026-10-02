@@ -109,7 +109,8 @@ async function fetchFromHost(
 ): Promise<PreviewResponse> {
   return page.evaluate(
     async ({ path, acceptHeader }) => {
-      const response = await fetch(`/__preview__${path}`, { headers: { Accept: acceptHeader } })
+      const base = (window as any).__vrowzer__.previewBasePath as string
+      const response = await fetch(`${base}${path.slice(1)}`, { headers: { Accept: acceptHeader } })
       return { status: response.status, body: await response.text() }
     },
     { path: requestPath, acceptHeader: accept }
@@ -150,7 +151,8 @@ async function fetchBytes(
       const target = inPreview
         ? (document.querySelector('#preview-container iframe') as HTMLIFrameElement).contentWindow!
         : window
-      const response = await target.fetch(`/__preview__${path}`)
+      const base = (window as any).__vrowzer__.previewBasePath as string
+      const response = await target.fetch(`${base}${path.slice(1)}`)
       return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] }
     },
     { path: requestPath, inPreview: from === 'preview' }
@@ -255,8 +257,8 @@ describe('Vrowzer Service Worker restart', () => {
       const main = await fetchUntilServed(page, '/main.js')
       await waitForRecoveries(page, 1)
 
-      // The restarted Service Worker holds requests until it has the project again, so none of them
-      // gets a 404 or a 500
+      // The restarted Service Worker holds requests until the Web Worker channel is connected again,
+      // so none of them gets a 404 or a 500
       expect(main.statuses.filter(status => status !== 200 && status !== 503)).toEqual([])
       expect(main.body).toContain('main v2')
       const html = await fetchFromHost(page, '/', 'text/html')
@@ -330,7 +332,8 @@ describe('Vrowzer Service Worker restart', () => {
     try {
       // The Web Worker holds the load of /held.js, so the request waits in the Service Worker
       await page.evaluate(() => {
-        ;(window as any).__heldRequest__ = fetch('/__preview__/held.js', {
+        const base = (window as any).__vrowzer__.previewBasePath as string
+        ;(window as any).__heldRequest__ = fetch(`${base}held.js`, {
           headers: { Accept: 'text/javascript' }
         }).then(
           response => ({ status: response.status }),
@@ -386,7 +389,8 @@ describe('Vrowzer Service Worker restart', () => {
       await page.evaluate(() => (window as any).__terminateWebWorkers__())
       await stopServiceWorker(page)
 
-      // Start the Service Worker, and change a file while it is being restored
+      // Start the Service Worker, and change a file while it is being restored. The change goes to
+      // the Web Worker right away, which no longer answers.
       void fetchFromHost(page, '/main.js').catch(() => {})
       const update = page.evaluate(() =>
         (window as any).__vrowzer__.updateFile('/main.js', 'export {}').then(
@@ -401,15 +405,15 @@ describe('Vrowzer Service Worker restart', () => {
         .toBe(1)
       const [error] = await recordedEvents(page, 'serviceWorkerRecoveryError')
       expect(error!.message).toContain('timed out after 2000ms')
-      expect(await update).not.toBe('resolved')
+      expect(await update).toContain('timed out after 2000ms waiting for the Web Worker')
       expect(await recordedEvents(page, 'serviceWorkerRecovered')).toEqual([])
 
-      // A request waits for the project for 10 seconds at most
+      // A request waits for the Web Worker for 10 seconds at most
       const startedAt = Date.now()
       const response = await fetchFromHost(page, '/main.js', 'text/javascript')
       expect(Date.now() - startedAt).toBeLessThan(15_000)
       expect(response.status).toBe(503)
-      expect(response.body).toContain('did not receive the project within 10000ms')
+      expect(response.body).toContain('no Web Worker connected within 10000ms')
 
       // The preview reports the failure when it loads again
       await page.evaluate(() => (window as any).__vrowzer__.reloadPreview('preview'))
@@ -463,7 +467,6 @@ describe('Vrowzer Service Worker restart', () => {
         const fixture = window as any
         return (fixture.__serviceWorkerMessages__ as string[]).slice(fixture.__disposeMark__)
       })
-      expect(sentAfterDispose).not.toContain('V_FS_INIT')
       expect(sentAfterDispose).not.toContain('V_WW_CONNECT_PORT')
       expect(await recordedEvents(page, 'serviceWorkerRecovered')).toEqual([])
     } finally {

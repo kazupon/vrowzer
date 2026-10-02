@@ -15,9 +15,12 @@ describe('dedicated Worker config', () => {
     expect(await page.textContent('#status')).toBe('Ready')
     await expect.poll(() => page.textContent('#react-host')).toBe('React host: host define')
     await expect.poll(() => iframeInnerText(), { timeout: 30000 }).toContain('Worker preview')
+    // The preview loads from the preview base path of the instance, under the custom basePath
+    const previewBasePath = await page.evaluate(() => (window as any).__vrowzer__.previewBasePath)
+    expect(previewBasePath).toMatch(/^\/worker-preview\/[0-9a-f]{12}\/$/)
     expect(
       browserResponses.some(
-        response => new URL(response.url).pathname === '/worker-preview/' && response.status === 200
+        response => new URL(response.url).pathname === previewBasePath && response.status === 200
       )
     ).toBe(true)
   })

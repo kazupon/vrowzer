@@ -206,7 +206,10 @@ async function readyFully(vrowzer: ReturnType<typeof Vrowzer>): Promise<FakeWork
   await completeWebWorkerSetup(worker)
   await waitForChannelHandshake(worker)
   worker.send(V_SW_CONNECT_PORT_ACK)
-  controller.container.dispatch({ type: V_WW_CONNECT_PORT_ACK })
+  controller.container.dispatch({
+    type: V_WW_CONNECT_PORT_ACK,
+    runtimeId: vrowzer.previewBasePath.split('/').at(-2)
+  })
   await expect(ready).resolves.toBe(true)
   return worker
 }
@@ -333,7 +336,8 @@ describe('Vrowzer dispose', () => {
     await completeWebWorkerSetup(worker)
     await waitForChannelHandshake(worker)
     expect(controller.subscriptionCount).toBe(6)
-    expect(publisher.targets.size).toBe(2)
+    // Only the Web Worker gets the file changes
+    expect(publisher.targets.size).toBe(1)
     // The handshake and the Service Worker instances that start
     expect(controller.container.listeners.size).toBe(2)
 
@@ -345,6 +349,11 @@ describe('Vrowzer dispose', () => {
     expect(publisher.targets.size).toBe(0)
     expect(worker.terminate).toHaveBeenCalledTimes(1)
     expect(vi.getTimerCount()).toBe(0)
+    // The Service Worker may have connected the channel, so it releases the previews as well
+    expect(serviceWorker.postMessage).toHaveBeenLastCalledWith({
+      type: 'V_WW_DISCONNECT_PORT',
+      runtimeId: vrowzer.previewBasePath.split('/').at(-2)
+    })
   })
 
   test('releases everything after a successful ready()', async () => {
@@ -369,11 +378,27 @@ describe('Vrowzer dispose', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
+  test('releases the previews of the instance in the Service Worker', async () => {
+    const vrowzer = Vrowzer()
+    await readyFully(vrowzer)
+    serviceWorker.postMessage.mockClear()
+
+    await vrowzer.dispose()
+
+    expect(serviceWorker.postMessage).toHaveBeenCalledExactlyOnceWith({
+      type: 'V_WW_DISCONNECT_PORT',
+      runtimeId: vrowzer.previewBasePath.split('/').at(-2)
+    })
+    // Disposing again sends nothing more
+    await vrowzer.dispose()
+    expect(serviceWorker.postMessage).toHaveBeenCalledOnce()
+  })
+
   test('rejects the file operations that wait for the Workers', async () => {
     const vrowzer = Vrowzer()
     const worker = await readyFully(vrowzer)
-    // The file sync acknowledgements and the Service Worker instances that start
-    expect(controller.container.listeners.size).toBe(2)
+    // The Service Worker instances that start. The Web Worker acknowledges the file changes.
+    expect(controller.container.listeners.size).toBe(1)
 
     const updating = vrowzer.updateFile('/a.js', 'updated')
     const deleting = vrowzer.deleteFile('/b.js')
