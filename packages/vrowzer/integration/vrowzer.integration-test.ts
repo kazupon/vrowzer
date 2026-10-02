@@ -1558,6 +1558,35 @@ if (import.meta.hot) {
     })
   })
 
+  describe('plugin middlewares', () => {
+    test('answers with the middlewares that plugins add in configureServer', async () => {
+      await addPreviewFiles({
+        '/__middlewares__/pre-shadowing.txt': 'project file',
+        '/__middlewares__/post-shadowed.txt': 'project file'
+      })
+
+      // A middleware added in the hook runs before the internal middlewares
+      expect(await fetchFromServiceWorker('/__middlewares__/pre')).toMatchObject({
+        status: 200,
+        body: 'pre middleware'
+      })
+      expect(await fetchFromServiceWorker('/__middlewares__/pre-shadowing.txt')).toMatchObject({
+        status: 200,
+        body: 'pre middleware'
+      })
+      // A middleware added in the function that the hook returns runs after them, and before the
+      // SPA fallback answers with index.html
+      expect(await fetchFromServiceWorker('/__middlewares__/post')).toMatchObject({
+        status: 200,
+        body: 'post middleware'
+      })
+      expect(await fetchFromServiceWorker('/__middlewares__/post-shadowed.txt')).toMatchObject({
+        status: 200,
+        body: 'project file'
+      })
+    })
+  })
+
   describe('filesystem security', () => {
     const deniedFiles = {
       '/.env': 'ENV_SECRET_CANARY',
