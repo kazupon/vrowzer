@@ -16,6 +16,15 @@ vi.mock('@vrowzer/rolldown/experimental', () => ({
   viteTransformPlugin: vi.fn<() => { name: string }>(() => ({
     name: 'native:transform',
   })),
+  viteLoadFallbackPlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-load-fallback',
+  })),
+  viteReporterPlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-reporter',
+  })),
+  viteResolvePlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-resolve',
+  })),
 }))
 
 vi.mock('@vrowzer/rolldown/parseAst', () => ({
@@ -240,6 +249,61 @@ describe('input config', () => {
     )
 
     expect(config.build.lib && config.build.lib.entry).toBe('src/explicit.ts')
+  })
+})
+
+describe('resolveConfig NODE_ENV', () => {
+  let nodeEnv: string | undefined
+
+  beforeEach(() => {
+    nodeEnv = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+  })
+
+  afterEach(() => {
+    if (nodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = nodeEnv
+    }
+  })
+
+  test('sets production for a build', async () => {
+    const config = await resolveConfig(
+      createInlineConfig(),
+      'build',
+      'production',
+      'production',
+    )
+
+    expect(process.env.NODE_ENV).toBe('production')
+    expect(config.isProduction).toBe(true)
+    expect(config.env.PROD).toBe(true)
+    expect(config.env.DEV).toBe(false)
+  })
+
+  test('sets development for serve', async () => {
+    const config = await resolveConfig(createInlineConfig(), 'serve')
+
+    expect(process.env.NODE_ENV).toBe('development')
+    expect(config.isProduction).toBe(false)
+    expect(config.env.PROD).toBe(false)
+    expect(config.env.DEV).toBe(true)
+  })
+
+  test('keeps NODE_ENV when it is already set', async () => {
+    process.env.NODE_ENV = 'development'
+
+    const config = await resolveConfig(
+      createInlineConfig(),
+      'build',
+      'production',
+      'production',
+    )
+
+    expect(process.env.NODE_ENV).toBe('development')
+    expect(config.isProduction).toBe(false)
+    expect(config.env.PROD).toBe(false)
   })
 })
 
@@ -555,6 +619,23 @@ describe('definePlugin JavaScript pre-check', () => {
       expect(environment.plugins.map(plugin => plugin.name)).not.toContain('vite:define')
     }
     expect(transformSync).not.toHaveBeenCalled()
+  })
+
+  test('registers the define plugin and the build plugins for builds', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({ define: { $FOO: JSON.stringify('bar') } }),
+      'build',
+    )
+
+    expect(config.plugins.map(plugin => plugin.name)).toEqual(
+      expect.arrayContaining([
+        'vite:define',
+        'vite:prepare-out-dir',
+        'vite:rollup-options-plugins',
+        'native:reporter',
+        'builtin:vite-load-fallback',
+      ]),
+    )
   })
 })
 

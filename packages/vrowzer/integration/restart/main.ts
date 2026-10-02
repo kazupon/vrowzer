@@ -81,6 +81,7 @@ Object.assign(window, {
   __previewFiles__: previewFiles,
   __events__: events,
   __serviceWorkerMessages__: serviceWorkerMessages,
+  __workerCount__: () => webWorkers.size,
   __terminateWebWorkers__: () => {
     for (const worker of webWorkers) {
       worker.terminate()

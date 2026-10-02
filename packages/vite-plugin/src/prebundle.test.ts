@@ -206,6 +206,39 @@ describe('real worker config prebundle', () => {
     })
   })
 
+  test('bundles the config of vrowzer.build() for production next to the dev config', async () => {
+    const { root, entry } = fixture({
+      'config/worker.ts': `export default { define: { mode: process.env.NODE_ENV } }`
+    })
+    const dev = await prebundleWorkerConfig({ root, configDir: root, workerConfig: entry })
+    const build = await prebundleWorkerConfig({
+      root,
+      configDir: root,
+      workerConfig: entry,
+      variant: 'build'
+    })
+
+    expect(dev.path).toBe(join(resolveOutputDir(root), 'config.bundled.mjs'))
+    expect(build.path).toBe(join(resolveOutputDir(root), 'config.build.bundled.mjs'))
+    expect((await import(pathToFileURL(dev.path).href)).default.define.mode).toBe('development')
+    expect((await import(pathToFileURL(build.path).href)).default.define.mode).toBe('production')
+    expect(build.dependencies).toEqual(dev.dependencies)
+  })
+
+  test('writes the generated source of vrowzer.build() to its own entry', async () => {
+    const { root } = fixture({})
+    const result = await prebundleWorkerConfig({
+      root,
+      configDir: root,
+      workerSource: 'export default { define: { mode: process.env.NODE_ENV } }',
+      variant: 'build'
+    })
+
+    expect(existsSync(join(resolveOutputDir(root), '_entry.build.mts'))).toBe(true)
+    expect(existsSync(join(resolveOutputDir(root), '_entry.mts'))).toBe(false)
+    expect((await import(pathToFileURL(result.path).href)).default.define.mode).toBe('production')
+  })
+
   test('uses the host directory for generated source imports and file reads', async () => {
     const { root } = fixture({
       'config/helper.ts': 'export const value = 42',

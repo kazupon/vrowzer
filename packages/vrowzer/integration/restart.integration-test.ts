@@ -474,3 +474,29 @@ describe('Vrowzer Service Worker restart', () => {
     }
   }, 90_000)
 })
+
+// The fixture's plugin does not enable vrowzer.build()
+describe('vrowzer.build() without the build option', () => {
+  test('rejects without creating a build Worker', async () => {
+    const { context, page } = await openFixture()
+    try {
+      const outcome = await page.evaluate(async () => {
+        const fixture = window as any
+        const before = fixture.__workerCount__()
+        const message = await fixture.__vrowzer__.build().then(
+          () => 'resolved',
+          (error: Error) => error.message
+        )
+        return { message, created: fixture.__workerCount__() - before }
+      })
+
+      expect(outcome).toEqual({
+        message:
+          '[Vrowzer] build() is not enabled. Set `build: true` in the options of Vrowzer() from @vrowzer/vite-plugin.',
+        created: 0
+      })
+    } finally {
+      await context.close()
+    }
+  })
+})

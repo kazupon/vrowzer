@@ -10,6 +10,7 @@ describe('resolveOptions', () => {
     expect(resolved.basePath).toBe('/__preview__/')
     expect(resolved.serviceWorkerScope).toBe('/')
     expect(resolved.serviceWorkerVersion).toBe('vrowzer-v1')
+    expect(resolved.build).toBe(false)
   })
 
   test('respects auto: false', () => {
@@ -86,5 +87,15 @@ describe('resolveOptions', () => {
 
   test.each(['', ' app v2 ', 'version/β+二'])('preserves opaque serviceWorkerVersion %j', value => {
     expect(resolveOptions({ serviceWorkerVersion: value }).serviceWorkerVersion).toBe(value)
+  })
+
+  test.each([true, false])('respects build: %s', build => {
+    expect(resolveOptions({ build }).build).toBe(build)
+  })
+
+  test.each([1, 'true', null])('rejects a build option that is not a boolean (%j)', build => {
+    expect(() => resolveOptions({ build: build as unknown as boolean })).toThrow(
+      'Vrowzer build must be a boolean'
+    )
   })
 })

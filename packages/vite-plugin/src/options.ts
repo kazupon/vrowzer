@@ -159,6 +159,16 @@ export interface VrowzerOptions {
    */
   resolve?: { alias?: Alias[] }
   /**
+   * Enable `vrowzer.build()`, which builds the project for production in a build Worker.
+   *
+   * When enabled, the plugin also bundles the Worker config for production builds, and the host
+   * includes the build Worker and its builder (rolldown and the Vite build) in its output. When
+   * disabled, `build()` rejects, and the host output has no builder.
+   *
+   * @default false
+   */
+  build?: boolean
+  /**
    * Experimental features.
    */
   experimental?: VrowzerExperimentalOptions
@@ -181,6 +191,7 @@ export interface ResolvedVrowzerOptions {
   serviceWorkerVersion: string
   serviceWorkerEntry: string
   resolve: { alias?: Alias[] } | undefined
+  build: boolean
 }
 
 function resolveDefaultServiceWorkerEntry(): string {
@@ -221,6 +232,11 @@ export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
       throw new TypeError('Vrowzer workerConfig cannot be combined with explicit extract: true')
     }
   }
+  if (options.build !== undefined && typeof options.build !== 'boolean') {
+    throw new TypeError(
+      `Vrowzer build must be a boolean, received ${JSON.stringify(options.build)}`
+    )
+  }
   const ide = options.experimental?.ide
   return {
     auto: options.auto ?? true,
@@ -236,6 +252,7 @@ export function resolveOptions(options: VrowzerOptions): ResolvedVrowzerOptions 
     serviceWorkerScope: options.serviceWorkerScope ?? '/',
     serviceWorkerVersion: options.serviceWorkerVersion ?? DEFAULT_SERVICE_WORKER_VERSION,
     serviceWorkerEntry: options.serviceWorkerEntry ?? resolveDefaultServiceWorkerEntry(),
-    resolve: options.resolve
+    resolve: options.resolve,
+    build: options.build ?? false
   }
 }

@@ -356,7 +356,11 @@ Vrowzer({
   // Default: undefined
   resolve: {
     alias: [{ find: 'my-lib', replacement: '/libs/my-lib.js' }]
-  }
+  },
+
+  // Enable vrowzer.build(), the production build in a build Worker
+  // Default: false
+  build: true
 })
 ```
 
@@ -372,6 +376,7 @@ Vrowzer({
 | `serviceWorkerVersion` | `string`                     | `'vrowzer-v1'`                            | Version shared with the application and Service Worker bundles.                           |
 | `serviceWorkerEntry`   | `string`                     | Resolved path to `vrowzer/service-worker` | Explicit Service Worker entry file path.                                                  |
 | `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Legacy Worker resolve replacement. With extraction disabled, warns to move it to `workerConfig`. |
+| `build`                | `boolean`                    | `false`                                   | Enable `vrowzer.build()`. The host output then includes the build Worker and its builder. |
 
 ### `VrowzerManifestOptions`
 
@@ -412,6 +417,8 @@ When `auto: true` (default), automatically generates a vrowzer manifest in `conf
 #### 2. Worker Config Extraction & Prebundling (`vrowzer:config`)
 
 Selects a dedicated `workerConfig` file, an empty config when extraction is disabled, or supported settings extracted from the host config. It then prebundles that input with Rolldown for the Web Worker. The prebundled config is written to `node_modules/.vrowzer/config.bundled.mjs`.
+
+With `build: true`, the same input is also prebundled for `vrowzer.build()`, with `process.env.NODE_ENV` set to `"production"`, to `node_modules/.vrowzer/config.build.bundled.mjs`. The build Worker entry (`vrowzer/build-worker`) gets that config. Without `build: true`, the entry is replaced with a stub, so the host output does not include the builder.
 
 - Resolves `@vrowzer/*` imports from the plugin's own dependency graph
 - Inlines `readFileSync()` and `createRequire()` calls for Worker compatibility

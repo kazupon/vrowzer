@@ -51,6 +51,45 @@ be partly applied then; write the file again to resynchronize.
 
 ***
 
+### build()
+
+```ts
+build(options?: VrowzerBuildOptions): Promise<VrowzerBuildResult>;
+```
+
+Builds the project for production in a build Worker, e.g. as a library.
+
+The build uses the project files as they are when this method is called: the files of
+[Vrowzer.ready](#method-ready), with the default `/index.html` when they have none, and the changes of
+the file methods called before. Changes made later are not included, even before the build
+ends.
+
+Each build runs in a new build Worker, with the Worker config bundled for production, and the
+build Worker is terminated when the build ends. The previews are not affected. Only library
+builds (`build.lib`) in the `es` format are supported for now, and one build at a time.
+
+A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within
+the last 2.5 seconds, e.g. after short builds one after another, a build waits before it
+creates its build Worker. The wait does not count toward [VrowzerOptions.buildTimeout](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-buildtimeout).
+
+It needs the `build` option of `@vrowzer/vite-plugin`.
+
+#### Parameters
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `options` | [`VrowzerBuildOptions`](/packages/vrowzer/docs/default/interfaces/VrowzerBuildOptions.md) | The options of the build, merged over the Worker config. _(optional)_ |
+
+#### Returns
+
+`Promise`\<[`VrowzerBuildResult`](/packages/vrowzer/docs/default/interfaces/VrowzerBuildResult.md)\> — The outputs and the warnings.
+
+#### Throws
+
+- Rejects before [Vrowzer.ready](#method-ready) resolves to `true`, after [Vrowzer.dispose](#method-dispose), when the `build` option of the plugin is not enabled, and while another build is running. Rejects with a [VrowzerBuildError](/packages/vrowzer/docs/default/classes/VrowzerBuildError.md) when the build fails, e.g. with an error in the project or an unsupported option. Rejects with an `Error` when the build does not finish within [VrowzerOptions.buildTimeout](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md#property-buildtimeout), when the build Worker fails, or when [Vrowzer.dispose](#method-dispose) is called first, and with the reason of `signal` when it is aborted.
+
+***
+
 ### deleteFile()
 
 ```ts
@@ -88,8 +127,9 @@ terminated with the project files, Service Worker controller events are no longe
 all event handlers are removed right away. The Service Worker registration is kept for other
 clients, and answers the requests under [Vrowzer.previewBasePath](#property-previewbasepath) with 404 from then on.
 
-File operations still waiting for the Web Worker reject. After disposal, `ready()` and the file
-methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
+File operations still waiting for the Web Worker reject, and a running [Vrowzer.build](#method-build)
+rejects with its build Worker terminated. After disposal, `ready()`, the file methods and
+`build()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
 new instance to start again.
 
 #### Returns

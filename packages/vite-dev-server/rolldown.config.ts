@@ -44,7 +44,10 @@ const sharedNodeOptions = defineConfig({
   platform: 'browser',
   transform: {
     define: {
-      'process.env.NODE_ENV': JSON.stringify('development'), // vrowzer always runs in dev mode (resolveConfig uses this for isProduction)
+      // `resolveConfig()` sets `process.env.NODE_ENV` at runtime, as upstream does: "development" in
+      // the dev Web Worker and "production" in the build Worker. Keep the reference, because rolldown
+      // replaces it for the browser platform by default.
+      'process.env.NODE_ENV': 'process.env.NODE_ENV',
       'process.platform': JSON.stringify('browser'), // for `tinyglobby` polyfill
       '__VROWZER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
       '__VROWZER_ROLLDOWN_VERSION__': JSON.stringify(rolldownPackage.version),
@@ -321,7 +324,10 @@ const transformerAliases = {
 
 function createTransformerPlugins(options: {
   copyAssets: boolean
-  guardAggregate?: boolean
+  /**
+   * The entry file of a single-file aggregate to validate
+   */
+  guardAggregate?: string
 }): Plugin[] {
   return [
     createPostcssLoadConfigStubPlugin(),
@@ -329,7 +335,8 @@ function createTransformerPlugins(options: {
     createRewriteRolldownUrlsPlugin(),
     ...(options.copyAssets ? [createCopyRolldownAssetsPlugin()] : []),
     createValidateRolldownVersionPlugin(),
-    ...(options.guardAggregate ? [createWebWorkerTransformerGuardPlugin()] : []),
+    createRuntimeNodeEnvGuardPlugin(),
+    ...(options.guardAggregate ? [createWebWorkerTransformerGuardPlugin(options.guardAggregate)] : []),
   ]
 }
 
@@ -359,7 +366,10 @@ const transformerConfig = defineConfig({
       process: '@vrowzer/node-polyfill/process',
     },
   },
-  plugins: createTransformerPlugins({ copyAssets: true }),
+  plugins: [
+    createChunkedHostViteHelperIsolationPlugin(),
+    ...createTransformerPlugins({ copyAssets: true }),
+  ],
 })
 
 const webWorkerTransformerConfig = defineConfig({
@@ -386,7 +396,39 @@ const webWorkerTransformerConfig = defineConfig({
     createHostViteHelperIsolationPlugin(),
     ...createTransformerPlugins({
       copyAssets: false,
-      guardAggregate: true,
+      guardAggregate: 'node/web-worker-transformer.js',
+    }),
+  ],
+})
+
+// The build Worker aggregate (vrowzer-only). Like the transformer aggregate, it is one file that
+// has rolldown, but its entry is the builder.
+const webWorkerBuilderConfig = defineConfig({
+  ...sharedNodeOptions,
+  input: {
+    'web-worker-builder': path.resolve(__dirname, 'src/node/builder.ts'),
+  },
+  resolve: {
+    alias: transformerAliases,
+  },
+  transform: {
+    ...sharedNodeOptions.transform,
+    inject: {
+      process: '@vrowzer/node-polyfill/process',
+    },
+  },
+  output: {
+    ...sharedNodeOptions.output,
+    entryFileNames: 'node/web-worker-builder.js',
+    codeSplitting: false,
+  },
+  plugins: [
+    createEagerWorkerTransformerImportsPlugin(),
+    createHostViteHelperIsolationPlugin(),
+    createBuilderGlobalsGuardPlugin(),
+    ...createTransformerPlugins({
+      copyAssets: false,
+      guardAggregate: 'node/web-worker-builder.js',
     }),
   ],
 })
@@ -483,6 +525,7 @@ export default defineConfig([
   serviceWorkerConfig,
   transformerConfig,
   webWorkerTransformerConfig,
+  webWorkerBuilderConfig,
   webWorkerConfig,
   moduleRunnerConfig,
   messagesConfig,
@@ -538,8 +581,11 @@ function createEagerWorkerTransformerImportsPlugin(): Plugin {
       './importAnalysis',
       './asset',
       './clientInjections',
+      './define',
       './forwardConsole',
     ]],
+    // buildEnvironment() loads rolldown lazily, while the static graph imports it as well
+    ['src/node/build.ts', ['@vrowzer/rolldown']],
   ])
 
   return {
@@ -626,6 +672,93 @@ function createHostViteHelperIsolationPlugin(): Plugin {
       return code
         .replace(declaration, 'function __vrowzer_internalInjectQuery(')
         .replace(toStringReference, '__vrowzer_internalInjectQuery.toString()')
+    },
+  }
+}
+
+function createChunkedHostViteHelperIsolationPlugin(): Plugin {
+  // The chunked build (`transformer.js`, `vite.js` and their chunks) needs the same isolation.
+  // The host Vite injects its own `__vite__injectQuery` import into a chunk that has a dynamic
+  // import of a variable, so a chunk that also declares the bundled helper fails to load
+  // ("Identifier '__vite__injectQuery' has already been declared"). Which chunk holds the helper
+  // depends on how rolldown groups the modules, so rename it in every chunk that declares it.
+  const declaration = 'function __vite__injectQuery('
+  const toStringReference = '__vite__injectQuery.toString()'
+  return {
+    name: 'isolate-host-vite-helper-chunked',
+    renderChunk(code) {
+      if (!code.includes(declaration)) {
+        return null
+      }
+
+      return code
+        .replace(declaration, 'function __vrowzer_internalInjectQuery(')
+        .replace(toStringReference, '__vrowzer_internalInjectQuery.toString()')
+    },
+    generateBundle(_options, bundle) {
+      let renamed = false
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'chunk') {
+          continue
+        }
+        if (output.code.includes(declaration)) {
+          this.error(
+            `[isolate-host-vite-helper-chunked] ${output.fileName} still declares Vite injectQuery`
+          )
+        }
+        renamed ||= output.code.includes('function __vrowzer_internalInjectQuery(')
+      }
+      if (!renamed) {
+        this.error(
+          '[isolate-host-vite-helper-chunked] Could not find Vite injectQuery implementation'
+        )
+      }
+    },
+  }
+}
+
+function createBuilderGlobalsGuardPlugin(): Plugin {
+  // The rolldown binding reads `globalThis.Buffer` when it is initialized, so the builder must set it
+  // before the binding code. One file evaluates from the top, so check the order of the code.
+  return {
+    name: 'validate-builder-globals',
+    generateBundle(_options, bundle) {
+      const entry = Object.values(bundle).find(
+        output => output.type === 'chunk' && output.fileName === 'node/web-worker-builder.js'
+      )
+      if (!entry || entry.type !== 'chunk') {
+        this.error('[validate-builder-globals] Could not find node/web-worker-builder.js entry')
+      }
+      const globals = entry.code.indexOf('globalThis.Buffer ??=')
+      const binding = entry.code.indexOf('rolldown-binding.wasm32-wasi.wasm')
+      if (globals < 0 || binding < 0 || globals > binding) {
+        this.error('[validate-builder-globals] The builder globals must come before the rolldown binding')
+      }
+    },
+  }
+}
+
+function createRuntimeNodeEnvGuardPlugin(): Plugin {
+  // `resolveConfig()` decides `isProduction` from `process.env.NODE_ENV` at runtime, so that the dev
+  // Web Worker and the build Worker can share the code. Stop the build when the bundle fixes it.
+  const runtimeCheck = 'const isProduction = process.env.NODE_ENV === "production"'
+  const fixedCheck = /\bconst isProduction = (?:true|false);/
+  return {
+    name: 'guard-runtime-node-env',
+    generateBundle(_options, bundle) {
+      let found = false
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'chunk') {
+          continue
+        }
+        if (fixedCheck.test(output.code)) {
+          this.error(`[guard-runtime-node-env] ${output.fileName} fixes isProduction`)
+        }
+        found ||= output.code.includes(runtimeCheck)
+      }
+      if (!found) {
+        this.error('[guard-runtime-node-env] Could not find the NODE_ENV check of resolveConfig()')
+      }
     },
   }
 }
@@ -723,15 +856,15 @@ function createValidateRolldownVersionPlugin(): Plugin {
   }
 }
 
-function createWebWorkerTransformerGuardPlugin(): Plugin {
+function createWebWorkerTransformerGuardPlugin(entryFileName: string): Plugin {
   return {
     name: 'validate-web-worker-transformer',
     generateBundle(_options, bundle) {
       const chunks = Object.values(bundle).filter(output => output.type === 'chunk')
-      const entry = chunks.find(chunk => chunk.fileName === 'node/web-worker-transformer.js')
+      const entry = chunks.find(chunk => chunk.fileName === entryFileName)
       if (!entry || entry.type !== 'chunk') {
         throw new Error(
-          '[validate-web-worker-transformer] Could not find web-worker-transformer entry'
+          `[validate-web-worker-transformer] Could not find ${entryFileName} entry`
         )
       }
 

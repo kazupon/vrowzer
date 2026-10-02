@@ -23,7 +23,11 @@ import { resolveOptions } from './options.ts'
 import { cleanOutputDir, prebundleWorkerConfig } from './prebundle.ts'
 import { rolldownPlugin, rolldownWorkerAssetPlugin } from './rolldown.ts'
 import { serverMiddlewarePlugin } from './server.ts'
-import { generateWebWorkerEntry } from './virtual.ts'
+import {
+  generateBuildWorkerEntry,
+  generateDisabledBuildWorkerEntry,
+  generateWebWorkerEntry
+} from './virtual.ts'
 import { beginWorkerConfigWatch, closeWorkerConfigWatch } from './worker-config-watch.ts'
 
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
@@ -41,14 +45,33 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
 
   // Path to bundled Worker config (set by configResolved)
   let bundledConfigPath: string | null = null
+  // Path to the Worker config bundled for vrowzer.build() (set by configResolved when enabled)
+  let bundledBuildConfigPath: string | null = null
   let isBuild = false
   let configWatch: ReturnType<typeof beginWorkerConfigWatch> | undefined
 
   function workerEntryTransform(code: string, id: string) {
+    const cleanId = id.split('?')[0]
+    if (
+      cleanId?.endsWith('build-worker.ts') &&
+      !cleanId.endsWith('build-worker-core.ts') &&
+      code.includes('initBuildWorker()')
+    ) {
+      // Without the option, keep the builder out of the host output
+      if (!resolvedOptions.build) {
+        return { code: generateDisabledBuildWorkerEntry(), map: null }
+      }
+      if (bundledBuildConfigPath) {
+        return {
+          code: generateBuildWorkerEntry(bundledBuildConfigPath, resolvedOptions.resolve),
+          map: null
+        }
+      }
+      return
+    }
     if (!bundledConfigPath) {
       return
     }
-    const cleanId = id.split('?')[0]
     if (
       cleanId?.endsWith('web-worker.ts') &&
       !cleanId.endsWith('web-worker-core.ts') &&
@@ -156,18 +179,33 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
         !isBuild && resolvedOptions.workerConfig !== undefined
           ? beginWorkerConfigWatch(config)
           : undefined
-      const bundled = await prebundleWorkerConfig({
-        ...(resolvedOptions.workerConfig !== undefined
+      const source =
+        resolvedOptions.workerConfig !== undefined
           ? { workerConfig: resolve(configDir, resolvedOptions.workerConfig) }
           : {
               workerSource,
               ...(resolvedOptions.extract && viteConfigPath ? { sourcePath: viteConfigPath } : {})
-            }),
+            }
+      const bundled = await prebundleWorkerConfig({
+        ...source,
         root: config.root,
         configDir,
         ...(configWatch ? { onDependency: configWatch.onDependency } : {})
       }).finally(() => configWatch?.finish())
       bundledConfigPath = bundled.path
+
+      // vrowzer.build() bundles the same Worker config for production. It has the same inputs, so
+      // the watch of the dev config covers it.
+      if (resolvedOptions.build) {
+        const bundledBuild = await prebundleWorkerConfig({
+          ...source,
+          root: config.root,
+          configDir,
+          variant: 'build'
+        })
+        bundledBuildConfigPath = bundledBuild.path
+        debug('bundled build config path:', bundledBuildConfigPath)
+      }
 
       debug('bundled config path:', bundledConfigPath)
     },

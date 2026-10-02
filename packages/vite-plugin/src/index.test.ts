@@ -281,6 +281,64 @@ export default defineConfig(({ mode }) => ({
     }
   )
 
+  test('prebundles the Worker config for vrowzer.build() only with build: true', async () => {
+    await configure(createPlugin({ extract: false }))
+    expect(prebundleWorkerConfig).toHaveBeenCalledOnce()
+
+    vi.mocked(prebundleWorkerConfig).mockClear()
+    await configure(createPlugin({ extract: false, build: true }))
+
+    expect(prebundleWorkerConfig).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(prebundleWorkerConfig).mock.calls[1]![0]).toEqual({
+      workerSource: vi.mocked(prebundleWorkerConfig).mock.calls[0]![0].workerSource,
+      root: '/host',
+      configDir: '/host',
+      variant: 'build'
+    })
+  })
+
+  test.each(['serve', 'build'] as const)(
+    'injects the Worker config for builds into the build Worker entry in %s',
+    async command => {
+      const buildPath = '/host/node_modules/.vrowzer/config.build.bundled.mjs'
+      vi.mocked(prebundleWorkerConfig).mockImplementation(async options => ({
+        path: options.variant === 'build' ? buildPath : bundledPath,
+        dependencies: []
+      }))
+      const plugin = createPlugin({ extract: false, build: true })
+      await configure(plugin, { command, configFile: false })
+
+      const config = (plugin.config as () => UserConfig)()
+      const workerPlugins = (await config.worker!.plugins!()) as Plugin[]
+      const workerPlugin = workerPlugins.find(
+        plugin => plugin.name === 'vrowzer:web-worker-config-inject'
+      )!
+
+      for (const entryPlugin of [plugin, workerPlugin]) {
+        const transform = entryPlugin.transform as (
+          code: string,
+          id: string
+        ) => { code: string } | undefined
+        const result = transform('initBuildWorker()', '/vrowzer/build-worker.ts?worker_file')
+        expect(result?.code).toContain(`import config from ${JSON.stringify(buildPath)}`)
+        expect(result?.code).toContain('initBuildWorker(resolved)')
+        expect(transform('initBuildWorker()', '/vrowzer/build-worker-core.ts')).toBeUndefined()
+      }
+    }
+  )
+
+  test('replaces the build Worker entry with a stub without build: true', () => {
+    const plugin = createPlugin({ extract: false })
+
+    const result = (plugin.transform as (code: string, id: string) => { code: string })(
+      'initBuildWorker()',
+      '/vrowzer/build-worker.ts'
+    )
+
+    expect(result.code).toContain("type: 'V_BW_READY'")
+    expect(result.code).not.toContain('import')
+  })
+
   test.each([{}, { extract: true }])('preserves extraction with %j', async options => {
     await configure(createPlugin({ auto: false, ...options }), {
       configFile: '/host/config/vite.config.ts',
