@@ -5,6 +5,7 @@ vi.mock('@vrowzer/rolldown', () => ({
   rolldown: vi.fn<(...args: unknown[]) => unknown>(),
 }))
 vi.mock('@vrowzer/rolldown/experimental', () => ({
+  viteBuildImportAnalysisPlugin: () => ({ name: 'builtin:vite-build-import-analysis' }),
   viteJsonPlugin: () => ({ name: 'vite:json' }),
   viteTransformPlugin: () => ({ name: 'native:transform' }),
   viteLoadFallbackPlugin: () => ({ name: 'builtin:vite-load-fallback' }),

@@ -1289,6 +1289,79 @@ describe('HTML entries', () => {
     expect(css?.source).toMatch(/color:\s*red/)
   })
 
+  test('preloads the CSS and the imports of the lazy chunks', async () => {
+    const { output } = (await build({
+      root: resolve(dirname, 'packages/build-project'),
+      logLevel: 'silent',
+      build: {
+        write: false,
+        minify: false,
+      },
+      plugins: [
+        {
+          name: 'test',
+          resolveId(id) {
+            if (
+              id === 'entry.js' ||
+              id === 'lazy.js' ||
+              id === 'other.js' ||
+              id === 'shared.js' ||
+              id === 'lazy.css'
+            ) {
+              return '\0' + id
+            }
+          },
+          load(id) {
+            if (id === '\0entry.js') {
+              return `window.addEventListener('click', () => { import('lazy.js'); import('other.js') })`
+            }
+            if (id === '\0lazy.js') {
+              return `import { shared } from 'shared.js'\nimport 'lazy.css'\nexport default shared + 'lazy'`
+            }
+            if (id === '\0other.js') {
+              return `import { shared } from 'shared.js'\nexport default shared + 'other'`
+            }
+            if (id === '\0shared.js') {
+              return `export const shared = 'shared'`
+            }
+            if (id === '\0lazy.css') {
+              return `.lazy { color: red }`
+            }
+          },
+        },
+      ],
+    })) as RolldownOutput
+
+    const fileNameOf = (name: string) =>
+      output.find((o) => o.type === 'chunk' && o.name === name)!.fileName
+    const entry = output.find(
+      (o): o is OutputChunk => o.type === 'chunk' && o.isEntry,
+    )!
+    const css = output.find(
+      (o) => o.type === 'asset' && o.fileName.endsWith('.css'),
+    )!
+    const deps = JSON.parse(/m\.f=(\[[^\]]*\])/.exec(entry.code)![1]) as string[]
+    const preloads = Array.from(
+      entry.code.matchAll(
+        /__vitePreload\(\(\) => import\("\.\/([^"]+)"\), __vite__mapDeps\(\[([\d,]+)\]\)\)/g,
+      ),
+      ([, file, indexes]) => [file, indexes.split(',').map((i) => deps[Number(i)])],
+    )
+    expect(Object.fromEntries(preloads)).toEqual({
+      [basename(fileNameOf('_lazy'))]: [
+        fileNameOf('_lazy'),
+        fileNameOf('_shared'),
+        css.fileName,
+      ],
+      [basename(fileNameOf('_other'))]: [
+        fileNameOf('_other'),
+        fileNameOf('_shared'),
+      ],
+    })
+    // the preload helper comes with the function that it calls
+    expect(entry.code).toMatch(/\bisCssPreloadUrl = function isCssPreloadUrl\(/)
+  })
+
   test('does not inject the module preload polyfill when it is disabled', async () => {
     const { entry } = findOutputs(
       (await buildHtmlProject({ polyfill: false })).output,

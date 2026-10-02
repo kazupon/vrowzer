@@ -10,6 +10,9 @@ vi.mock('@vrowzer/rolldown', () => ({
 }))
 
 vi.mock('@vrowzer/rolldown/experimental', () => ({
+  viteBuildImportAnalysisPlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-build-import-analysis',
+  })),
   viteJsonPlugin: vi.fn<() => { name: string }>(() => ({
     name: 'vite:json',
   })),
@@ -637,6 +640,8 @@ describe('definePlugin JavaScript pre-check', () => {
         'vite:build-html',
         'vite:prepare-out-dir',
         'vite:rollup-options-plugins',
+        'vite:build-import-analysis',
+        'native:import-analysis-build',
         'native:reporter',
         'builtin:vite-load-fallback',
       ]),

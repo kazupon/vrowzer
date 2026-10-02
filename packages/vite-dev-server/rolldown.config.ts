@@ -426,6 +426,7 @@ const webWorkerBuilderConfig = defineConfig({
     createEagerWorkerTransformerImportsPlugin(),
     createHostViteHelperIsolationPlugin(),
     createBuilderGlobalsGuardPlugin(),
+    createPreloadHelperGuardPlugin(),
     ...createTransformerPlugins({
       copyAssets: false,
       guardAggregate: 'node/web-worker-builder.js',
@@ -734,6 +735,54 @@ function createBuilderGlobalsGuardPlugin(): Plugin {
       const binding = entry.code.indexOf('rolldown-binding.wasm32-wasi.wasm')
       if (globals < 0 || binding < 0 || globals > binding) {
         this.error('[validate-builder-globals] The builder globals must come before the rolldown binding')
+      }
+    },
+  }
+}
+
+function createPreloadHelperGuardPlugin(): Plugin {
+  // `getPreloadCode()` of the build inlines `preload()` into the output with `toString()`, with the
+  // helper that it calls. The host build of an app may minify the builder, which renames the helper,
+  // also where `preload()` calls it. So the preload code must declare the helper under its runtime
+  // name (`.name`), and `preload()` must not call other functions of the bundle.
+  return {
+    name: 'guard-preload-helper',
+    generateBundle(_options, bundle) {
+      const entry = Object.values(bundle).find(
+        output => output.type === 'chunk' && output.fileName === 'node/web-worker-builder.js'
+      )
+      if (!entry || entry.type !== 'chunk') {
+        this.error('[guard-preload-helper] Could not find node/web-worker-builder.js entry')
+      }
+      const { code } = entry
+      const helper = /const seen = \{\};const \$\{(\w+)\.name\} = \$\{\1\.toString\(\)\};/.exec(code)?.[1]
+      if (!helper) {
+        this.error('[guard-preload-helper] The preload code must declare isCssPreloadUrl under its runtime name')
+      }
+      const preload = /const preloadMethodCode = (\w+)\.toString\(\)/.exec(code)?.[1]
+      const start = preload ? code.indexOf(`\nfunction ${preload}(`) : -1
+      const end = start < 0 ? -1 : code.indexOf('\n}\n', start)
+      if (start < 0 || end < 0) {
+        this.error('[guard-preload-helper] Could not find preload()')
+      }
+      const source = code.slice(start, end)
+      const calls = new Set(
+        Array.from(source.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\(/g), match => match[1])
+      )
+      if (!calls.has(helper)) {
+        this.error(`[guard-preload-helper] preload() does not call ${helper}()`)
+      }
+      for (const name of calls) {
+        if (
+          name !== helper &&
+          name !== preload &&
+          code.includes(`\nfunction ${name}(`) &&
+          !source.includes(`function ${name}(`)
+        ) {
+          this.error(
+            `[guard-preload-helper] preload() calls ${name}(), which the preload code does not declare`
+          )
+        }
       }
     },
   }
