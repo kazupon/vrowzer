@@ -44,7 +44,10 @@ const sharedNodeOptions = defineConfig({
   platform: 'browser',
   transform: {
     define: {
-      'process.env.NODE_ENV': JSON.stringify('development'), // vrowzer always runs in dev mode (resolveConfig uses this for isProduction)
+      // NOTE(kazupon): SPIKE #36: `process.env.NODE_ENV` is set at runtime by resolveConfig, as upstream does.
+      // Keep the reference, because rolldown replaces it by default for the browser platform.
+      'process.env.NODE_ENV': 'process.env.NODE_ENV',
+      // 'process.env.NODE_ENV': JSON.stringify('development'), // vrowzer always runs in dev mode (resolveConfig uses this for isProduction)
       'process.platform': JSON.stringify('browser'), // for `tinyglobby` polyfill
       '__VROWZER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
       '__VROWZER_ROLLDOWN_VERSION__': JSON.stringify(rolldownPackage.version),
@@ -359,7 +362,39 @@ const transformerConfig = defineConfig({
       process: '@vrowzer/node-polyfill/process',
     },
   },
-  plugins: createTransformerPlugins({ copyAssets: true }),
+  plugins: [
+    createChunkedHostViteHelperIsolationPlugin(),
+    ...createTransformerPlugins({ copyAssets: true }),
+  ],
+})
+
+// SPIKE #36: the build Worker aggregate. Like the transformer aggregate, but its entry is the builder.
+const webWorkerBuilderConfig = defineConfig({
+  ...sharedNodeOptions,
+  input: {
+    'web-worker-builder': path.resolve(__dirname, 'src/node/builder.ts'),
+  },
+  resolve: {
+    alias: transformerAliases,
+  },
+  transform: {
+    ...sharedNodeOptions.transform,
+    inject: {
+      process: '@vrowzer/node-polyfill/process',
+    },
+  },
+  output: {
+    ...sharedNodeOptions.output,
+    entryFileNames: 'node/web-worker-builder.js',
+    codeSplitting: false,
+  },
+  plugins: [
+    createEagerWorkerTransformerImportsPlugin(),
+    createHostViteHelperIsolationPlugin(),
+    ...createTransformerPlugins({
+      copyAssets: false,
+    }),
+  ],
 })
 
 const webWorkerTransformerConfig = defineConfig({
@@ -483,6 +518,7 @@ export default defineConfig([
   serviceWorkerConfig,
   transformerConfig,
   webWorkerTransformerConfig,
+  webWorkerBuilderConfig,
   webWorkerConfig,
   moduleRunnerConfig,
   messagesConfig,
@@ -538,8 +574,12 @@ function createEagerWorkerTransformerImportsPlugin(): Plugin {
       './importAnalysis',
       './asset',
       './clientInjections',
+      './define',
+      './modulePreloadPolyfill',
       './forwardConsole',
     ]],
+    // SPIKE #36: buildEnvironment() loads rolldown lazily, which the static graph imports as well
+    ['src/node/build.ts', ['@vrowzer/rolldown']],
   ])
 
   return {
@@ -605,6 +645,25 @@ function createEagerWorkerTransformerImportsPlugin(): Plugin {
       }
 
       return `${eagerImports.join('\n')}\n${transformed}`
+    },
+  }
+}
+
+// SPIKE (#36): the chunked transformer build needs the same isolation. When a chunk with the bundled
+// `__vite__injectQuery` also has a dynamic import with a variable, the host Vite injects its own
+// `__vite__injectQuery` import into that chunk, and the chunk fails to load with a SyntaxError
+// ("Identifier '__vite__injectQuery' has already been declared").
+function createChunkedHostViteHelperIsolationPlugin(): Plugin {
+  return {
+    name: 'isolate-host-vite-helper-chunked',
+    renderChunk(code) {
+      const declaration = 'function __vite__injectQuery('
+      if (!code.includes(declaration)) {
+        return null
+      }
+      return code
+        .replace(declaration, 'function __vrowzer_internalInjectQuery(')
+        .replace('__vite__injectQuery.toString()', '__vrowzer_internalInjectQuery.toString()')
     },
   }
 }

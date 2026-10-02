@@ -23,7 +23,7 @@ import { resolveOptions } from './options.ts'
 import { cleanOutputDir, prebundleWorkerConfig } from './prebundle.ts'
 import { rolldownPlugin, rolldownWorkerAssetPlugin } from './rolldown.ts'
 import { serverMiddlewarePlugin } from './server.ts'
-import { generateWebWorkerEntry } from './virtual.ts'
+import { generateBuildWorkerEntry, generateWebWorkerEntry } from './virtual.ts'
 import { beginWorkerConfigWatch, closeWorkerConfigWatch } from './worker-config-watch.ts'
 
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
@@ -41,6 +41,8 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
 
   // Path to bundled Worker config (set by configResolved)
   let bundledConfigPath: string | null = null
+  // SPIKE (#36): the config for the build Worker
+  let bundledBuildConfigPath: string | null = null
   let isBuild = false
   let configWatch: ReturnType<typeof beginWorkerConfigWatch> | undefined
 
@@ -55,6 +57,15 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
       code.includes('initWebWorker()')
     ) {
       return { code: generateWebWorkerEntry(bundledConfigPath, resolvedOptions.resolve), map: null }
+    }
+    // SPIKE (#36)
+    if (
+      bundledBuildConfigPath &&
+      cleanId?.endsWith('build-worker.ts') &&
+      !cleanId.endsWith('build-worker-core.ts') &&
+      code.includes('initBuildWorker()')
+    ) {
+      return { code: generateBuildWorkerEntry(bundledBuildConfigPath), map: null }
     }
   }
 
@@ -168,6 +179,19 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
         ...(configWatch ? { onDependency: configWatch.onDependency } : {})
       }).finally(() => configWatch?.finish())
       bundledConfigPath = bundled.path
+      // SPIKE (#36): the config for the build Worker, created per build
+      const bundledBuild = await prebundleWorkerConfig({
+        ...(resolvedOptions.workerConfig !== undefined
+          ? { workerConfig: resolve(configDir, resolvedOptions.workerConfig) }
+          : {
+              workerSource,
+              ...(resolvedOptions.extract && viteConfigPath ? { sourcePath: viteConfigPath } : {})
+            }),
+        root: config.root,
+        configDir,
+        variant: 'build'
+      })
+      bundledBuildConfigPath = bundledBuild.path
 
       debug('bundled config path:', bundledConfigPath)
     },

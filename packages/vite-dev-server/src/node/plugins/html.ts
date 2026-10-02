@@ -9,6 +9,7 @@ import type {
 } from 'parse5'
 import colors from 'picocolors'
 import type {
+  OutputAsset,
   OutputBundle,
   OutputChunk,
   RollupError,
@@ -16,7 +17,32 @@ import type {
 } from 'rolldown'
 import { stripLiteral } from 'strip-literal'
 import { cleanUrl } from '../../shared/utils'
-import type { ResolvedConfig } from '../config'
+// SPIKE (#36): for buildHtmlPlugin
+import { getNodeAssetAttributes } from '../assetSource'
+import { toOutputFilePathInHtml } from '../build'
+import type { ResolvedConfig, ResolvedEnvironmentOptions } from '../config'
+import { perEnvironmentState } from '../environment'
+import { checkPublicFile } from '../publicDir'
+import {
+  decodeURIIfPossible,
+  encodeURIPath,
+  getHash,
+  isCSSRequest,
+  isDataUrl,
+  isExternalUrl,
+  partialEncodeURIPath,
+  processSrcSet,
+  removeLeadingSlash,
+} from '../utils'
+import {
+  assetUrlRE,
+  getAssetUrlPostfix,
+  getPublicAssetFilename,
+  publicAssetUrlRE,
+  urlToBuiltUrl,
+} from './asset'
+import { cssBundleNameCache } from './css'
+import { modulePreloadPolyfillId } from './modulePreloadPolyfill'
 // NOTE(kazupon): commented out, because env will not be supported in vrowzer yet
 // import { resolveEnvPrefix } from '../env'
 import type { Logger } from '../logger'
@@ -145,7 +171,23 @@ const noInlineLinkRels = new Set([
   'apple-touch-icon',
   'apple-touch-startup-image',
   'manifest',
+  'modulepreload',
+  'preload',
+  'prefetch',
 ])
+
+// If the node is a link, check if it can be inlined. If not, return `false` to
+// force no inline. `undefined` leaves it to the default heuristics.
+function getLinkShouldInline(
+  node: DefaultTreeAdapterMap['element'],
+  attributes: Record<string, string>,
+): false | undefined {
+  const isNoInlineLink =
+    node.nodeName === 'link' &&
+    attributes.rel &&
+    parseRelAttr(attributes.rel).some((v) => noInlineLinkRels.has(v))
+  return isNoInlineLink ? false : undefined
+}
 
 export const isAsyncScriptMap: WeakMap<
   ResolvedConfig,
@@ -324,7 +366,759 @@ function handleParseError(
     parseError.frame
 }
 
-// TODO: fill in code later ...
+// SPIKE (#36): ported from upstream
+export function getCssFilesForChunk(
+  chunk: OutputChunk,
+  bundle: OutputBundle,
+  analyzedImportedCssFiles: Map<OutputChunk, string[]>,
+  seenChunks: Set<string> = new Set(),
+  seenCss: Set<string> = new Set(),
+): string[] {
+  if (seenChunks.has(chunk.fileName)) {
+    return []
+  }
+  seenChunks.add(chunk.fileName)
+
+  if (analyzedImportedCssFiles.has(chunk)) {
+    const files = analyzedImportedCssFiles.get(chunk)!
+    const additionals = files.filter((file) => !seenCss.has(file))
+    additionals.forEach((file) => seenCss.add(file))
+    return additionals
+  }
+
+  // Collect all CSS from imports (unfiltered for caching, filtered for return)
+  const allFiles: string[] = []
+  const filteredFiles: string[] = []
+  chunk.imports.forEach((file) => {
+    const importee = bundle[file]
+    if (importee?.type === 'chunk') {
+      const importeeCss = getCssFilesForChunk(
+        importee,
+        bundle,
+        analyzedImportedCssFiles,
+        seenChunks,
+        seenCss,
+      )
+      filteredFiles.push(...importeeCss)
+      // For cache: use the importee's full cached list
+      if (analyzedImportedCssFiles.has(importee)) {
+        allFiles.push(...analyzedImportedCssFiles.get(importee)!)
+      } else {
+        allFiles.push(...importeeCss)
+      }
+    }
+  })
+
+  chunk.viteMetadata!.importedCss.forEach((file) => {
+    allFiles.push(file)
+    if (!seenCss.has(file)) {
+      seenCss.add(file)
+      filteredFiles.push(file)
+    }
+  })
+
+  analyzedImportedCssFiles.set(chunk, unique(allFiles))
+
+  return filteredFiles
+}
+
+/**
+ * Compiles index.html into an entry js module
+ */
+export function buildHtmlPlugin(config: ResolvedConfig): Plugin {
+  const [preHooks, normalHooks, postHooks] = resolveHtmlTransforms(
+    config.plugins,
+  )
+  preHooks.unshift(injectCspNonceMetaTagHook(config))
+  preHooks.unshift(preImportMapHook(config))
+  preHooks.push(htmlEnvHook(config))
+  postHooks.push(injectNonceAttributeTagHook(config))
+  // NOTE(kazupon): the fork's postImportMapHook has no chunk import map support yet (SPIKE #36)
+  postHooks.push(postImportMapHook())
+  // postHooks.push(postImportMapHook(config))
+  const processedHtml = perEnvironmentState(() => new Map<string, string>())
+
+  const isExcludedUrl = (url: string) =>
+    url[0] === '#' || isExternalUrl(url) || isDataUrl(url)
+
+  // Same reason with `htmlInlineProxyPlugin`
+  isAsyncScriptMap.set(config, new Map())
+
+  return {
+    name: 'vite:build-html',
+
+    applyToEnvironment(environment) {
+      return environment.config.isBundled
+    },
+
+    transform: {
+      filter: { id: /\.html$/ },
+      async handler(html, id) {
+        id = normalizePath(id)
+        const relativeUrlPath = normalizePath(path.relative(config.root, id))
+        const publicPath = `/${relativeUrlPath}`
+        const publicBase = getBaseInHTML(relativeUrlPath, config)
+
+        const publicToRelative = (filename: string) => publicBase + filename
+        const toOutputPublicFilePath = (url: string) =>
+          toOutputFilePathInHtml(
+            url.slice(1),
+            'public',
+            relativeUrlPath,
+            'html',
+            config,
+            publicToRelative,
+          )
+        // Determines true start position for the node, either the < character
+        // position, or the newline at the end of the previous line's node.
+        const nodeStartWithLeadingWhitespace = (
+          node: DefaultTreeAdapterMap['node'],
+        ) => {
+          const startOffset = node.sourceCodeLocation!.startOffset
+          if (startOffset === 0) {return 0}
+
+          // Gets the offset for the start of the line including the
+          // newline trailing the previous node
+          const lineStartOffset =
+            startOffset - node.sourceCodeLocation!.startCol
+
+          // <previous-line-node></previous-line-node>
+          // <target-node></target-node>
+          //
+          // Here we want to target the newline at the end of the previous line
+          // as the start position for our target.
+          //
+          // <previous-node></previous-node>
+          // <doubled-up-node></doubled-up-node><target-node></target-node>
+          //
+          // However, if there is content between our target node start and the
+          // previous newline, we cannot strip it out without risking content deletion.
+          let isLineEmpty = false
+          try {
+            const line = s.slice(Math.max(0, lineStartOffset), startOffset)
+            isLineEmpty = !line.trim()
+          } catch {
+            // magic-string may throw if there's some content removed in the sliced string,
+            // which we ignore and assume the line is not empty
+          }
+
+          return isLineEmpty ? lineStartOffset : startOffset
+        }
+
+        // pre-transform
+        html = await applyHtmlTransforms(html, preHooks, this, {
+          path: publicPath,
+          filename: id,
+        })
+
+        let js = ''
+        const s = new MagicString(html)
+        const scriptUrls: ScriptAssetsUrl[] = []
+        const styleUrls: ScriptAssetsUrl[] = []
+        let inlineModuleIndex = -1
+
+        let everyScriptIsAsync = true
+        let someScriptsAreAsync = false
+        let someScriptsAreDefer = false
+
+        const assetUrlsPromises: Promise<void>[] = []
+
+        // for each encountered asset url, rewrite original html so that it
+        // references the post-build location, ignoring empty attributes and
+        // attributes that directly reference named output.
+        const namedOutput = Object.keys(
+          config.build.rolldownOptions.input || {},
+        )
+        const processAssetUrl = async (url: string, shouldInline?: boolean) => {
+          if (
+            url !== '' && // Empty attribute
+            !namedOutput.includes(url) && // Direct reference to named output
+            !namedOutput.includes(removeLeadingSlash(url)) // Allow for absolute references as named output can't be an absolute path
+          ) {
+            try {
+              return await urlToBuiltUrl(this, url, id, shouldInline)
+            } catch (e) {
+              if (e.code !== 'ENOENT') {
+                throw e
+              }
+            }
+          }
+          return url
+        }
+
+        const setModuleSideEffectPromises: Promise<void>[] = []
+        await traverseHtml(html, id, config.logger.warn, (node) => {
+          if (!nodeIsElement(node)) {
+            return
+          }
+
+          let shouldRemove = false
+
+          // script tags
+          if (node.nodeName === 'script') {
+            const { src, srcSourceCodeLocation, isModule, isAsync, isIgnored } =
+              getScriptInfo(node)
+
+            if (isIgnored) {
+              removeViteIgnoreAttr(s, node.sourceCodeLocation!)
+            } else {
+              const url = src && src.value
+              const isPublicFile = !!(url && checkPublicFile(url, config))
+              if (isPublicFile) {
+                // referencing public dir url, prefix with base
+                overwriteAttrValue(
+                  s,
+                  srcSourceCodeLocation!,
+                  partialEncodeURIPath(toOutputPublicFilePath(url)),
+                )
+              }
+
+              if (isModule) {
+                inlineModuleIndex++
+                if (url && !isExcludedUrl(url) && !isPublicFile) {
+                  setModuleSideEffectPromises.push(
+                    this.resolve(url, id).then((resolved) => {
+                      if (!resolved) {
+                        return Promise.reject(
+                          new Error(`Failed to resolve ${url} from ${id}`),
+                        )
+                      }
+                      // set moduleSideEffects to keep the module even if `treeshake.moduleSideEffects=false` is set
+                      const moduleInfo = this.getModuleInfo(resolved.id)
+                      if (moduleInfo) {
+                        moduleInfo.moduleSideEffects = true
+                      } else if (!resolved.external) {
+                        return this.load({
+                          ...resolved,
+                          moduleSideEffects: true,
+                        }).then(() => {})
+                      }
+                    }),
+                  )
+                  // <script type="module" src="..."/>
+                  // add it as an import
+                  js += `\nimport ${JSON.stringify(url)}`
+                  shouldRemove = true
+                } else if (node.childNodes.length) {
+                  const scriptNode =
+                    node.childNodes.pop() as DefaultTreeAdapterMap['textNode']
+                  const contents = scriptNode.value
+                  // <script type="module">...</script>
+                  const filePath = id.replace(normalizePath(config.root), '')
+                  addToHTMLProxyCache(config, filePath, inlineModuleIndex, {
+                    code: contents,
+                  })
+                  js += `\nimport "${id}?html-proxy&index=${inlineModuleIndex}.js"`
+                  shouldRemove = true
+                }
+
+                everyScriptIsAsync &&= isAsync
+                someScriptsAreAsync ||= isAsync
+                someScriptsAreDefer ||= !isAsync
+              } else if (url && !isPublicFile) {
+                if (!isExcludedUrl(url)) {
+                  config.logger.warn(
+                    `<script src="${url}"> in "${publicPath}" can't be bundled without type="module" attribute`,
+                  )
+                }
+              } else if (node.childNodes.length) {
+                const scriptNode =
+                  node.childNodes.pop() as DefaultTreeAdapterMap['textNode']
+                scriptUrls.push(
+                  ...extractImportExpressionFromClassicScript(scriptNode),
+                )
+              }
+            }
+          }
+
+          // For asset references in index.html, also generate an import
+          // statement for each - this will be handled by the asset plugin
+          const assetAttributes = getNodeAssetAttributes(
+            node,
+            config.html?.additionalAssetSources,
+          )
+          for (const attr of assetAttributes) {
+            if (attr.type === 'remove') {
+              s.remove(attr.location.startOffset, attr.location.endOffset)
+              continue
+            } else if (attr.type === 'srcset') {
+              assetUrlsPromises.push(
+                (async () => {
+                  const processedEncodedUrl = await processSrcSet(
+                    attr.value,
+                    async ({ url }) => {
+                      const decodedUrl = decodeURIIfPossible(url)
+                      if (
+                        decodedUrl !== undefined &&
+                        !isExcludedUrl(decodedUrl)
+                      ) {
+                        const result = await processAssetUrl(
+                          decodedUrl,
+                          getLinkShouldInline(node, attr.attributes),
+                        )
+                        return result !== decodedUrl
+                          ? encodeURIPath(result)
+                          : url
+                      }
+                      return url
+                    },
+                  )
+                  if (processedEncodedUrl !== attr.value) {
+                    overwriteAttrValue(s, attr.location, processedEncodedUrl)
+                  }
+                })(),
+              )
+            } else if (attr.type === 'src') {
+              const url = decodeURIIfPossible(attr.value)
+              if (url === undefined) {
+                // ignore it
+              } else if (checkPublicFile(url, config)) {
+                overwriteAttrValue(
+                  s,
+                  attr.location,
+                  partialEncodeURIPath(toOutputPublicFilePath(url)),
+                )
+              } else if (!isExcludedUrl(url)) {
+                if (
+                  node.nodeName === 'link' &&
+                  isCSSRequest(url) &&
+                  // should not be converted if following attributes are present (#6748)
+                  !('media' in attr.attributes || 'disabled' in attr.attributes)
+                ) {
+                  // CSS references, convert to import
+                  const importExpression = `\nimport ${JSON.stringify(url)}`
+                  styleUrls.push({
+                    url,
+                    start: nodeStartWithLeadingWhitespace(node),
+                    end: node.sourceCodeLocation!.endOffset,
+                  })
+                  js += importExpression
+                } else {
+                  assetUrlsPromises.push(
+                    (async () => {
+                      const processedUrl = await processAssetUrl(
+                        url,
+                        getLinkShouldInline(node, attr.attributes),
+                      )
+                      if (processedUrl !== url) {
+                        overwriteAttrValue(
+                          s,
+                          attr.location,
+                          partialEncodeURIPath(processedUrl),
+                        )
+                      }
+                    })(),
+                  )
+                }
+              }
+            }
+          }
+
+          const inlineStyle = findNeedTransformStyleAttribute(node)
+          if (inlineStyle) {
+            inlineModuleIndex++
+            // replace `inline style` with __VITE_INLINE_CSS__**_**__
+            // and import css in js code
+            const code = inlineStyle.attr.value
+            const filePath = id.replace(normalizePath(config.root), '')
+            addToHTMLProxyCache(config, filePath, inlineModuleIndex, { code })
+            // will transform with css plugin and cache result with css-post plugin
+            js += `\nimport "${id}?html-proxy&inline-css&style-attr&index=${inlineModuleIndex}.css"`
+            const hash = getHash(cleanUrl(id))
+            // will transform in `applyHtmlTransforms`
+            overwriteAttrValue(
+              s,
+              inlineStyle.location!,
+              `__VITE_INLINE_CSS__${hash}_${inlineModuleIndex}__`,
+            )
+          }
+
+          // <style>...</style>
+          if (node.nodeName === 'style' && node.childNodes.length) {
+            const styleNode =
+              node.childNodes.pop() as DefaultTreeAdapterMap['textNode']
+            const filePath = id.replace(normalizePath(config.root), '')
+            inlineModuleIndex++
+            addToHTMLProxyCache(config, filePath, inlineModuleIndex, {
+              code: styleNode.value,
+            })
+            js += `\nimport "${id}?html-proxy&inline-css&index=${inlineModuleIndex}.css"`
+            const hash = getHash(cleanUrl(id))
+            // will transform in `applyHtmlTransforms`
+            s.update(
+              styleNode.sourceCodeLocation!.startOffset,
+              styleNode.sourceCodeLocation!.endOffset,
+              `__VITE_INLINE_CSS__${hash}_${inlineModuleIndex}__`,
+            )
+          }
+
+          if (shouldRemove) {
+            // remove the script tag from the html. we are going to inject new
+            // ones in the end.
+            s.remove(
+              nodeStartWithLeadingWhitespace(node),
+              node.sourceCodeLocation!.endOffset,
+            )
+          }
+        })
+
+        isAsyncScriptMap.get(config)!.set(id, everyScriptIsAsync)
+
+        if (someScriptsAreAsync && someScriptsAreDefer) {
+          config.logger.warn(
+            `\nMixed async and defer script modules in ${id}, output script will fallback to defer. Every script, including inline ones, need to be marked as async for your output script to be async.`,
+          )
+        }
+
+        await Promise.all(assetUrlsPromises)
+
+        // emit <script>import("./aaa")</script> asset
+        for (const { start, end, url } of scriptUrls) {
+          if (checkPublicFile(url, config)) {
+            s.update(
+              start,
+              end,
+              partialEncodeURIPath(toOutputPublicFilePath(url)),
+            )
+          } else if (!isExcludedUrl(url)) {
+            s.update(
+              start,
+              end,
+              partialEncodeURIPath(await urlToBuiltUrl(this, url, id)),
+            )
+          }
+        }
+
+        // ignore <link rel="stylesheet"> if its url can't be resolved
+        const resolvedStyleUrls = await Promise.all(
+          styleUrls.map(async (styleUrl) => ({
+            ...styleUrl,
+            resolved: await this.resolve(styleUrl.url, id),
+          })),
+        )
+        for (const { start, end, url, resolved } of resolvedStyleUrls) {
+          if (resolved == null) {
+            config.logger.warnOnce(
+              `\n${url} doesn't exist at build time, it will remain unchanged to be resolved at runtime`,
+            )
+            const importExpression = `\nimport ${JSON.stringify(url)}`
+            js = js.replace(importExpression, '')
+          } else {
+            s.remove(start, end)
+          }
+        }
+
+        processedHtml(this).set(id, s.toString())
+
+        // inject module preload polyfill only when configured and needed
+        const { modulePreload } = this.environment.config.build
+        if (
+          modulePreload !== false &&
+          modulePreload.polyfill &&
+          (someScriptsAreAsync || someScriptsAreDefer)
+        ) {
+          js = `import "${modulePreloadPolyfillId}";\n${js}`
+        }
+
+        await Promise.all(setModuleSideEffectPromises)
+
+        // Force rollup to keep this module from being shared between other entry points.
+        // If the resulting chunk is empty, it will be removed in generateBundle.
+        return {
+          code: js,
+          map: { mappings: '' },
+          moduleSideEffects: 'no-treeshake',
+        }
+      },
+    },
+
+    async generateBundle(options, bundle) {
+      const analyzedImportedCssFiles = new Map<OutputChunk, string[]>()
+      const inlineEntryChunk = new Set<string>()
+      const getImportedChunks = (
+        chunk: OutputChunk,
+        seen: Set<string> = new Set(),
+      ): (OutputChunk | string)[] => {
+        const chunks: (OutputChunk | string)[] = []
+        chunk.imports.forEach((file) => {
+          const importee = bundle[file]
+          if (importee) {
+            if (importee.type === 'chunk' && !seen.has(file)) {
+              seen.add(file)
+
+              // post-order traversal
+              chunks.push(...getImportedChunks(importee, seen))
+              chunks.push(importee)
+            }
+          } else {
+            // external imports
+            chunks.push(file)
+          }
+        })
+        return chunks
+      }
+
+      const toScriptTag = (
+        chunkOrUrl: OutputChunk | string,
+        toOutputPath: (filename: string) => string,
+        isAsync: boolean,
+      ): HtmlTagDescriptor => ({
+        tag: 'script',
+        attrs: {
+          ...(isAsync ? { async: true } : {}),
+          type: 'module',
+          // crossorigin must be set not only for serving assets in a different origin
+          // but also to make it possible to preload the script using `<link rel="preload">`.
+          // `<script type="module">` used to fetch the script with credential mode `omit`,
+          // however `crossorigin` attribute cannot specify that value.
+          // https://developer.chrome.com/blog/modulepreload/#ok-so-why-doesnt-link-relpreload-work-for-modules:~:text=For%20%3Cscript%3E,of%20other%20modules.
+          // Now `<script type="module">` uses `same origin`: https://github.com/whatwg/html/pull/3656#:~:text=Module%20scripts%20are%20always%20fetched%20with%20credentials%20mode%20%22same%2Dorigin%22%20by%20default%20and%20can%20no%20longer%0Ause%20%22omit%22
+          crossorigin: true,
+          src:
+            typeof chunkOrUrl === 'string'
+              ? chunkOrUrl
+              : toOutputPath(chunkOrUrl.fileName),
+        },
+      })
+
+      const toPreloadTag = (
+        filename: string,
+        toOutputPath: (filename: string) => string,
+      ): HtmlTagDescriptor => ({
+        tag: 'link',
+        attrs: {
+          rel: 'modulepreload',
+          crossorigin: true,
+          href: toOutputPath(filename),
+        },
+      })
+
+      const toStyleSheetLinkTag = (
+        file: string,
+        toOutputPath: (filename: string) => string,
+      ): HtmlTagDescriptor => ({
+        tag: 'link',
+        attrs: {
+          rel: 'stylesheet',
+          crossorigin: true,
+          href: toOutputPath(file),
+        },
+      })
+
+      const getCssTagsForChunk = (
+        chunk: OutputChunk,
+        toOutputPath: (filename: string) => string,
+      ) =>
+        getCssFilesForChunk(chunk, bundle, analyzedImportedCssFiles).map(
+          (file) => toStyleSheetLinkTag(file, toOutputPath),
+        )
+
+      for (const [normalizedId, html] of processedHtml(this)) {
+        const relativeUrlPath = normalizePath(
+          path.relative(config.root, normalizedId),
+        )
+        const assetsBase = getBaseInHTML(relativeUrlPath, config)
+        const toOutputFilePath = (
+          filename: string,
+          type: 'asset' | 'public',
+        ) => {
+          if (isExternalUrl(filename)) {
+            return filename
+          } else {
+            return toOutputFilePathInHtml(
+              filename,
+              type,
+              relativeUrlPath,
+              'html',
+              config,
+              (filename) => assetsBase + filename,
+            )
+          }
+        }
+
+        const toOutputAssetFilePath = (filename: string) =>
+          toOutputFilePath(filename, 'asset')
+
+        const toOutputPublicAssetFilePath = (filename: string) =>
+          toOutputFilePath(filename, 'public')
+
+        const isAsync = isAsyncScriptMap.get(config)!.get(normalizedId)!
+
+        let result = html
+
+        // find corresponding entry chunk
+        const chunk = Object.values(bundle).find(
+          (chunk) =>
+            chunk.type === 'chunk' &&
+            chunk.isEntry &&
+            chunk.facadeModuleId &&
+            normalizePath(chunk.facadeModuleId) === normalizedId,
+        ) as OutputChunk | undefined
+
+        let canInlineEntry = false
+
+        // inject chunk asset links
+        if (chunk) {
+          // an entry chunk can be inlined if
+          //  - it's an ES module (e.g. not generated by the legacy plugin)
+          //  - it contains no meaningful code other than import statements
+          if (options.format === 'es' && isEntirelyImport(chunk.code)) {
+            canInlineEntry = true
+          }
+
+          // when not inlined, inject <script> for entry and modulepreload its dependencies
+          // when inlined, discard entry chunk and inject <script> for everything in post-order
+          const imports = getImportedChunks(chunk)
+          let assetTags: HtmlTagDescriptor[]
+          if (canInlineEntry) {
+            assetTags = imports.map((chunk) =>
+              toScriptTag(chunk, toOutputAssetFilePath, isAsync),
+            )
+          } else {
+            const { modulePreload } = this.environment.config.build
+            assetTags = [toScriptTag(chunk, toOutputAssetFilePath, isAsync)]
+            if (modulePreload !== false) {
+              const resolveDependencies =
+                typeof modulePreload === 'object' &&
+                modulePreload.resolveDependencies
+              const importsFileNames = imports
+                .filter((chunkOrUrl) => typeof chunkOrUrl !== 'string')
+                .map((chunk) => chunk.fileName)
+              const resolvedDeps = resolveDependencies
+                ? resolveDependencies(chunk.fileName, importsFileNames, {
+                    hostId: relativeUrlPath,
+                    hostType: 'html',
+                  })
+                : importsFileNames
+              assetTags.push(
+                ...resolvedDeps.map((i) =>
+                  toPreloadTag(i, toOutputAssetFilePath),
+                ),
+              )
+            }
+          }
+          assetTags.push(...getCssTagsForChunk(chunk, toOutputAssetFilePath))
+
+          result = injectToHead(result, assetTags)
+        }
+
+        // NOTE(kazupon): bundled dev mode is not supported in vrowzer (removed in #41)
+        // if (
+        //   config.command === 'serve' &&
+        //   this.environment.config.consumer === 'client' &&
+        //   this.environment.config.isBundled
+        // ) {
+        //   result = injectToHead(
+        //     result,
+        //     [
+        //       {
+        //         tag: 'script',
+        //         attrs: {
+        //           type: 'module',
+        //           src: path.posix.join(
+        //             config.base,
+        //             BUNDLED_DEV_CLIENT_FILENAME,
+        //           ),
+        //         },
+        //       },
+        //     ],
+        //     true,
+        //   )
+        // }
+
+        // inject css link when cssCodeSplit is false
+        if (!this.environment.config.build.cssCodeSplit) {
+          const cssBundleName = cssBundleNameCache.get(config)
+          const cssChunk =
+            cssBundleName &&
+            (Object.values(bundle).find(
+              (chunk) =>
+                chunk.type === 'asset' && chunk.names.includes(cssBundleName),
+            ) as OutputAsset | undefined)
+          if (cssChunk) {
+            result = injectToHead(result, [
+              {
+                tag: 'link',
+                attrs: {
+                  rel: 'stylesheet',
+                  crossorigin: true,
+                  href: toOutputAssetFilePath(cssChunk.fileName),
+                },
+              },
+            ])
+          }
+        }
+
+        // no use assets plugin because it will emit file
+        let match: RegExpExecArray | null
+        let s: MagicString | undefined
+        inlineCSSRE.lastIndex = 0
+        while ((match = inlineCSSRE.exec(result))) {
+          s ||= new MagicString(result)
+          const { 0: full, 1: scopedName } = match
+          const cssTransformedCode = htmlProxyResult.get(scopedName)!
+          s.update(match.index, match.index + full.length, cssTransformedCode)
+        }
+        if (s) {
+          result = s.toString()
+        }
+        result = await applyHtmlTransforms(
+          result,
+          [...normalHooks, ...postHooks],
+          this,
+          {
+            path: '/' + relativeUrlPath,
+            filename: normalizedId,
+            bundle,
+            chunk,
+          },
+        )
+        // resolve asset url references
+        result = result.replace(assetUrlRE, (_, fileHash, urlId) => {
+          const file = this.getFileName(fileHash)
+          if (chunk) {
+            chunk.viteMetadata!.importedAssets.add(cleanUrl(file))
+          }
+          return (
+            encodeURIPath(toOutputAssetFilePath(file)) +
+            getAssetUrlPostfix(this.environment, urlId)
+          )
+        })
+
+        result = result.replace(publicAssetUrlRE, (_, fileHash) => {
+          const publicAssetPath = toOutputPublicAssetFilePath(
+            getPublicAssetFilename(fileHash, config)!,
+          )
+
+          return encodeURIPath(
+            URL.canParse(publicAssetPath)
+              ? publicAssetPath
+              : normalizePath(publicAssetPath),
+          )
+        })
+
+        if (chunk && canInlineEntry) {
+          inlineEntryChunk.add(chunk.fileName)
+        }
+
+        const shortEmitName = normalizePath(
+          path.relative(config.root, normalizedId),
+        )
+        this.emitFile({
+          type: 'asset',
+          originalFileName: normalizedId,
+          fileName: shortEmitName,
+          source: result,
+        })
+      }
+
+      for (const fileName of inlineEntryChunk) {
+        // all imports from entry have been inlined to html, prevent rollup from outputting it
+        delete bundle[fileName]
+      }
+    },
+  }
+}
 
 export function parseRelAttr(attr: string): string[] {
   return attr.split(spaceRe).map((v) => v.toLowerCase())
@@ -706,12 +1500,20 @@ export async function applyHtmlTransforms(
   return html
 }
 
-const entirelyImportRE =
-  /^(?:import\s*(?:"[^"\n]*[^\\\n]"|'[^'\n]*[^\\\n]');*|\/\*[\s\S]*?\*\/|\/\/.*[$\n])*$/
+const importOrCommentRE =
+  /\s+|\/\*[\s\S]*?\*\/|\/\/[^\n]*(?:\n|$)|import\s*(?:"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')\s*;*/y
+
 function isEntirelyImport(code: string) {
   // only consider "side-effect" imports, which match <script type=module> semantics exactly
-  // the regexes will remove too little in some exotic cases, but false-negatives are alright
-  return entirelyImportRE.test(code.trim())
+  // the regexes will remove too little in some exotic cases, but false-negatives are alright.
+  // Consume one token at a time to avoid backtracking over the whole chunk.
+  importOrCommentRE.lastIndex = 0
+  while (importOrCommentRE.lastIndex < code.length) {
+    if (!importOrCommentRE.test(code)) {
+      return false
+    }
+  }
+  return true
 }
 
 function getBaseInHTML(urlRelativePath: string, config: ResolvedConfig) {
@@ -864,4 +1666,57 @@ function serializeAttrs(attrs: HtmlTagDescriptor['attrs']): string {
 
 function incrementIndent(indent: string = '') {
   return `${indent}${indent[0] === '\t' ? '\t' : '  '}`
+}
+
+export function getImportMapFilename(
+  options: ResolvedEnvironmentOptions,
+): string {
+  const chunkImportMap =
+    options.build.rolldownOptions.experimental?.chunkImportMap
+  if (typeof chunkImportMap === 'object' && chunkImportMap.fileName) {
+    return chunkImportMap.fileName
+  }
+  return 'importmap.json'
+}
+
+function getImportMapBaseUrl(options: ResolvedEnvironmentOptions): string {
+  const chunkImportMap =
+    options.build.rolldownOptions.experimental?.chunkImportMap
+  if (typeof chunkImportMap === 'object' && chunkImportMap.baseUrl) {
+    return chunkImportMap.baseUrl
+  }
+  return '/'
+}
+
+/**
+ * Read and parse the chunk import map asset from the bundle.
+ * Returns `undefined` when the import map is not present in the bundle.
+ */
+export function getImportMap(
+  bundle: OutputBundle,
+  options: ResolvedEnvironmentOptions & ResolvedConfig,
+):
+  | {
+      asset: OutputAsset
+      content: { imports: Record<string, string> }
+      /** import map entries with the base stripped (placeholder name -> real name) */
+      mapping: Record<string, string>
+    }
+  | undefined {
+  const asset = bundle[getImportMapFilename(options)] as OutputAsset | undefined
+  if (!asset) {return undefined}
+
+  const content: { imports: Record<string, string> } = JSON.parse(
+    typeof asset.source === 'string'
+      ? asset.source
+      : new TextDecoder().decode(asset.source),
+  )
+  const baseUrl = getImportMapBaseUrl(options)
+  const mapping = Object.fromEntries(
+    Object.entries(content.imports).map(([k, v]) => [
+      k.slice(baseUrl.length),
+      v.slice(baseUrl.length),
+    ]),
+  )
+  return { asset, content, mapping }
 }

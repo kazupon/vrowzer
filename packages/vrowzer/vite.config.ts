@@ -19,6 +19,9 @@ export default defineConfig({
           const distDir = resolve(import.meta.dirname, 'dist')
           cpSync(resolve(srcDir, 'web-worker.ts'), resolve(distDir, 'web-worker.ts'))
           cpSync(resolve(srcDir, 'web-worker-core.ts'), resolve(distDir, 'web-worker-core.ts'))
+          // SPIKE (#36)
+          cpSync(resolve(srcDir, 'build-worker.ts'), resolve(distDir, 'build-worker.ts'))
+          cpSync(resolve(srcDir, 'build-worker-core.ts'), resolve(distDir, 'build-worker-core.ts'))
           cpSync(resolve(srcDir, 'service-worker.ts'), resolve(distDir, 'service-worker.ts'))
           cpSync(resolve(srcDir, 'preview-base.ts'), resolve(distDir, 'preview-base.ts'))
           cpSync(

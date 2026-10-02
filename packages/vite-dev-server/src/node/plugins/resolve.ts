@@ -1552,5 +1552,8 @@ function findNearestPackagePath(
 ) {
   if (!isBuild || legacyInconsistentCjsInterop) {return}
   const pkgData = findNearestPackageData(file, packageCache)
-  return pkgData ? path.join(pkgData.dir, 'package.json') : null
+  // NOTE(kazupon): SPIKE (#36): upstream builds resolve with the native plugin, which does not take
+  // this path. rolldown 1.2.12 rejects `packageJsonPath: null` from a JS plugin
+  return pkgData ? path.join(pkgData.dir, 'package.json') : undefined
+  // return pkgData ? path.join(pkgData.dir, 'package.json') : null
 }

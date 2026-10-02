@@ -185,6 +185,26 @@ export interface VrowzerConfig {
 }
 
 /**
+ * SPIKE (#36): options for {@link Vrowzer.build}, a subset of the Vite config.
+ */
+export interface VrowzerBuildOptions {
+  base?: string
+  mode?: string
+  define?: Record<string, unknown>
+  build?: Record<string, unknown>
+  signal?: AbortSignal
+}
+
+/**
+ * SPIKE (#36): the result of {@link Vrowzer.build}.
+ */
+export interface VrowzerBuildResult {
+  files: Record<string, string | ArrayBuffer>
+  warnings: { message: string }[]
+  timings?: Record<string, number>
+}
+
+/**
  * Options for mounting a preview session.
  */
 export interface PreviewMountOptions {
@@ -424,6 +444,10 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * @param filePath - The path of the file to be deleted.
    */
   deleteFile(filePath: string): Promise<void>
+  /**
+   * SPIKE (#36): builds the project for production in a dedicated build Worker.
+   */
+  build(options?: VrowzerBuildOptions): Promise<VrowzerBuildResult>
   /**
    * Disposes this instance.
    *
@@ -675,6 +699,47 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   let stopListeningServiceWorkerStarts: (() => void) | null = null
   // The recovery of a restarted Service Worker in progress
   let recovery: AbortController | null = null
+  // SPIKE (#36): the project files as the caller asked for them, for build()
+  const projectFiles = new Map<string, string | ArrayBuffer>()
+  // SPIKE (#36): the build Worker, created on the first build()
+  let buildWorker: Worker | null = null
+  let buildWorkerReady: Promise<Worker> | null = null
+  let buildInFlight = false
+  let buildSeq = 0
+
+  function terminateBuildWorker(): void {
+    const worker = buildWorker
+    buildWorker = null
+    buildWorkerReady = null
+    worker?.terminate()
+  }
+
+  function ensureBuildWorker(): Promise<Worker> {
+    if (buildWorkerReady) {
+      return buildWorkerReady
+    }
+    const worker = new Worker(new URL('./build-worker.ts', import.meta.url), { type: 'module' })
+    buildWorker = worker
+    buildWorkerReady = new Promise<Worker>((resolve, reject) => {
+      worker.onerror = event => {
+        terminateBuildWorker()
+        reject(new Error(`[Vrowzer] The build Worker failed: ${event.message || 'unknown error'}`))
+      }
+      worker.onmessage = (event: MessageEvent) => {
+        if (event.data?.type !== 'V_BW_READY') {
+          return
+        }
+        worker.onmessage = null
+        if (event.data.error) {
+          terminateBuildWorker()
+          reject(new Error(`[Vrowzer] The build Worker could not start: ${event.data.error}`))
+          return
+        }
+        resolve(worker)
+      }
+    })
+    return buildWorkerReady
+  }
 
   function cleanupWebWorker(): void {
     const worker = webWorker
@@ -1223,6 +1288,11 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       if (!Object.hasOwn(initialFiles, '/index.html')) {
         initialFiles['/index.html'] = DEFAULT_INDEX_HTML
       }
+      // SPIKE (#36): keep the project files for build()
+      projectFiles.clear()
+      for (const [path, content] of Object.entries(initialFiles)) {
+        projectFiles.set(path, content)
+      }
 
       // 1. Create Web Worker + add as publisher target
       webWorker = new Worker(new URL('./web-worker.ts', import.meta.url), { type: 'module' })
@@ -1423,6 +1493,9 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
         attempt(errors, () => unmountSession(record))
       }
       releaseRuntime(errors)
+      // SPIKE (#36)
+      attempt(errors, terminateBuildWorker)
+      projectFiles.clear()
       if (errors.length > 0) {
         throw new AggregateError(errors, '[Vrowzer] dispose() could not release every resource')
       }
@@ -1546,19 +1619,67 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     },
 
     addFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
-      return syncFile('addFile', filePath, options =>
+      return syncFile('addFile', filePath, options => {
+        projectFiles.set(filePath, typeof content === 'string' ? content : content.slice(0))
         publisher.writeFile(filePath, content, options)
-      )
+      })
     },
 
     updateFile(filePath: string, content: string | ArrayBuffer): Promise<void> {
-      return syncFile('updateFile', filePath, options =>
+      return syncFile('updateFile', filePath, options => {
+        projectFiles.set(filePath, typeof content === 'string' ? content : content.slice(0))
         publisher.writeFile(filePath, content, options)
-      )
+      })
     },
 
     deleteFile(filePath: string): Promise<void> {
-      return syncFile('deleteFile', filePath, options => publisher.unlink(filePath, options))
+      return syncFile('deleteFile', filePath, options => {
+        projectFiles.delete(filePath)
+        publisher.unlink(filePath, options)
+      })
+    },
+
+    async build(options: VrowzerBuildOptions = {}): Promise<VrowzerBuildResult> {
+      if (readyState !== 'ready') {
+        throw new Error(
+          `[Vrowzer] build() can only be called after ready() resolves to true (current state: ${readyState})`
+        )
+      }
+      if (buildInFlight) {
+        throw new Error('[Vrowzer] build() is already running')
+      }
+      // Capture the input before the first asynchronous operation
+      const files = Object.fromEntries(projectFiles)
+      const { signal, ...buildOptions } = options
+      buildInFlight = true
+      try {
+        const worker = await ensureBuildWorker()
+        const id = ++buildSeq
+        return await new Promise<VrowzerBuildResult>((resolve, reject) => {
+          const onAbort = () => {
+            terminateBuildWorker()
+            reject(signal?.reason ?? new Error('[Vrowzer] build() was aborted'))
+          }
+          signal?.addEventListener('abort', onAbort, { once: true })
+          worker.onmessage = (event: MessageEvent) => {
+            if (event.data?.type !== 'V_BW_RESULT' || event.data.id !== id) {
+              return
+            }
+            signal?.removeEventListener('abort', onAbort)
+            if (event.data.ok) {
+              resolve(event.data.result as VrowzerBuildResult)
+            } else {
+              const error = new Error(event.data.error?.message ?? 'build failed') as Error &
+                Record<string, unknown>
+              Object.assign(error, { name: 'VrowzerBuildError' }, event.data.error)
+              reject(error)
+            }
+          }
+          worker.postMessage({ type: 'V_BW_BUILD', id, files, options: buildOptions })
+        })
+      } finally {
+        buildInFlight = false
+      }
     },
 
     dispose,

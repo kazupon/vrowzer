@@ -31,3 +31,22 @@ ${resolveBlock}
 initWebWorker(resolved)
 `
 }
+
+/**
+ * SPIKE (#36): the build Worker entry. The config module exports a function that creates the
+ * config, which the build Worker calls for each build.
+ */
+export function generateBuildWorkerEntry(configPath: string): string {
+  return `
+import { initBuildWorker } from 'vrowzer/build-worker-core'
+import createConfig from ${JSON.stringify(configPath.replaceAll('\\', '/'))}
+initBuildWorker(async () => {
+  const config = await createConfig()
+  const workerConfig = config?.default ?? config
+  if (!workerConfig || typeof workerConfig !== 'object' || Array.isArray(workerConfig)) {
+    throw new Error('[vrowzer] Worker config must export a config object')
+  }
+  return { ...workerConfig }
+})
+`
+}

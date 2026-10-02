@@ -39,7 +39,7 @@ export async function resolvePlugins(
     // Using dynamic import() guarded by __VROWZER_SERVICE_WORKER__ build-time constant
     // enables rolldown DCE(Dead Code Elimination) to eliminate these plugins and their heavy dependencies
     // (postcss, oxc-parser, es-module-lexer, etc.) from the Service Worker bundle.
-    const [preAliasMod, aliasMod, resolveMod, htmlMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod] = await Promise.all([
+    const [preAliasMod, aliasMod, resolveMod, htmlMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod, defineMod, modulePreloadPolyfillMod] = await Promise.all([
       import('./preAlias'),
       import('@rollup/plugin-alias'),
       import('./resolve'),
@@ -50,6 +50,8 @@ export async function resolvePlugins(
       import('./importAnalysis'),
       import('./asset'),
       import('./clientInjections'),
+      import('./define'),
+      import('./modulePreloadPolyfill'),
     ])
     const preAliasPlugin = preAliasMod.preAliasPlugin
     const aliasPlugin = aliasMod.default
@@ -81,6 +83,11 @@ export async function resolvePlugins(
 
       ...prePlugins,
 
+      // SPIKE (#36)
+      modulePreload !== false && modulePreload.polyfill
+        ? modulePreloadPolyfillMod.modulePreloadPolyfillPlugin()
+        : null,
+
       resolvePlugin({
         root: config.root,
         isProduction: config.isProduction,
@@ -103,12 +110,14 @@ export async function resolvePlugins(
       ...normalPlugins,
 
       // wasmFallbackPlugin(config),
-      // definePlugin(config),
+      // NOTE(kazupon): SPIKE #36: the define plugin runs only in builds; the dev server keeps clientInjections
+      isBuild ? defineMod.definePlugin(config) : null,
       cssPostPlugin(config),
-      // isBundled && buildHtmlPlugin(config),
+      // SPIKE (#36)
+      isBuild ? htmlMod.buildHtmlPlugin(config) : null,
       // workerImportMetaUrlPlugin(config),
       // assetImportMetaUrlPlugin(config),
-      // ...buildPlugins.pre,
+      ...buildPlugins.pre,
       // dynamicImportVarsPlugin(config),
       // importGlobPlugin(config),
 
