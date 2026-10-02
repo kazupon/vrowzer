@@ -924,7 +924,7 @@ describe('resolveConfig unsupported option warnings', () => {
     },
   )
 
-  test('warns that resolve.tsconfigPaths has no effect', async () => {
+  test('warns that resolve.tsconfigPaths has no effect on the previews', async () => {
     const { warn, logger } = createWarnLogger()
     await resolveConfig(
       createInlineConfig({
@@ -936,8 +936,21 @@ describe('resolveConfig unsupported option warnings', () => {
 
     expect(warn).toHaveBeenCalledExactlyOnceWith(
       expect.stringContaining(
-        '(!) resolve.tsconfigPaths is not supported by the JavaScript resolver used in Vrowzer. The option has no effect.',
+        "(!) resolve.tsconfigPaths is not supported by the JavaScript resolver of Vrowzer's previews. The option has no effect on them.",
       ),
     )
+  })
+
+  test('does not warn about resolve.tsconfigPaths in builds, which resolve with the native resolver', async () => {
+    const { warn, logger } = createWarnLogger()
+    await resolveConfig(
+      createInlineConfig({
+        customLogger: logger,
+        resolve: { tsconfigPaths: true },
+      }),
+      'build',
+    )
+
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('resolve.tsconfigPaths'))
   })
 })

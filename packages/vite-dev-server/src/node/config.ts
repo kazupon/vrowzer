@@ -357,6 +357,11 @@ export interface UserConfig extends DefaultEnvironmentOptions {
    */
   root?: string
   /**
+   * Path to the TypeScript configuration file. Relative paths are resolved
+   * from the project root.
+   */
+  tsconfig?: string
+  /**
    * Base public path when served in development or production.
    * @default '/'
    */
@@ -1912,6 +1917,9 @@ export async function resolveConfig(
     ),
     inlineConfig,
     root: resolvedRoot,
+    tsconfig: config.tsconfig
+      ? normalizePath(path.resolve(resolvedRoot, config.tsconfig))
+      : undefined,
     base,
     decodedBase: decodeBase(base),
     rawBase: resolvedBase,
@@ -2177,12 +2185,12 @@ assetFileNames isn't equal for every build.rollupOptions.output. A single patter
     )
   }
 
-  // NOTE(kazupon): Vite resolves tsconfig paths with the native resolver.
-  // Vrowzer always uses the JavaScript resolver, which does not support this option.
-  if (resolved.resolve.tsconfigPaths) {
+  // NOTE(kazupon): Vite resolves tsconfig paths with the native resolver, which builds use. The
+  // previews use the JavaScript resolver, which does not support this option.
+  if (resolved.resolve.tsconfigPaths && resolved.command === 'serve') {
     resolved.logger.warn(
       colors.yellow(`
-(!) resolve.tsconfigPaths is not supported by the JavaScript resolver used in Vrowzer. The option has no effect.
+(!) resolve.tsconfigPaths is not supported by the JavaScript resolver of Vrowzer's previews. The option has no effect on them.
 `),
     )
   }

@@ -657,11 +657,8 @@ export function resolveRolldownOptions(
         : false,
     // cache: options.watch ? undefined : false,
     ...options.rolldownOptions,
-    // NOTE(kazupon): the resolved config does not have `tsconfig` (Vite 8.3) yet, so read it without the type
-    // tsconfig: environment.config.tsconfig ?? options.rolldownOptions.tsconfig,
-    // resolve: environment.config.tsconfig
-    tsconfig: (environment.config as { tsconfig?: RolldownOptions['tsconfig'] }).tsconfig ?? options.rolldownOptions.tsconfig,
-    resolve: (environment.config as { tsconfig?: RolldownOptions['tsconfig'] }).tsconfig
+    tsconfig: environment.config.tsconfig ?? options.rolldownOptions.tsconfig,
+    resolve: environment.config.tsconfig
       ? {
           ...options.rolldownOptions.resolve,
           tsconfigFilename: undefined,

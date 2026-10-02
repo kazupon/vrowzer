@@ -43,12 +43,11 @@ import {
 import { resolveConfig } from './config'
 import type { Logger } from './logger'
 import { createLogger } from './logger'
-import { injectQuery } from './utils'
+import { injectQuery, normalizePath } from './utils'
 
 // Ported from upstream Vite (`packages/vite/src/node/__tests__/build.spec.ts`).
 // NOTE(kazupon): not ported yet:
 // - the SSR builds, `sharedConfigBuild`, `chunkImportMap`, the watch mode and the manifest
-// - `config.tsconfig` (Vite 8.3), which the resolved config does not have yet
 
 // NOTE(kazupon): the fixtures are in `__tests__`, as upstream has them next to its spec
 const dirname = fileURLToPath(new URL('./__tests__', import.meta.url))
@@ -523,28 +522,27 @@ describe('resolveBuildOutputs', () => {
       expect(options.input).toBe('explicit-entry.js')
     })
 
-    // NOTE(kazupon): the resolved config does not have `tsconfig` (Vite 8.3) yet
-    // test('top-level tsconfig applies to Rolldown options', async () => {
-    //   const builder = await createBuilder({
-    //     root: buildProjectRoot,
-    //     logLevel: 'silent',
-    //     tsconfig: './custom.tsconfig.json',
-    //     build: {
-    //       rolldownOptions: {
-    //         tsconfig: './other.tsconfig.json',
-    //         resolve: { tsconfigFilename: './legacy.tsconfig.json' },
-    //       },
-    //     },
-    //   })
-    //   const options = resolveRolldownOptions(
-    //     builder.environments.client,
-    //     new ChunkMetadataMap(),
-    //   )
-    //   expect(options.tsconfig).toBe(
-    //     normalizePath(resolve(buildProjectRoot, 'custom.tsconfig.json')),
-    //   )
-    //   expect(options.resolve?.tsconfigFilename).toBeUndefined()
-    // })
+    test('top-level tsconfig applies to Rolldown options', async () => {
+      const builder = await createBuilder({
+        root: buildProjectRoot,
+        logLevel: 'silent',
+        tsconfig: './custom.tsconfig.json',
+        build: {
+          rolldownOptions: {
+            tsconfig: './other.tsconfig.json',
+            resolve: { tsconfigFilename: './legacy.tsconfig.json' },
+          },
+        },
+      })
+      const options = resolveRolldownOptions(
+        builder.environments.client,
+        new ChunkMetadataMap(),
+      )
+      expect(options.tsconfig).toBe(
+        normalizePath(resolve(buildProjectRoot, 'custom.tsconfig.json')),
+      )
+      expect(options.resolve?.tsconfigFilename).toBeUndefined()
+    })
 
     test('falls back to index.html when no input is set', async () => {
       const builder = await createBuilder({
@@ -1242,6 +1240,82 @@ describe('package resolution in library builds', () => {
     expect(chunk.code).toContain('browser-field')
     expect(chunk.code).toContain('module-field')
     expect(chunk.code).not.toMatch(/exports-node|exports-default|browser-main|module-main/)
+  })
+})
+
+describe('tsconfig in builds', () => {
+  let root: string
+
+  beforeAll(() => {
+    // NOTE(kazupon): the temporary directory of macOS is behind a symbolic link (`/var` to
+    // `/private/var`). Resolve it, so that the modules are inside the root.
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-tsconfig-')))
+    const files: Record<string, string> = {
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          jsx: 'react',
+          jsxFactory: 'h',
+          experimentalDecorators: true,
+          baseUrl: '.',
+          paths: { '@lib/*': ['src/lib/*'] },
+        },
+      }),
+      'tsconfig.app.json': JSON.stringify({
+        extends: './tsconfig.json',
+        compilerOptions: { jsxFactory: 'createElement' },
+      }),
+      'src/main.tsx': [
+        `import { value } from '@lib/value'`,
+        `declare function h(...args: unknown[]): unknown`,
+        `declare function createElement(...args: unknown[]): unknown`,
+        `export const element = <div>{value}</div>`,
+        `function decorator<T>(target: T): T { return target }`,
+        `@decorator`,
+        `export class Decorated {}`,
+      ].join('\n'),
+      'src/lib/value.ts': `export const value = 'from-paths'`,
+    }
+    for (const [file, content] of Object.entries(files)) {
+      const filePath = join(root, file)
+      fs.mkdirSync(resolve(filePath, '..'), { recursive: true })
+      fs.writeFileSync(filePath, content)
+    }
+  })
+
+  afterAll(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  const buildEntry = async (tsconfig?: string) => {
+    const [output] = (await build({
+      root,
+      logLevel: 'silent',
+      tsconfig,
+      resolve: { tsconfigPaths: true },
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry: 'src/main.tsx', formats: ['es'], fileName: 'lib' },
+      },
+    })) as RolldownOutput[]
+    return (output.output.find((o) => o.type === 'chunk') as OutputChunk).code
+  }
+
+  test('applies the tsconfig.json of the project', async () => {
+    const code = await buildEntry()
+
+    expect(code).toMatch(/\bh\("div"/)
+    expect(code).toContain('__decorate(')
+    expect(code).toContain('from-paths')
+  })
+
+  test('applies the file of the tsconfig option, with what it extends', async () => {
+    const code = await buildEntry('./tsconfig.app.json')
+
+    expect(code).toMatch(/\bcreateElement\("div"/)
+    expect(code).not.toMatch(/\bh\("div"/)
+    expect(code).toContain('__decorate(')
+    expect(code).toContain('from-paths')
   })
 })
 
