@@ -243,6 +243,61 @@ describe('input config', () => {
   })
 })
 
+describe('resolveConfig NODE_ENV', () => {
+  let nodeEnv: string | undefined
+
+  beforeEach(() => {
+    nodeEnv = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+  })
+
+  afterEach(() => {
+    if (nodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = nodeEnv
+    }
+  })
+
+  test('sets production for a build', async () => {
+    const config = await resolveConfig(
+      createInlineConfig(),
+      'build',
+      'production',
+      'production',
+    )
+
+    expect(process.env.NODE_ENV).toBe('production')
+    expect(config.isProduction).toBe(true)
+    expect(config.env.PROD).toBe(true)
+    expect(config.env.DEV).toBe(false)
+  })
+
+  test('sets development for serve', async () => {
+    const config = await resolveConfig(createInlineConfig(), 'serve')
+
+    expect(process.env.NODE_ENV).toBe('development')
+    expect(config.isProduction).toBe(false)
+    expect(config.env.PROD).toBe(false)
+    expect(config.env.DEV).toBe(true)
+  })
+
+  test('keeps NODE_ENV when it is already set', async () => {
+    process.env.NODE_ENV = 'development'
+
+    const config = await resolveConfig(
+      createInlineConfig(),
+      'build',
+      'production',
+      'production',
+    )
+
+    expect(process.env.NODE_ENV).toBe('development')
+    expect(config.isProduction).toBe(false)
+    expect(config.env.PROD).toBe(false)
+  })
+})
+
 describe('resolveConfig per-environment isBundled', () => {
   test('defaults serve environments to unbundled', async () => {
     const config = await resolveConfig(

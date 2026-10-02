@@ -44,7 +44,10 @@ const sharedNodeOptions = defineConfig({
   platform: 'browser',
   transform: {
     define: {
-      'process.env.NODE_ENV': JSON.stringify('development'), // vrowzer always runs in dev mode (resolveConfig uses this for isProduction)
+      // `resolveConfig()` sets `process.env.NODE_ENV` at runtime, as upstream does: "development" in
+      // the dev Web Worker and "production" in the build Worker. Keep the reference, because rolldown
+      // replaces it for the browser platform by default.
+      'process.env.NODE_ENV': 'process.env.NODE_ENV',
       'process.platform': JSON.stringify('browser'), // for `tinyglobby` polyfill
       '__VROWZER_SERVICE_WORKER__': 'false', // default: not Service Worker (overridden in serviceWorkerConfig)
       '__VROWZER_ROLLDOWN_VERSION__': JSON.stringify(rolldownPackage.version),
@@ -329,6 +332,7 @@ function createTransformerPlugins(options: {
     createRewriteRolldownUrlsPlugin(),
     ...(options.copyAssets ? [createCopyRolldownAssetsPlugin()] : []),
     createValidateRolldownVersionPlugin(),
+    createRuntimeNodeEnvGuardPlugin(),
     ...(options.guardAggregate ? [createWebWorkerTransformerGuardPlugin()] : []),
   ]
 }
@@ -669,6 +673,31 @@ function createChunkedHostViteHelperIsolationPlugin(): Plugin {
         this.error(
           '[isolate-host-vite-helper-chunked] Could not find Vite injectQuery implementation'
         )
+      }
+    },
+  }
+}
+
+function createRuntimeNodeEnvGuardPlugin(): Plugin {
+  // `resolveConfig()` decides `isProduction` from `process.env.NODE_ENV` at runtime, so that the dev
+  // Web Worker and the build Worker can share the code. Stop the build when the bundle fixes it.
+  const runtimeCheck = 'const isProduction = process.env.NODE_ENV === "production"'
+  const fixedCheck = /\bconst isProduction = (?:true|false);/
+  return {
+    name: 'guard-runtime-node-env',
+    generateBundle(_options, bundle) {
+      let found = false
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'chunk') {
+          continue
+        }
+        if (fixedCheck.test(output.code)) {
+          this.error(`[guard-runtime-node-env] ${output.fileName} fixes isProduction`)
+        }
+        found ||= output.code.includes(runtimeCheck)
+      }
+      if (!found) {
+        this.error('[guard-runtime-node-env] Could not find the NODE_ENV check of resolveConfig()')
       }
     },
   }

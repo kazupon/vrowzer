@@ -1403,27 +1403,24 @@ export async function resolveConfig(
 
   let configFileDependencies: string[] = []
   let mode = inlineConfig.mode || defaultMode
-  // NOTE(kazupon): In browser/Worker environments, import.meta.env may be statically replaced
-  // by the bundler (e.g. Vite replaces import.meta.env.NODE_ENV with "production" or undefined).
-  // Direct assignment like `import.meta.env.NODE_ENV = ...` would become `undefined = ...` or
-  // `"production" = ...` which throws in strict mode (ESM Workers).
-  // Use try-catch to safely handle this.
-  const isNodeEnvSet = !!import.meta.env.NODE_ENV
-  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
-  // const isNodeEnvSet = !!process.env.NODE_ENV
+  // NOTE(kazupon): comment out because Vite Task does not run in the browser
+  // // When `NODE_ENV` isn't set locally, ask Vite Task for it; the runner
+  // // also records the env in the build's cache key.
+  // if (process.env.NODE_ENV === undefined) {
+  //   const nodeEnv = getEnv('NODE_ENV')
+  //   if (nodeEnv !== undefined) {
+  //     process.env.NODE_ENV = nodeEnv
+  //   }
+  // }
+  // NOTE(kazupon): `process` is the process polyfill of each Worker. The bundles do not fix
+  // `process.env.NODE_ENV`, so the dev Web Worker and the build Worker set it here, as Node does.
+  const isNodeEnvSet = !!process.env.NODE_ENV
   const packageCache: PackageCache = new Map()
 
   // some dependencies e.g. @vue/compiler-* relies on NODE_ENV for getting
   // production-specific behavior, so set it early on
   if (!isNodeEnvSet) {
-    try {
-      import.meta.env.NODE_ENV = defaultNodeEnv
-    } catch {
-      // In bundled environments, import.meta.env.NODE_ENV may be replaced with a literal
-      // value by the bundler, making assignment impossible. This is safe to ignore.
-    }
-    // NOTE(kazupon): comment out because we need to understand the previous implementation as background
-    // process.env.NODE_ENV = defaultNodeEnv
+    process.env.NODE_ENV = defaultNodeEnv
   }
 
   const configEnv: ConfigEnv = {
@@ -1688,9 +1685,7 @@ export async function resolveConfig(
   // Note it is possible for user to have a custom mode, e.g. `staging` where
   // development-like behavior is expected. This is indicated by NODE_ENV=development
   // loaded from `.staging.env` and set by us as VITE_USER_NODE_ENV
-  // NOTE(kazupon): comment out because we need to understand the previous implementation as background
-  // const userNodeEnv = process.env.VITE_USER_NODE_ENV
-  const userNodeEnv = import.meta.env.VITE_USER_NODE_ENV
+  const userNodeEnv = process.env.VITE_USER_NODE_ENV
   if (!isNodeEnvSet && userNodeEnv) {
     if (userNodeEnv === 'development') {
       process.env.NODE_ENV = 'development'
