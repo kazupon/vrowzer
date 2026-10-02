@@ -12,6 +12,7 @@
  * @license MIT
  */
 
+import { init, parse as parseImports } from 'es-module-lexer'
 import path from 'node:path'
 import type {
   InputOption,
@@ -20,6 +21,7 @@ import type {
   RolldownOutput,
   RolldownWatcher
 } from 'rolldown'
+import { stripLiteral } from 'strip-literal'
 import { withTrailingSlash } from '../shared/utils'
 import type { ResolvedBuildOptions } from './build'
 import type { ResolvedConfig } from './config'
@@ -257,6 +259,82 @@ export function createBuildLogPlugin(warnings: BuildProjectLog[]): Plugin {
         }
       }
       return { build: { rolldownOptions: { onLog } } }
+    },
+  }
+}
+
+const workerQueryRE = /[?&](?:worker|sharedworker)(?:[&=]|$)/
+const globRE = /\bimport\.meta\.glob\s*\(/
+const workerRE = /\bnew\s+(?:Shared)?Worker\s*\(\s*new\s+URL\s*\(/
+// A template string with a variable, or a string concatenation, that starts with a relative path
+const variablePathRE = /^\s*(?:`\.\.?\/[^`]*\$\{|(['"])\.\.?\/.*?\1\s*\+)/s
+const viteIgnoreRE = /\/\*\s*@vite-ignore\s*\*\//
+
+export const UNSUPPORTED_GLOB_MESSAGE =
+  'import.meta.glob() is not supported in builds yet, including the template strings with variables of new URL(..., import.meta.url). The output keeps it, and it fails when it runs.'
+export const UNSUPPORTED_VARIABLE_IMPORT_MESSAGE =
+  'Dynamic imports with variables in their paths are not supported in builds yet. The build does not include the files that they point to. Add /* @vite-ignore */ to the import to suppress this warning.'
+export const UNSUPPORTED_WORKER_MESSAGE =
+  'The Workers of the project (new Worker(new URL(...))) are not supported in builds yet. The build emits the file of the Worker as an asset, without bundling or transforming it.'
+
+/**
+ * The plugin that reports what builds do not support yet, where it can find it in the modules of the
+ * project: `import.meta.glob()`, dynamic imports with variables in their paths and the Workers of the
+ * project are warnings, and the `?worker` imports are errors, which fail anyway.
+ *
+ * It runs after the other plugins, so that it sees JavaScript, and `new URL()` that
+ * `vite:asset-import-meta-url` turned into `import.meta.glob()`. The dependencies are not checked.
+ *
+ * @returns The plugin
+ */
+export function createUnsupportedFeaturesPlugin(): Plugin {
+  return {
+    name: 'vrowzer:unsupported-features',
+    enforce: 'post',
+    resolveId: {
+      order: 'pre',
+      handler(source) {
+        if (workerQueryRE.test(source)) {
+          this.error(
+            `[vrowzer] The Workers of the project ("${source}") are not supported in builds yet.`
+          )
+        }
+      },
+    },
+    async transform(code, id) {
+      if (id.startsWith('\0') || id.includes('/node_modules/')) {
+        return
+      }
+      const cleaned = stripLiteral(code)
+      const glob = globRE.exec(cleaned)
+      if (glob) {
+        this.warn(UNSUPPORTED_GLOB_MESSAGE, glob.index)
+      }
+      const worker = workerRE.exec(cleaned)
+      if (worker) {
+        this.warn(UNSUPPORTED_WORKER_MESSAGE, worker.index)
+      }
+      if (!cleaned.includes('import(')) {
+        return
+      }
+      await init
+      let imports: ReturnType<typeof parseImports>[0]
+      try {
+        imports = parseImports(code)[0]
+      } catch {
+        return
+      }
+      for (const { d, n, s: start, e: end, ss } of imports) {
+        // A dynamic import (`d` is its parenthesis) whose path is not a string literal
+        if (
+          d > -1 &&
+          n === undefined &&
+          variablePathRE.test(code.slice(start, end)) &&
+          !viteIgnoreRE.test(code.slice(d, start))
+        ) {
+          this.warn(UNSUPPORTED_VARIABLE_IMPORT_MESSAGE, ss)
+        }
+      }
     },
   }
 }

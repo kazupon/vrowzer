@@ -30,6 +30,7 @@ import {
   createBuildLogPlugin,
   createBuildOptionsPlugin,
   createCollectingLogger,
+  createUnsupportedFeaturesPlugin,
   toBuildProjectError,
 } from './builderUtils'
 
@@ -82,6 +83,7 @@ export async function buildProject(
         ...(inlineConfig.plugins ?? []),
         createBuildOptionsPlugin(state),
         createBuildLogPlugin(warnings),
+        createUnsupportedFeaturesPlugin(),
       ],
       build: {
         ...inlineConfig.build,

@@ -45,7 +45,11 @@ import type { Logger } from './logger'
 import { createLogger } from './logger'
 import { injectQuery, normalizePath } from './utils'
 import type { BuildProjectLog } from './builderUtils'
-import { createBuildLogPlugin, createCollectingLogger } from './builderUtils'
+import {
+  createBuildLogPlugin,
+  createCollectingLogger,
+  createUnsupportedFeaturesPlugin,
+} from './builderUtils'
 
 // Ported from upstream Vite (`packages/vite/src/node/__tests__/build.spec.ts`).
 // NOTE(kazupon): not ported yet:
@@ -1278,6 +1282,62 @@ describe('warnings of the builder', () => {
         message: expect.stringContaining('eval'),
       }),
     ])
+  })
+
+  test('report what builds do not support yet, where it is', async () => {
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-warnings-')))
+    const files: Record<string, string> = {
+      'index.html': `<script type="module" src="./main.js"></script>`,
+      'main.js': [
+        `const modules = import.meta.glob('./pages/*.js')`,
+        'const lang = navigator.language',
+        'const messages = import(`./locales/${lang}.js`)',
+        `const worker = new Worker(new URL('./worker.js', import.meta.url))`,
+        `console.log(modules, messages, worker)`,
+      ].join('\n'),
+      'worker.js': `self.postMessage('ready')`,
+    }
+    for (const [file, content] of Object.entries(files)) {
+      fs.writeFileSync(join(root, file), content)
+    }
+    const warnings: BuildProjectLog[] = []
+
+    await build({
+      root,
+      logLevel: 'warn',
+      customLogger: createCollectingLogger(warnings),
+      plugins: [createBuildLogPlugin(warnings), createUnsupportedFeaturesPlugin()],
+      build: { write: false, minify: false, assetsInlineLimit: 0 },
+    })
+
+    const warningAt = (line: number, message: string) =>
+      expect.objectContaining({
+        plugin: 'vrowzer:unsupported-features',
+        id: join(root, 'main.js'),
+        loc: expect.objectContaining({ line }),
+        message: expect.stringContaining(message),
+      })
+    expect(warnings).toEqual([
+      warningAt(1, 'import.meta.glob()'),
+      warningAt(4, 'new Worker'),
+      warningAt(3, 'Dynamic imports with variables'),
+    ])
+  })
+
+  test('fail with a clear error on the ?worker imports', async () => {
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-warnings-')))
+    fs.writeFileSync(join(root, 'index.html'), `<script type="module" src="./main.js"></script>`)
+    fs.writeFileSync(join(root, 'main.js'), `import MyWorker from './worker.js?worker'\nnew MyWorker()`)
+    fs.writeFileSync(join(root, 'worker.js'), `self.postMessage('ready')`)
+
+    await expect(
+      build({
+        root,
+        logLevel: 'silent',
+        plugins: [createUnsupportedFeaturesPlugin()],
+        build: { write: false },
+      }),
+    ).rejects.toThrow('The Workers of the project ("./worker.js?worker") are not supported in builds yet.')
   })
 })
 

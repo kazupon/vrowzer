@@ -1,5 +1,5 @@
 import type { RolldownOutput, RolldownWatcher } from 'rolldown'
-import { describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 import type { ResolvedBuildOptions } from './build'
 import {
   BuildProjectError,
@@ -12,6 +12,7 @@ import {
   createBuildLogPlugin,
   createBuildOptionsPlugin,
   createCollectingLogger,
+  createUnsupportedFeaturesPlugin,
   stripAnsi,
   toBuildProjectError,
   validateBuildOptions,
@@ -550,5 +551,76 @@ describe('toBuildProjectError', () => {
 describe('stripAnsi', () => {
   test('removes the color codes', () => {
     expect(stripAnsi(`${red('a')} b ${ESC}[38;5;246mc${ESC}[0m`)).toBe('a b c')
+  })
+})
+
+describe('createUnsupportedFeaturesPlugin', () => {
+  async function transform(code: string, id = '/src/main.js') {
+    const warn = vi.fn<(message: string, pos: number) => void>()
+    const plugin = createUnsupportedFeaturesPlugin()
+    const hook = plugin.transform as (this: unknown, code: string, id: string) => Promise<void>
+    await hook.call({ warn }, code, id)
+    return warn.mock.calls.map(([message, pos]) => ({ message, pos }))
+  }
+
+  test('warns about import.meta.glob() and the Workers of the project, where they are', async () => {
+    const code = [
+      `const modules = import.meta.glob('./*.js')`,
+      `const worker = new Worker(new URL('./worker.js', import.meta.url))`,
+    ].join('\n')
+
+    expect(await transform(code)).toEqual([
+      { message: expect.stringContaining('import.meta.glob()'), pos: code.indexOf('import.meta.glob') },
+      { message: expect.stringContaining('new Worker'), pos: code.indexOf('new Worker') },
+    ])
+  })
+
+  test('warns about the dynamic imports with variables in their relative paths', async () => {
+    const code = [
+      'const lang = navigator.language',
+      'import(`./locales/${lang}.js`)',
+      `import('./pages/' + lang)`,
+    ].join('\n')
+
+    expect((await transform(code)).map(({ pos }) => pos)).toEqual([
+      code.indexOf('import(`'),
+      code.indexOf(`import('./pages/'`),
+    ])
+  })
+
+  test('does not warn about the code that builds support', async () => {
+    const code = [
+      `const text = 'import.meta.glob( and new Worker(new URL( in a string'`,
+      `// import.meta.glob('./*.js')`,
+      `import('./static.js')`,
+      'import(remoteUrl)',
+      'import(/* @vite-ignore */ `./locales/${lang}.js`)',
+      'import(`./plain.js`)',
+    ].join('\n')
+
+    expect(await transform(code)).toEqual([])
+  })
+
+  test('does not check virtual modules and dependencies', async () => {
+    const code = `import.meta.glob('./*.js')`
+
+    expect(await transform(code, '\0virtual:module')).toEqual([])
+    expect(await transform(code, '/node_modules/dep/index.js')).toEqual([])
+  })
+
+  test('rejects the ?worker imports', () => {
+    const error = vi.fn<(message: string) => never>((message) => {
+      throw new Error(message)
+    })
+    const plugin = createUnsupportedFeaturesPlugin()
+    const hook = (plugin.resolveId as { handler: (this: unknown, source: string) => void }).handler
+
+    expect(() => hook.call({ error }, './worker.js?worker')).toThrow(
+      'The Workers of the project ("./worker.js?worker") are not supported in builds yet.',
+    )
+    expect(() => hook.call({ error }, './worker.js?sharedworker&inline')).toThrow(
+      'are not supported in builds yet',
+    )
+    expect(() => hook.call({ error }, './worker.js?url')).not.toThrow()
   })
 })
