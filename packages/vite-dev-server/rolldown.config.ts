@@ -545,8 +545,11 @@ function createEagerWorkerTransformerImportsPlugin(): Plugin {
       './importAnalysis',
       './asset',
       './clientInjections',
+      './define',
       './forwardConsole',
     ]],
+    // buildEnvironment() loads rolldown lazily, while the static graph imports it as well
+    ['src/node/build.ts', ['@vrowzer/rolldown']],
   ])
 
   return {

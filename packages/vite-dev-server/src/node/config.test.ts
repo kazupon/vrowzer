@@ -16,6 +16,12 @@ vi.mock('@vrowzer/rolldown/experimental', () => ({
   viteTransformPlugin: vi.fn<() => { name: string }>(() => ({
     name: 'native:transform',
   })),
+  viteLoadFallbackPlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-load-fallback',
+  })),
+  viteReporterPlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-reporter',
+  })),
 }))
 
 vi.mock('@vrowzer/rolldown/parseAst', () => ({
@@ -610,6 +616,23 @@ describe('definePlugin JavaScript pre-check', () => {
       expect(environment.plugins.map(plugin => plugin.name)).not.toContain('vite:define')
     }
     expect(transformSync).not.toHaveBeenCalled()
+  })
+
+  test('registers the define plugin and the build plugins for builds', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({ define: { $FOO: JSON.stringify('bar') } }),
+      'build',
+    )
+
+    expect(config.plugins.map(plugin => plugin.name)).toEqual(
+      expect.arrayContaining([
+        'vite:define',
+        'vite:prepare-out-dir',
+        'vite:rollup-options-plugins',
+        'native:reporter',
+        'builtin:vite-load-fallback',
+      ]),
+    )
   })
 })
 
