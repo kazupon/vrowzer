@@ -75,6 +75,80 @@ const projectFiles: Record<string, string | ArrayBuffer> = {
   '/main.js': mainSource('preview v1')
 }
 
+// Binary files larger than the inline limit (4 KiB), so that the builds emit them as files
+function binary(seed: number): Uint8Array {
+  const bytes = new Uint8Array(5000)
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = (i * 31 + seed) % 256
+  }
+  return bytes
+}
+const bigImage = binary(7)
+const photo = binary(11)
+
+// An HTML app, with a nested HTML entry
+const appFiles: Record<string, string | ArrayBuffer> = {
+  '/index.html': [
+    '<!doctype html>',
+    '<html lang="en">',
+    '  <head>',
+    '    <meta charset="UTF-8" />',
+    '    <title>App</title>',
+    '    <link rel="stylesheet" href="/src/global.css" />',
+    '  </head>',
+    '  <body>',
+    '    <div id="app"></div>',
+    '    <img id="big" src="/src/big.png" />',
+    '    <script type="module" src="/src/main.ts"></script>',
+    '  </body>',
+    '</html>',
+    ''
+  ].join('\n'),
+  '/src/global.css': '#app { color: rgb(0, 128, 0); }\n',
+  '/src/main.ts': [
+    "import './style.css'",
+    "import smallUrl from './small.svg'",
+    "import bigUrl from './big.png?url'",
+    "import message from './message.txt?raw'",
+    "document.querySelector('#app')!.textContent = 'app ok'",
+    "const small = document.createElement('img')",
+    "small.id = 'small'",
+    'small.src = smallUrl',
+    'document.body.append(small)',
+    "const photoUrl = new URL('./photo.png', import.meta.url).href",
+    'Object.assign(document.body.dataset, { bigUrl, photoUrl, message })',
+    "import('./lazy').then(m => {",
+    '  document.body.dataset.lazy = m.value',
+    '})',
+    ''
+  ].join('\n'),
+  '/src/style.css': '#app { font-weight: 700; }\n',
+  '/src/lazy.ts': "import './lazy.css'\nexport const value: string = 'lazy ok'\n",
+  '/src/lazy.css': '#app { background-color: rgb(255, 255, 0); }\n',
+  '/src/small.svg':
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>',
+  '/src/message.txt': 'Hello from a text file\n',
+  '/src/big.png': bigImage.slice().buffer,
+  '/src/photo.png': photo.slice().buffer,
+  '/public/robots.txt': 'User-agent: *\n',
+  '/nested/index.html': [
+    '<!doctype html>',
+    '<html lang="en">',
+    '  <head>',
+    '    <meta charset="UTF-8" />',
+    '    <title>Nested</title>',
+    '    <link rel="stylesheet" href="../src/global.css" />',
+    '  </head>',
+    '  <body>',
+    '    <div id="app"></div>',
+    '    <script type="module" src="./nested.ts"></script>',
+    '  </body>',
+    '</html>',
+    ''
+  ].join('\n'),
+  '/nested/nested.ts': "document.querySelector('#app')!.textContent = 'nested ok'\n"
+}
+
 type SerializedContent = string | { bytes: number[] }
 
 /**
@@ -106,6 +180,8 @@ async function runBuild(options?: VrowzerBuildOptions) {
 Object.assign(window, {
   __createVrowzer__: (options?: VrowzerOptions) => Vrowzer(options),
   __projectFiles__: projectFiles,
+  __appFiles__: appFiles,
+  __appBinaries__: { big: Array.from(bigImage), photo: Array.from(photo) },
   __indexSource__: indexSource,
   __mainSource__: mainSource,
   __runBuild__: runBuild,
