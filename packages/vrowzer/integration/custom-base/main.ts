@@ -4,6 +4,7 @@ const status = document.getElementById('status')!
 const container = document.getElementById('preview-container')!
 
 const vrowzer = Vrowzer()
+;(window as any).__vrowzer__ = vrowzer
 
 async function init() {
   try {

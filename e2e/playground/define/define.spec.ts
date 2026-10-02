@@ -183,8 +183,10 @@ describe('define', () => {
       }
     })
 
+    // The filter rewrites the source with the Vite base, the preview base path of the instance
+    const previewBasePath = await page.evaluate(() => (window as any).__vrowzer__.previewBasePath)
     expect(await result.jsonValue()).toEqual({
-      rewritten: '/__preview__/data.json',
+      rewritten: `${previewBasePath}data.json`,
       untouched: '/data.json'
     })
   })

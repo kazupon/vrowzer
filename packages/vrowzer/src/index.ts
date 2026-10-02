@@ -322,6 +322,18 @@ export type VrowzerEventMap = SvcWorkerControllerEventMap & {
  */
 export interface Vrowzer extends Emittable<VrowzerEventMap> {
   /**
+   * The base path of the previews of this instance: {@link VrowzerOptions.basePath} followed by an
+   * ID of the instance, e.g. `/__preview__/0123456789ab/`.
+   *
+   * The previews load from it, and it is the Vite `base` of the project, which
+   * `import.meta.env.BASE_URL` returns in the preview. The Service Worker forwards the requests
+   * under it to the Web Worker of this instance, so several instances can share one Service Worker,
+   * e.g. in two tabs.
+   *
+   * It is set when {@link Vrowzer} is called, and stays the same after {@link Vrowzer.dispose}.
+   */
+  readonly previewBasePath: string
+  /**
    * Ready for preview system initialization.
    *
    * This method initializes the Web Worker with the initial files, the Service Worker, and the
@@ -532,6 +544,15 @@ function describeFileOperation(operation: FileOperation, path: string): string {
 }
 
 /**
+ * Creates the ID of a runtime instance, which names its previews: 12 hexadecimal digits from 48
+ * random bits.
+ */
+function createRuntimeId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6))
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/**
  * Copies the files given to `ready()`, so that later changes by the caller do not reach the
  * Web Worker. ArrayBuffers are copied as well, and the caller's buffers are never transferred.
  */
@@ -635,9 +656,10 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   const controllerSubscriptions: (() => void)[] = []
   // File operations waiting for the Web Worker to acknowledge them, by operation id
   const pendingFileOperations = new Map<string, PendingFileOperation>()
-  // Marks this instance as the owner of the Web Worker channel, for when several instances share
-  // one Service Worker. The Service Worker does not use it yet. Created when ready() starts.
-  let runtimeId: string | null = null
+  // The owner of the previews and the Web Worker channel of this instance. The previews load from
+  // its own base path, so that several instances can share one Service Worker.
+  const runtimeId = createRuntimeId()
+  const previewBasePath = `${resolved.basePath}${runtimeId}/`
   // The Service Worker instance that has the Web Worker channel of this instance
   let serviceWorkerInstanceId: string | null = null
   // A Service Worker instance that started while ready() was in progress
@@ -1168,7 +1190,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
     }
     record.loadToken = crypto.randomUUID()
     record.session.iframe.srcdoc = createBootstrapHtml(
-      resolved.basePath,
+      previewBasePath,
       record.context,
       record.loadToken
     )
@@ -1184,7 +1206,6 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   }
 
   async function initialize(config: VrowzerConfig, signal: AbortSignal): Promise<boolean> {
-    runtimeId = crypto.randomUUID()
     try {
       // The files are sent later, so copy them as they are when ready() is called
       const initialFiles = copyInitialFiles(config.files)
@@ -1247,7 +1268,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
                 type: V_WW_SETUP,
                 config: {
                   root: '/',
-                  base: resolved.basePath,
+                  base: previewBasePath,
                   publicDir: 'public',
                   optimizeDeps: { disabled: true },
                   experimental: {
@@ -1256,7 +1277,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
                     bundledDev: false
                   }
                 },
-                options: { basePath: resolved.basePath },
+                options: { basePath: previewBasePath },
                 files
               })
             },
@@ -1386,6 +1407,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
   }
 
   const instance: Vrowzer = {
+    previewBasePath,
     on: _emitter.on,
     off: _emitter.off,
     once: _emitter.once,
@@ -1461,7 +1483,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
       listenPreviewMessages()
 
       // srcdoc bootstrap: fetch preview HTML via Service Worker
-      iframe.srcdoc = createBootstrapHtml(resolved.basePath, context, record.loadToken)
+      iframe.srcdoc = createBootstrapHtml(previewBasePath, context, record.loadToken)
       return session
     },
 

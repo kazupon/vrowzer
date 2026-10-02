@@ -43,6 +43,8 @@ let delayedServiceWorkerRequests = 0
 let hmrClientProbeId = 0
 // Requests within the preview base path that reached the host server
 const hostPreviewRequests: string[] = []
+// The preview base path of the playground's instance, e.g. `/__preview__/0123456789ab/`
+let previewBase: string
 
 function delayServiceWorkerResponse(delay: number): Plugin {
   return {
@@ -146,6 +148,13 @@ interface SourceMapPayload {
   [key: string]: unknown
 }
 
+/**
+ * Returns the URL path of a preview file, under the preview base path of the playground's instance.
+ */
+function previewPath(filePath: string): string {
+  return `${previewBase}${filePath.replace(/^\//, '')}`
+}
+
 async function addPreviewFiles(files: Record<string, string>): Promise<void> {
   await page.evaluate(async filesToAdd => {
     const vrowzer = (window as any).__vrowzer__
@@ -182,7 +191,7 @@ globalThis[${JSON.stringify(resultKey)}] = { clientIds }
   })
 
   await page.evaluate(
-    ({ filePath, resultKey }) => {
+    ({ src, resultKey }) => {
       const iframe = document.querySelector('#preview-container iframe') as HTMLIFrameElement | null
       const iframeDocument = iframe?.contentDocument
       const iframeWindow = iframe?.contentWindow as any
@@ -192,10 +201,10 @@ globalThis[${JSON.stringify(resultKey)}] = { clientIds }
       delete iframeWindow[resultKey]
       const script = iframeDocument.createElement('script')
       script.type = 'module'
-      script.src = `/__preview__${filePath}`
+      script.src = src
       iframeDocument.head.append(script)
     },
-    { filePath, resultKey }
+    { src: previewPath(filePath), resultKey }
   )
 
   await expect
@@ -238,12 +247,12 @@ async function fetchFromPreview(requestPath: string): Promise<PreviewResponse> {
       throw new Error('Preview iframe is not available')
     }
 
-    const response = await iframe.contentWindow.fetch(`/__preview__${path}`)
+    const response = await iframe.contentWindow.fetch(path)
     return {
       status: response.status,
       body: await response.text()
     }
-  }, requestPath)
+  }, previewPath(requestPath))
 }
 
 /**
@@ -254,22 +263,22 @@ async function fetchFromServiceWorker(
   requestPath: string
 ): Promise<PreviewResponse & { contentType: string | null }> {
   return page.evaluate(async path => {
-    const response = await fetch(`/__preview__${path}`)
+    const response = await fetch(path)
     return {
       status: response.status,
       body: await response.text(),
       contentType: response.headers.get('Content-Type')
     }
-  }, requestPath)
+  }, previewPath(requestPath))
 }
 
 async function fetchBytesFromServiceWorker(
   requestPath: string
 ): Promise<{ status: number; bytes: number[] }> {
   return page.evaluate(async path => {
-    const response = await fetch(`/__preview__${path}`)
+    const response = await fetch(path)
     return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] }
-  }, requestPath)
+  }, previewPath(requestPath))
 }
 
 /**
@@ -492,6 +501,7 @@ beforeAll(async () => {
       `Expected vrowzer playground to become Ready, got ${JSON.stringify(status)}\n${pageConsoleLogs.join('\n')}`
     )
   }
+  previewBase = await page.evaluate(() => (window as any).__vrowzer__.previewBasePath)
 
   if (SERVICE_WORKER_RESPONSE_DELAY > 0) {
     if (delayedServiceWorkerRequests === 0) {
@@ -1161,7 +1171,7 @@ if (import.meta.hot) {
     // Instead, these tests point one session's bootstrap at another URL right after mount().
     // The bootstrap embeds the preview URL as a JSON string, and the load token is kept,
     // so the host still accepts the reports from the replaced document.
-    const PREVIEW_URL_LITERAL = JSON.stringify('/__preview__/')
+    const previewUrlLiteral = () => JSON.stringify(previewBase)
     const UNREACHABLE_URL = 'http://127.0.0.1:9/'
     const sessionIds: string[] = []
     const fixtureFiles: Record<string, string> = {}
@@ -1181,7 +1191,7 @@ if (import.meta.hot) {
             )
           }
         },
-        { id, previewUrl, previewUrlLiteral: PREVIEW_URL_LITERAL }
+        { id, previewUrl, previewUrlLiteral: previewUrlLiteral() }
       )
     }
 
@@ -1288,7 +1298,7 @@ if (import.meta.hot) {
 
     test('reports an error status of the preview HTML', async () => {
       await prepareFixtures()
-      await mountSession('html-status', '/__preview__/load-error-broken.ts')
+      await mountSession('html-status', previewPath('/load-error-broken.ts'))
 
       const report = await waitForLoadError('html-status')
 
@@ -1296,7 +1306,7 @@ if (import.meta.hot) {
         id: 'html-status',
         stage: 'html',
         status: 500,
-        url: `${serverUrl}/__preview__/load-error-broken.ts`
+        url: `${serverUrl}${previewPath('/load-error-broken.ts')}`
       })
       expect(report.message).toContain('500')
     })
@@ -1305,7 +1315,7 @@ if (import.meta.hot) {
       await prepareFixtures()
       // The SPA fallback answers other missing paths with index.html, and removing index.html would
       // break the other sessions. The fallback skips /favicon.ico, so its request ends in a 404.
-      await mountSession('html-missing', '/__preview__/favicon.ico')
+      await mountSession('html-missing', previewPath('/favicon.ico'))
 
       const report = await waitForLoadError('html-missing')
 
@@ -1334,33 +1344,33 @@ if (import.meta.hot) {
 
     test('reports a missing entry module', async () => {
       await prepareFixtures()
-      await mountSession('missing-entry', '/__preview__/load-error-missing-entry.html')
+      await mountSession('missing-entry', previewPath('/load-error-missing-entry.html'))
 
       const report = await waitForLoadError('missing-entry')
 
       expect(report).toMatchObject({
         id: 'missing-entry',
         stage: 'script',
-        url: `${serverUrl}/__preview__/load-error-missing.js`
+        url: `${serverUrl}${previewPath('/load-error-missing.js')}`
       })
     })
 
     test('reports a module graph that fails to load', async () => {
       await prepareFixtures()
-      await mountSession('broken-graph', '/__preview__/load-error-graph.html')
+      await mountSession('broken-graph', previewPath('/load-error-graph.html'))
 
       const report = await waitForLoadError('broken-graph')
 
       expect(report).toMatchObject({
         id: 'broken-graph',
         stage: 'script',
-        url: `${serverUrl}/__preview__/load-error-entry.js`
+        url: `${serverUrl}${previewPath('/load-error-entry.js')}`
       })
     })
 
     test('reports a classic script that fails to load', async () => {
       await prepareFixtures()
-      await mountSession('classic', '/__preview__/load-error-classic.html')
+      await mountSession('classic', previewPath('/load-error-classic.html'))
 
       const report = await waitForLoadError('classic')
 
@@ -1385,23 +1395,26 @@ if (import.meta.hot) {
 
     test('loads after the input is fixed and the session reloads', async () => {
       await prepareFixtures()
-      await mountSession('fixable', '/__preview__/load-error-fixable.html')
+      await mountSession('fixable', previewPath('/load-error-fixable.html'))
       await waitForLoadError('fixable')
 
       fixtureFiles['/load-error-fixable.js'] = 'globalThis.__vrowzerLoadErrorFixed = true\n'
       await addPreviewFiles({ '/load-error-fixable.js': fixtureFiles['/load-error-fixable.js'] })
       await waitForPreviewBodyContaining('/load-error-fixable.js', '__vrowzerLoadErrorFixed')
       await page.evaluate(
-        ({ previewUrlLiteral }) => {
+        ({ previewUrlLiteral, fixtureUrl }) => {
           const session = (window as any).__vrowzer__.getSession('fixable')
           // reload() renews the load token; point the new document at the same fixture
           session.reload()
           session.iframe.srcdoc = session.iframe.srcdoc.replaceAll(
             previewUrlLiteral,
-            JSON.stringify('/__preview__/load-error-fixable.html')
+            JSON.stringify(fixtureUrl)
           )
         },
-        { previewUrlLiteral: PREVIEW_URL_LITERAL }
+        {
+          previewUrlLiteral: previewUrlLiteral(),
+          fixtureUrl: previewPath('/load-error-fixable.html')
+        }
       )
 
       await waitForScriptGlobal('fixable', '__vrowzerLoadErrorFixed')
@@ -1497,7 +1510,7 @@ if (import.meta.hot) {
       await addPreviewFiles({ [filePath]: content })
       await waitForPreviewBodyContaining(`${filePath}?import`, 'preview-owned')
 
-      const requestUrl = `${serverUrl}/__preview__${filePath}?import&probe=${Date.now()}`
+      const requestUrl = `${serverUrl}${previewPath(filePath)}?import&probe=${Date.now()}`
       const { result, response } = await captureResponse(requestUrl, () =>
         page.evaluate(async url => (await fetch(url)).text(), requestUrl)
       )
@@ -1510,19 +1523,19 @@ if (import.meta.hot) {
     test('answers missing files within basePath with 404 without asking the host', async () => {
       const hostRequestCount = hostPreviewRequests.length
 
-      const responses = await page.evaluate(async () => {
+      const responses = await page.evaluate(async base => {
         const read = async (path: string, init?: RequestInit) => {
-          const response = await fetch(path, init)
+          const response = await fetch(`${base}${path}`, init)
           return { status: response.status, body: await response.text() }
         }
         return {
-          narrowAccept: await read('/__preview__/missing-files/data.json', {
+          narrowAccept: await read('missing-files/data.json', {
             headers: { Accept: 'application/json' }
           }),
-          post: await read('/__preview__/missing-files/data.json', { method: 'POST', body: '{}' }),
-          favicon: await read('/__preview__/favicon.ico')
+          post: await read('missing-files/data.json', { method: 'POST', body: '{}' }),
+          favicon: await read('favicon.ico')
         }
-      })
+      }, previewBase)
 
       // The SPA fallback does not answer these requests, so they end in the 404 handler
       expect(responses).toEqual({
@@ -1797,7 +1810,7 @@ globalThis.__vrowzerTrailingSlashWarmupUrls = warmupUrls
 
         const script = iframeDocument.createElement('script')
         script.type = 'module'
-        script.src = '/__preview__/trailing-slash-test.js'
+        script.src = `${(window as any).__vrowzer__.previewBasePath}trailing-slash-test.js`
         iframeDocument.head.append(script)
       })
 
@@ -1875,7 +1888,7 @@ globalThis.__vrowzerFsHtmlProxyResults = results
 
         const script = iframeDocument.createElement('script')
         script.type = 'module'
-        script.src = '/__preview__/fs-html-proxy-test.js'
+        script.src = `${(window as any).__vrowzer__.previewBasePath}fs-html-proxy-test.js`
         iframeDocument.head.append(script)
       })
 
@@ -1939,7 +1952,7 @@ globalThis.__vrowzerFsHtmlProxyResults = results
 
       expect(response.body).toContain('.css-resolve-url')
       expect(response.body).toContain(
-        'url(https://assets.vrowzer.test/__preview__/css-resolve-url/bg.png)'
+        `url(https://assets.vrowzer.test${previewPath('/css-resolve-url/bg.png')})`
       )
       expect(response.body).not.toContain('url(./bg.png)')
     })
@@ -2011,7 +2024,7 @@ globalThis.__vrowzerJsonImportResult = { data, name, nested, list }
 
         const script = iframeDocument.createElement('script')
         script.type = 'module'
-        script.src = '/__preview__/json-import/entry.js'
+        script.src = `${(window as any).__vrowzer__.previewBasePath}json-import/entry.js`
         iframeDocument.head.append(script)
       })
 
@@ -2037,7 +2050,7 @@ globalThis.__vrowzerJsonImportResult = { data, name, nested, list }
 
   describe('CSS server.origin', () => {
     test('applies server.origin to public URLs', async () => {
-      const expectedUrl = 'https://assets.vrowzer.test/__preview__/server-origin-icon.png'
+      const expectedUrl = `https://assets.vrowzer.test${previewPath('/server-origin-icon.png')}`
 
       await addPreviewFiles({
         '/public/server-origin-icon.png': 'server origin icon',
@@ -2052,7 +2065,7 @@ globalThis.__vrowzerJsonImportResult = { data, name, nested, list }
 
       expect(response.status).toBe(200)
       expect(response.body).toContain(expectedUrl)
-      expect(response.body).not.toContain("url('/__preview__/server-origin-icon.png')")
+      expect(response.body).not.toContain(`url('${previewPath('/server-origin-icon.png')}')`)
     })
   })
 

@@ -95,11 +95,12 @@ if (import.meta.hot) { import.meta.hot.accept() }
 
     await expect.poll(() => iframeInnerText(), { timeout: 10000 }).toContain('Virtual updated')
     expect(await body.getAttribute('data-hmr-token')).toBe('preserved')
+    const previewBasePath = await page.evaluate(() => (window as any).__vrowzer__.previewBasePath)
     expect(
       browserRequests.some(request => {
         const url = new URL(request)
         return (
-          url.pathname === '/__preview__/@id/__x00__virtual:invalidation' &&
+          url.pathname === `${previewBasePath}@id/__x00__virtual:invalidation` &&
           url.searchParams.get('variant') === 'query' &&
           url.searchParams.has('t')
         )

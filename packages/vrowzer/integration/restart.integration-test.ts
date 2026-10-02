@@ -109,7 +109,8 @@ async function fetchFromHost(
 ): Promise<PreviewResponse> {
   return page.evaluate(
     async ({ path, acceptHeader }) => {
-      const response = await fetch(`/__preview__${path}`, { headers: { Accept: acceptHeader } })
+      const base = (window as any).__vrowzer__.previewBasePath as string
+      const response = await fetch(`${base}${path.slice(1)}`, { headers: { Accept: acceptHeader } })
       return { status: response.status, body: await response.text() }
     },
     { path: requestPath, acceptHeader: accept }
@@ -150,7 +151,8 @@ async function fetchBytes(
       const target = inPreview
         ? (document.querySelector('#preview-container iframe') as HTMLIFrameElement).contentWindow!
         : window
-      const response = await target.fetch(`/__preview__${path}`)
+      const base = (window as any).__vrowzer__.previewBasePath as string
+      const response = await target.fetch(`${base}${path.slice(1)}`)
       return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] }
     },
     { path: requestPath, inPreview: from === 'preview' }
@@ -330,7 +332,8 @@ describe('Vrowzer Service Worker restart', () => {
     try {
       // The Web Worker holds the load of /held.js, so the request waits in the Service Worker
       await page.evaluate(() => {
-        ;(window as any).__heldRequest__ = fetch('/__preview__/held.js', {
+        const base = (window as any).__vrowzer__.previewBasePath as string
+        ;(window as any).__heldRequest__ = fetch(`${base}held.js`, {
           headers: { Accept: 'text/javascript' }
         }).then(
           response => ({ status: response.status }),

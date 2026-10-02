@@ -181,6 +181,24 @@ describe('Vrowzer file synchronization', () => {
     ])
   })
 
+  test('serves the project from the preview base path of the instance', async () => {
+    const vrowzer = Vrowzer()
+    const previewBasePath = vrowzer.previewBasePath
+
+    await expect(vrowzer.ready({ files: {} })).resolves.toBe(true)
+
+    // The Vite base of the Web Worker is the preview base path
+    expect(workers[0]!.messages[0]).toMatchObject({
+      type: V_WW_SETUP,
+      config: { base: previewBasePath },
+      options: { basePath: previewBasePath }
+    })
+    // The Service Worker forwards the requests under it to the Web Worker of this instance
+    expect(serviceWorkerMessages()).toEqual([
+      { type: V_WW_CONNECT_PORT, runtimeId: previewBasePath.split('/').at(-2) }
+    ])
+  })
+
   test('gives the Web Worker a default /index.html when ready() gets none', async () => {
     const vrowzer = Vrowzer()
 
