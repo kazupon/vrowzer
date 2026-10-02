@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import os from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -6,6 +7,7 @@ import { stripVTControlCharacters } from 'node:util'
 import colors from 'picocolors'
 import type {
   LogLevel,
+  OutputAsset,
   OutputChunk,
   OutputOptions,
   RolldownOptions,
@@ -16,12 +18,18 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vite
 
 // NOTE(kazupon): vite-dev-server loads rolldown from the browser build (`@vrowzer/rolldown`).
 // The unit tests run in Node, so they build with the Node build of the same rolldown version.
+// Vitest gives the original module to the second of two concurrent dynamic imports of a mocked
+// module, so the tests run the builds one after another.
 vi.mock('@vrowzer/rolldown', () => import('rolldown'))
 vi.mock('@vrowzer/rolldown/experimental', () => import('rolldown/experimental'))
 vi.mock('@vrowzer/rolldown/parseAst', () => import('rolldown/parseAst'))
 vi.mock('@vrowzer/rolldown/utils', () => import('rolldown/utils'))
 
-import type { LibraryFormats, LibraryOptions } from './build'
+import type {
+  BuildEnvironmentOptions,
+  LibraryFormats,
+  LibraryOptions,
+} from './build'
 import {
   BuildEnvironment,
   ChunkMetadataMap,
@@ -35,10 +43,10 @@ import {
 import { resolveConfig } from './config'
 import type { Logger } from './logger'
 import { createLogger } from './logger'
+import { injectQuery } from './utils'
 
 // Ported from upstream Vite (`packages/vite/src/node/__tests__/build.spec.ts`).
 // NOTE(kazupon): not ported yet:
-// - the builds of HTML, CSS and assets (they need `buildHtmlPlugin` and the other build plugins)
 // - the SSR builds, `sharedConfigBuild`, `chunkImportMap`, the watch mode and the manifest
 // - `config.tsconfig` (Vite 8.3), which the resolved config does not have yet
 
@@ -56,6 +64,111 @@ afterAll(() => {
 })
 
 describe('build', () => {
+  test('file hash should change when css changes for dynamic entries', async () => {
+    const buildProject = async (cssColor: string) => {
+      return (await build({
+        root: resolve(dirname, 'packages/build-project'),
+        logLevel: 'silent',
+        build: {
+          write: false,
+        },
+        plugins: [
+          {
+            name: 'test',
+            resolveId(id) {
+              if (
+                id === 'entry.js' ||
+                id === 'subentry.js' ||
+                id === 'foo.css'
+              ) {
+                return '\0' + id
+              }
+            },
+            load(id) {
+              if (id === '\0entry.js') {
+                return `window.addEventListener('click', () => { import('subentry.js') });`
+              }
+              if (id === '\0subentry.js') {
+                return `import 'foo.css'`
+              }
+              if (id === '\0foo.css') {
+                return `.foo { color: ${cssColor} }`
+              }
+            },
+          },
+        ],
+      })) as RolldownOutput
+    }
+    // NOTE(kazupon): one after another, as the note of the mocks says
+    // const result = await Promise.all([
+    //   buildProject('red'),
+    //   buildProject('blue'),
+    // ])
+    const result = [await buildProject('red'), await buildProject('blue')]
+    expect(getOutputHashChanges(result[0], result[1])).toMatchInlineSnapshot(`
+      {
+        "changed": [
+          "index",
+          "_subentry.css",
+        ],
+        "unchanged": [
+          "undefined",
+        ],
+      }
+    `)
+    assertOutputHashContentChange(result[0], result[1])
+  })
+
+  test('file hash should change when renderBuiltUrl changes', async () => {
+    const createRenderBuiltUrl = (base: string) => (filename: string) =>
+      `${base}/${filename}`
+    const renderBuiltUrlA = createRenderBuiltUrl('/cdn-a')
+    const renderBuiltUrlB = createRenderBuiltUrl('/cdn-b')
+
+    expect(renderBuiltUrlA.toString()).toBe(renderBuiltUrlB.toString())
+
+    // NOTE(kazupon): one after another, as the note of the mocks says
+    // const result = await Promise.all([
+    //   buildProjectWithRenderBuiltUrl(renderBuiltUrlA),
+    //   buildProjectWithRenderBuiltUrl(renderBuiltUrlB),
+    // ])
+    const result = [await buildProjectWithRenderBuiltUrl(renderBuiltUrlA), await buildProjectWithRenderBuiltUrl(renderBuiltUrlB)]
+
+    expect(getOutputHashChanges(result[0], result[1])).toMatchInlineSnapshot(`
+      {
+        "changed": [
+          "index",
+        ],
+        "unchanged": [
+          "_subentry",
+          "asset.txt",
+          "undefined",
+        ],
+      }
+    `)
+    assertOutputHashContentChange(result[0], result[1])
+  })
+
+  test('renderBuiltUrl receives asset postfixes in JS and CSS', async () => {
+    const result = await buildProjectWithRenderBuiltUrl(
+      (filename) => injectQuery(filename, 'dpl=id'),
+      true,
+    )
+    const entry = result.output.find(
+      (output): output is OutputChunk =>
+        output.type === 'chunk' && output.isEntry,
+    )
+    const css = result.output.find(
+      (output): output is OutputAsset =>
+        output.type === 'asset' && output.fileName.endsWith('.css'),
+    )
+
+    expect(entry?.code).toContain('?dpl=id&marker=value')
+    expect(entry?.code).toContain('?dpl=id&marker=other')
+    expect(css?.source.toString()).toContain('?dpl=id&marker=value')
+    expect(css?.source.toString()).toContain('?dpl=id&marker=other')
+  })
+
   test('top-level input is used as the default build entry', async () => {
     const result = (await build({
       root: resolve(dirname, 'packages/build-project'),
@@ -114,6 +227,134 @@ describe('build', () => {
     const chunk = result.output.find((o) => o.type === 'chunk')
     expect(chunk?.code).toContain('from-virtual-top-level-input')
   })
+
+  test('file hash should change when pure css chunk changes', async () => {
+    const buildProject = async (cssColor: string) => {
+      return (await build({
+        root: resolve(dirname, 'packages/build-project'),
+        logLevel: 'silent',
+        build: {
+          write: false,
+        },
+        plugins: [
+          {
+            name: 'test',
+            resolveId(id) {
+              if (
+                id === 'entry.js' ||
+                id === 'foo.js' ||
+                id === 'bar.js' ||
+                id === 'baz.js' ||
+                id === 'foo.css' ||
+                id === 'bar.css' ||
+                id === 'baz.css'
+              ) {
+                return '\0' + id
+              }
+            },
+            load(id) {
+              if (id === '\0entry.js') {
+                return `
+                  window.addEventListener('click', () => { import('foo.js') });
+                  window.addEventListener('click', () => { import('bar.js') });`
+              }
+              if (id === '\0foo.js') {return `import 'foo.css'; import 'baz.js'`}
+              if (id === '\0bar.js') {return `import 'bar.css'; import 'baz.js'`}
+              if (id === '\0baz.js') {return `import 'baz.css'`}
+              if (id === '\0foo.css') {return `.foo { color: red }`}
+              if (id === '\0bar.css') {return `.foo { color: green }`}
+              if (id === '\0baz.css') {return `.foo { color: ${cssColor} }`}
+            },
+          },
+        ],
+      })) as RolldownOutput
+    }
+    // NOTE(kazupon): one after another, as the note of the mocks says
+    // const result = await Promise.all([
+    //   buildProject('yellow'),
+    //   buildProject('blue'),
+    // ])
+    const result = [await buildProject('yellow'), await buildProject('blue')]
+    expect(getOutputHashChanges(result[0], result[1])).toMatchInlineSnapshot(`
+      {
+        "changed": [
+          "index",
+          "_bar",
+          "_foo",
+          "_baz.css",
+        ],
+        "unchanged": [
+          "_bar.css",
+          "_foo.css",
+          "undefined",
+        ],
+      }
+    `)
+    assertOutputHashContentChange(result[0], result[1])
+  })
+
+  test.for([
+    [true, true],
+    [true, false],
+    [false, true],
+    [false, false],
+    ['auto', true],
+    ['auto', false],
+  ] as const)(
+    'large json object files should have tree-shaking (json.stringify: %s, json.namedExports: %s)',
+    async ([stringify, namedExports]) => {
+      const esBundle = (await build({
+        mode: 'development',
+        root: resolve(dirname, 'packages/build-project'),
+        logLevel: 'silent',
+        json: { stringify, namedExports },
+        build: {
+          minify: false,
+          modulePreload: { polyfill: false },
+          write: false,
+        },
+        plugins: [
+          {
+            name: 'test',
+            resolveId(id) {
+              if (
+                id === 'entry.js' ||
+                id === 'object.json' ||
+                id === 'array.json'
+              ) {
+                return '\0' + id
+              }
+            },
+            load(id) {
+              if (id === '\0entry.js') {
+                return `
+                  import object from 'object.json';
+                  import array from 'array.json';
+                  console.log();
+                `
+              }
+              if (id === '\0object.json') {
+                return `
+                  {"value": {"${stringify}_${namedExports}":"JSON_OBJ${'_'.repeat(10_000)}"}}
+                `
+              }
+              if (id === '\0array.json') {
+                return `
+                  ["${stringify}_${namedExports}","JSON_ARR${'_'.repeat(10_000)}"]
+                `
+              }
+            },
+          },
+        ],
+      })) as RolldownOutput
+
+      const foo = esBundle.output.find(
+        (chunk) => chunk.type === 'chunk' && chunk.isEntry,
+      ) as OutputChunk
+      expect(foo.code).not.contains('JSON_ARR')
+      expect(foo.code).not.contains('JSON_OBJ')
+    },
+  )
 
   test('external modules should not be hoisted in library build', async () => {
     const [esBundle] = (await build({
@@ -757,9 +998,6 @@ describe('onRollupLog', () => {
         rolldownOptions: {
           ...options,
           logLevel: 'debug',
-          // NOTE(kazupon): build the JS entry directly, because the HTML entry (`index.html`) needs
-          // `buildHtmlPlugin`, which is not ported yet
-          input: 'entry.js',
         },
       },
       customLogger: logger,
@@ -895,6 +1133,29 @@ describe('onRollupLog', () => {
 })
 
 // vrowzer: builds resolve packages with the native resolve plugin (`viteResolvePlugin`), as upstream does
+test('copies public directory after building same environment with write false first', async (ctx) => {
+  const root = resolve(dirname, 'fixtures/public-dir-write-false')
+  ctx.onTestFinished(() =>
+    fsp.rm(resolve(root, 'dist'), { recursive: true, force: true }),
+  )
+
+  const builder = await createBuilder({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+  })
+
+  builder.environments.client.config.build.write = false
+  await builder.build(builder.environments.client)
+
+  builder.environments.client.config.build.write = true
+  await builder.build(builder.environments.client)
+
+  await expect(
+    fsp.readFile(resolve(root, 'dist/favicon.svg'), 'utf-8'),
+  ).resolves.toBe('<svg></svg>')
+})
+
 describe('package resolution in library builds', () => {
   let root: string
 
@@ -967,3 +1228,160 @@ describe('package resolution in library builds', () => {
     expect(chunk.code).not.toMatch(/exports-node|exports-default|browser-main|module-main/)
   })
 })
+
+describe('HTML entries', () => {
+  const buildHtmlProject = async (
+    modulePreload?: BuildEnvironmentOptions['modulePreload'],
+  ) =>
+    (await build({
+      root: resolve(dirname, 'packages/build-project'),
+      logLevel: 'silent',
+      build: {
+        write: false,
+        minify: false,
+        modulePreload,
+      },
+      plugins: [
+        {
+          name: 'test',
+          resolveId(id) {
+            if (id === 'entry.js' || id === 'style.css') {
+              return '\0' + id
+            }
+          },
+          load(id) {
+            if (id === '\0entry.js') {
+              return `import 'style.css'\nconsole.log('from-html-entry')`
+            }
+            if (id === '\0style.css') {
+              return `h1 { color: red }`
+            }
+          },
+        },
+      ],
+    })) as RolldownOutput
+
+  const findOutputs = (output: RolldownOutput['output']) => ({
+    html: output.find(
+      (o): o is OutputAsset => o.type === 'asset' && o.fileName === 'index.html',
+    ),
+    entry: output.find(
+      (o): o is OutputChunk => o.type === 'chunk' && o.isEntry,
+    ),
+    css: output.find(
+      (o): o is OutputAsset => o.type === 'asset' && o.fileName.endsWith('.css'),
+    ),
+  })
+
+  test('rewrites the scripts and the styles of the HTML, and injects the module preload polyfill', async () => {
+    const { html, entry, css } = findOutputs((await buildHtmlProject()).output)
+
+    expect(html?.source).toContain(
+      `<script type="module" crossorigin src="/${entry?.fileName}"></script>`,
+    )
+    expect(html?.source).toContain(
+      `<link rel="stylesheet" crossorigin href="/${css?.fileName}">`,
+    )
+    expect(html?.source).toContain('<h1>Hello world</h1>')
+    expect(html?.source).not.toContain('src="entry.js"')
+    expect(entry?.code).toContain('from-html-entry')
+    expect(entry?.code).toContain('relList.supports("modulepreload")')
+    expect(css?.source).toMatch(/color:\s*red/)
+  })
+
+  test('does not inject the module preload polyfill when it is disabled', async () => {
+    const { entry } = findOutputs(
+      (await buildHtmlProject({ polyfill: false })).output,
+    )
+
+    expect(entry?.code).toContain('from-html-entry')
+    expect(entry?.code).not.toContain('modulepreload')
+  })
+})
+
+async function buildProjectWithRenderBuiltUrl(
+  renderBuiltUrl: (filename: string) => string,
+  includePostfixes = false,
+) {
+  return (await build({
+    root: resolve(dirname, 'packages/build-project'),
+    logLevel: 'silent',
+    build: {
+      write: false,
+      assetsInlineLimit: 0,
+    },
+    experimental: {
+      renderBuiltUrl,
+    },
+    plugins: [
+      {
+        name: 'test',
+        resolveId(id) {
+          if (id === 'entry.js' || id === 'subentry.js' || id === 'style.css') {
+            return '\0' + id
+          }
+        },
+        load(id) {
+          if (id === '\0entry.js') {
+            return `
+              import assetUrl from '/asset.txt?url${includePostfixes ? '&marker=value' : ''}'
+              ${includePostfixes ? `import otherAssetUrl from '/asset.txt?url&marker=other'` : ''}
+              ${includePostfixes ? `import 'style.css'` : ''}
+              console.log(assetUrl${includePostfixes ? `, otherAssetUrl` : ''})
+              window.addEventListener('click', () => { import('subentry.js') })
+            `
+          }
+          if (id === '\0subentry.js') {
+            return `export default 'subentry'`
+          }
+          if (id === '\0style.css') {
+            return `
+              .asset-a { background: url('/asset.txt?marker=value') }
+              .asset-b { background: url('/asset.txt?marker=other') }
+            `
+          }
+        },
+      },
+    ],
+  })) as RolldownOutput
+}
+
+/**
+ * for each chunks in output1, if there's a chunk in output2 with the same fileName,
+ * ensure that the chunk code is the same. if not, the chunk hash should have changed.
+ */
+function assertOutputHashContentChange(
+  output1: RolldownOutput,
+  output2: RolldownOutput,
+) {
+  for (const chunk of output1.output) {
+    if (chunk.type === 'chunk') {
+      const chunk2 = output2.output.find(
+        (c) => c.type === 'chunk' && c.fileName === chunk.fileName,
+      ) as OutputChunk | undefined
+      if (chunk2) {
+        expect(
+          chunk.code,
+          `the ${chunk.fileName} chunk has the same hash but different contents between builds`,
+        ).toEqual(chunk2.code)
+      }
+    }
+  }
+}
+
+function getOutputHashChanges(
+  output1: RolldownOutput,
+  output2: RolldownOutput,
+) {
+  const map1 = Object.fromEntries(
+    output1.output.map((o) => [o.name, o.fileName]),
+  )
+  const map2 = Object.fromEntries(
+    output2.output.map((o) => [o.name, o.fileName]),
+  )
+  const names = Object.keys(map1).filter(Boolean)
+  return {
+    changed: names.filter((name) => map1[name] !== map2[name]),
+    unchanged: names.filter((name) => map1[name] === map2[name]),
+  }
+}

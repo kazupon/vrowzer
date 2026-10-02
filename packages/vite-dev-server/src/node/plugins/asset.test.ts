@@ -12,6 +12,7 @@ vi.mock('@vrowzer/rolldown/experimental', () => ({
   viteJsonPlugin: () => ({ name: 'vite:json' }),
   viteTransformPlugin: () => ({ name: 'native:transform' }),
   viteLoadFallbackPlugin: () => ({ name: 'builtin:vite-load-fallback' }),
+  viteModulePreloadPolyfillPlugin: () => ({ name: 'builtin:vite-module-preload-polyfill' }),
   viteReporterPlugin: () => ({ name: 'builtin:vite-reporter' }),
   viteResolvePlugin: () => ({ name: 'builtin:vite-resolve' }),
 }))

@@ -39,7 +39,7 @@ export async function resolvePlugins(
     // Using dynamic import() guarded by __VROWZER_SERVICE_WORKER__ build-time constant
     // enables rolldown DCE(Dead Code Elimination) to eliminate these plugins and their heavy dependencies
     // (postcss, oxc-parser, es-module-lexer, etc.) from the Service Worker bundle.
-    const [preAliasMod, aliasMod, resolveMod, htmlMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod, defineMod] = await Promise.all([
+    const [preAliasMod, aliasMod, resolveMod, htmlMod, cssMod, oxcMod, jsonMod, importAnalysisMod, assetMod, clientInjectionsMod, defineMod, modulePreloadPolyfillMod] = await Promise.all([
       import('./preAlias'),
       import('@rollup/plugin-alias'),
       import('./resolve'),
@@ -51,12 +51,14 @@ export async function resolvePlugins(
       import('./asset'),
       import('./clientInjections'),
       import('./define'),
+      import('./modulePreloadPolyfill'),
     ])
     const preAliasPlugin = preAliasMod.preAliasPlugin
     const aliasPlugin = aliasMod.default
     const resolvePlugin = resolveMod.resolvePlugin
     const oxcResolvePlugin = resolveMod.oxcResolvePlugin
     const htmlInlineProxyPlugin = htmlMod.htmlInlineProxyPlugin
+    const buildHtmlPlugin = htmlMod.buildHtmlPlugin
     const cssPlugin = cssMod.cssPlugin
     const cssPostPlugin = cssMod.cssPostPlugin
     const cssAnalysisPlugin = cssMod.cssAnalysisPlugin
@@ -66,6 +68,7 @@ export async function resolvePlugins(
     const assetPlugin = assetMod.assetPlugin
     const clientInjectionsPlugin = clientInjectionsMod.clientInjectionsPlugin
     const definePlugin = defineMod.definePlugin
+    const modulePreloadPolyfillPlugin = modulePreloadPolyfillMod.modulePreloadPolyfillPlugin
     const forwardConsole = config.server.forwardConsole.enabled
       ? (await import('./forwardConsole')).forwardConsolePlugin({
           environments: ['client'],
@@ -84,6 +87,14 @@ export async function resolvePlugins(
 
       ...prePlugins,
 
+      // NOTE(kazupon): only for builds. The dev Web Worker did not register it, and only the HTML
+      // entries of builds import the polyfill.
+      // modulePreload !== false && modulePreload.polyfill
+      //   ? modulePreloadPolyfillPlugin()
+      //   : null,
+      isBuild && modulePreload !== false && modulePreload.polyfill
+        ? modulePreloadPolyfillPlugin()
+        : null,
       // NOTE(kazupon): builds resolve with the native plugin as upstream does. The dev Web Worker keeps
       // the JavaScript resolve plugin for now.
       ...(isBuild
@@ -135,7 +146,10 @@ export async function resolvePlugins(
       // definePlugin(config),
       isBuild ? definePlugin(config) : null,
       cssPostPlugin(config),
-      // isBundled && buildHtmlPlugin(config),
+      // NOTE(kazupon): only for builds. The dev Web Worker has no bundled environment (bundled dev was
+      // removed in #41).
+      // buildHtmlPlugin(config),
+      isBuild ? buildHtmlPlugin(config) : null,
       // workerImportMetaUrlPlugin(config),
       // assetImportMetaUrlPlugin(config),
       ...buildPlugins.pre,

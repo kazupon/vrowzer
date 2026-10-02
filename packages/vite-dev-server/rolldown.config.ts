@@ -582,6 +582,7 @@ function createEagerWorkerTransformerImportsPlugin(): Plugin {
       './asset',
       './clientInjections',
       './define',
+      './modulePreloadPolyfill',
       './forwardConsole',
     ]],
     // buildEnvironment() loads rolldown lazily, while the static graph imports it as well
