@@ -305,8 +305,27 @@ function toBuildLog(error: unknown): BuildProjectLog {
   if (typeof e.frame === 'string') {
     log.frame = stripAnsi(e.frame)
   }
+  // The native plugins of rolldown report the plugin and the module in the message only, e.g.
+  // "[builtin:vite-transform] Unexpected token" with the frame header "╭─[ src/index.ts:1:23 ]".
+  // The path is relative to the working directory of the Worker, which is the root. Other errors
+  // start with their code instead, e.g. "[PARSE_ERROR]".
+  if (log.plugin === undefined && log.code === 'PLUGIN_ERROR') {
+    const plugin = nativePluginPattern.exec(log.message)?.[1]
+    if (plugin) {
+      log.plugin = plugin
+    }
+  }
+  if (log.id === undefined) {
+    const file = frameHeaderPattern.exec(log.message)?.[1]
+    if (file) {
+      log.id = file.startsWith('/') ? file : `/${file}`
+    }
+  }
   return log
 }
+
+const nativePluginPattern = /^\[([^\]\s]+)\] /
+const frameHeaderPattern = /╭─\[ ?([^\]\n]+?):\d+:\d+ ?\]/
 
 /**
  * Convert a failure of a build into a {@link BuildProjectError}.

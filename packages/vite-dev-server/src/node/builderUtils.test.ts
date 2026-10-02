@@ -327,6 +327,43 @@ describe('toBuildProjectError', () => {
     ])
   })
 
+  test('reads the plugin and the module of a native plugin from the message', () => {
+    const message = [
+      `${red('[builtin:vite-transform]')} Unexpected token`,
+      '   ╭─[ src/math.ts:1:23 ]',
+      ' 1 │ export const broken = ;',
+    ].join('\n')
+    const error = Object.assign(new Error('Build failed with 1 error'), {
+      errors: [{ code: 'PLUGIN_ERROR', message, id: undefined, loc: { line: 1, column: 22 } }],
+    })
+
+    expect(toBuildProjectError(error).errors[0]).toEqual({
+      code: 'PLUGIN_ERROR',
+      message: stripAnsi(message),
+      plugin: 'builtin:vite-transform',
+      id: '/src/math.ts',
+      loc: { line: 1, column: 22 },
+    })
+  })
+
+  test('keeps the plugin and the module that rolldown reports', () => {
+    const error = Object.assign(new Error('Build failed with 1 error'), {
+      errors: [
+        {
+          code: 'PLUGIN_ERROR',
+          message: '[other] boom\n ╭─[ src/other.ts:1:1 ]',
+          plugin: 'my-plugin',
+          id: '/src/a.ts',
+        },
+      ],
+    })
+
+    expect(toBuildProjectError(error).errors[0]).toMatchObject({
+      plugin: 'my-plugin',
+      id: '/src/a.ts',
+    })
+  })
+
   test('converts other failures into one log', () => {
     expect(toBuildProjectError(new Error(red('failed'))).errors).toEqual([{ message: 'failed' }])
     expect(toBuildProjectError('failed').errors).toEqual([{ message: 'failed' }])
