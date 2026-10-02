@@ -156,6 +156,12 @@ const vrowzer = Vrowzer({ fileSyncTimeout: 30000 })
 
 The same timeout limits how long Vrowzer takes to connect a restarted Service Worker to the Web Worker again. See [Service Worker restarts](#service-worker-restarts).
 
+`buildTimeout` controls how long [`build()`](#buildoptions-promisevrowzerbuildresult) waits for a build, from the creation of the build Worker until the result is received. It defaults to 120000 milliseconds and includes loading the builder:
+
+```ts
+const vrowzer = Vrowzer({ buildTimeout: 300000 })
+```
+
 **Options:**
 
 | Option                      | Type     | Default                           | Description                                                  |
@@ -166,6 +172,7 @@ The same timeout limits how long Vrowzer takes to connect a restarted Service Wo
 | `serviceWorkerReadyTimeout` | `number` | `60000`                           | Milliseconds to wait for the Service Worker page controller   |
 | `webWorkerSetupTimeout`     | `number` | `90000`                           | Milliseconds from Web Worker creation through setup completion |
 | `fileSyncTimeout`           | `number` | `10000`                           | Milliseconds to wait for the Web Worker to apply a file change, or to reconnect a restarted Service Worker |
+| `buildTimeout`              | `number` | `120000`                          | Milliseconds from the creation of the build Worker until the result of `build()` |
 
 ### Instance Properties
 
@@ -286,6 +293,42 @@ vrowzer.reloadPreview()
 > [!NOTE]
 > Up to vrowzer 0.4.x, these methods returned `void` without waiting for the Workers, and calls made before `ready()` completed were dropped or reached only the Web Worker.
 
+#### `build(options?): Promise<VrowzerBuildResult>`
+
+Builds the project for production in a build Worker, and resolves with the outputs and the warnings. Only library builds are supported for now:
+
+```ts
+// vite.config.ts
+VrowzerPlugin({ build: true })
+
+// application.ts
+const { files, warnings } = await vrowzer.build({
+  define: { __VERSION__: JSON.stringify('1.0.0') },
+  build: {
+    lib: { entry: '/src/index.ts', fileName: 'my-lib' },
+    sourcemap: true
+  }
+})
+// files: { 'my-lib.js': '...', 'my-lib.js.map': '...', 'my-lib.css': '...' }
+```
+
+- It needs `build: true` in the options of `@vrowzer/vite-plugin`. Without it, `build()` rejects, and the host output does not include the builder (rolldown and the Vite build).
+- The build uses the project files as they are when `build()` is called: the files of `ready()`, with the default `/index.html` when they have none, and the changes of `addFile()`, `updateFile()` and `deleteFile()` called before. Changes made later do not reach the running build.
+- Each build runs in a new build Worker, with the plugins of the Worker config bundled for production (`process.env.NODE_ENV` is `"production"` there). The build Worker is terminated when the build ends, so nothing stays between builds, and the previews are not affected.
+- The options are a subset of the Vite config (`base`, `mode`, `define` and `build`), merged over the Worker config. They are sent to the build Worker, so they must be values that `postMessage()` can copy, e.g. no functions. The builder sets `root` to `/`, and `build.write` and `build.emptyOutDir` to `false`.
+- `files` is keyed by the path from the output root. JavaScript, CSS, source maps and text assets are strings, and binary assets are `ArrayBuffer`s. The files of `/public` are added unless `build.copyPublicDir` is `false`.
+- One build at a time: a call while another build is running rejects.
+- A failed build rejects with `VrowzerBuildError`. Its `errors` have the message, code, plugin, module (`id`), location and code frame of each error, without colors, and its message summarizes the first one. A build that does not finish within `buildTimeout`, an aborted `signal` and `dispose()` reject it with an `Error`, and terminate the build Worker.
+
+Not supported yet:
+
+- HTML app builds, i.e. builds without `build.lib`
+- library formats other than `es`, and libraries with more than one entry
+- CSS minification (`build.cssMinify`), and the `terser` and `esbuild` minifiers
+- `build.watch`, SSR builds, manifests and license files
+
+These options reject with a `VrowzerBuildError` whose code is `VROWZER_UNSUPPORTED_OPTION`. As in Vite, a library keeps `process.env.NODE_ENV` for its users; replace it with `define` if needed. The build is tested in Chromium only.
+
 #### `dispose(): Promise<void>`
 
 Disposes the instance when the host application stops using it. The promise resolves after these resources are released:
@@ -314,7 +357,7 @@ With `await using`, the instance is disposed at the end of the scope.
 
 - If `ready()` is still in progress, it is aborted and resolves to `false`.
 - If Vrowzer is connecting a restarted Service Worker to the Web Worker again, it stops.
-- File operations still waiting for the Web Worker reject. After disposal, `ready()`, `addFile()`, `updateFile()` and `deleteFile()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
+- File operations still waiting for the Web Worker reject, and a running `build()` rejects with its build Worker terminated. After disposal, `ready()`, `addFile()`, `updateFile()`, `deleteFile()` and `build()` reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a new instance to start again.
 - Calling `dispose()` again returns the same promise. If some resources cannot be released, the remaining ones are still released, and the promise rejects with an `AggregateError`.
 
 > [!NOTE]
@@ -390,6 +433,8 @@ vrowzer.on('serviceWorkerRecoveryError', async error => {
 The Web Worker runs the Vite dev server: it has the project files, the module graph and the plugins, and answers the preview requests with the Vite middlewares, including the ones that plugins add in `configureServer`. The Service Worker has no project files. It forwards each request within `basePath` to the Web Worker of the instance whose `previewBasePath` it is under, over a MessageChannel, and the HMR ports of the previews as well. Several instances, e.g. in two tabs, can share the Service Worker this way.
 
 Give Vite plugins to the Web Worker, as `@vrowzer/vite-plugin` does with the plugins of `vite.config.ts`. The Service Worker runs no plugins.
+
+[`build()`](#buildoptions-promisevrowzerbuildresult) runs in a separate build Worker, which `build()` creates for each build with a copy of the project files, and terminates when the build ends. It runs the Vite build with the same plugins, so builds do not affect the previews.
 
 > [!NOTE]
 > Up to vrowzer 0.4.x, the Service Worker ran the Vite middlewares on its own copy of the project files, and `initServiceWorker()` of `vrowzer/service-worker-core` took `plugins` for its dev server. The Web Worker's dev server had no `middlewares`, so the middlewares that plugins add in `configureServer` ran only in the Service Worker, for the plugins given to it.

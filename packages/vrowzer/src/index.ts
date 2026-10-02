@@ -377,6 +377,10 @@ export class VrowzerBuildError extends Error {
    */
   readonly errors: readonly VrowzerBuildLog[]
 
+  /**
+   * @param errors - The errors of the build.
+   * @param options - The options of `Error`, e.g. `cause`.
+   */
   constructor(errors: readonly VrowzerBuildLog[], options?: ErrorOptions) {
     super(summarizeBuildErrors(errors), options)
     this.name = 'VrowzerBuildError'

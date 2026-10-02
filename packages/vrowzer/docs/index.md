@@ -40,6 +40,12 @@ await vrowzer.updateFile(
 | ------ | ------ |
 | [Vrowzer](/packages/vrowzer/docs/default/functions/Vrowzer.md) | Factory function to create a [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) instance. |
 
+## Classes
+
+| Class | Description |
+| ------ | ------ |
+| [VrowzerBuildError](/packages/vrowzer/docs/default/classes/VrowzerBuildError.md) | The error of a [Vrowzer.build](/packages/vrowzer/docs/default/interfaces/Vrowzer.md#method-build) that failed: an error in the project, or an option that the browser build does not support. |
+
 ## Interfaces
 
 | Interface | Description |
@@ -49,6 +55,10 @@ await vrowzer.updateFile(
 | [PreviewMountOptions](/packages/vrowzer/docs/default/interfaces/PreviewMountOptions.md) | Options for mounting a preview session. |
 | [PreviewSession](/packages/vrowzer/docs/default/interfaces/PreviewSession.md) | A mounted preview iframe managed by a [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) instance. |
 | [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md) | The main interface for the Vrowzer preview environment. |
+| [VrowzerBuildLibraryOptions](/packages/vrowzer/docs/default/interfaces/VrowzerBuildLibraryOptions.md) | The library options of [VrowzerBuildOptions.build](/packages/vrowzer/docs/default/interfaces/VrowzerBuildOptions.md#property-build), a subset of Vite's `build.lib`. |
+| [VrowzerBuildLog](/packages/vrowzer/docs/default/interfaces/VrowzerBuildLog.md) | A log of [Vrowzer.build](/packages/vrowzer/docs/default/interfaces/Vrowzer.md#method-build): an error or a warning. |
+| [VrowzerBuildOptions](/packages/vrowzer/docs/default/interfaces/VrowzerBuildOptions.md) | Options for [Vrowzer.build](/packages/vrowzer/docs/default/interfaces/Vrowzer.md#method-build): a subset of the Vite config. |
+| [VrowzerBuildResult](/packages/vrowzer/docs/default/interfaces/VrowzerBuildResult.md) | The result of [Vrowzer.build](/packages/vrowzer/docs/default/interfaces/Vrowzer.md#method-build). |
 | [VrowzerConfig](/packages/vrowzer/docs/default/interfaces/VrowzerConfig.md) | VrowzerConfig defines the configuration options for [`Vrowzer.ready`](/packages/vrowzer/docs/default/interfaces/Vrowzer.md#method-ready) |
 | [VrowzerOptions](/packages/vrowzer/docs/default/interfaces/VrowzerOptions.md) | VrowzerOptions defines the configuration options for [Vrowzer](/packages/vrowzer/docs/default/interfaces/Vrowzer.md). |
 
