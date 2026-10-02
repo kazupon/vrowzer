@@ -255,7 +255,8 @@ export interface VrowzerBuildOptions {
    */
   build?: {
     /**
-     * Builds a library. Required for now, because HTML app builds are not supported yet.
+     * Builds a library from a JavaScript or TypeScript entry. Without it, the build builds an app from
+     * its HTML entry: `/index.html`, or `rolldownOptions.input`.
      */
     lib?: VrowzerBuildLibraryOptions | false
     /**
@@ -303,7 +304,9 @@ export interface VrowzerBuildOptions {
      */
     rolldownOptions?: {
       /**
-       * The entry of the build, e.g. an HTML file.
+       * The HTML entry of an app, e.g. `/nested/index.html`. One HTML file is supported.
+       *
+       * @default '/index.html'
        */
       input?: string
       /**
@@ -652,7 +655,7 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    */
   deleteFile(filePath: string): Promise<void>
   /**
-   * Builds the project for production in a build Worker, e.g. as a library.
+   * Builds the project for production in a build Worker: an app from its HTML entry, or a library.
    *
    * The build uses the project files as they are when this method is called: the files of
    * {@link Vrowzer.ready}, with the default `/index.html` when they have none, and the changes of
@@ -660,8 +663,9 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    * ends.
    *
    * Each build runs in a new build Worker, with the Worker config bundled for production, and the
-   * build Worker is terminated when the build ends. The previews are not affected. Only library
-   * builds (`build.lib`) in the `es` format are supported for now, and one build at a time.
+   * build Worker is terminated when the build ends. The previews are not affected. An app builds
+   * from one HTML entry, and a library (`build.lib`) from one entry in the `es` format. One build
+   * runs at a time.
    *
    * A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within
    * the last 2.5 seconds, e.g. after short builds one after another, a build waits before it

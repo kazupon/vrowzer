@@ -31,6 +31,7 @@ function buildOptions(options: Partial<ResolvedBuildOptions> = {}): ResolvedBuil
     manifest: false,
     ssrManifest: false,
     license: false,
+    rolldownOptions: {},
     ...options,
   } as ResolvedBuildOptions
 }
@@ -54,13 +55,62 @@ describe('validateBuildOptions', () => {
     expect(validateBuildOptions(buildOptions({ minify: false }))).toEqual([])
   })
 
-  test('rejects HTML app builds', () => {
-    expect(validateBuildOptions(buildOptions({ lib: false }))).toEqual([
+  test('accepts an app build with one HTML entry', () => {
+    expect(validateBuildOptions(buildOptions({ lib: false }))).toEqual([])
+    expect(
+      validateBuildOptions(
+        buildOptions({ lib: false, rolldownOptions: { input: '/nested/index.html' } }),
+      ),
+    ).toEqual([])
+    expect(validateBuildOptions(buildOptions({ lib: false }), '/app.htm')).toEqual([])
+  })
+
+  test.each([
+    [['/a.html', '/b.html']],
+    [{ a: '/a.html', b: '/b.html' }],
+  ])('rejects multiple entries of an app (%o)', (input) => {
+    expect(
+      validateBuildOptions(buildOptions({ lib: false, rolldownOptions: { input } })),
+    ).toEqual([
       expect.objectContaining({
         code: UNSUPPORTED_OPTION,
-        message: expect.stringContaining('build.lib: HTML app builds are not supported yet'),
+        message: expect.stringContaining(
+          'build.rolldownOptions.input: only a single HTML entry is supported',
+        ),
       }),
     ])
+    expect(validateBuildOptions(buildOptions({ lib: false }), input)).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('input: only a single HTML entry is supported'),
+      }),
+    ])
+  })
+
+  test('rejects an app entry that is not HTML', () => {
+    expect(
+      validateBuildOptions(
+        buildOptions({ lib: false, rolldownOptions: { input: '/src/main.ts' } }),
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        code: UNSUPPORTED_OPTION,
+        message: expect.stringContaining(
+          'build.rolldownOptions.input: the entry of an app must be an HTML file, but got "/src/main.ts"',
+        ),
+      }),
+    ])
+    expect(
+      validateBuildOptions(buildOptions({ lib: false }), '/src/main.ts')[0].message,
+    ).toContain('[vrowzer] input: the entry of an app must be an HTML file')
+  })
+
+  test('takes build.rolldownOptions.input over the top-level input', () => {
+    expect(
+      validateBuildOptions(
+        buildOptions({ lib: false, rolldownOptions: { input: '/index.html' } }),
+        ['/a.html', '/b.html'],
+      ),
+    ).toEqual([])
   })
 
   test('rejects library formats other than es', () => {
@@ -160,14 +210,19 @@ describe('createBuildOptionsPlugin', () => {
     const plugin = createBuildOptionsPlugin(state)
     const configResolved = plugin.configResolved as (config: ResolvedConfig) => void
     const supported = { build: buildOptions() } as ResolvedConfig
-    const unsupported = { build: buildOptions({ lib: false }) } as ResolvedConfig
+    const unsupported = {
+      build: buildOptions({ lib: false }),
+      input: ['/a.html', '/b.html'],
+    } as ResolvedConfig
 
     configResolved(supported)
     expect(state.config).toBe(supported)
 
     const error = catchError(() => configResolved(unsupported))
     expect(error).toBeInstanceOf(BuildProjectError)
-    expect((error as BuildProjectError).message).toContain('build.lib')
+    expect((error as BuildProjectError).message).toContain(
+      'input: only a single HTML entry is supported',
+    )
   })
 })
 

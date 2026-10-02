@@ -447,7 +447,7 @@ describe('vrowzer.build()', () => {
   })
 
   test.each([
-    [{}, 'build.lib'],
+    [{ build: { rolldownOptions: { input: '/src/index.ts' } } }, 'build.rolldownOptions.input'],
     [{ build: { lib: { entry: '/src/index.ts', formats: ['umd'] } } }, 'build.lib.formats'],
     [{ build: { lib: { entry: '/src/index.ts' }, cssMinify: true } }, 'build.cssMinify']
   ])('rejects options that the browser build does not support (%j)', async (options, option) => {
