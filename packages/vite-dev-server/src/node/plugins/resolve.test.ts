@@ -13,6 +13,13 @@ vi.mock('../external', () => ({
   shouldExternalize: vi.fn<() => boolean>(() => false),
 }))
 
+// The native resolve plugin is for builds. These tests cover the JavaScript resolve plugin.
+vi.mock('@vrowzer/rolldown/experimental', () => ({
+  viteResolvePlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-resolve',
+  })),
+}))
+
 vi.mock('../optimizer', () => ({
   isDepOptimizationDisabled: vi.fn<() => boolean>(() => true),
   optimizedDepInfoFromFile: vi.fn<() => undefined>(),

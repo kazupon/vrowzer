@@ -1,4 +1,6 @@
-import { basename, resolve } from 'node:path'
+import fs from 'node:fs'
+import os from 'node:os'
+import { basename, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stripVTControlCharacters } from 'node:util'
 import colors from 'picocolors'
@@ -890,4 +892,78 @@ describe('onRollupLog', () => {
       expect(loggerSpy).toBeCalledTimes(0)
     },
   )
+})
+
+// vrowzer: builds resolve packages with the native resolve plugin (`viteResolvePlugin`), as upstream does
+describe('package resolution in library builds', () => {
+  let root: string
+
+  function writeFiles(files: Record<string, string>) {
+    for (const [file, content] of Object.entries(files)) {
+      const filePath = join(root, file)
+      fs.mkdirSync(resolve(filePath, '..'), { recursive: true })
+      fs.writeFileSync(filePath, content)
+    }
+  }
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  test('picks the browser entries of the packages', async () => {
+    root = fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-resolve-'))
+    writeFiles({
+      'entry.js': [
+        `import { value as fromExports } from 'pkg-exports'`,
+        `import { value as fromBrowser } from 'pkg-browser'`,
+        `import { value as fromModule } from 'pkg-module'`,
+        `export const values = [fromExports, fromBrowser, fromModule]`,
+      ].join('\n'),
+      'node_modules/pkg-exports/package.json': JSON.stringify({
+        name: 'pkg-exports',
+        exports: {
+          '.': {
+            browser: './browser.js',
+            node: './node.js',
+            default: './default.js',
+          },
+        },
+      }),
+      'node_modules/pkg-exports/browser.js': `export const value = 'exports-browser'`,
+      'node_modules/pkg-exports/node.js': `export const value = 'exports-node'`,
+      'node_modules/pkg-exports/default.js': `export const value = 'exports-default'`,
+      'node_modules/pkg-browser/package.json': JSON.stringify({
+        name: 'pkg-browser',
+        main: './main.js',
+        browser: './browser.js',
+      }),
+      'node_modules/pkg-browser/main.js': `export const value = 'browser-main'`,
+      'node_modules/pkg-browser/browser.js': `export const value = 'browser-field'`,
+      'node_modules/pkg-module/package.json': JSON.stringify({
+        name: 'pkg-module',
+        main: './main.cjs',
+        module: './module.js',
+      }),
+      'node_modules/pkg-module/main.cjs': `exports.value = 'module-main'`,
+      'node_modules/pkg-module/module.js': `export const value = 'module-field'`,
+    })
+
+    const [output] = (await build({
+      root,
+      logLevel: 'silent',
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry: 'entry.js', formats: ['es'], fileName: 'lib' },
+      },
+    })) as RolldownOutput[]
+
+    const chunk = output.output.find(
+      (o) => o.type === 'chunk' && o.isEntry,
+    ) as OutputChunk
+    expect(chunk.code).toContain('exports-browser')
+    expect(chunk.code).toContain('browser-field')
+    expect(chunk.code).toContain('module-field')
+    expect(chunk.code).not.toMatch(/exports-node|exports-default|browser-main|module-main/)
+  })
 })

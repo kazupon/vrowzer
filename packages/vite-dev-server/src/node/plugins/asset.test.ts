@@ -13,6 +13,7 @@ vi.mock('@vrowzer/rolldown/experimental', () => ({
   viteTransformPlugin: () => ({ name: 'native:transform' }),
   viteLoadFallbackPlugin: () => ({ name: 'builtin:vite-load-fallback' }),
   viteReporterPlugin: () => ({ name: 'builtin:vite-reporter' }),
+  viteResolvePlugin: () => ({ name: 'builtin:vite-resolve' }),
 }))
 vi.mock('@vrowzer/rolldown/parseAst', () => ({
   parseAst: vi.fn<(...args: unknown[]) => unknown>(),

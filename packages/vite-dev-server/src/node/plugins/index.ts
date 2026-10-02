@@ -55,6 +55,7 @@ export async function resolvePlugins(
     const preAliasPlugin = preAliasMod.preAliasPlugin
     const aliasPlugin = aliasMod.default
     const resolvePlugin = resolveMod.resolvePlugin
+    const oxcResolvePlugin = resolveMod.oxcResolvePlugin
     const htmlInlineProxyPlugin = htmlMod.htmlInlineProxyPlugin
     const cssPlugin = cssMod.cssPlugin
     const cssPostPlugin = cssMod.cssPostPlugin
@@ -83,15 +84,40 @@ export async function resolvePlugins(
 
       ...prePlugins,
 
-      resolvePlugin({
-        root: config.root,
-        isProduction: config.isProduction,
-        isBuild,
-        packageCache: config.packageCache,
-        asSrc: true,
-        optimizeDeps: true,
-        externalize: true,
-      }),
+      // NOTE(kazupon): builds resolve with the native plugin as upstream does. The dev Web Worker keeps
+      // the JavaScript resolve plugin for now.
+      ...(isBuild
+        ? oxcResolvePlugin(
+            {
+              root: config.root,
+              isProduction: config.isProduction,
+              isBuild,
+              packageCache: config.packageCache,
+              asSrc: true,
+              optimizeDeps: true,
+              externalize: true,
+              legacyInconsistentCjsInterop: config.legacy?.inconsistentCjsInterop,
+            },
+            isWorker
+              ? {
+                  ...config,
+                  consumer: 'client',
+                  isBundled: true,
+                  optimizeDepsPluginNames: [],
+                }
+              : undefined,
+          )
+        : [
+            resolvePlugin({
+              root: config.root,
+              isProduction: config.isProduction,
+              isBuild,
+              packageCache: config.packageCache,
+              asSrc: true,
+              optimizeDeps: true,
+              externalize: true,
+            }),
+          ]),
       htmlInlineProxyPlugin(config),
       cssPlugin(config),
       // esbuildBannerFooterCompatPlugin(config),

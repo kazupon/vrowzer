@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url'
 import colors from 'picocolors'
 import { exports, imports } from 'resolve.exports'
 import type { PartialResolvedId } from 'rolldown'
+// NOTE(kazupon): use @vrowzer/rolldown (browser build) instead of rolldown
+import { viteResolvePlugin } from '@vrowzer/rolldown/experimental'
+// import { viteResolvePlugin } from 'rolldown/experimental'
 import type { Environment } from '..'
 import {
   cleanUrl,
@@ -230,19 +233,173 @@ const perEnvironmentOrWorkerPlugin = (
   ]
 }
 /**
- * Not implemented yet. Kept to follow Vite's `resolve.ts` structure.
- *
- * NOTE(kazupon): `createIdResolver` and `resolvePlugins` do not use this plugin.
- * Vrowzer always uses the JavaScript `resolvePlugin` instead.
- *
- * @internal
+ * NOTE(kazupon): the builds use this native plugin as upstream does. The dev Web Worker still uses the
+ * JavaScript `resolvePlugin` (see `resolvePlugins()`).
  */
 export function oxcResolvePlugin(
   resolveOptions: ResolvePluginOptionsWithOverrides,
   overrideEnvConfig: (ResolvedConfig & ResolvedEnvironmentOptions) | undefined,
+  isJsPluginContainer = false,
 ): Plugin[] {
-  // TODO: fill in later ...
   return [
+    ...(resolveOptions.optimizeDeps && !resolveOptions.isBuild
+      ? [optimizerResolvePlugin(resolveOptions)]
+      : []),
+    ...perEnvironmentOrWorkerPlugin(
+      'vite:resolve-builtin',
+      overrideEnvConfig,
+      (partialEnv, getEnv) => {
+        // The resolve plugin is used for createIdResolver and the depsOptimizer should be
+        // disabled in that case, so deps optimization is opt-in when creating the plugin.
+        const depsOptimizerEnabled =
+          resolveOptions.optimizeDeps &&
+          !resolveOptions.isBuild &&
+          !partialEnv.config.isBundled &&
+          !isDepOptimizationDisabled(partialEnv.config.optimizeDeps)
+        const getDepsOptimizer = () => {
+          const env = getEnv()
+          if (env.mode !== 'dev')
+            {throw new Error('The environment mode should be dev')}
+          if (!env.depsOptimizer)
+            {throw new Error('The environment should have a depsOptimizer')}
+          return env.depsOptimizer
+        }
+
+        const options: InternalResolveOptions = {
+          ...partialEnv.config.resolve,
+          ...resolveOptions, // plugin options + resolve options overrides
+        }
+        const noExternal =
+          Array.isArray(options.noExternal) || options.noExternal === true
+            ? options.noExternal
+            : [options.noExternal]
+
+        const plugin = viteResolvePlugin({
+          // NOTE(kazupon): comment out because the resolved config does not have `tsconfig` (Vite 8.3) yet
+          // tsconfig: partialEnv.config.tsconfig,
+          resolveOptions: {
+            isBuild: options.isBuild,
+            isProduction: options.isProduction,
+            asSrc: options.asSrc ?? false,
+            preferRelative: options.preferRelative ?? false,
+            isRequire: options.isRequire,
+            root: options.root,
+            scan: options.scan ?? false,
+
+            mainFields: options.skipMainField
+              ? options.mainFields
+              : [...options.mainFields, 'main'],
+            conditions: options.conditions,
+            externalConditions: options.externalConditions,
+            extensions: options.extensions,
+            tryIndex: options.tryIndex ?? true,
+            tryPrefix: options.tryPrefix,
+            preserveSymlinks: options.preserveSymlinks,
+            tsconfigPaths: options.tsconfigPaths,
+          },
+          environmentConsumer: partialEnv.config.consumer,
+          environmentName: partialEnv.name,
+          builtins: partialEnv.config.resolve.builtins,
+          external: options.external,
+          noExternal: noExternal,
+          dedupe: options.dedupe,
+          disableCache:
+            partialEnv.config.command === 'serve' &&
+            // eslint-disable-next-line eqeqeq
+            partialEnv.config.server.watch === null,
+          legacyInconsistentCjsInterop: options.legacyInconsistentCjsInterop,
+          finalizeBareSpecifier: !depsOptimizerEnabled
+            ? undefined
+            : (resolvedId, rawId, importer) => {
+                const depsOptimizer = getDepsOptimizer()
+                // if we reach here, it's a valid dep import that hasn't been optimized.
+                const isJsType = isOptimizable(
+                  resolvedId,
+                  depsOptimizer.options,
+                )
+                const exclude = depsOptimizer?.options.exclude
+
+                // check for deep import, e.g. "my-lib/foo"
+                const deepMatch = deepImportRE.exec(rawId)
+                // package name doesn't include postfixes
+                // trim them to support importing package with queries (e.g. `import css from 'normalize.css?inline'`)
+                const pkgId = deepMatch
+                  ? deepMatch[1] || deepMatch[2]
+                  : cleanUrl(rawId)
+
+                const skipOptimization =
+                  depsOptimizer.options.noDiscovery ||
+                  !isJsType ||
+                  (importer && isInNodeModules(importer)) ||
+                  exclude?.includes(pkgId) ||
+                  exclude?.includes(rawId) ||
+                  SPECIAL_QUERY_RE.test(resolvedId)
+
+                let newId = resolvedId
+                if (skipOptimization) {
+                  // excluded from optimization
+                  // Inject a version query to npm deps so that the browser
+                  // can cache it without re-validation, but only do so for known js types.
+                  // otherwise we may introduce duplicated modules for externalized files
+                  // from pre-bundled deps.
+                  const versionHash = depsOptimizer!.metadata.browserHash
+                  if (versionHash && isJsType) {
+                    newId = injectQuery(newId, `v=${versionHash}`)
+                  }
+                } else {
+                  // this is a missing import, queue optimize-deps re-run and
+                  // get a resolved its optimized info
+                  const optimizedInfo = depsOptimizer!.registerMissingImport(
+                    rawId,
+                    newId,
+                  )
+                  newId = depsOptimizer!.getOptimizedDepId(optimizedInfo)
+                }
+                return newId
+              },
+          finalizeOtherSpecifiers: !depsOptimizerEnabled
+            ? undefined
+            : (resolvedId, rawId) => {
+                const depsOptimizer = getDepsOptimizer()
+                const newResolvedId = ensureVersionQuery(
+                  resolvedId,
+                  rawId,
+                  options,
+                  depsOptimizer,
+                )
+                return newResolvedId === resolvedId ? undefined : newResolvedId
+              },
+          resolveSubpathImports(id, importer, isRequire) {
+            return resolveSubpathImports(id, importer, {
+              ...options,
+              isRequire: resolveOptions.isRequire ?? isRequire,
+            })
+          },
+
+          ...(partialEnv.config.command === 'serve' || isJsPluginContainer
+            ? {
+                async onWarn(msg) {
+                  // use `partialEnv` instead of `getEnv()` because `buildStart` is
+                  // not called for plugin container used by `createIdResolver`
+                  partialEnv.config.logger.warn(`warning: ${msg}`, {
+                    clear: true,
+                    timestamp: true,
+                  })
+                },
+              }
+            : {}),
+          ...(debug
+            ? {
+                async onDebug(message) {
+                  debug(message)
+                },
+              }
+            : {}),
+        })
+        ;(plugin as Plugin).perEnvironmentWatchChangeDuringDev = true
+        return plugin
+      },
+    ),
   ]
 }
 

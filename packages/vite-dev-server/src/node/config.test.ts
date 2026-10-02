@@ -22,6 +22,9 @@ vi.mock('@vrowzer/rolldown/experimental', () => ({
   viteReporterPlugin: vi.fn<() => { name: string }>(() => ({
     name: 'builtin:vite-reporter',
   })),
+  viteResolvePlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-resolve',
+  })),
 }))
 
 vi.mock('@vrowzer/rolldown/parseAst', () => ({
