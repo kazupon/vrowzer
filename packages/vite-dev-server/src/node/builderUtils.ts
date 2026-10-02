@@ -13,7 +13,13 @@
  */
 
 import path from 'node:path'
-import type { InputOption, RolldownOutput, RolldownWatcher } from 'rolldown'
+import type {
+  InputOption,
+  LogOrStringHandler,
+  RolldownOptions,
+  RolldownOutput,
+  RolldownWatcher
+} from 'rolldown'
 import { withTrailingSlash } from '../shared/utils'
 import type { ResolvedBuildOptions } from './build'
 import type { ResolvedConfig } from './config'
@@ -179,14 +185,18 @@ export function createBuildOptionsPlugin(state: { config?: ResolvedConfig }): Pl
 }
 
 /**
- * Create the logger of a build. It collects the warnings, and drops the other logs.
+ * Create the logger of a build. It collects the warnings and the errors, and drops the other logs.
  *
- * @param warnings - Receives the warnings
+ * Vite logs some problems as errors without failing the build, e.g. a CSS `@import` that is not
+ * found, so they are returned with the warnings. A failed build rejects with its own errors instead.
+ *
+ * @param warnings - Receives the warnings and the errors
  * @returns The logger
  */
 export function createCollectingLogger(warnings: BuildProjectLog[]): Logger {
   const logger = createLogger('silent', { allowClearScreen: false })
   const warned = new Set<string>()
+  const loggedErrors = new WeakSet<object>()
   const collecting: Logger = {
     ...logger,
     warn(msg) {
@@ -200,8 +210,89 @@ export function createCollectingLogger(warnings: BuildProjectLog[]): Logger {
       warned.add(msg)
       collecting.warn(msg)
     },
+    error(msg, options) {
+      // Vite checks it, so that it does not log an error twice
+      if (options?.error) {
+        loggedErrors.add(options.error)
+      }
+      warnings.push({ message: stripAnsi(msg) })
+    },
+    hasErrorLogged(error) {
+      return loggedErrors.has(error)
+    },
   }
   return collecting
+}
+
+/**
+ * The plugin that keeps the details of the warnings of rolldown: the code, the plugin, the module, the
+ * location and the code frame. Vite's `onRollupLog()` passes only the message of a warning to the
+ * logger.
+ *
+ * It wraps `build.rolldownOptions.onLog`, and calls the one of the config first, so that Vite's
+ * handling of the logs, e.g. the warnings that it ignores, stays the same.
+ *
+ * @param warnings - The warnings that the collecting logger receives
+ * @returns The plugin
+ */
+export function createBuildLogPlugin(warnings: BuildProjectLog[]): Plugin {
+  return {
+    name: 'vrowzer:build-log',
+    enforce: 'post',
+    config(config) {
+      const configOnLog = config.build?.rolldownOptions?.onLog
+      const onLog: NonNullable<RolldownOptions['onLog']> = (level, log, defaultHandler) => {
+        const handler: LogOrStringHandler = (handlerLevel, handlerLog) => {
+          const count = warnings.length
+          defaultHandler(handlerLevel, handlerLog)
+          // Vite logged it as a warning. Keep the message that Vite made, with the details.
+          if (handlerLevel === 'warn' && typeof handlerLog === 'object' && warnings.length === count + 1) {
+            warnings[count] = { ...toBuildLog(handlerLog), message: warnings[count]!.message }
+          }
+        }
+        if (configOnLog) {
+          configOnLog(level, log, handler)
+        } else {
+          handler(level, log)
+        }
+      }
+      return { build: { rolldownOptions: { onLog } } }
+    },
+  }
+}
+
+/**
+ * Check the sizes of the chunks, as the reporter of Vite does when it writes the outputs. The builder
+ * does not write them, so the reporter does not check them.
+ *
+ * @param result - The result of the build
+ * @param options - The resolved build options
+ * @returns The warning of the chunks larger than `build.chunkSizeWarningLimit`, if any
+ */
+export function checkChunkSizes(
+  result: RolldownOutput | RolldownOutput[] | RolldownWatcher,
+  options: ResolvedBuildOptions
+): BuildProjectLog | undefined {
+  // The same conditions as the reporter: minified chunks of an app
+  if (!options.minify || options.lib || !(Array.isArray(result) || 'output' in result)) {
+    return
+  }
+  const encoder = new TextEncoder()
+  const limit = options.chunkSizeWarningLimit
+  const large = (Array.isArray(result) ? result : [result])
+    .flatMap(output => output.output)
+    .some(item => item.type === 'chunk' && encoder.encode(item.code).length / 1000 > limit)
+  if (!large) {
+    return
+  }
+  // The message of the reporter of rolldown
+  return {
+    message:
+      `(!) Some chunks are larger than ${limit} kB after minification. Consider:\n` +
+      `- Using dynamic import() to code-split the application\n` +
+      `- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting\n` +
+      `- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.`,
+  }
 }
 
 function toArrayBuffer(source: Uint8Array): ArrayBuffer {

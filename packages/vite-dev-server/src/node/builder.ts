@@ -25,7 +25,9 @@ import './config'
 import { build } from './build'
 import {
   addPublicFiles,
+  checkChunkSizes,
   collectOutputs,
+  createBuildLogPlugin,
   createBuildOptionsPlugin,
   createCollectingLogger,
   toBuildProjectError,
@@ -76,7 +78,11 @@ export async function buildProject(
       configFile: false,
       logLevel: 'warn',
       customLogger: createCollectingLogger(warnings),
-      plugins: [...(inlineConfig.plugins ?? []), createBuildOptionsPlugin(state)],
+      plugins: [
+        ...(inlineConfig.plugins ?? []),
+        createBuildOptionsPlugin(state),
+        createBuildLogPlugin(warnings),
+      ],
       build: {
         ...inlineConfig.build,
         write: false,
@@ -86,6 +92,10 @@ export async function buildProject(
     const outputs = collectOutputs(result)
     if (state.config) {
       addPublicFiles(outputs, files, state.config)
+      const largeChunks = checkChunkSizes(result, state.config.build)
+      if (largeChunks) {
+        warnings.push(largeChunks)
+      }
     }
     return { files: outputs, warnings }
   } catch (error) {

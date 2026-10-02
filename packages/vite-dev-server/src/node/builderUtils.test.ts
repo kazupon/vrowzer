@@ -7,7 +7,9 @@ import {
   PUBLIC_FILE_COLLISION,
   UNSUPPORTED_OPTION,
   addPublicFiles,
+  checkChunkSizes,
   collectOutputs,
+  createBuildLogPlugin,
   createBuildOptionsPlugin,
   createCollectingLogger,
   stripAnsi,
@@ -227,20 +229,134 @@ describe('createBuildOptionsPlugin', () => {
 })
 
 describe('createCollectingLogger', () => {
-  test('collects the warnings without colors and drops the other logs', () => {
+  test('collects the warnings and the errors without colors, and drops the other logs', () => {
     const warnings: { message: string }[] = []
     const logger = createCollectingLogger(warnings)
+    const error = new Error('not found')
 
     logger.info('info')
-    logger.error('error')
     expect(logger.hasWarned).toBe(false)
 
     logger.warn(red('[plugin test] careful'))
     logger.warnOnce('once')
     logger.warnOnce('once')
+    logger.error(red('[vite:css] @import not found'), { error })
 
-    expect(warnings).toEqual([{ message: '[plugin test] careful' }, { message: 'once' }])
+    expect(warnings).toEqual([
+      { message: '[plugin test] careful' },
+      { message: 'once' },
+      { message: '[vite:css] @import not found' },
+    ])
     expect(logger.hasWarned).toBe(true)
+    expect(logger.hasErrorLogged(error)).toBe(true)
+  })
+})
+
+describe('createBuildLogPlugin', () => {
+  type OnLog = (
+    level: 'info' | 'warn' | 'debug',
+    log: Record<string, unknown>,
+    defaultHandler: (level: string, log: Record<string, unknown> | string) => void,
+  ) => void
+
+  function resolveOnLog(warnings: { message: string }[], config: UserConfig = {}): OnLog {
+    const plugin = createBuildLogPlugin(warnings)
+    const result = (plugin.config as (config: UserConfig) => UserConfig)(config)
+    return result.build!.rolldownOptions!.onLog as unknown as OnLog
+  }
+
+  const log = {
+    code: 'EVAL',
+    message: red('Use of eval is strongly discouraged'),
+    id: '/src/main.ts',
+    loc: { line: 3, column: 2, file: '/src/main.ts' },
+    frame: red('3 | eval("1")'),
+  }
+
+  // Vite's handler: logs a warning unless it ignores the code
+  const viteHandler =
+    (warnings: { message: string }[]) =>
+    (level: string, handlerLog: Record<string, unknown> | string) => {
+      if (level === 'warn' && typeof handlerLog === 'object' && handlerLog.code !== 'IGNORED') {
+        warnings.push({ message: stripAnsi(String(handlerLog.message)) })
+      }
+    }
+
+  test('keeps the details of the warnings that Vite logs', () => {
+    const warnings: { message: string }[] = []
+    resolveOnLog(warnings)('warn', log, viteHandler(warnings))
+
+    expect(warnings).toEqual([
+      {
+        message: 'Use of eval is strongly discouraged',
+        code: 'EVAL',
+        id: '/src/main.ts',
+        loc: { line: 3, column: 2, file: '/src/main.ts' },
+        frame: '3 | eval("1")',
+      },
+    ])
+  })
+
+  test('leaves the logs that Vite ignores and the other levels', () => {
+    const warnings: { message: string }[] = []
+    const onLog = resolveOnLog(warnings)
+    onLog('warn', { ...log, code: 'IGNORED' }, viteHandler(warnings))
+    onLog('info', log, viteHandler(warnings))
+
+    expect(warnings).toEqual([])
+  })
+
+  test('calls the onLog of the config first', () => {
+    const warnings: { message: string }[] = []
+    const seen: string[] = []
+    const onLog = resolveOnLog(warnings, {
+      build: {
+        rolldownOptions: {
+          onLog(level, configLog, handler) {
+            seen.push(String(configLog.code))
+            // drop the logs of a code, and pass the others on
+            if (configLog.code !== 'DROPPED') {
+              handler(level, configLog)
+            }
+          },
+        },
+      },
+    })
+    onLog('warn', { ...log, code: 'DROPPED' }, viteHandler(warnings))
+    onLog('warn', log, viteHandler(warnings))
+
+    expect(seen).toEqual(['DROPPED', 'EVAL'])
+    expect(warnings).toEqual([expect.objectContaining({ code: 'EVAL', id: '/src/main.ts' })])
+  })
+})
+
+describe('checkChunkSizes', () => {
+  const chunk = (size: number) => ({ type: 'chunk', fileName: 'index.js', code: 'x'.repeat(size) })
+  const options = (overrides: Partial<ResolvedBuildOptions> = {}) =>
+    ({
+      minify: 'oxc',
+      lib: false,
+      chunkSizeWarningLimit: 1,
+      ...overrides,
+    }) as ResolvedBuildOptions
+
+  test('warns about the chunks larger than the limit, as the reporter of Vite does', () => {
+    expect(checkChunkSizes(output([chunk(1001)]), options())).toEqual({
+      message: expect.stringContaining(
+        '(!) Some chunks are larger than 1 kB after minification. Consider:',
+      ),
+    })
+    expect(checkChunkSizes(output([chunk(1000)]), options())).toBeUndefined()
+  })
+
+  test('does not check libraries and builds without minification', () => {
+    expect(checkChunkSizes(output([chunk(2000)]), options({ minify: false }))).toBeUndefined()
+    expect(
+      checkChunkSizes(
+        output([chunk(2000)]),
+        options({ lib: { entry: '/src/index.ts' } as ResolvedBuildOptions['lib'] }),
+      ),
+    ).toBeUndefined()
   })
 })
 

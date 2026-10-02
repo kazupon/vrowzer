@@ -44,6 +44,8 @@ import { resolveConfig } from './config'
 import type { Logger } from './logger'
 import { createLogger } from './logger'
 import { injectQuery, normalizePath } from './utils'
+import type { BuildProjectLog } from './builderUtils'
+import { createBuildLogPlugin, createCollectingLogger } from './builderUtils'
 
 // Ported from upstream Vite (`packages/vite/src/node/__tests__/build.spec.ts`).
 // NOTE(kazupon): not ported yet:
@@ -1240,6 +1242,42 @@ describe('package resolution in library builds', () => {
     expect(chunk.code).toContain('browser-field')
     expect(chunk.code).toContain('module-field')
     expect(chunk.code).not.toMatch(/exports-node|exports-default|browser-main|module-main/)
+  })
+})
+
+describe('warnings of the builder', () => {
+  let root: string
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  test('keep the code, the module and the location of the warnings of rolldown', async () => {
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-warnings-')))
+    fs.writeFileSync(join(root, 'main.js'), `export const value = eval('1')\n`)
+    const warnings: BuildProjectLog[] = []
+
+    // The same logger and plugin as the builder
+    await build({
+      root,
+      logLevel: 'warn',
+      customLogger: createCollectingLogger(warnings),
+      plugins: [createBuildLogPlugin(warnings)],
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry: 'main.js', formats: ['es'], fileName: 'lib' },
+      },
+    })
+
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        code: 'EVAL',
+        id: join(root, 'main.js'),
+        loc: expect.objectContaining({ line: 1 }),
+        message: expect.stringContaining('eval'),
+      }),
+    ])
   })
 })
 
