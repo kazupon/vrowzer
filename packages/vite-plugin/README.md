@@ -376,7 +376,7 @@ Vrowzer({
 | `serviceWorkerVersion` | `string`                     | `'vrowzer-v1'`                            | Version shared with the application and Service Worker bundles.                           |
 | `serviceWorkerEntry`   | `string`                     | Resolved path to `vrowzer/service-worker` | Explicit Service Worker entry file path.                                                  |
 | `resolve`              | `{ alias?: Alias[] }`        | `undefined`                               | Legacy Worker resolve replacement. With extraction disabled, warns to move it to `workerConfig`. |
-| `build`                | `boolean`                    | `false`                                   | Enable `vrowzer.build()`. The host output then includes the build Worker and its builder. |
+| `build`                | `boolean`                    | `false`                                   | Enable `vrowzer.build()`. The host output then includes the build Worker and its builder, and the automatic manifest has the original files of the CommonJS packages for production builds. |
 
 ### `VrowzerManifestOptions`
 
@@ -411,7 +411,8 @@ When `auto: true` (default), automatically generates a vrowzer manifest in `conf
 - Scans project source files (index.html, src/, public/)
 - Collects npm dependencies from package.json
 - Auto-bundles CJS packages to ESM using Rolldown
-- Caches results in `node_modules/.vrowzer-manifest/` (keyed by deps + lockfile hash)
+- With `build: true`, also includes the original files of those CJS packages in `.vrowzer-cjs/` inside each package. The rewritten `package.json` gives the `development` condition of the previews the ESM bundle, and the other conditions the original files, which `vrowzer.build()` bundles for production
+- Caches results in `node_modules/.vrowzer-manifest/` (keyed by deps + lockfile hash, and `build`)
 - Provides `virtual:vrowzer-manifest` virtual module with file contents resolved
 
 #### 2. Worker Config Extraction & Prebundling (`vrowzer:config`)

@@ -319,10 +319,15 @@ const lib = await vrowzer.build({
 - It needs `build: true` in the options of `@vrowzer/vite-plugin`. Without it, `build()` rejects, and the host output does not include the builder (rolldown and the Vite build).
 - An app builds from one HTML entry: `/index.html`, or another HTML file of the project with `build.rolldownOptions.input`, e.g. `/nested/index.html`. As in Vite, the HTML is rewritten to the outputs, the CSS and the assets are emitted, and `?raw`, `?url`, `new URL('./file', import.meta.url)` and `/public` work. Dynamic imports become chunks, which are preloaded with their CSS (`modulepreload`, with its polyfill unless `build.modulePreload` turns it off).
 - `base` can be absolute, e.g. `/` (the default) or `/app/`, or relative (`./`), which works under any path. The outputs of an app run on a static server, without the Service Worker, the dev server or the HMR client.
+- As in Vite, the build reads the `.env` files of the project (`.env`, `.env.local`, `.env.[mode]` and `.env.[mode].local` in `envDir`, the root by default), and `import.meta.env` exposes their variables with the client prefix (`envPrefix`, `VITE_` by default). Only the files of the project are read, not the environment variables of the host, and they are not copied to the outputs. The previews read them too, when `ready()` starts them: later changes reach the next build, but not the previews.
+- The build applies the `tsconfig.json` of the project, or the file of the `tsconfig` option of the Worker config, e.g. its JSX settings, `experimentalDecorators`, `verbatimModuleSyntax`, and `paths` with `resolve.tsconfigPaths`. The previews do not read tsconfig yet.
+- CSS Modules work as in Vite.
+- The CommonJS packages that the manifest of `@vrowzer/vite-plugin` bundles into ES modules for the previews, e.g. react, are built from their original files for production, as Vite does. With `build: true`, the manifest has those files too. A development build (`NODE_ENV=development`, e.g. in a `.env` file) cannot resolve these packages yet.
 - The build uses the project files as they are when `build()` is called: the files of `ready()`, with the default `/index.html` when they have none, and the changes of `addFile()`, `updateFile()` and `deleteFile()` called before. Changes made later do not reach the running build.
 - Each build runs in a new build Worker, with the plugins of the Worker config bundled for production (`process.env.NODE_ENV` is `"production"` there). The build Worker is terminated when the build ends, so nothing stays between builds, and the previews are not affected.
 - The options are a subset of the Vite config (`base`, `mode`, `define` and `build`), merged over the Worker config. They are sent to the build Worker, so they must be values that `postMessage()` can copy, e.g. no functions. The builder sets `root` to `/`, and `build.write` and `build.emptyOutDir` to `false`.
 - `files` is keyed by the path from the output root. JavaScript, CSS, source maps and text assets are strings, and binary assets are `ArrayBuffer`s. The files of `/public` are added unless `build.copyPublicDir` is `false`.
+- `warnings` have the message of each warning, without colors, and the code, plugin, module (`id`), location and code frame of the warnings of rolldown and of the plugins. The errors that Vite logs without failing the build, e.g. a CSS `@import` that is not found, and the warning about chunks larger than `build.chunkSizeWarningLimit`, are warnings too.
 - One build at a time: a call while another build is running rejects.
 - A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within the last 2.5 seconds, e.g. after short builds one after another, the next build waits before it creates its build Worker. The wait does not count toward `buildTimeout`.
 - A failed build rejects with `VrowzerBuildError`. Its `errors` have the message, code, plugin, module (`id`), location and code frame of each error, without colors, and its message summarizes the first one. A build that does not finish within `buildTimeout`, an aborted `signal` and `dispose()` reject it with an `Error`, and terminate the build Worker.
@@ -334,13 +339,14 @@ These options are not supported yet, and reject with a `VrowzerBuildError` whose
 - CSS minification (`build.cssMinify`), and the `terser` and `esbuild` minifiers
 - `build.watch`, SSR builds, manifests and license files
 
-These are not supported yet either, and the build does not check them:
+These are not supported yet either. The build warns about them in the modules of the project, with their location, and the outputs fail where they run:
 
-- `import.meta.glob()`, and variables in the paths of dynamic imports and of `new URL(..., import.meta.url)`. The build does not include the files that they point to, so they fail when they run.
-- the Workers of the project (`new Worker(new URL(...))` and `?worker`)
-- `.env` files, the options of tsconfig, and the CommonJS files of dependencies for production
+- `import.meta.glob()`, and variables in the relative paths of dynamic imports and of `new URL(..., import.meta.url)`. The build does not include the files that they point to. `/* @vite-ignore */` suppresses the warning of a dynamic import, as in Vite.
+- the Workers of the project, `new Worker(new URL(...))`. The build emits the file of the Worker as an asset, without bundling or transforming it. The `?worker` and `?sharedworker` imports fail the build.
 
-As in Vite, a library keeps `process.env.NODE_ENV` for its users; replace it with `define` if needed. CSS Modules are not tested yet, and the build is tested in Chromium only.
+As in Vite, a library keeps `process.env.NODE_ENV` for its users; replace it with `define` if needed.
+
+Vrowzer needs a cross-origin isolated page for the `SharedArrayBuffer` of rolldown's threads, which the plugin gets with COEP `credentialless`. The build is tested in Chromium. In WebKit (Safari), which does not support `credentialless`, the page is not cross-origin isolated, and Vrowzer does not start. Firefox is not tested.
 
 #### `dispose(): Promise<void>`
 
