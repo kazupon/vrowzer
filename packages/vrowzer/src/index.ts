@@ -149,16 +149,16 @@ export interface VrowzerOptions {
    */
   webWorkerSetupTimeout?: number
   /**
-   * Timeout in milliseconds for the Web Worker and the Service Worker to apply a change made with
+   * Timeout in milliseconds for the Web Worker to apply a change made with
    * {@link Vrowzer.addFile}, {@link Vrowzer.updateFile} or {@link Vrowzer.deleteFile}.
    *
    * The Web Worker applies a change after the plugins' `watchChange` hooks finish. This timeout is
-   * shorter than the 30 seconds that the Service Worker waits for the Web Worker to transform a
+   * shorter than the 30 seconds that the Service Worker waits for the Web Worker to answer a
    * request, so with slow plugins or heavy transforms an operation can reject although the change
    * is applied later. Increase it in such environments. Writing the file again resynchronizes it.
    *
-   * It also limits how long Vrowzer takes to restore the project in a restarted Service Worker. See
-   * {@link VrowzerEventMap.serviceWorkerRecoveryError}.
+   * It also limits how long Vrowzer takes to connect a restarted Service Worker to the Web Worker
+   * again. See {@link VrowzerEventMap.serviceWorkerRecoveryError}.
    *
    * @default 10000
    */
@@ -171,7 +171,7 @@ export interface VrowzerOptions {
 export interface VrowzerConfig {
   /**
    * A record of file paths and their corresponding content, which can be either a string or an ArrayBuffer.
-   * An ArrayBuffer is copied for the Workers when {@linkcode Vrowzer.ready} is called, and stays usable.
+   * An ArrayBuffer is copied for the Web Worker when {@linkcode Vrowzer.ready} is called, and stays usable.
    * Without `/index.html`, a default one is used: an empty `#app` element and a module script that
    * loads `/main.js`.
    */
@@ -283,7 +283,7 @@ declare global {
  * Event map for {@link Vrowzer}.
  *
  * Forwards all {@link SvcWorkerControllerEventMap} events from the underlying Service Worker controller,
- * and adds events for preview sessions and for restoring a restarted Service Worker.
+ * and adds events for preview sessions and for reconnecting a restarted Service Worker.
  */
 export type VrowzerEventMap = SvcWorkerControllerEventMap & {
   /**
@@ -296,23 +296,21 @@ export type VrowzerEventMap = SvcWorkerControllerEventMap & {
    */
   previewLoadError: PreviewLoadErrorInfo
   /**
-   * Emitted when Vrowzer has restored the project in a restarted Service Worker.
+   * Emitted when Vrowzer has connected a restarted Service Worker to the Web Worker again.
    *
    * The browser stops an idle Service Worker and starts it again for the next request or message.
-   * The restarted Service Worker has lost the files and the Web Worker channel, so Vrowzer sends the
-   * latest files and connects the channel again, without reloading the host page. File operations
-   * called in the meantime are sent after the project is restored.
+   * The restarted Service Worker has lost its channel to the Web Worker, which keeps the project
+   * files, so Vrowzer connects the channel again, without reloading the host page. File operations
+   * go on in the meantime.
    */
   serviceWorkerRecovered: void
   /**
-   * Emitted when Vrowzer could not restore the project in a restarted Service Worker: the Service
-   * Worker failed to apply the files, or the recovery did not finish within
+   * Emitted when Vrowzer could not connect a restarted Service Worker to the Web Worker again within
    * {@link VrowzerOptions.fileSyncTimeout}.
    *
-   * File operations waiting for the Service Worker reject. Preview requests that the Service Worker
-   * cannot serve yet wait for up to 10 seconds, and then get a 503 response. Vrowzer tries again when
-   * the Service Worker restarts the next time. To start over, dispose the instance and create a new
-   * one.
+   * Preview requests that the Service Worker cannot forward yet wait for up to 10 seconds, and then
+   * get a 503 response. Vrowzer tries again when the Service Worker restarts the next time. To start
+   * over, dispose the instance and create a new one.
    *
    * Payload is the `Error` that describes the failure.
    */
@@ -326,8 +324,8 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
   /**
    * Ready for preview system initialization.
    *
-   * This method initializes the Web Worker, Service Worker, and MessageChannel,
-   * then syncs initial files to both workers.
+   * This method initializes the Web Worker with the initial files, the Service Worker, and the
+   * MessageChannel between them.
    * It can only be called once per Vrowzer instance.
    *
    * @return A promise that resolves to `true` if the boot process is successful, or `false` if it fails.
@@ -365,7 +363,7 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
   reloadPreview(target?: PreviewSessionRef): void
   /**
    * Unmounts one preview session, or every session when no target is provided.
-   * The shared Service Worker, Web Worker, and virtual filesystem remain active.
+   * The Service Worker, the Web Worker, and its virtual filesystem remain active.
    * Use {@link Vrowzer.dispose} to release the whole instance.
    *
    * @param target - A session ID or mounted session object.
@@ -374,22 +372,19 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
   /**
    * Adds a new file to the preview environment with the specified content.
    *
-   * The promise resolves when later preview requests see the change: the Web Worker and the
-   * Service Worker have written the file to their virtual filesystems, and the Web Worker has
-   * invalidated the modules that depend on it. HMR updates of mounted previews are not awaited.
+   * The promise resolves when later preview requests see the change: the Web Worker has written the
+   * file to its virtual filesystem, and invalidated the modules that depend on it. HMR updates of
+   * mounted previews are not awaited.
    *
    * It rejects without sending the change before {@link Vrowzer.ready} resolves to `true`, after it
-   * fails, and after {@link Vrowzer.dispose}. It also rejects when a Worker fails to apply the change,
-   * when the Web Worker reports an error, when the Workers do not reply within
+   * fails, and after {@link Vrowzer.dispose}. It also rejects when the Web Worker fails to apply the
+   * change, when it reports an error, when it does not reply within
    * {@link VrowzerOptions.fileSyncTimeout}, or when the instance is disposed first. The change may
    * be partly applied then; write the file again to resynchronize.
    *
-   * While Vrowzer restores the project in a restarted Service Worker, the change is held and sent
-   * afterwards, and the timeout counts from then. It rejects when the restoration fails.
-   *
    * @param filePath - The path of the file to be added.
    * @param content - The content of the file, which can be a string or an ArrayBuffer. An
-   * ArrayBuffer is copied for the Workers and stays usable.
+   * ArrayBuffer is copied for the Web Worker and stays usable.
    */
   addFile(filePath: string, content: string | ArrayBuffer): Promise<void>
   /**
@@ -399,7 +394,7 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
    *
    * @param filePath - The path of the file to be updated.
    * @param content - The new content for the file, which can be a string or an ArrayBuffer. An
-   * ArrayBuffer is copied for the Workers and stays usable.
+   * ArrayBuffer is copied for the Web Worker and stays usable.
    */
   updateFile(filePath: string, content: string | ArrayBuffer): Promise<void>
   /**
@@ -414,13 +409,13 @@ export interface Vrowzer extends Emittable<VrowzerEventMap> {
   /**
    * Disposes this instance.
    *
-   * An in-progress {@link Vrowzer.ready} is aborted and resolves to `false`, and a restoration of a
-   * restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
-   * terminated, Service Worker controller events are no longer forwarded, and all event handlers are
-   * removed right away. The Service Worker registration and its virtual filesystem are kept for
-   * other clients.
+   * An in-progress {@link Vrowzer.ready} is aborted and resolves to `false`, and the reconnection of
+   * a restarted Service Worker is stopped. Every preview session is unmounted, the Web Worker is
+   * terminated with the project files, Service Worker controller events are no longer forwarded, and
+   * all event handlers are removed right away. The Service Worker registration is kept for other
+   * clients.
    *
-   * File operations still waiting for the Workers reject. After disposal, `ready()` and the file
+   * File operations still waiting for the Web Worker reject. After disposal, `ready()` and the file
    * methods reject, `mount()` throws, and `unmount()` and `reloadPreview()` do nothing. Create a
    * new instance to start again.
    *
@@ -839,7 +834,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
    */
   function recoverServiceWorker(instanceId: string): void {
     serviceWorkerInstanceId = instanceId
-    // A newer Service Worker instance started, so stop restoring the previous one
+    // A newer Service Worker instance started, so stop connecting the previous one
     recovery?.abort(new Error('[Vrowzer] A newer Service Worker instance started'))
     const controller = new AbortController()
     recovery = controller
@@ -867,7 +862,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Readonly<Vrowzer> {
           _emitter.emit(
             'serviceWorkerRecoveryError',
             new Error(
-              `[Vrowzer] Could not restore the project in the restarted Service Worker: ${reason}`,
+              `[Vrowzer] Could not connect the restarted Service Worker to the Web Worker: ${reason}`,
               { cause: error }
             )
           )
