@@ -149,6 +149,100 @@ const appFiles: Record<string, string | ArrayBuffer> = {
   '/nested/nested.ts': "document.querySelector('#app')!.textContent = 'nested ok'\n"
 }
 
+// A project with the config of the project: `.env` files, tsconfig, CSS Modules, and a CommonJS
+// dependency in the layout of the manifest of `@vrowzer/vite-plugin` with the build option
+const configFiles: Record<string, string | ArrayBuffer> = {
+  '/index.html': [
+    '<!doctype html>',
+    '<html lang="en">',
+    '  <head>',
+    '    <meta charset="UTF-8" />',
+    '    <title>Config</title>',
+    '  </head>',
+    '  <body>',
+    '    <div id="app"></div>',
+    '    <script type="module" src="/src/main.ts"></script>',
+    '  </body>',
+    '</html>',
+    ''
+  ].join('\n'),
+  '/.env': [
+    'VITE_TITLE=env ok',
+    'VITE_GREETING=hello $VITE_TITLE',
+    'SECRET_TOKEN=do-not-expose',
+    ''
+  ].join('\n'),
+  '/.env.development': 'VITE_MODE_VALUE=development value\n',
+  '/.env.production': 'VITE_MODE_VALUE=production value\n',
+  '/.env.local': 'VITE_LOCAL=local value\n',
+  // The previews do not read tsconfig, so builds only keep the type-only import of ./types
+  '/tsconfig.json': JSON.stringify({ compilerOptions: { verbatimModuleSyntax: true } }),
+  '/src/main.ts': [
+    "import { type Shape } from './types'",
+    "import styles from './styles.module.css'",
+    "import fixture from 'cjs-fixture'",
+    "const app = document.querySelector('#app')!",
+    "app.textContent = 'config ok'",
+    'app.className = styles.title',
+    "const composed = document.createElement('div')",
+    "composed.id = 'composed'",
+    'composed.className = styles.composed',
+    'document.body.append(composed)',
+    "const shape: Shape = { kind: 'square' }",
+    'Object.assign(document.body.dataset, {',
+    '  title: import.meta.env.VITE_TITLE,',
+    '  greeting: import.meta.env.VITE_GREETING,',
+    '  modeValue: import.meta.env.VITE_MODE_VALUE,',
+    '  local: import.meta.env.VITE_LOCAL,',
+    '  secret: String(import.meta.env.SECRET_TOKEN),',
+    '  cjs: fixture.mode,',
+    '  shape: shape.kind,',
+    '  titleClass: styles.title',
+    '})',
+    ''
+  ].join('\n'),
+  '/src/types.ts': [
+    "document.body.dataset.typesSideEffect = 'ran'",
+    'export interface Shape {',
+    '  kind: string',
+    '}',
+    ''
+  ].join('\n'),
+  '/src/styles.module.css': [
+    '.base { font-weight: 700; }',
+    '.title { color: rgb(0, 0, 255); }',
+    '.composed { composes: base; text-decoration: underline; }',
+    ''
+  ].join('\n'),
+  '/node_modules/cjs-fixture/package.json': JSON.stringify({
+    name: 'cjs-fixture',
+    type: 'module',
+    exports: {
+      '.': {
+        development: '../.vrowzer-esm/cjs-fixture.js',
+        default: './.vrowzer-cjs/index.js'
+      }
+    }
+  }),
+  '/node_modules/cjs-fixture/.vrowzer-cjs/package.json': JSON.stringify({
+    name: 'cjs-fixture',
+    exports: { '.': './index.js' }
+  }),
+  '/node_modules/cjs-fixture/.vrowzer-cjs/index.js': [
+    "if (process.env.NODE_ENV === 'production') {",
+    "  module.exports = require('./production.js')",
+    '} else {',
+    "  module.exports = require('./development.js')",
+    '}',
+    ''
+  ].join('\n'),
+  '/node_modules/cjs-fixture/.vrowzer-cjs/production.js':
+    "module.exports = { mode: 'cjs production' }\n",
+  '/node_modules/cjs-fixture/.vrowzer-cjs/development.js':
+    "module.exports = { mode: 'cjs development' }\n",
+  '/node_modules/.vrowzer-esm/cjs-fixture.js': "export default { mode: 'esm development' }\n"
+}
+
 type SerializedContent = string | { bytes: number[] }
 
 /**
@@ -181,6 +275,7 @@ Object.assign(window, {
   __createVrowzer__: (options?: VrowzerOptions) => Vrowzer(options),
   __projectFiles__: projectFiles,
   __appFiles__: appFiles,
+  __configFiles__: configFiles,
   __appBinaries__: { big: Array.from(bigImage), photo: Array.from(photo) },
   __indexSource__: indexSource,
   __mainSource__: mainSource,
