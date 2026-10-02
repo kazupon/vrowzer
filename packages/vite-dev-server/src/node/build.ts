@@ -60,8 +60,7 @@ import type { MinimalPluginContextWithoutEnvironment, Plugin } from './plugin'
 import { getHookHandler } from './plugins'
 // NOTE(kazupon): comment out because the browser build does not support the esbuild minifier
 // import { buildEsbuildPlugin } from './plugins/esbuild'
-// NOTE(kazupon): comment out because the preload helpers are not ported yet
-// import { buildImportAnalysisPlugin } from './plugins/importAnalysisBuild'
+import { buildImportAnalysisPlugin } from './plugins/importAnalysisBuild'
 // NOTE(kazupon): import only the types, because the browser build does not support license files and terser yet
 import type { LicenseOptions } from './plugins/license'
 // import { type LicenseOptions, licensePlugin } from './plugins/license'
@@ -541,9 +540,7 @@ export function resolveBuildPlugins(config: ResolvedConfig): {
       // ...(config.isWorker ? [webWorkerPostPlugin(config)] : []),
     ],
     post: [
-      // NOTE(kazupon): comment out because the preload helpers of `vite:build-import-analysis` are not ported yet.
-      // Library builds do not use them.
-      // ...(isBuild ? buildImportAnalysisPlugin(config) : []),
+      ...(isBuild ? buildImportAnalysisPlugin(config) : []),
       // NOTE(kazupon): comment out because the browser build does not support the esbuild and terser minifiers
       // ...(isBuild && config.build.minify === 'esbuild'
       //   ? [buildEsbuildPlugin()]

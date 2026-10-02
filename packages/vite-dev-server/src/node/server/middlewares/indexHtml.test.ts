@@ -2,6 +2,14 @@ import { Hono } from 'hono'
 import type { MiddlewareHandler } from 'hono/types'
 import { beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
+// NOTE(kazupon): html.ts imports the build code, which loads rolldown from the browser build
+// (`@vrowzer/rolldown`). The unit tests run in Node, so they use the Node build of the same rolldown
+// version.
+vi.mock('@vrowzer/rolldown', () => import('rolldown'))
+vi.mock('@vrowzer/rolldown/experimental', () => import('rolldown/experimental'))
+vi.mock('@vrowzer/rolldown/parseAst', () => import('rolldown/parseAst'))
+vi.mock('@vrowzer/rolldown/utils', () => import('rolldown/utils'))
+
 // Mock pluginContainer to avoid loading @vrowzer/rolldown WASM binding (which requires memfs with root dir)
 vi.mock('../pluginContainer', () => ({
   BasicMinimalPluginContext: class {},
@@ -12,6 +20,8 @@ vi.mock('../pluginContainer', () => ({
 vi.mock('node:fs', () => ({
   default: {
     existsSync: vi.fn(() => false),
+    // config.ts promisifies it when it is loaded
+    realpath: vi.fn<() => void>(),
     statSync: vi.fn(() => {
       throw new Error('ENOENT')
     }),

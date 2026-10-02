@@ -1,7 +1,15 @@
-import { describe, expect, test } from 'vite-plus/test'
+import { describe, expect, test, vi } from 'vite-plus/test'
 import type { ResolvedConfig } from '../config'
 import { CLIENT_ENTRY } from '../constants'
 import { clientInjectionsPlugin } from './clientInjections'
+
+// NOTE(kazupon): clientInjections.ts loads html.ts through define.ts. html.ts imports the build code,
+// which loads rolldown from the browser build (`@vrowzer/rolldown`). The unit tests run in Node, so
+// they use the Node build of the same rolldown version.
+vi.mock('@vrowzer/rolldown', () => import('rolldown'))
+vi.mock('@vrowzer/rolldown/experimental', () => import('rolldown/experimental'))
+vi.mock('@vrowzer/rolldown/parseAst', () => import('rolldown/parseAst'))
+vi.mock('@vrowzer/rolldown/utils', () => import('rolldown/utils'))
 
 describe('clientInjectionsPlugin', () => {
   test('reads connection options from server.ws and overlay from server.hmr', async () => {

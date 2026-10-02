@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, extname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build, preview } from 'vite'
 import { afterAll, beforeAll, describe, expect, test } from 'vite-plus/test'
@@ -51,25 +51,32 @@ const LIBRARY_OPTIONS = {
 
 /**
  * Opens the fixture in a new browser context, which has a Service Worker of its own, and mounts a
- * preview of a ready Vrowzer instance.
+ * preview of a ready Vrowzer instance with the files of the library or of the HTML app.
  */
-async function openFixture(options: Record<string, unknown> = {}): Promise<Fixture> {
+async function openFixture(
+  options: Record<string, unknown> = {},
+  project: 'library' | 'app' = 'library'
+): Promise<Fixture> {
   const context = await browser.newContext()
   const page = await context.newPage()
   await page.goto(`${origin}/`)
   await page.waitForFunction(() => document.body.dataset.fixtureReady === 'true')
-  const ready = await page.evaluate(async vrowzerOptions => {
-    const fixture = window as any
-    const vrowzer = fixture.__createVrowzer__(vrowzerOptions)
-    fixture.__vrowzer__ = vrowzer
-    const result = await vrowzer.ready({ files: fixture.__projectFiles__ })
-    if (result) {
-      vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
-    }
-    return result
-  }, options)
+  const ready = await page.evaluate(
+    async ([vrowzerOptions, projectName]) => {
+      const fixture = window as any
+      const vrowzer = fixture.__createVrowzer__(vrowzerOptions)
+      fixture.__vrowzer__ = vrowzer
+      const files = projectName === 'app' ? fixture.__appFiles__ : fixture.__projectFiles__
+      const result = await vrowzer.ready({ files })
+      if (result) {
+        vrowzer.mount(document.getElementById('preview-container'), { id: 'preview' })
+      }
+      return result
+    },
+    [options, project] as const
+  )
   expect(ready).toBe(true)
-  await expectPreviewText(page, 'preview v1')
+  await expectPreviewText(page, project === 'app' ? 'app ok' : 'preview v1')
   return { context, page }
 }
 
@@ -142,6 +149,77 @@ async function expectPreviewUpdates(page: Page, text: string): Promise<void> {
 
 async function liveWorkerCount(page: Page): Promise<number> {
   return page.evaluate(() => (window as any).__liveWorkerCount__())
+}
+
+// Another origin, which has no Service Worker, for the outputs of app builds
+const BUILT_ORIGIN = 'https://built.vrowzer.test'
+
+const CONTENT_TYPES: Record<string, string> = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.map': 'application/json',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.txt': 'text/plain'
+}
+
+interface BuiltApp extends Fixture {
+  pageErrors: string[]
+  missingFiles: string[]
+}
+
+/**
+ * Serves the outputs under `prefix` of another origin, as a static server does, and opens `path`
+ * there in a new browser context.
+ */
+async function openBuiltApp(
+  files: Record<string, SerializedContent>,
+  prefix: string,
+  path = ''
+): Promise<BuiltApp> {
+  const context = await browser.newContext()
+  const missingFiles: string[] = []
+  await context.route(`${BUILT_ORIGIN}/**`, route => {
+    const { pathname } = new URL(route.request().url())
+    let file = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : undefined
+    if (file === '' || file?.endsWith('/')) {
+      file += 'index.html'
+    }
+    const content = file === undefined ? undefined : files[file]
+    if (content === undefined) {
+      if (pathname !== '/favicon.ico') {
+        missingFiles.push(pathname)
+      }
+      return route.fulfill({ status: 404, body: 'Not Found' })
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: CONTENT_TYPES[extname(file!)] ?? 'application/octet-stream',
+      body: typeof content === 'string' ? content : Buffer.from(content.bytes)
+    })
+  })
+  const page = await context.newPage()
+  const pageErrors: string[] = []
+  page.on('pageerror', error => pageErrors.push(error.message))
+  await page.goto(`${BUILT_ORIGIN}${prefix}${path}`)
+  return { context, page, pageErrors, missingFiles }
+}
+
+function findFile(files: Record<string, SerializedContent>, pattern: RegExp): string {
+  const file = Object.keys(files).find(name => pattern.test(name))
+  if (file === undefined) {
+    throw new Error(`No output matches ${pattern}: ${Object.keys(files).join(', ')}`)
+  }
+  return file
+}
+
+function text(files: Record<string, SerializedContent>, file: string): string {
+  const content = files[file]
+  if (typeof content !== 'string') {
+    throw new Error(`${file} is not a text output`)
+  }
+  return content
 }
 
 beforeAll(async () => {
@@ -447,7 +525,11 @@ describe('vrowzer.build()', () => {
   })
 
   test.each([
-    [{}, 'build.lib'],
+    [{ build: { rolldownOptions: { input: '/src/index.ts' } } }, 'build.rolldownOptions.input'],
+    [
+      { build: { rolldownOptions: { input: ['/index.html', '/nested/index.html'] } } },
+      'build.rolldownOptions.input'
+    ],
     [{ build: { lib: { entry: '/src/index.ts', formats: ['umd'] } } }, 'build.lib.formats'],
     [{ build: { lib: { entry: '/src/index.ts' }, cssMinify: true } }, 'build.cssMinify']
   ])('rejects options that the browser build does not support (%j)', async (options, option) => {
@@ -462,6 +544,188 @@ describe('vrowzer.build()', () => {
           message: expect.stringContaining(`[vrowzer] ${option}:`)
         })
       ])
+    } finally {
+      await context.close()
+    }
+  })
+})
+
+describe('vrowzer.build() of HTML apps', () => {
+  test.each([
+    ['/', '/'],
+    ['/app/', '/app/'],
+    // A relative base works under any path
+    ['./', '/sub/dir/']
+  ])(
+    'builds an app with base %j that runs at %s of another origin without the Service Worker',
+    async (base, prefix) => {
+      const { context, page } = await openFixture({}, 'app')
+      try {
+        const { files } = await expectBuilt(page, { base })
+        const binaries: { big: number[]; photo: number[] } = await page.evaluate(
+          () => (window as any).__appBinaries__
+        )
+        // Nothing of the dev server: the HMR client, the preview URLs and the Service Worker
+        const code = Object.values(files)
+          .filter(content => typeof content === 'string')
+          .join('\n')
+        expect(code).not.toContain('/@vite/client')
+        expect(code).not.toContain('import.meta.hot')
+        expect(code).not.toMatch(/\/preview\/[\da-f]{12}\//)
+        expect(code).not.toContain('serviceWorker')
+
+        const app = await openBuiltApp(files, prefix)
+        try {
+          await expect
+            .poll(() => app.page.evaluate(() => document.body.dataset.lazy ?? ''), {
+              timeout: 15_000
+            })
+            .toBe('lazy ok')
+          const state = await app.page.evaluate(async () => {
+            const bytes = async (url: string) =>
+              Array.from(new Uint8Array(await (await fetch(url)).arrayBuffer()))
+            const element = document.querySelector('#app') as HTMLElement
+            const style = getComputedStyle(element)
+            const { bigUrl, photoUrl, message } = document.body.dataset
+            return {
+              text: element.textContent,
+              color: style.color,
+              fontWeight: style.fontWeight,
+              background: style.backgroundColor,
+              small: (document.querySelector('#small') as HTMLImageElement).src,
+              big: await bytes((document.querySelector('#big') as HTMLImageElement).src),
+              bigUrl: await bytes(bigUrl!),
+              photo: await bytes(photoUrl!),
+              message,
+              robots: await (await fetch(new URL('robots.txt', document.baseURI))).text(),
+              controller: navigator.serviceWorker.controller,
+              registrations: (await navigator.serviceWorker.getRegistrations()).length
+            }
+          })
+
+          expect(state.text).toBe('app ok')
+          // The CSS of the HTML, of the entry, and of the lazy chunk
+          expect(state.color).toBe('rgb(0, 128, 0)')
+          expect(state.fontWeight).toBe('700')
+          expect(state.background).toBe('rgb(255, 255, 0)')
+          // A small SVG is inlined. The images keep their bytes.
+          expect(state.small).toMatch(/^data:image\/svg\+xml,/)
+          expect(state.big).toEqual(binaries.big)
+          expect(state.bigUrl).toEqual(binaries.big)
+          expect(state.photo).toEqual(binaries.photo)
+          expect(state.message).toBe('Hello from a text file\n')
+          expect(state.robots).toBe('User-agent: *\n')
+          expect(state.controller).toBeNull()
+          expect(state.registrations).toBe(0)
+          expect(app.pageErrors).toEqual([])
+          // Every URL of the outputs is under the prefix
+          expect(app.missingFiles).toEqual([])
+        } finally {
+          await app.context.close()
+        }
+      } finally {
+        await context.close()
+      }
+    },
+    60_000
+  )
+
+  test('rewrites the HTML, and splits and preloads the chunks, with source maps', async () => {
+    const { context, page } = await openFixture({}, 'app')
+    try {
+      const { files } = await expectBuilt(page, { build: { minify: false, sourcemap: true } })
+
+      const entry = findFile(files, /^assets\/index-[\w-]+\.js$/)
+      const css = findFile(files, /^assets\/index-[\w-]+\.css$/)
+      const lazy = findFile(files, /^assets\/lazy-[\w-]+\.js$/)
+      const lazyCss = findFile(files, /^assets\/lazy-[\w-]+\.css$/)
+      const big = findFile(files, /^assets\/big-[\w-]+\.png$/)
+      findFile(files, /^assets\/photo-[\w-]+\.png$/)
+      expect(files['robots.txt']).toBe('User-agent: *\n')
+
+      const html = text(files, 'index.html')
+      expect(html).toContain(`<script type="module" crossorigin src="/${entry}"></script>`)
+      expect(html).toContain(`<link rel="stylesheet" crossorigin href="/${css}">`)
+      expect(html).toContain(`<img id="big" src="/${big}" />`)
+      expect(html).not.toContain('/src/')
+      // The global CSS and the CSS of the entry go into one file
+      expect(text(files, css)).toContain('rgb(0, 128, 0)')
+      expect(text(files, css)).toContain('font-weight: 700')
+      expect(text(files, lazy)).toContain('lazy ok')
+      expect(text(files, lazyCss)).toContain('rgb(255, 255, 0)')
+
+      // The entry preloads the lazy chunk with its CSS, and has the module preload polyfill
+      const entryCode = text(files, entry)
+      expect(entryCode).toContain('__vitePreload(')
+      expect(entryCode).toContain(JSON.stringify(lazyCss))
+      expect(entryCode).toContain('relList.supports("modulepreload")')
+
+      for (const file of [entry, lazy]) {
+        expect(text(files, file)).toContain(
+          `//# sourceMappingURL=${file.slice('assets/'.length)}.map`
+        )
+        const map = JSON.parse(text(files, `${file}.map`))
+        expect(
+          map.sources.some(
+            (source: string) => source.endsWith('src/main.ts') || source.endsWith('src/lazy.ts')
+          )
+        ).toBe(true)
+      }
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('builds a nested HTML entry', async () => {
+    const { context, page } = await openFixture({}, 'app')
+    try {
+      const { files } = await expectBuilt(page, {
+        build: { rolldownOptions: { input: '/nested/index.html' } }
+      })
+      expect(Object.keys(files)).toContain('nested/index.html')
+      expect(Object.keys(files)).not.toContain('index.html')
+
+      const app = await openBuiltApp(files, '/', 'nested/')
+      try {
+        await expect
+          .poll(() => app.page.evaluate(() => document.querySelector('#app')?.textContent ?? ''), {
+            timeout: 15_000
+          })
+          .toBe('nested ok')
+        expect(
+          await app.page.evaluate(
+            () => getComputedStyle(document.querySelector('#app') as HTMLElement).color
+          )
+        ).toBe('rgb(0, 128, 0)')
+        expect(app.pageErrors).toEqual([])
+        expect(app.missingFiles).toEqual([])
+      } finally {
+        await app.context.close()
+      }
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('builds the default /index.html of the runtime', async () => {
+    // The library has no /index.html, so ready() gives it the default one, which loads /main.js
+    const { context, page } = await openFixture()
+    try {
+      const { files } = await expectBuilt(page, {})
+      expect(text(files, 'index.html')).toContain('<title>Preview</title>')
+
+      const app = await openBuiltApp(files, '/')
+      try {
+        await expect
+          .poll(() => app.page.evaluate(() => document.querySelector('#app')?.textContent ?? ''), {
+            timeout: 15_000
+          })
+          .toBe('preview v1')
+        expect(app.pageErrors).toEqual([])
+      } finally {
+        await app.context.close()
+      }
+      await expectPreviewUpdates(page, 'preview after an app build')
     } finally {
       await context.close()
     }

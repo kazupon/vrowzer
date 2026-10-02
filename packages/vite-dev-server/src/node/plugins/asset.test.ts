@@ -9,9 +9,11 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
 
 vi.mock('@vrowzer/rolldown', () => ({ rolldown: vi.fn<(...args: unknown[]) => unknown>() }))
 vi.mock('@vrowzer/rolldown/experimental', () => ({
+  viteBuildImportAnalysisPlugin: () => ({ name: 'builtin:vite-build-import-analysis' }),
   viteJsonPlugin: () => ({ name: 'vite:json' }),
   viteTransformPlugin: () => ({ name: 'native:transform' }),
   viteLoadFallbackPlugin: () => ({ name: 'builtin:vite-load-fallback' }),
+  viteModulePreloadPolyfillPlugin: () => ({ name: 'builtin:vite-module-preload-polyfill' }),
   viteReporterPlugin: () => ({ name: 'builtin:vite-reporter' }),
   viteResolvePlugin: () => ({ name: 'builtin:vite-resolve' }),
 }))

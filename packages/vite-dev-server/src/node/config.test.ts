@@ -10,6 +10,9 @@ vi.mock('@vrowzer/rolldown', () => ({
 }))
 
 vi.mock('@vrowzer/rolldown/experimental', () => ({
+  viteBuildImportAnalysisPlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-build-import-analysis',
+  })),
   viteJsonPlugin: vi.fn<() => { name: string }>(() => ({
     name: 'vite:json',
   })),
@@ -18,6 +21,9 @@ vi.mock('@vrowzer/rolldown/experimental', () => ({
   })),
   viteLoadFallbackPlugin: vi.fn<() => { name: string }>(() => ({
     name: 'builtin:vite-load-fallback',
+  })),
+  viteModulePreloadPolyfillPlugin: vi.fn<() => { name: string }>(() => ({
+    name: 'builtin:vite-module-preload-polyfill',
   })),
   viteReporterPlugin: vi.fn<() => { name: string }>(() => ({
     name: 'builtin:vite-reporter',
@@ -630,12 +636,37 @@ describe('definePlugin JavaScript pre-check', () => {
     expect(config.plugins.map(plugin => plugin.name)).toEqual(
       expect.arrayContaining([
         'vite:define',
+        'vite:modulepreload-polyfill',
+        'vite:build-html',
+        'vite:asset-import-meta-url',
         'vite:prepare-out-dir',
         'vite:rollup-options-plugins',
+        'vite:build-import-analysis',
+        'native:import-analysis-build',
         'native:reporter',
         'builtin:vite-load-fallback',
       ]),
     )
+  })
+
+  test('keeps the build-only plugins out of the dev pipeline', async () => {
+    const config = await resolveConfig(createInlineConfig(), 'serve')
+
+    const names = config.plugins.map(plugin => plugin.name)
+    expect(names).not.toContain('vite:build-html')
+    expect(names).not.toContain('vite:modulepreload-polyfill')
+    expect(names).not.toContain('vite:asset-import-meta-url')
+  })
+
+  test('does not register the module preload polyfill when it is disabled', async () => {
+    const config = await resolveConfig(
+      createInlineConfig({ build: { modulePreload: { polyfill: false } } }),
+      'build',
+    )
+
+    const names = config.plugins.map(plugin => plugin.name)
+    expect(names).toContain('vite:build-html')
+    expect(names).not.toContain('vite:modulepreload-polyfill')
   })
 })
 

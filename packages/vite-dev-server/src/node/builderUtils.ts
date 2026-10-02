@@ -13,7 +13,7 @@
  */
 
 import path from 'node:path'
-import type { RolldownOutput, RolldownWatcher } from 'rolldown'
+import type { InputOption, RolldownOutput, RolldownWatcher } from 'rolldown'
 import { withTrailingSlash } from '../shared/utils'
 import type { ResolvedBuildOptions } from './build'
 import type { ResolvedConfig } from './config'
@@ -68,6 +68,9 @@ export function stripAnsi(text: string): string {
   return text.replace(ansiPattern, '')
 }
 
+// The same as the HTML requests of the HTML plugin, which this module does not import
+const htmlEntryRE = /\.(?:html|htm)$/
+
 function unsupported(option: string, message: string): BuildProjectLog {
   return { code: UNSUPPORTED_OPTION, message: `[vrowzer] ${option}: ${message}` }
 }
@@ -76,14 +79,29 @@ function unsupported(option: string, message: string): BuildProjectLog {
  * Check the resolved build options against what the browser build supports.
  *
  * @param options - The resolved build options
+ * @param input - The top-level `input` of the resolved config
  * @returns The problems. An empty array when the options are supported.
  */
-export function validateBuildOptions(options: ResolvedBuildOptions): BuildProjectLog[] {
+export function validateBuildOptions(
+  options: ResolvedBuildOptions,
+  input?: InputOption
+): BuildProjectLog[] {
   const problems: BuildProjectLog[] = []
   if (!options.lib) {
-    problems.push(
-      unsupported('build.lib', 'HTML app builds are not supported yet. Set build.lib to build a library.')
-    )
+    // An app builds one HTML entry. Like `resolveRolldownOptions()`, take `build.rolldownOptions.input`,
+    // then the top-level `input`, and `/index.html` without them.
+    const option = options.rolldownOptions.input ? 'build.rolldownOptions.input' : 'input'
+    const entry = options.rolldownOptions.input || input
+    if (entry !== undefined && typeof entry !== 'string') {
+      problems.push(unsupported(option, 'only a single HTML entry is supported.'))
+    } else if (entry !== undefined && !htmlEntryRE.test(entry)) {
+      problems.push(
+        unsupported(
+          option,
+          `the entry of an app must be an HTML file, but got "${entry}". Set build.lib to build a library from it.`
+        )
+      )
+    }
   } else {
     const formats = options.lib.formats ?? ['es']
     const others = formats.filter(format => format !== 'es')
@@ -152,7 +170,7 @@ export function createBuildOptionsPlugin(state: { config?: ResolvedConfig }): Pl
     },
     configResolved(config) {
       state.config = config
-      const problems = validateBuildOptions(config.build)
+      const problems = validateBuildOptions(config.build, config.input)
       if (problems.length > 0) {
         throw new BuildProjectError(problems)
       }
