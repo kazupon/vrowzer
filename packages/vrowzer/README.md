@@ -295,24 +295,30 @@ vrowzer.reloadPreview()
 
 #### `build(options?): Promise<VrowzerBuildResult>`
 
-Builds the project for production in a build Worker, and resolves with the outputs and the warnings. Only library builds are supported for now:
+Builds the project for production in a build Worker, and resolves with the outputs and the warnings. It builds an app from its HTML entry, or a library with `build.lib`:
 
 ```ts
 // vite.config.ts
 VrowzerPlugin({ build: true })
 
-// application.ts
-const { files, warnings } = await vrowzer.build({
+// application.ts: an app from `/index.html`
+const app = await vrowzer.build({ base: './' })
+// app.files: { 'index.html': '...', 'assets/index-[hash].js': '...', 'assets/index-[hash].css': '...', ... }
+
+// a library from `/src/index.ts`
+const lib = await vrowzer.build({
   define: { __VERSION__: JSON.stringify('1.0.0') },
   build: {
     lib: { entry: '/src/index.ts', fileName: 'my-lib' },
     sourcemap: true
   }
 })
-// files: { 'my-lib.js': '...', 'my-lib.js.map': '...', 'my-lib.css': '...' }
+// lib.files: { 'my-lib.js': '...', 'my-lib.js.map': '...', 'my-lib.css': '...' }
 ```
 
 - It needs `build: true` in the options of `@vrowzer/vite-plugin`. Without it, `build()` rejects, and the host output does not include the builder (rolldown and the Vite build).
+- An app builds from one HTML entry: `/index.html`, or another HTML file of the project with `build.rolldownOptions.input`, e.g. `/nested/index.html`. As in Vite, the HTML is rewritten to the outputs, the CSS and the assets are emitted, and `?raw`, `?url`, `new URL('./file', import.meta.url)` and `/public` work. Dynamic imports become chunks, which are preloaded with their CSS (`modulepreload`, with its polyfill unless `build.modulePreload` turns it off).
+- `base` can be absolute, e.g. `/` (the default) or `/app/`, or relative (`./`), which works under any path. The outputs of an app run on a static server, without the Service Worker, the dev server or the HMR client.
 - The build uses the project files as they are when `build()` is called: the files of `ready()`, with the default `/index.html` when they have none, and the changes of `addFile()`, `updateFile()` and `deleteFile()` called before. Changes made later do not reach the running build.
 - Each build runs in a new build Worker, with the plugins of the Worker config bundled for production (`process.env.NODE_ENV` is `"production"` there). The build Worker is terminated when the build ends, so nothing stays between builds, and the previews are not affected.
 - The options are a subset of the Vite config (`base`, `mode`, `define` and `build`), merged over the Worker config. They are sent to the build Worker, so they must be values that `postMessage()` can copy, e.g. no functions. The builder sets `root` to `/`, and `build.write` and `build.emptyOutDir` to `false`.
@@ -321,14 +327,20 @@ const { files, warnings } = await vrowzer.build({
 - A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within the last 2.5 seconds, e.g. after short builds one after another, the next build waits before it creates its build Worker. The wait does not count toward `buildTimeout`.
 - A failed build rejects with `VrowzerBuildError`. Its `errors` have the message, code, plugin, module (`id`), location and code frame of each error, without colors, and its message summarizes the first one. A build that does not finish within `buildTimeout`, an aborted `signal` and `dispose()` reject it with an `Error`, and terminate the build Worker.
 
-Not supported yet:
+These options are not supported yet, and reject with a `VrowzerBuildError` whose code is `VROWZER_UNSUPPORTED_OPTION`:
 
-- HTML app builds, i.e. builds without `build.lib`
+- an app with more than one entry, or with an entry that is not HTML (build a JavaScript entry with `build.lib`)
 - library formats other than `es`, and libraries with more than one entry
 - CSS minification (`build.cssMinify`), and the `terser` and `esbuild` minifiers
 - `build.watch`, SSR builds, manifests and license files
 
-These options reject with a `VrowzerBuildError` whose code is `VROWZER_UNSUPPORTED_OPTION`. As in Vite, a library keeps `process.env.NODE_ENV` for its users; replace it with `define` if needed. The build is tested in Chromium only.
+These are not supported yet either, and the build does not check them:
+
+- `import.meta.glob()`, and variables in the paths of dynamic imports and of `new URL(..., import.meta.url)`. The build does not include the files that they point to, so they fail when they run.
+- the Workers of the project (`new Worker(new URL(...))` and `?worker`)
+- `.env` files, the options of tsconfig, and the CommonJS files of dependencies for production
+
+As in Vite, a library keeps `process.env.NODE_ENV` for its users; replace it with `define` if needed. CSS Modules are not tested yet, and the build is tested in Chromium only.
 
 #### `dispose(): Promise<void>`
 

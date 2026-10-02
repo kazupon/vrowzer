@@ -57,7 +57,7 @@ be partly applied then; write the file again to resynchronize.
 build(options?: VrowzerBuildOptions): Promise<VrowzerBuildResult>;
 ```
 
-Builds the project for production in a build Worker, e.g. as a library.
+Builds the project for production in a build Worker: an app from its HTML entry, or a library.
 
 The build uses the project files as they are when this method is called: the files of
 [Vrowzer.ready](#method-ready), with the default `/index.html` when they have none, and the changes of
@@ -65,8 +65,9 @@ the file methods called before. Changes made later are not included, even before
 ends.
 
 Each build runs in a new build Worker, with the Worker config bundled for production, and the
-build Worker is terminated when the build ends. The previews are not affected. Only library
-builds (`build.lib`) in the `es` format are supported for now, and one build at a time.
+build Worker is terminated when the build ends. The previews are not affected. An app builds
+from one HTML entry, and a library (`build.lib`) from one entry in the `es` format. One build
+runs at a time.
 
 A closed build Worker takes about 2 seconds to stop in Chromium. When 4 of them closed within
 the last 2.5 seconds, e.g. after short builds one after another, a build waits before it
