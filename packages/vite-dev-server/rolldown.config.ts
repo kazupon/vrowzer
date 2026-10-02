@@ -359,7 +359,10 @@ const transformerConfig = defineConfig({
       process: '@vrowzer/node-polyfill/process',
     },
   },
-  plugins: createTransformerPlugins({ copyAssets: true }),
+  plugins: [
+    createChunkedHostViteHelperIsolationPlugin(),
+    ...createTransformerPlugins({ copyAssets: true }),
+  ],
 })
 
 const webWorkerTransformerConfig = defineConfig({
@@ -626,6 +629,47 @@ function createHostViteHelperIsolationPlugin(): Plugin {
       return code
         .replace(declaration, 'function __vrowzer_internalInjectQuery(')
         .replace(toStringReference, '__vrowzer_internalInjectQuery.toString()')
+    },
+  }
+}
+
+function createChunkedHostViteHelperIsolationPlugin(): Plugin {
+  // The chunked build (`transformer.js`, `vite.js` and their chunks) needs the same isolation.
+  // The host Vite injects its own `__vite__injectQuery` import into a chunk that has a dynamic
+  // import of a variable, so a chunk that also declares the bundled helper fails to load
+  // ("Identifier '__vite__injectQuery' has already been declared"). Which chunk holds the helper
+  // depends on how rolldown groups the modules, so rename it in every chunk that declares it.
+  const declaration = 'function __vite__injectQuery('
+  const toStringReference = '__vite__injectQuery.toString()'
+  return {
+    name: 'isolate-host-vite-helper-chunked',
+    renderChunk(code) {
+      if (!code.includes(declaration)) {
+        return null
+      }
+
+      return code
+        .replace(declaration, 'function __vrowzer_internalInjectQuery(')
+        .replace(toStringReference, '__vrowzer_internalInjectQuery.toString()')
+    },
+    generateBundle(_options, bundle) {
+      let renamed = false
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'chunk') {
+          continue
+        }
+        if (output.code.includes(declaration)) {
+          this.error(
+            `[isolate-host-vite-helper-chunked] ${output.fileName} still declares Vite injectQuery`
+          )
+        }
+        renamed ||= output.code.includes('function __vrowzer_internalInjectQuery(')
+      }
+      if (!renamed) {
+        this.error(
+          '[isolate-host-vite-helper-chunked] Could not find Vite injectQuery implementation'
+        )
+      }
     },
   }
 }
