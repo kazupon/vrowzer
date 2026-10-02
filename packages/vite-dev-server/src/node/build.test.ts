@@ -14,7 +14,7 @@ import type {
   RolldownOutput,
   RollupLog,
 } from 'rolldown'
-import { afterAll, afterEach, assert, beforeAll, describe, expect, test, vi } from 'vite-plus/test'
+import { afterAll, afterEach, assert, beforeAll, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
 
 // NOTE(kazupon): vite-dev-server loads rolldown from the browser build (`@vrowzer/rolldown`).
 // The unit tests run in Node, so they build with the Node build of the same rolldown version.
@@ -1240,6 +1240,78 @@ describe('package resolution in library builds', () => {
     expect(chunk.code).toContain('browser-field')
     expect(chunk.code).toContain('module-field')
     expect(chunk.code).not.toMatch(/exports-node|exports-default|browser-main|module-main/)
+  })
+})
+
+describe('CommonJS dependencies in builds', () => {
+  let root: string
+  let nodeEnv: string | undefined
+
+  beforeEach(() => {
+    // A build sets NODE_ENV to production when it is not set yet
+    nodeEnv = process.env.NODE_ENV
+    delete process.env.NODE_ENV
+    root = fs.realpathSync(fs.mkdtempSync(join(os.tmpdir(), 'vrowzer-build-cjs-')))
+    // The layout of a manifest of `@vrowzer/vite-plugin` with the build option: the previews take
+    // the ES module bundled for development, and builds the original CommonJS files
+    const files: Record<string, string> = {
+      'index.html': `<script type="module" src="./main.js"></script>`,
+      'main.js': `import fixture from 'cjs-fixture'\nconsole.log(fixture.mode)`,
+      'node_modules/cjs-fixture/package.json': JSON.stringify({
+        name: 'cjs-fixture',
+        type: 'module',
+        exports: {
+          '.': {
+            development: '../.vrowzer-esm/cjs-fixture.js',
+            default: './.vrowzer-cjs/index.js',
+          },
+        },
+      }),
+      'node_modules/cjs-fixture/.vrowzer-cjs/package.json': JSON.stringify({
+        name: 'cjs-fixture',
+        exports: { '.': './index.js' },
+      }),
+      'node_modules/cjs-fixture/.vrowzer-cjs/index.js': [
+        `if (process.env.NODE_ENV === 'production') {`,
+        `  module.exports = require('./production.js')`,
+        `} else {`,
+        `  module.exports = require('./development.js')`,
+        `}`,
+      ].join('\n'),
+      'node_modules/cjs-fixture/.vrowzer-cjs/production.js': `exports.mode = 'cjs-production'`,
+      'node_modules/cjs-fixture/.vrowzer-cjs/development.js': `exports.mode = 'cjs-development'`,
+      'node_modules/.vrowzer-esm/cjs-fixture.js': `export default { mode: 'esm-development' }`,
+    }
+    for (const [file, content] of Object.entries(files)) {
+      const filePath = join(root, file)
+      fs.mkdirSync(resolve(filePath, '..'), { recursive: true })
+      fs.writeFileSync(filePath, content)
+    }
+  })
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+    if (nodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = nodeEnv
+    }
+  })
+
+  test('bundles the production branch of the original files', async () => {
+    const { output } = (await build({
+      root,
+      logLevel: 'silent',
+      build: { write: false, minify: false },
+    })) as RolldownOutput
+
+    const code = output
+      .filter((o): o is OutputChunk => o.type === 'chunk')
+      .map((chunk) => chunk.code)
+      .join('\n')
+    expect(code).toContain('cjs-production')
+    expect(code).not.toContain('cjs-development')
+    expect(code).not.toContain('esm-development')
   })
 })
 

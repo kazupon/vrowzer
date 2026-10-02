@@ -53,8 +53,17 @@ function hash(input: string): string {
 /**
  * Compute cache key from package.json dependencies, lockfile, and manifest options.
  */
-function computeCacheHash(root: string, manifestOptions?: VrowzerManifestOptions): string {
+function computeCacheHash(
+  root: string,
+  manifestOptions?: VrowzerManifestOptions,
+  build = false
+): string {
   const parts: string[] = []
+
+  // The manifest for builds has the original CommonJS files too
+  if (build) {
+    parts.push('build')
+  }
 
   // Include sourceDir in cache key so changes to it invalidate the cache
   if (manifestOptions?.sourceDir) {
@@ -171,8 +180,16 @@ function resolveManifestContents(
  * Create the auto-manifest plugin.
  *
  * This plugin is included in the `Vrowzer()` array when `auto: true`.
+ *
+ * @param manifestOptions - The manifest options of the plugin
+ * @param build - Whether `vrowzer.build()` is enabled. The manifest then has the original files of
+ * the CommonJS packages too.
+ * @returns The plugin
  */
-export function autoManifestPlugin(manifestOptions?: VrowzerManifestOptions): Plugin {
+export function autoManifestPlugin(
+  manifestOptions?: VrowzerManifestOptions,
+  build = false
+): Plugin {
   let sourceDir: string
   let manifest: ManifestResult | null = null
 
@@ -189,7 +206,7 @@ export function autoManifestPlugin(manifestOptions?: VrowzerManifestOptions): Pl
       const pkgDir = manifestOptions?.pkgDir ? resolve(root, manifestOptions.pkgDir) : root
 
       const cacheDir = getCacheDir(root)
-      const currentHash = computeCacheHash(pkgDir, manifestOptions)
+      const currentHash = computeCacheHash(pkgDir, manifestOptions, build)
       const cachedHash = readCachedHash(cacheDir)
 
       if (currentHash === cachedHash) {
@@ -208,6 +225,7 @@ export function autoManifestPlugin(manifestOptions?: VrowzerManifestOptions): Pl
         {
           pkgDir,
           sourceDir,
+          build,
           ...(manifestOptions?.targets ? { targets: manifestOptions.targets } : {})
         },
         msg => debug(msg)

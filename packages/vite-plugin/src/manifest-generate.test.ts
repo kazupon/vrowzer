@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { rolldown } from 'rolldown'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vite-plus/test'
-import { bundleCjsPackages } from './manifest-generate.ts'
+import { bundleCjsPackages, generateManifest, toBuildExports } from './manifest-generate.ts'
 
 import type { MockInstance } from 'vite-plus/test'
 
@@ -229,6 +229,121 @@ describe('CJS manifest bundle cleanup', () => {
       expect(realWrite?.mock.settledResults[0]?.type).toBe('rejected')
       expect(realClose).toHaveBeenCalledExactlyOnceWith()
       expect(realClose?.mock.settledResults).toEqual([{ type: 'fulfilled', value: undefined }])
+    })
+  })
+})
+
+describe('toBuildExports', () => {
+  test('gives the ES modules to the development condition, and the original files to the others', () => {
+    expect(
+      toBuildExports(
+        {
+          '.': { 'react-server': './server.js', default: './index.js' },
+          './feature': './feature.js',
+          './package.json': './package.json',
+          './utils/*': './utils/*.js'
+        },
+        {
+          '.': '../.vrowzer-esm/fixture.js',
+          './feature': '../.vrowzer-esm/fixture_feature.js'
+        }
+      )
+    ).toEqual({
+      '.': {
+        development: '../.vrowzer-esm/fixture.js',
+        default: {
+          'react-server': './.vrowzer-cjs/server.js',
+          default: './.vrowzer-cjs/index.js'
+        }
+      },
+      './feature': {
+        development: '../.vrowzer-esm/fixture_feature.js',
+        default: './.vrowzer-cjs/feature.js'
+      },
+      './package.json': './.vrowzer-cjs/package.json',
+      './utils/*': './.vrowzer-cjs/utils/*.js'
+    })
+  })
+
+  test('takes the exports of a string and of conditions as the main entry', () => {
+    expect(toBuildExports('./index.js', { '.': '../.vrowzer-esm/fixture.js' })).toEqual({
+      '.': { development: '../.vrowzer-esm/fixture.js', default: './.vrowzer-cjs/index.js' }
+    })
+    expect(
+      toBuildExports(
+        { require: './index.js', default: './index.js' },
+        { '.': '../.vrowzer-esm/fixture.js' }
+      )
+    ).toEqual({
+      '.': {
+        development: '../.vrowzer-esm/fixture.js',
+        default: { require: './.vrowzer-cjs/index.js', default: './.vrowzer-cjs/index.js' }
+      }
+    })
+  })
+})
+
+describe('manifests for builds', () => {
+  let projectDir: string
+
+  beforeEach(async () => {
+    projectDir = join(root, 'project')
+    const pkgDir = join(projectDir, 'node_modules', pkg.name)
+    mkdirSync(pkgDir, { recursive: true })
+    writeFileSync(
+      join(projectDir, 'package.json'),
+      JSON.stringify({ name: 'project', dependencies: { [pkg.name]: '1.0.0' } })
+    )
+    writeFileSync(join(projectDir, 'main.js'), `import '${pkg.name}'`)
+    writeFileSync(join(pkgDir, 'package.json'), JSON.stringify(pkg))
+    writeFileSync(join(pkgDir, 'index.js'), 'exports.answer = 42')
+    writeFileSync(join(pkgDir, 'feature.js'), 'exports.feature = "enabled"')
+
+    const actual = await vi.importActual<typeof import('rolldown')>('rolldown')
+    vi.mocked(rolldown).mockImplementation(actual.rolldown)
+  })
+
+  const readPackageJsonOf = (manifest: Awaited<ReturnType<typeof generateManifest>>) =>
+    JSON.parse(
+      readFileSync(
+        join(projectDir, manifest.nodeModules![`/node_modules/${pkg.name}/package.json`]!),
+        'utf8'
+      )
+    )
+
+  test('includes the original files of CommonJS packages, with the exports for builds', async () => {
+    const manifest = await generateManifest({ pkgDir: projectDir, build: true }, () => {})
+
+    expect(manifest.nodeModules).toMatchObject({
+      [`/node_modules/${pkg.name}/.vrowzer-cjs/package.json`]: expect.any(String),
+      [`/node_modules/${pkg.name}/.vrowzer-cjs/index.js`]: expect.any(String),
+      [`/node_modules/${pkg.name}/.vrowzer-cjs/feature.js`]: expect.any(String),
+      '/node_modules/.vrowzer-esm/fixture_cjs.js': expect.any(String)
+    })
+    const original = manifest.nodeModules![`/node_modules/${pkg.name}/.vrowzer-cjs/package.json`]!
+    expect(JSON.parse(readFileSync(join(projectDir, original), 'utf8'))).toEqual(pkg)
+    expect(readPackageJsonOf(manifest)).toEqual({
+      name: pkg.name,
+      type: 'module',
+      exports: {
+        '.': { development: '../.vrowzer-esm/fixture_cjs.js', default: './.vrowzer-cjs/index.js' },
+        './feature': {
+          development: '../.vrowzer-esm/fixture_cjs_feature.js',
+          default: './.vrowzer-cjs/feature.js'
+        }
+      }
+    })
+  })
+
+  test('keeps the manifest without builds as it is', async () => {
+    const manifest = await generateManifest({ pkgDir: projectDir }, () => {})
+
+    expect(
+      Object.keys(manifest.nodeModules!).filter(file => file.includes('.vrowzer-cjs'))
+    ).toEqual([])
+    expect(readPackageJsonOf(manifest).exports).toEqual({
+      '.': '../.vrowzer-esm/fixture_cjs.js',
+      './feature': '../.vrowzer-esm/fixture_cjs_feature.js'
     })
   })
 })

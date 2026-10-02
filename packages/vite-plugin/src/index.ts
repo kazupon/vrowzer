@@ -250,7 +250,7 @@ export function Vrowzer(options: VrowzerOptions = {}): Plugin[] {
 
   // Auto-manifest plugin: generates manifest and provides virtual:vrowzer-manifest
   if (resolvedOptions.auto) {
-    plugins.unshift(autoManifestPlugin(resolvedOptions.manifest))
+    plugins.unshift(autoManifestPlugin(resolvedOptions.manifest, resolvedOptions.build))
   }
 
   // IDE plugin: serves browser IDE at /__vrowzer__/ (experimental)

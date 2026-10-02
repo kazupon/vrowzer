@@ -17,6 +17,8 @@
  *   --project, -p   Directory to scan for source files (files field).
  *                   When omitted, uses the package.json directory.
  *                   Paths in the manifest are relative to this directory.
+ *   --build         Also include the original files of the CommonJS packages, for
+ *                   vrowzer.build() (the `build` option of the Vrowzer plugin)
  *   --inspect       Show cached or generated manifest summary (does not write file)
  *   --inspect --json Output full manifest as JSON
  *
@@ -47,6 +49,7 @@ function parseArgs(argv: string[]) {
   let projectPath: string | undefined
   let inspect = false
   let json = false
+  let build = false
   const targets: string[] = []
 
   for (let i = 0; i < args.length; i++) {
@@ -61,6 +64,8 @@ function parseArgs(argv: string[]) {
       targets.push(args[++i]!)
     } else if (arg === '--project' || arg === '-p') {
       projectPath = args[++i]
+    } else if (arg === '--build') {
+      build = true
     } else if (arg === '--inspect') {
       inspect = true
     } else if (arg === '--json') {
@@ -70,7 +75,7 @@ function parseArgs(argv: string[]) {
     }
   }
 
-  return { input, outputPath, manifestName, activeFile, targets, projectPath, inspect, json }
+  return { input, outputPath, manifestName, activeFile, targets, projectPath, inspect, json, build }
 }
 
 // --- Inspect ---
@@ -145,8 +150,17 @@ function printManifestSummary(manifest: ManifestResult, source: string): void {
 // --- Main ---
 
 async function main() {
-  const { input, outputPath, manifestName, activeFile, targets, projectPath, inspect, json } =
-    parseArgs(process.argv)
+  const {
+    input,
+    outputPath,
+    manifestName,
+    activeFile,
+    targets,
+    projectPath,
+    inspect,
+    json,
+    build
+  } = parseArgs(process.argv)
 
   // Resolve package directory
   let pkgDir: string
@@ -195,7 +209,8 @@ async function main() {
     targets,
     includeDevDependencies: true,
     name: manifestName,
-    activeFile
+    activeFile,
+    build
   })
 
   // Write output
