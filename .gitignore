@@ -34,4 +34,5 @@ packages/unplugin-service-worker/e2e/playground/add.wasm
 
 .notes/
 .plans/
+.issues/
 .todo.md
