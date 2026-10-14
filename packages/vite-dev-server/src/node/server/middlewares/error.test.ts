@@ -178,4 +178,30 @@ describe('errorMiddleware', () => {
       }),
     )
   })
+
+  test('should handle missing environments (e.g. in Service Worker environment)', async () => {
+    const server = {
+      config: {
+        base: '/',
+        logger: {
+          error: vi.fn(),
+        },
+      },
+    } as unknown as ViteDevServer
+    const app = new Hono<ViteEnv>()
+
+    app.get('/test', () => {
+      throw new Error('service worker middleware error')
+    })
+    app.onError(errorMiddleware(server, false))
+
+    const res = await app.request('/test')
+
+    expect(res.status).toBe(500)
+    const body = await res.text()
+    expect(body).toContain('<!DOCTYPE html>')
+    expect(body).toContain('service worker middleware error')
+    expect(server.config.logger.error).toHaveBeenCalled()
+  })
 })
+
